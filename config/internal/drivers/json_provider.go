@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"com.litelake.litecore/config/common"
+	"com.litelake.litecore/common"
 )
 
 type JsonConfigProvider struct {

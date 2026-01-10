@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"com.litelake.litecore/config/common"
+	"com.litelake.litecore/common"
 )
 
 // Helper function to create a temporary JSON file

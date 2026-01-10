@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/duke-git/lancet/v2/convertor"
-	"com.litelake.litecore/config/common"
+	"com.litelake.litecore/common"
 )
 
 // 定义特定错误

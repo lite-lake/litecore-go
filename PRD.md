@@ -8,7 +8,8 @@ server 服务器层 -> manager 管理器层
 
 应用核心启动器 bootstrap
 
-配置管理器 configMgr
+配置提供器 configProvider
+
 观测管理器 telemetryMgr
 日志管理器 loggerMgr
 数据库管理器 databaseMgr
@@ -51,14 +52,14 @@ telemetry:
 
 # 日志管理配置
 logger:
-  output_telemetry:
-    enabled: true
+  telemetry_enabled: true
+  telemetry_config:
     level: info
-  output_console:
-    enabled: true
+  console_enabled: true
+  console_config:
     level: info
-  output_file:
-    enabled: true
+  file_enabled: true
+  file_config:
     level: info
     path: ./applogs/
     rotation:

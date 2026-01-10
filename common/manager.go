@@ -1,13 +1,4 @@
-package manager
-
-// ManagerFactory 管理器工厂接口定义
-type ManagerFactory interface {
-	// Build 创建管理器实例
-	Build(driver string, config ConfigMap) Manager
-}
-
-// ConfigMap 配置数据类型
-type ConfigMap map[string]any
+package common
 
 // Manager 管理器接口定义
 type Manager interface {
