@@ -7,23 +7,31 @@ import (
 	"com.litelake.litecore/common"
 	"com.litelake.litecore/manager/cachemgr/internal/config"
 	"com.litelake.litecore/manager/cachemgr/internal/drivers"
+	"com.litelake.litecore/manager/loggermgr"
+	"com.litelake.litecore/manager/telemetrymgr"
 )
 
 // Build 创建缓存管理器实例
 // cfg: 缓存配置内容（包含 driver、redis_config、memory_config 等配置项）
+// loggerMgr: 可选的日志管理器
+// telemetryMgr: 可选的观测管理器
 // 返回实现 common.Manager 接口的缓存管理器
-func Build(cfg map[string]any) common.Manager {
+func Build(
+	cfg map[string]any,
+	loggerMgr loggermgr.LoggerManager,
+	telemetryMgr telemetrymgr.TelemetryManager,
+) common.Manager {
 	// 解析缓存配置
 	cacheConfig, err := config.ParseCacheConfigFromMap(cfg)
 	if err != nil {
 		// 配置解析失败，返回 none 管理器作为降级
-		return NewCacheManagerAdapter(drivers.NewNoneManager())
+		return NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 	}
 
 	// 验证配置
 	if err := cacheConfig.Validate(); err != nil {
 		// 配置验证失败，返回 none 管理器作为降级
-		return NewCacheManagerAdapter(drivers.NewNoneManager())
+		return NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 	}
 
 	// 根据驱动类型创建相应的管理器
@@ -33,20 +41,20 @@ func Build(cfg map[string]any) common.Manager {
 		redisMgr, err := drivers.NewRedisManager(cacheConfig.RedisConfig)
 		if err != nil {
 			// Redis 初始化失败，降级到 none 管理器
-			return NewCacheManagerAdapter(drivers.NewNoneManager())
+			return NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 		}
-		mgr = NewCacheManagerAdapter(redisMgr)
+		mgr = NewCacheManagerAdapter(redisMgr, loggerMgr, telemetryMgr)
 	case "memory":
 		memoryMgr := drivers.NewMemoryManager(
 			cacheConfig.MemoryConfig.MaxAge,
 			cacheConfig.MemoryConfig.MaxAge,
 		)
-		mgr = NewCacheManagerAdapter(memoryMgr)
+		mgr = NewCacheManagerAdapter(memoryMgr, loggerMgr, telemetryMgr)
 	case "none":
-		mgr = NewCacheManagerAdapter(drivers.NewNoneManager())
+		mgr = NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 	default:
 		// 未知驱动，返回 none 管理器
-		mgr = NewCacheManagerAdapter(drivers.NewNoneManager())
+		mgr = NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 	}
 
 	return mgr
@@ -54,8 +62,14 @@ func Build(cfg map[string]any) common.Manager {
 
 // BuildWithConfig 使用配置结构体创建缓存管理器
 // cacheConfig: 缓存配置结构体
+// loggerMgr: 可选的日志管理器
+// telemetryMgr: 可选的观测管理器
 // 返回实现 common.Manager 接口的缓存管理器和可能的错误
-func BuildWithConfig(cacheConfig *config.CacheConfig) (common.Manager, error) {
+func BuildWithConfig(
+	cacheConfig *config.CacheConfig,
+	loggerMgr loggermgr.LoggerManager,
+	telemetryMgr telemetrymgr.TelemetryManager,
+) (common.Manager, error) {
 	if err := cacheConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid cache config: %w", err)
 	}
@@ -67,15 +81,15 @@ func BuildWithConfig(cacheConfig *config.CacheConfig) (common.Manager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create redis manager: %w", err)
 		}
-		mgr = NewCacheManagerAdapter(redisMgr)
+		mgr = NewCacheManagerAdapter(redisMgr, loggerMgr, telemetryMgr)
 	case "memory":
 		memoryMgr := drivers.NewMemoryManager(
 			cacheConfig.MemoryConfig.MaxAge,
 			cacheConfig.MemoryConfig.MaxAge,
 		)
-		mgr = NewCacheManagerAdapter(memoryMgr)
+		mgr = NewCacheManagerAdapter(memoryMgr, loggerMgr, telemetryMgr)
 	case "none":
-		mgr = NewCacheManagerAdapter(drivers.NewNoneManager())
+		mgr = NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 	default:
 		return nil, fmt.Errorf("unsupported driver: %s", cacheConfig.Driver)
 	}
@@ -84,7 +98,13 @@ func BuildWithConfig(cacheConfig *config.CacheConfig) (common.Manager, error) {
 }
 
 // BuildRedis 创建 Redis 缓存管理器（便捷方法）
-func BuildRedis(host string, port int, password string, db int) common.Manager {
+// loggerMgr: 可选的日志管理器
+// telemetryMgr: 可选的观测管理器
+func BuildRedis(
+	host string, port int, password string, db int,
+	loggerMgr loggermgr.LoggerManager,
+	telemetryMgr telemetrymgr.TelemetryManager,
+) common.Manager {
 	cfg := &config.RedisConfig{
 		Host:            host,
 		Port:            port,
@@ -97,19 +117,30 @@ func BuildRedis(host string, port int, password string, db int) common.Manager {
 
 	redisMgr, err := drivers.NewRedisManager(cfg)
 	if err != nil {
-		return NewCacheManagerAdapter(drivers.NewNoneManager())
+		return NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 	}
 
-	return NewCacheManagerAdapter(redisMgr)
+	return NewCacheManagerAdapter(redisMgr, loggerMgr, telemetryMgr)
 }
 
 // BuildMemory 创建内存缓存管理器（便捷方法）
-func BuildMemory(defaultExpiration, cleanupInterval time.Duration) common.Manager {
+// loggerMgr: 可选的日志管理器
+// telemetryMgr: 可选的观测管理器
+func BuildMemory(
+	defaultExpiration, cleanupInterval time.Duration,
+	loggerMgr loggermgr.LoggerManager,
+	telemetryMgr telemetrymgr.TelemetryManager,
+) common.Manager {
 	memoryMgr := drivers.NewMemoryManager(defaultExpiration, cleanupInterval)
-	return NewCacheManagerAdapter(memoryMgr)
+	return NewCacheManagerAdapter(memoryMgr, loggerMgr, telemetryMgr)
 }
 
 // BuildNone 创建空缓存管理器（便捷方法）
-func BuildNone() common.Manager {
-	return NewCacheManagerAdapter(drivers.NewNoneManager())
+// loggerMgr: 可选的日志管理器
+// telemetryMgr: 可选的观测管理器
+func BuildNone(
+	loggerMgr loggermgr.LoggerManager,
+	telemetryMgr telemetrymgr.TelemetryManager,
+) common.Manager {
+	return NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 }
