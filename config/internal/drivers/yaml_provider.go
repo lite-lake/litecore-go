@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"com.litelake.litecore/common"
+
 	"gopkg.in/yaml.v3"
-	"com.litelake.litecore/config/common"
 )
 
 type YamlConfigProvider struct {

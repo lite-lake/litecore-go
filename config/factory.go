@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 
-	"com.litelake.litecore/config/common"
+	"com.litelake.litecore/common"
 	"com.litelake.litecore/config/internal/drivers"
 )
 

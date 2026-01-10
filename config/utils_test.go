@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"com.litelake.litecore/config/common"
+	"com.litelake.litecore/common"
 	"com.litelake.litecore/config/internal/drivers"
 )
 
