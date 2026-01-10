@@ -1,25 +1,37 @@
 package drivers
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+
 	"com.litelake.litecore/config/common"
 )
 
 type JsonConfigProvider struct {
-	configData map[string]any
+	base *BaseConfigProvider
 }
 
 func NewJsonConfigProvider(filePath string) (common.ConfigProvider, error) {
-	// TODO 从文件里读取并初始化
-	demoData := map[string]any{
-		"key1": "value1",
-		"key2": 123,
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read json file: %w", err)
 	}
+
+	var configData map[string]any
+	if err := json.Unmarshal(data, &configData); err != nil {
+		return nil, fmt.Errorf("failed to parse json: %w", err)
+	}
+
 	return &JsonConfigProvider{
-		configData: demoData,
+		base: NewBaseConfigProvider(configData),
 	}, nil
 }
 
-func (p *JsonConfigProvider) GetConfig(key string) (any, error) {
-	// TODO
-	return nil, nil
+func (p *JsonConfigProvider) Get(key string) (any, error) {
+	return p.base.Get(key)
+}
+
+func (p *JsonConfigProvider) Has(key string) bool {
+	return p.base.Has(key)
 }

@@ -1,25 +1,37 @@
 package drivers
 
 import (
+	"fmt"
+	"os"
+
+	"gopkg.in/yaml.v3"
 	"com.litelake.litecore/config/common"
 )
 
 type YamlConfigProvider struct {
-	configData map[string]any
+	base *BaseConfigProvider
 }
 
 func NewYamlConfigProvider(filePath string) (common.ConfigProvider, error) {
-	// TODO 从文件里读取并初始化
-	demoData := map[string]any{
-		"key1": "value1",
-		"key2": 123,
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read yaml file: %w", err)
 	}
+
+	var configData map[string]any
+	if err := yaml.Unmarshal(data, &configData); err != nil {
+		return nil, fmt.Errorf("failed to parse yaml: %w", err)
+	}
+
 	return &YamlConfigProvider{
-		configData: demoData,
+		base: NewBaseConfigProvider(configData),
 	}, nil
 }
 
-func (p *YamlConfigProvider) GetConfig(key string) (any, error) {
-	// TODO
-	return nil, nil
+func (p *YamlConfigProvider) Get(key string) (any, error) {
+	return p.base.Get(key)
+}
+
+func (p *YamlConfigProvider) Has(key string) bool {
+	return p.base.Has(key)
 }
