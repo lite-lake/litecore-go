@@ -72,25 +72,23 @@ logger:
 database:
   driver: mysql # 可选：mysql / postgresql / sqlite
   sqlite_config: # driver=sqlite 的配置
-    path: ./data.db
+    dsn: "file:./data.db?cache=shared&mode=rwc"
+    pool_config:
+      max_open_conns: 1
   postgresql_config: # driver=postgresql 的配置
-    host: localhost
-    port: 5432
-    user: postgres
-    password: password
-    database: lite_demo
-    max_open_conns: 10
-    max_idle_conns: 5
-    conn_max_lifetime: 30s
+    dsn: "host=localhost port=5432 user=postgres password=password dbname=lite_demo sslmode=disable"
+    pool_config:
+      max_open_conns: 10
+      max_idle_conns: 5
+      conn_max_lifetime: 30s
+      conn_max_idle_time: 5m
   mysql_config: # driver=mysql 的配置
-    host: localhost
-    port: 3306
-    user: root
-    password: password
-    database: lite_demo
-    max_open_conns: 10
-    max_idle_conns: 5
-    conn_max_lifetime: 30s
+    dsn: "root:password@tcp(localhost:3306)/lite_demo?charset=utf8mb4&parseTime=True&loc=Local"
+    pool_config:
+      max_open_conns: 10
+      max_idle_conns: 5
+      conn_max_lifetime: 30s
+      conn_max_idle_time: 5m
 
 # 缓存管理配置
 cache:
