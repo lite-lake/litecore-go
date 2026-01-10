@@ -6,9 +6,6 @@ require (
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/duke-git/lancet/v2 v2.3.8
 	github.com/gin-gonic/gin v1.11.0
-	github.com/go-sql-driver/mysql v1.9.3
-	github.com/lib/pq v1.10.9
-	github.com/mattn/go-sqlite3 v1.14.33
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/redis/go-redis/v9 v9.17.2
 	go.opentelemetry.io/otel v1.39.0
@@ -22,6 +19,10 @@ require (
 	go.uber.org/zap v1.27.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
+	gorm.io/driver/mysql v1.5.7
+	gorm.io/driver/postgres v1.5.9
+	gorm.io/driver/sqlite v1.5.7
+	gorm.io/gorm v1.25.12
 )
 
 require (
