@@ -1,5 +1,9 @@
 # LiteCore 应用核心框架（GO版)
 
+## 架构分层
+
+server 服务器层 -> manager 管理器层
+
 ## 功能组件
 
 应用核心启动器 bootstrap
