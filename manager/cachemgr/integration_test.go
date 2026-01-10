@@ -33,7 +33,7 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 1. 创建缓存管理器
-			mgr := Build(tt.config)
+			mgr := Build(tt.config, nil, nil)
 			if mgr == nil {
 				t.Fatal("Build() should not return nil")
 			}
@@ -160,7 +160,7 @@ func TestIntegration_DriverSwitching(t *testing.T) {
 			}
 		}
 
-		mgr := Build(cfg)
+		mgr := Build(cfg, nil, nil)
 		currentMgr := mgr.ManagerName()
 
 		if prevMgr != "" && prevMgr == currentMgr && drivers[0] != drivers[1] {
@@ -237,7 +237,7 @@ func TestIntegration_ConfigVariations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr := Build(tt.config)
+			mgr := Build(tt.config, nil, nil)
 			if mgr.ManagerName() != tt.expectMgr {
 				t.Errorf("ManagerName() = %v, want %v", mgr.ManagerName(), tt.expectMgr)
 			}
@@ -269,7 +269,7 @@ func TestIntegration_LifecycleManagement(t *testing.T) {
 		},
 	}
 
-	mgr := Build(cfg)
+	mgr := Build(cfg, nil, nil)
 	cacheMgr := mgr.(CacheManager)
 	ctx := context.Background()
 
@@ -329,7 +329,7 @@ func TestIntegration_StressTest(t *testing.T) {
 		},
 	}
 
-	mgr := Build(cfg)
+	mgr := Build(cfg, nil, nil)
 	cacheMgr := mgr.(CacheManager)
 	defer cacheMgr.Close()
 
@@ -373,7 +373,7 @@ func TestIntegration_ErrorRecovery(t *testing.T) {
 		},
 	}
 
-	mgr := Build(cfg)
+	mgr := Build(cfg, nil, nil)
 	cacheMgr := mgr.(CacheManager)
 	defer cacheMgr.Close()
 

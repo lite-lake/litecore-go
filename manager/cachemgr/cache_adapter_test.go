@@ -10,7 +10,7 @@ import (
 
 func TestCacheManagerAdapter_WithMemoryDriver(t *testing.T) {
 	memoryMgr := drivers.NewMemoryManager(5*time.Minute, 10*time.Minute)
-	adapter := NewCacheManagerAdapter(memoryMgr)
+	adapter := NewCacheManagerAdapter(memoryMgr, nil, nil)
 
 	ctx := context.Background()
 
@@ -47,7 +47,7 @@ func TestCacheManagerAdapter_WithMemoryDriver(t *testing.T) {
 
 func TestCacheManagerAdapter_WithNoneDriver(t *testing.T) {
 	noneMgr := drivers.NewNoneManager()
-	adapter := NewCacheManagerAdapter(noneMgr)
+	adapter := NewCacheManagerAdapter(noneMgr, nil, nil)
 
 	ctx := context.Background()
 
@@ -85,7 +85,7 @@ func TestCacheManagerAdapter_WithNoneDriver(t *testing.T) {
 
 func TestCacheManagerAdapter_BatchOperations(t *testing.T) {
 	memoryMgr := drivers.NewMemoryManager(5*time.Minute, 10*time.Minute)
-	adapter := NewCacheManagerAdapter(memoryMgr)
+	adapter := NewCacheManagerAdapter(memoryMgr, nil, nil)
 
 	ctx := context.Background()
 
@@ -117,7 +117,7 @@ func TestCacheManagerAdapter_BatchOperations(t *testing.T) {
 
 func TestCacheManagerAdapter_CounterOperations(t *testing.T) {
 	memoryMgr := drivers.NewMemoryManager(5*time.Minute, 10*time.Minute)
-	adapter := NewCacheManagerAdapter(memoryMgr)
+	adapter := NewCacheManagerAdapter(memoryMgr, nil, nil)
 
 	ctx := context.Background()
 
@@ -142,7 +142,7 @@ func TestCacheManagerAdapter_CounterOperations(t *testing.T) {
 
 func TestCacheManagerAdapter_TTL(t *testing.T) {
 	memoryMgr := drivers.NewMemoryManager(5*time.Minute, 10*time.Minute)
-	adapter := NewCacheManagerAdapter(memoryMgr)
+	adapter := NewCacheManagerAdapter(memoryMgr, nil, nil)
 
 	ctx := context.Background()
 
@@ -168,7 +168,7 @@ func TestCacheManagerAdapter_TTL(t *testing.T) {
 
 func TestCacheManagerAdapter_Clear(t *testing.T) {
 	memoryMgr := drivers.NewMemoryManager(5*time.Minute, 10*time.Minute)
-	adapter := NewCacheManagerAdapter(memoryMgr)
+	adapter := NewCacheManagerAdapter(memoryMgr, nil, nil)
 
 	ctx := context.Background()
 
@@ -194,7 +194,7 @@ func TestCacheManagerAdapter_Clear(t *testing.T) {
 
 func TestCacheManagerAdapter_Close(t *testing.T) {
 	memoryMgr := drivers.NewMemoryManager(5*time.Minute, 10*time.Minute)
-	adapter := NewCacheManagerAdapter(memoryMgr)
+	adapter := NewCacheManagerAdapter(memoryMgr, nil, nil)
 
 	err := adapter.Close()
 	if err != nil {

@@ -51,7 +51,7 @@ func TestBuild(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr := Build(tt.cfg)
+			mgr := Build(tt.cfg, nil, nil)
 			if mgr.ManagerName() != tt.wantMgr {
 				t.Errorf("Build() ManagerName() = %v, want %v", mgr.ManagerName(), tt.wantMgr)
 			}
@@ -105,7 +105,7 @@ func TestBuildWithConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr, err := BuildWithConfig(tt.cfg)
+			mgr, err := BuildWithConfig(tt.cfg, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BuildWithConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -118,16 +118,16 @@ func TestBuildWithConfig(t *testing.T) {
 }
 
 func TestBuildMemory(t *testing.T) {
-	mgr := BuildMemory(5*time.Minute, 10*time.Minute)
+	mgr := BuildMemory(5*time.Minute, 10*time.Minute, nil, nil)
 	if mgr.ManagerName() != "memory-cache" {
 		t.Errorf("BuildMemory() ManagerName() = %v, want %v", mgr.ManagerName(), "memory-cache")
 	}
 }
 
 func TestBuildNone(t *testing.T) {
-	mgr := BuildNone()
+	mgr := BuildNone(nil, nil)
 	if mgr.ManagerName() != "none-cache" {
-		t.Errorf("BuildNone() ManagerName() = %v, want %v", mgr.ManagerName(), "none-cache")
+		t.Errorf("BuildNone(nil, nil) ManagerName() = %v, want %v", mgr.ManagerName(), "none-cache")
 	}
 }
 
@@ -192,7 +192,7 @@ func TestBuild_DegradationScenarios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr := Build(tt.cfg)
+			mgr := Build(tt.cfg, nil, nil)
 			if mgr.ManagerName() != tt.expectMgr {
 				t.Errorf("%s: ManagerName() = %v, want %v", tt.description, mgr.ManagerName(), tt.expectMgr)
 			}
@@ -235,7 +235,7 @@ func TestBuildWithConfig_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := BuildWithConfig(tt.cfg)
+			_, err := BuildWithConfig(tt.cfg, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BuildWithConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -250,7 +250,7 @@ func TestBuildWithConfig_Errors(t *testing.T) {
 
 func TestBuildRedis_ConvenienceMethod(t *testing.T) {
 	// 使用无效的主机名测试降级
-	mgr := BuildRedis("invalid-host-that-does-not-exist", 9999, "", 0)
+	mgr := BuildRedis("invalid-host-that-does-not-exist", 9999, "", 0, nil, nil)
 	if mgr.ManagerName() != "none-cache" {
 		t.Errorf("BuildRedis() with invalid host should return none-cache, got %v", mgr.ManagerName())
 	}
