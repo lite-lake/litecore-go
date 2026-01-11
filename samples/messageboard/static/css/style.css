@@ -246,6 +246,37 @@ h1, h2, h3, h4, h5, h6 {
     padding: 16px 20px;
     margin-bottom: 10px;
     min-width: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+}
+
+.toast-message {
+    flex: 1;
+    color: var(--color-primary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.toast-close {
+    background: transparent;
+    border: none;
+    color: var(--color-muted);
+    font-size: 20px;
+    line-height: 1;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.toast-close:hover {
+    color: var(--color-primary);
 }
 
 .toast-success {
