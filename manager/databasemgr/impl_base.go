@@ -1,11 +1,13 @@
-package observability
+package databasemgr
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/rand"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -15,22 +17,167 @@ import (
 	"gorm.io/gorm"
 
 	"com.litelake.litecore/manager/loggermgr"
+	"com.litelake.litecore/manager/telemetrymgr"
 )
 
-// observabilityPlugin GORM 可观测性插件
+// databaseManagerBaseImpl 数据库管理器基础实现
+type databaseManagerBaseImpl struct {
+	loggerMgr    loggermgr.LoggerManager      `inject:""`
+	telemetryMgr telemetrymgr.TelemetryManager `inject:""`
+	logger       loggermgr.Logger
+	tracer       trace.Tracer
+	meter        metric.Meter
+
+	// 指标
+	queryDuration    metric.Float64Histogram
+	queryCount       metric.Int64Counter
+	queryErrorCount  metric.Int64Counter
+	slowQueryCount   metric.Int64Counter
+	transactionCount metric.Int64Counter
+	connectionPool   metric.Float64Gauge
+
+	// 可观测性插件
+	observabilityPlugin *observabilityPlugin
+
+	// 数据库连接
+	name   string
+	driver string
+	db     *gorm.DB
+	sqlDB  *sql.DB
+	mu     sync.RWMutex
+}
+
+// newDatabaseManagerBaseImpl 创建基础实现
+func newDatabaseManagerBaseImpl(name, driver string, db *gorm.DB) *databaseManagerBaseImpl {
+	sqlDB, _ := db.DB()
+	return &databaseManagerBaseImpl{
+		name:             name,
+		driver:           driver,
+		db:               db,
+		sqlDB:            sqlDB,
+		observabilityPlugin: newObservabilityPlugin(),
+	}
+}
+
+// initObservability 初始化可观测性组件（在依赖注入后调用）
+func (b *databaseManagerBaseImpl) initObservability(cfg *DatabaseConfig) {
+	// 初始化 logger
+	if b.loggerMgr != nil {
+		b.logger = b.loggerMgr.Logger("databasemgr")
+	}
+
+	// 初始化 telemetry
+	if b.telemetryMgr != nil {
+		b.tracer = b.telemetryMgr.Tracer("databasemgr")
+		b.meter = b.telemetryMgr.Meter("databasemgr")
+
+		// 创建指标
+		b.createQueryMetrics()
+	}
+
+	// 设置可观测性插件
+	if b.observabilityPlugin != nil {
+		b.observabilityPlugin.Setup(
+			b.logger,
+			b.tracer,
+			b.meter,
+			b.queryDuration,
+			b.queryCount,
+			b.queryErrorCount,
+			b.slowQueryCount,
+			b.transactionCount,
+			b.connectionPool,
+		)
+
+		// 设置可观测性配置
+		if cfg != nil && cfg.ObservabilityConfig != nil {
+			b.observabilityPlugin.SetConfig(
+				cfg.ObservabilityConfig.SlowQueryThreshold,
+				cfg.ObservabilityConfig.LogSQL,
+				cfg.ObservabilityConfig.SampleRate,
+			)
+		}
+
+		// 注册 GORM 插件
+		if b.logger != nil || b.tracer != nil {
+			b.db.Use(b.observabilityPlugin)
+		}
+	}
+}
+
+// createQueryMetrics 创建查询相关指标
+func (b *databaseManagerBaseImpl) createQueryMetrics() {
+	if b.meter == nil {
+		return
+	}
+
+	// 查询耗时直方图
+	b.queryDuration, _ = b.meter.Float64Histogram(
+		"db.query.duration",
+		metric.WithDescription("Database query duration in seconds"),
+		metric.WithUnit("s"),
+	)
+
+	// 查询计数器
+	b.queryCount, _ = b.meter.Int64Counter(
+		"db.query.count",
+		metric.WithDescription("Database query count"),
+		metric.WithUnit("{query}"),
+	)
+
+	// 查询错误计数器
+	b.queryErrorCount, _ = b.meter.Int64Counter(
+		"db.query.error_count",
+		metric.WithDescription("Database query error count"),
+		metric.WithUnit("{error}"),
+	)
+
+	// 慢查询计数器
+	b.slowQueryCount, _ = b.meter.Int64Counter(
+		"db.query.slow_count",
+		metric.WithDescription("Database slow query count"),
+		metric.WithUnit("{slow_query}"),
+	)
+
+	// 事务计数器
+	b.transactionCount, _ = b.meter.Int64Counter(
+		"db.transaction.count",
+		metric.WithDescription("Database transaction count"),
+		metric.WithUnit("{transaction}"),
+	)
+
+	// 连接池状态指标
+	b.connectionPool, _ = b.meter.Float64Gauge(
+		"db.connection.pool",
+		metric.WithDescription("Database connection pool statistics"),
+		metric.WithUnit("{conn}"),
+	)
+}
+
+// ========== observabilityPlugin GORM 可观测性插件 ==========
+
 type observabilityPlugin struct {
-	logger               loggermgr.Logger
-	tracer               trace.Tracer
-	meter                metric.Meter
-	queryDuration        metric.Float64Histogram
-	queryCount           metric.Int64Counter
-	queryErrorCount      metric.Int64Counter
-	slowQueryCount       metric.Int64Counter
-	transactionCount     metric.Int64Counter
-	connectionPool       metric.Float64Gauge
-	slowQueryThreshold   time.Duration
-	logSQL               bool
-	sampleRate           float64
+	logger             loggermgr.Logger
+	tracer             trace.Tracer
+	meter              metric.Meter
+	queryDuration      metric.Float64Histogram
+	queryCount         metric.Int64Counter
+	queryErrorCount    metric.Int64Counter
+	slowQueryCount     metric.Int64Counter
+	transactionCount   metric.Int64Counter
+	connectionPool     metric.Float64Gauge
+	slowQueryThreshold time.Duration
+	logSQL             bool
+	sampleRate         float64
+}
+
+// newObservabilityPlugin 创建可观测性插件
+func newObservabilityPlugin() *observabilityPlugin {
+	return &observabilityPlugin{
+		slowQueryThreshold: 1 * time.Second,
+		logSQL:             false,
+		sampleRate:         1.0,
+	}
 }
 
 // Setup 设置观测组件和指标
@@ -94,9 +241,6 @@ func (p *observabilityPlugin) registerCallbacks(db *gorm.DB) {
 	// 删除回调
 	db.Callback().Delete().Before("gorm:delete").Register("observability:before_delete", p.beforeDelete)
 	db.Callback().Delete().After("gorm:delete").Register("observability:after_delete", p.afterDelete)
-
-	// 注意：GORM 的事务操作没有回调接口，事务追踪需要在应用层处理
-	// 或通过 GORM 插件的其他方式实现
 }
 
 // Query 操作
@@ -305,7 +449,7 @@ func sanitizeSQL(sql string) string {
 	}
 
 	for _, pattern := range passwordPatterns {
-		re := regexp.MustCompile(`(?i)`+pattern)
+		re := regexp.MustCompile(`(?i)` + pattern)
 		sql = re.ReplaceAllString(sql, "***")
 	}
 
@@ -314,34 +458,29 @@ func sanitizeSQL(sql string) string {
 	sensitiveFields := []string{"password", "pwd", "token", "secret", "api_key"}
 	for _, field := range sensitiveFields {
 		// 匹配 field = 'value' 或 field = "value"
-		re := regexp.MustCompile(`(?i)(`+field+`\s*=\s*)'[^']*'`)
+		re := regexp.MustCompile(`(?i)(` + field + `\s*=\s*)'[^']*'`)
 		sql = re.ReplaceAllString(sql, "$1'***'")
-		re = regexp.MustCompile(`(?i)(`+field+`\s*=\s*)"[^"]*"`)
+		re = regexp.MustCompile(`(?i)(` + field + `\s*=\s*)"[^"]*"`)
 		sql = re.ReplaceAllString(sql, `$1"***"`)
 	}
 
 	return strings.TrimSpace(sql)
 }
 
-// GetObservabilityPlugin 导出插件构造函数（供 manager.go 使用）
-func NewObservabilityPlugin() *observabilityPlugin {
-	return &observabilityPlugin{
-		slowQueryThreshold: 1 * time.Second,
-		logSQL:             false,
-		sampleRate:         1.0,
+// ========== 工具函数 ==========
+
+// ValidateContext 验证上下文是否有效
+func ValidateContext(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("context cannot be nil")
 	}
+	return nil
 }
 
-// Helper function to create common attributes
-func getCommonAttributes(operation, table string, err error) []attribute.KeyValue {
-	return []attribute.KeyValue{
-		attribute.String("operation", operation),
-		attribute.String("table", table),
-		attribute.String("status", getStatus(err)),
+// ValidateDSN 验证 DSN 是否有效
+func ValidateDSN(dsn string) error {
+	if dsn == "" {
+		return fmt.Errorf("DSN cannot be empty")
 	}
-}
-
-// GetSlowQueryKey 获取慢查询的唯一标识
-func GetSlowQueryKey(table, operation string) string {
-	return fmt.Sprintf("%s:%s", table, operation)
+	return nil
 }

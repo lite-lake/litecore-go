@@ -1,15 +1,16 @@
-# Database Manager
+# Database Manager - 数据库管理器
 
-数据库管理器，支持 MySQL、PostgreSQL 和 SQLite，基于 GORM 实现。
+提供统一的数据库管理功能,基于 GORM 支持多种数据库驱动。
 
 ## 特性
 
-- **多数据库支持** - 支持 MySQL、PostgreSQL、SQLite，以及无数据库模式
-- **依赖注入支持** - 通过 Container 自动注入配置和依赖
-- **连接池管理** - 支持连接池配置和状态监控
-- **事务支持** - 完整的事务管理和自动迁移功能
-- **生命周期管理** - 集成服务启停接口，支持健康检查
-- **可观测性** - 集成 OpenTelemetry，支持链路追踪、指标和日志
+- **多数据库支持** - 支持 MySQL、PostgreSQL、SQLite 和 None(空实现)驱动
+- **连接池管理** - 统一的连接池配置和统计监控
+- **可观测性集成** - 内置日志、链路追踪和指标收集
+- **事务管理** - 支持事务操作和自动回滚
+- **自动迁移** - 基于 GORM 的数据库 Schema 迁移能力
+- **配置驱动** - 支持通过配置提供者创建实例
+- **依赖注入** - 集成日志管理器和可观测性管理器
 
 ## 快速开始
 
@@ -18,457 +19,624 @@ package main
 
 import (
     "log"
-
     "com.litelake.litecore/manager/databasemgr"
 )
 
 func main() {
-    // 创建数据库管理器
-    mgr := databasemgr.NewManager("primary")
-
-    // 通过依赖注入容器初始化（推荐）
-    // container.Register("config", configProvider)
-    // container.Register("database.primary", mgr)
-    // container.InjectAll()
-    // mgr.OnStart()
-    // defer mgr.OnStop()
-
-    // 或者直接启动（使用默认配置或通过配置文件）
-    if err := mgr.OnStart(); err != nil {
+    // 方式1: 使用工厂函数直接创建
+    cfg := map[string]any{
+        "dsn": "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local",
+        "pool_config": map[string]any{
+            "max_open_conns":     100,
+            "max_idle_conns":     10,
+            "conn_max_lifetime":  3600,
+            "conn_max_idle_time": 600,
+        },
+    }
+    dbMgr, err := databasemgr.Build("mysql", cfg)
+    if err != nil {
         log.Fatal(err)
     }
-    defer mgr.OnStop()
+    defer dbMgr.Close()
 
-    // 使用 GORM 操作数据库
-    db := mgr.DB()
-    db.AutoMigrate(&User{})
+    // 使用 GORM 进行数据库操作
+    type User struct {
+        ID   uint   `gorm:"primarykey"`
+        Name string `gorm:"size:255"`
+    }
 
-    db.Create(&User{Name: "Alice", Age: 30})
-    db.Create(&User{Name: "Bob", Age: 25})
+    // 自动迁移
+    if err := dbMgr.AutoMigrate(&User{}); err != nil {
+        log.Fatal(err)
+    }
 
-    var users []User
-    db.Find(&users)
-}
+    // 创建记录
+    user := User{Name: "Alice"}
+    if err := dbMgr.DB().Create(&user).Error; err != nil {
+        log.Fatal(err)
+    }
 
-type User struct {
-    ID   uint
-    Name string
-    Age  int
+    // 查询记录
+    var result User
+    if err := dbMgr.DB().First(&result, user.ID).Error; err != nil {
+        log.Fatal(err)
+    }
+
+    log.Printf("User: %+v\n", result)
 }
 ```
 
-## 创建管理器
+## 创建数据库管理器
 
-### 使用依赖注入（推荐）
+### 使用 Build 函数
+
+`Build` 函数是最简单的创建方式,直接指定驱动类型和配置:
 
 ```go
-// 创建管理器
-mgr := databasemgr.NewManager("primary")
+// MySQL
+mysqlCfg := map[string]any{
+    "dsn": "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local",
+}
+dbMgr, err := databasemgr.Build("mysql", mysqlCfg)
 
-// 注册到容器
-container.Register("config", configProvider)
-container.Register("database.primary", mgr)
+// PostgreSQL
+postgresqlCfg := map[string]any{
+    "dsn": "host=localhost port=5432 user=postgres password=password dbname=mydb sslmode=disable",
+}
+dbMgr, err := databasemgr.Build("postgresql", postgresqlCfg)
 
-// 注入依赖并启动
-container.InjectAll()
-mgr.OnStart()
-defer mgr.OnStop()
+// SQLite
+sqliteCfg := map[string]any{
+    "dsn": "file:./cache.db?cache=shared&mode=rwc",
+}
+dbMgr, err := databasemgr.Build("sqlite", sqliteCfg)
+
+// None (空实现,用于测试或不需要数据库的场景)
+dbMgr := databasemgr.Build("none", nil)
 ```
 
-### 配置 MySQL 数据库
+### 使用 BuildWithConfigProvider
 
-在配置文件中添加数据库配置：
+`BuildWithConfigProvider` 从配置提供者读取配置,适合依赖注入场景:
+
+```go
+import "com.litelake.litecore/common"
+
+// 创建配置提供者
+provider := config.NewYamlConfigProvider("config.yaml")
+
+// 从配置创建数据库管理器
+dbMgr, err := databasemgr.BuildWithConfigProvider(provider)
+if err != nil {
+    log.Fatal(err)
+}
+defer dbMgr.Close()
+```
+
+配置文件示例(YAML):
 
 ```yaml
-database.primary:
+database:
   driver: mysql
+
   mysql_config:
-    dsn: root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local
+    dsn: "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local"
     pool_config:
-      max_open_conns: 20
+      max_open_conns: 100
       max_idle_conns: 10
-      conn_max_lifetime: 30s
-      conn_max_idle_time: 5m
+      conn_max_lifetime: 3600  # 秒
+      conn_max_idle_time: 600   # 秒
+
   observability_config:
-    slow_query_threshold: 1s
-    log_sql: false
-    sample_rate: 1.0
+    slow_query_threshold: 1s   # 慢查询阈值
+    log_sql: false              # 是否记录完整 SQL
+    sample_rate: 1.0            # 采样率 (0.0-1.0)
 ```
 
-### 配置 PostgreSQL 数据库
+### 使用构造函数
 
-```yaml
-database.primary:
-  driver: postgresql
-  postgresql_config:
-    dsn: host=localhost port=5432 user=postgres password=password dbname=mydb sslmode=disable
-    pool_config:
-      max_open_conns: 20
-      max_idle_conns: 10
-```
-
-### 配置 SQLite 数据库
-
-```yaml
-database.primary:
-  driver: sqlite
-  sqlite_config:
-    dsn: file:./data.db?cache=shared&mode=rwc
-```
-
-## GORM 操作
-
-DatabaseManager 封装了完整的 GORM 功能，支持所有 GORM 操作：
+对于更精细的控制,可以使用各驱动的构造函数:
 
 ```go
-db := mgr.DB()
+// MySQL
+mysqlCfg := &databasemgr.MySQLConfig{
+    DSN: "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local",
+    PoolConfig: &databasemgr.PoolConfig{
+        MaxOpenConns:    100,
+        MaxIdleConns:    10,
+        ConnMaxLifetime: 3600 * time.Second,
+        ConnMaxIdleTime: 600 * time.Second,
+    },
+}
+dbMgr, err := databasemgr.NewDatabaseManagerMySQLImpl(mysqlCfg)
 
-// 创建
-db.Create(&User{Name: "Alice"})
+// PostgreSQL
+postgresqlCfg := &databasemgr.PostgreSQLConfig{
+    DSN: "host=localhost port=5432 user=postgres password=password dbname=mydb sslmode=disable",
+    PoolConfig: &databasemgr.PoolConfig{...},
+}
+dbMgr, err := databasemgr.NewDatabaseManagerPostgreSQLImpl(postgresqlCfg)
 
-// 查询
+// SQLite
+sqliteCfg := &databasemgr.SQLiteConfig{
+    DSN: "file:./cache.db?cache=shared&mode=rwc",
+    PoolConfig: &databasemgr.PoolConfig{
+        MaxOpenConns: 1,
+        MaxIdleConns: 1,
+    },
+}
+dbMgr, err := databasemgr.NewDatabaseManagerSQLiteImpl(sqliteCfg)
+
+// None
+dbMgr := databasemgr.NewDatabaseManagerNoneImpl()
+```
+
+## GORM 核心
+
+### 获取 DB 实例
+
+所有 GORM 操作都通过 `DB()` 方法获取数据库实例:
+
+```go
+db := dbMgr.DB()
+
+// 简单查询
 var user User
 db.First(&user, 1)
 
-var users []User
-db.Where("age > ?", 18).Find(&users)
+// 条件查询
+db.Where("name = ?", "Alice").First(&user)
 
-// 更新
-db.Model(&user).Update("age", 31)
+// 创建记录
+db.Create(&User{Name: "Bob"})
 
-// 删除
+// 更新记录
+db.Model(&user).Update("Name", "Charlie")
+
+// 删除记录
 db.Delete(&user)
 ```
 
-也可以使用便捷方法：
+### 指定模型
 
 ```go
-// 指定模型
-mgr.Model(&User{}).Where("age > ?", 18).Find(&users)
+// 使用 Model 方法
+dbMgr.Model(&User{}).Where("age > ?", 18).Find(&users)
 
-// 指定表名
-mgr.Table("users").Count(&count)
+// 使用 Table 方法(直接操作表名)
+dbMgr.Table("users").Count(&count)
+```
 
-// 带上下文
-ctx := context.Background()
-mgr.WithContext(ctx).First(&user, 1)
+### 使用上下文
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+// 所有操作都会使用这个上下文
+dbMgr.WithContext(ctx).Find(&users)
 ```
 
 ## 事务管理
 
 ### 自动事务
 
+`Transaction` 方法会自动处理提交和回滚:
+
 ```go
-err := mgr.Transaction(func(tx *gorm.DB) error {
+err := dbMgr.Transaction(func(tx *gorm.DB) error {
+    // 创建用户
     if err := tx.Create(&User{Name: "Alice"}).Error; err != nil {
-        return err // 返回错误会回滚
+        return err  // 返回错误会触发回滚
     }
-    if err := tx.Create(&User{Name: "Bob"}).Error; err != nil {
-        return err
+
+    // 创建订单
+    if err := tx.Create(&Order{UserID: 1}).Error; err != nil {
+        return err  // 返回错误会触发回滚
     }
-    return nil // 返回 nil 会提交
+
+    return nil  // 返回 nil 会提交事务
 })
 if err != nil {
-    log.Fatal(err)
+    log.Error("transaction failed", err)
 }
 ```
 
 ### 手动事务
 
 ```go
-tx := mgr.Begin()
-defer func() {
-    if r := recover(); r != nil {
-        tx.Rollback()
-        panic(r)
-    }
-}()
+// 开始事务
+tx := dbMgr.Begin()
 
-if err := tx.Create(&User{Name: "Alice"}).Error; err != nil {
-    tx.Rollback()
-    log.Fatal(err)
-}
-
+// 执行操作
 if err := tx.Create(&User{Name: "Bob"}).Error; err != nil {
-    tx.Rollback()
+    tx.Rollback()  // 回滚
     log.Fatal(err)
 }
 
+if err := tx.Create(&Order{UserID: 2}).Error; err != nil {
+    tx.Rollback()  // 回滚
+    log.Fatal(err)
+}
+
+// 提交事务
 tx.Commit()
 ```
 
 ## 迁移管理
 
+### 自动迁移
+
 ```go
-// 自动迁移
-err := mgr.AutoMigrate(&User{}, &Product{}, &Order{})
+// 自动迁移表结构
+err := dbMgr.AutoMigrate(&User{}, &Product{}, &Order{})
 if err != nil {
     log.Fatal(err)
 }
+```
 
-// 使用迁移器进行高级操作
-migrator := mgr.Migrator()
+### 使用 Migrator
+
+```go
+migrator := dbMgr.Migrator()
+
+// 检查表是否存在
+if migrator.HasTable(&User{}) {
+    log.Println("Users table exists")
+}
 
 // 创建表
 migrator.CreateTable(&User{})
 
-// 添加列
-migrator.AddColumn(&User{}, "Email", "string")
+// 删除表(慎用)
+migrator.DropTable(&User{})
 
-// 创建索引
-migrator.CreateIndex(&User{}, "Name")
+// 重命名表
+migrator.RenameTable(&User{}, "users_new")
+
+// 添加列
+migrator.AddColumn(&User{}, "Email")
 ```
 
-## 连接池管理
+## 连接管理
 
-### 配置连接池
+### 健康检查
 
 ```go
-cfg := &config.DatabaseConfig{
-    Driver: "mysql",
-    MySQLConfig: &config.MySQLConfig{
-        DSN: "user:password@tcp(localhost:3306)/dbname",
-        PoolConfig: &config.PoolConfig{
-            MaxOpenConns:    20,             // 最大打开连接数
-            MaxIdleConns:    10,             // 最大空闲连接数
-            ConnMaxLifetime: 30 * time.Second, // 连接最大存活时间
-            ConnMaxIdleTime: 5 * time.Minute,  // 连接最大空闲时间
-        },
-    },
+if err := dbMgr.Health(); err != nil {
+    log.Error("database health check failed", err)
 }
 ```
 
-### 监控连接池
+### Ping 检查
 
 ```go
-stats := mgr.Stats()
-fmt.Printf("Open Connections: %d\n", stats.OpenConnections)
-fmt.Printf("In Use: %d\n", stats.InUse)
-fmt.Printf("Idle: %d\n", stats.Idle)
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+if err := dbMgr.Ping(ctx); err != nil {
+    log.Error("database ping failed", err)
+}
+```
+
+### 连接池统计
+
+```go
+stats := dbMgr.Stats()
+log.Printf("OpenConnections: %d", stats.OpenConnections)
+log.Printf("InUse: %d", stats.InUse)
+log.Printf("Idle: %d", stats.Idle)
+log.Printf("WaitCount: %d", stats.WaitCount)
+log.Printf("WaitDuration: %v", stats.WaitDuration)
+```
+
+### 关闭连接
+
+```go
+defer dbMgr.Close()
+```
+
+## 原生 SQL
+
+### 执行查询
+
+```go
+type Result struct {
+    ID   int
+    Name string
+}
+
+var results []Result
+dbMgr.Raw("SELECT id, name FROM users WHERE age > ?", 18).Scan(&results)
+```
+
+### 执行命令
+
+```go
+dbMgr.Exec("UPDATE users SET status = ? WHERE id = ?", "active", 1)
 ```
 
 ## 可观测性
 
-Manager 支持完整的 OpenTelemetry 可观测性，包括链路追踪、指标和日志。
+### 日志
 
-### 启用可观测性
+Database Manager 会自动记录:
+- 所有数据库操作的耗时
+- 慢查询(Warn 级别)
+- 错误(Error 级别)
 
-通过依赖注入容器接入 loggermgr 和 telemetrymgr：
+### 链路追踪
+
+所有数据库操作都会自动创建 span,包含:
+- 操作类型(query/create/update/delete)
+- 表名
+- 执行状态
+- 错误信息(如果有)
+
+### 指标
+
+收集的指标包括:
+- `db.query.duration` - 查询耗时直方图
+- `db.query.count` - 查询计数器
+- `db.query.error_count` - 错误计数器
+- `db.query.slow_count` - 慢查询计数器
+- `db.transaction.count` - 事务计数器
+- `db.connection.pool` - 连接池状态
+
+### 配置可观测性
 
 ```go
-import (
-    "com.litelake.litecore/manager/databasemgr"
-    "com.litelake.litecore/manager/loggermgr"
-    "com.litelake.litecore/manager/telemetrymgr"
-)
-
-// 注册到容器
-container.Register("config", configProvider)
-container.Register("logger.default", loggermgr.NewManager("default"))
-container.Register("telemetry.default", telemetrymgr.NewManager("default"))
-container.Register("database.default", databasemgr.NewManager("default"))
-
-// 启动容器
-container.Start()
-defer container.Stop()
-```
-
-### 可观测性配置
-
-在数据库配置中添加可观测性选项：
-
-```go
-cfg := &config.DatabaseConfig{
+cfg := &databasemgr.DatabaseConfig{
     Driver: "mysql",
-    MySQLConfig: &config.MySQLConfig{
-        DSN: "user:password@tcp(localhost:3306)/dbname",
+    MySQLConfig: &databasemgr.MySQLConfig{
+        DSN: "...",
     },
-    ObservabilityConfig: &config.ObservabilityConfig{
+    ObservabilityConfig: &databasemgr.ObservabilityConfig{
         SlowQueryThreshold: 1 * time.Second,  // 慢查询阈值
-        LogSQL:             false,              // 是否记录完整 SQL
-        SampleRate:         0.1,                // 10% 采样率
+        LogSQL:             false,             // 是否记录完整 SQL(生产环境建议关闭)
+        SampleRate:         1.0,               // 采样率(0.0-1.0)
     },
-}
-```
-
-### 配置选项
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `SlowQueryThreshold` | Duration | 1s | 慢查询阈值，超过此时长的查询会被标记 |
-| `LogSQL` | bool | false | 是否在日志中记录完整 SQL（生产环境建议关闭） |
-| `SampleRate` | float64 | 1.0 | 采样率（0.0-1.0），1.0 表示全采样 |
-
-### 自动采集的指标
-
-| 指标名称 | 类型 | 描述 | 属性 |
-|---------|------|------|------|
-| `db.query.duration` | Histogram | 查询耗时（秒） | operation, table, status |
-| `db.query.count` | Counter | 查询总数 | operation, table, status |
-| `db.query.error_count` | Counter | 查询错误数 | operation, table, status |
-| `db.query.slow_count` | Counter | 慢查询数 | operation, table |
-| `db.connection.pool` | Gauge | 连接池状态 | state (open/in_use/idle) |
-
-### 日志级别
-
-- **Debug** - 正常数据库操作（仅包含操作类型、表名、耗时）
-- **Warn** - 慢查询告警
-- **Error** - 数据库操作失败
-
-### SQL 脱敏
-
-当 `LogSQL=true` 时，插件会自动脱敏 SQL 语句中的敏感信息：
-- 密码字段（password, pwd, token, secret, api_key）
-- 限制 SQL 语句长度（最大 500 字符）
-
-### 示例输出
-
-```
-[DEBUG] database operation success operation=query table=users duration=0.002
-[WARN] slow database query detected operation=query table=orders duration=1.234 threshold=1.000
-[ERROR] database operation failed operation=update table=users error="duplicate key" duration=0.005
-```
-
-## 健康检查
-
-```go
-// 简单检查
-if err := mgr.Health(); err != nil {
-    log.Printf("Database unhealthy: %v", err)
-}
-
-// 带超时的检查
-ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-defer cancel()
-if err := mgr.Ping(ctx); err != nil {
-    log.Printf("Ping failed: %v", err)
-}
-```
-
-## 生命周期管理
-
-DatabaseManager 实现了 `common.Manager` 接口，可以集成到服务生命周期中：
-
-```go
-// 启动时调用
-if err := mgr.OnStart(); err != nil {
-    log.Fatal(err)
-}
-
-// 停止时调用
-if err := mgr.OnStop(); err != nil {
-    log.Fatal(err)
 }
 ```
 
 ## API
 
-### 接口
+### 工厂函数
 
-| 接口 | 说明 |
-|------|------|
-| `DatabaseManager` | 数据库管理器核心接口 |
+```go
+// Build 创建数据库管理器实例
+func Build(driverType string, driverConfig map[string]any) (DatabaseManager, error)
+
+// BuildWithConfigProvider 从配置提供者创建数据库管理器实例
+func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (DatabaseManager, error)
+```
 
 ### 构造函数
 
-| 方法 | 说明 |
-|------|------|
-| `NewManager(name)` | 创建数据库管理器实例 |
+```go
+// NewDatabaseManagerMySQLImpl 创建 MySQL 数据库管理器
+func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (DatabaseManager, error)
 
-### 核心方法
+// NewDatabaseManagerPostgreSQLImpl 创建 PostgreSQL 数据库管理器
+func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (DatabaseManager, error)
 
-| 分类 | 方法 | 说明 |
-|------|------|------|
-| 生命周期 | `ManagerName()` | 返回管理器名称 |
-|  | `Health()` | 检查健康状态 |
-|  | `OnStart()` | 启动初始化 |
-|  | `OnStop()` | 停止清理 |
-| GORM | `DB()` | 获取 GORM 实例 |
-|  | `Model(value)` | 指定模型 |
-|  | `Table(name)` | 指定表名 |
-|  | `WithContext(ctx)` | 设置上下文 |
-| 事务 | `Transaction(fn, opts)` | 执行事务 |
-|  | `Begin(opts)` | 开启事务 |
-| 迁移 | `AutoMigrate(models)` | 自动迁移 |
-|  | `Migrator()` | 获取迁移器 |
-| 连接 | `Driver()` | 获取驱动类型 |
-|  | `Ping(ctx)` | 检查连接 |
-|  | `Stats()` | 连接池状态 |
-|  | `Close()` | 关闭连接 |
-| SQL | `Exec(sql, values)` | 执行原生 SQL |
-|  | `Raw(sql, values)` | 执行原生查询 |
+// NewDatabaseManagerSQLiteImpl 创建 SQLite 数据库管理器
+func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (DatabaseManager, error)
+
+// NewDatabaseManagerNoneImpl 创建空数据库管理器
+func NewDatabaseManagerNoneImpl() DatabaseManager
+```
+
+### DatabaseManager 接口
+
+#### 生命周期管理
+
+```go
+// ManagerName 返回管理器名称
+ManagerName() string
+
+// Health 检查管理器健康状态
+Health() error
+
+// OnStart 在服务器启动时触发
+OnStart() error
+
+// OnStop 在服务器停止时触发
+OnStop() error
+```
+
+#### GORM 核心
+
+```go
+// DB 获取 GORM 数据库实例
+DB() *gorm.DB
+
+// Model 指定模型进行操作
+Model(value any) *gorm.DB
+
+// Table 指定表名进行操作
+Table(name string) *gorm.DB
+
+// WithContext 设置上下文
+WithContext(ctx context.Context) *gorm.DB
+```
+
+#### 事务管理
+
+```go
+// Transaction 执行事务
+Transaction(fn func(*gorm.DB) error, opts ...*sql.TxOptions) error
+
+// Begin 开启事务
+Begin(opts ...*sql.TxOptions) *gorm.DB
+```
+
+#### 迁移管理
+
+```go
+// AutoMigrate 自动迁移
+AutoMigrate(models ...any) error
+
+// Migrator 获取迁移器
+Migrator() gorm.Migrator
+```
+
+#### 连接管理
+
+```go
+// Driver 获取驱动类型
+Driver() string
+
+// Ping 检查数据库连接
+Ping(ctx context.Context) error
+
+// Stats 获取连接池统计信息
+Stats() sql.DBStats
+
+// Close 关闭数据库连接
+Close() error
+```
+
+#### 原生 SQL
+
+```go
+// Exec 执行原生 SQL
+Exec(sql string, values ...any) *gorm.DB
+
+// Raw 执行原生查询
+Raw(sql string, values ...any) *gorm.DB
+```
 
 ## 配置
 
-### 驱动类型
+### DatabaseConfig
 
-| 驱动 | 说明 |
-|------|------|
-| `mysql` | MySQL 数据库 |
-| `postgresql` | PostgreSQL 数据库 |
-| `sqlite` | SQLite 数据库 |
-| `none` | 无数据库（空管理器） |
+```go
+type DatabaseConfig struct {
+    Driver              string                 // 驱动类型
+    SQLiteConfig        *SQLiteConfig          // SQLite 配置
+    PostgreSQLConfig    *PostgreSQLConfig      // PostgreSQL 配置
+    MySQLConfig         *MySQLConfig           // MySQL 配置
+    ObservabilityConfig *ObservabilityConfig   // 可观测性配置
+}
+```
+
+### PoolConfig
+
+```go
+type PoolConfig struct {
+    MaxOpenConns    int           // 最大打开连接数
+    MaxIdleConns    int           // 最大空闲连接数
+    ConnMaxLifetime time.Duration // 连接最大存活时间
+    ConnMaxIdleTime time.Duration // 连接最大空闲时间
+}
+```
+
+### MySQLConfig
+
+```go
+type MySQLConfig struct {
+    DSN        string      // MySQL DSN
+    PoolConfig *PoolConfig // 连接池配置
+}
+```
+
+### PostgreSQLConfig
+
+```go
+type PostgreSQLConfig struct {
+    DSN        string      // PostgreSQL DSN
+    PoolConfig *PoolConfig // 连接池配置
+}
+```
+
+### SQLiteConfig
+
+```go
+type SQLiteConfig struct {
+    DSN        string      // SQLite DSN
+    PoolConfig *PoolConfig // 连接池配置
+}
+```
+
+### ObservabilityConfig
+
+```go
+type ObservabilityConfig struct {
+    SlowQueryThreshold time.Duration // 慢查询阈值
+    LogSQL             bool          // 是否记录完整 SQL
+    SampleRate         float64       // 采样率(0.0-1.0)
+}
+```
+
+## 最佳实践
+
+### 连接池配置
+
+- **MySQL/PostgreSQL**: 根据应用并发量调整,通常 MaxOpenConns 设置为 CPU 核心数的 2-4 倍
+- **SQLite**: MaxOpenConns 通常设置为 1,避免写锁冲突
+- **监控**: 使用 `Stats()` 定期检查连接池状态,避免连接泄漏
+
+### 事务使用
+
+- 优先使用 `Transaction` 方法,自动处理回滚
+- 保持事务简短,避免长时间持有锁
+- 在事务中避免外部调用(如 HTTP 请求)
+
+### 错误处理
+
+- 始终检查数据库操作的错误
+- 使用 `Health()` 方法实现健康检查端点
+- 对于连接错误,考虑实现重试机制
+
+### 性能优化
+
+- 使用索引优化查询性能
+- 批量操作使用 `CreateInBatches` 或 `Clauses`
+- 合理使用 `Preload` 避免 N+1 查询
+- 对于只读查询,使用 `Read().Unscoped()` 提高性能
+
+### 安全建议
+
+- 使用参数化查询,避免 SQL 注入
+- 敏感信息(如密码)不要记录在日志中
+- 生产环境关闭 `LogSQL`,避免敏感数据泄漏
+- 使用环境变量管理数据库凭证
 
 ### DSN 格式
 
-**SQLite**
-```
-file:./data.db?cache=shared&mode=rwc
-```
-
-**MySQL**
+**MySQL**:
 ```
 user:password@tcp(localhost:3306)/dbname?charset=utf8mb4&parseTime=True&loc=Local
 ```
 
-**PostgreSQL**
+**PostgreSQL**:
 ```
 host=localhost port=5432 user=postgres password=password dbname=dbname sslmode=disable
 ```
 
-### 连接池配置
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `MaxOpenConns` | int | 10 | 最大打开连接数，0 表示无限制 |
-| `MaxIdleConns` | int | 5 | 最大空闲连接数 |
-| `ConnMaxLifetime` | Duration | 30s | 连接最大存活时间 |
-| `ConnMaxIdleTime` | Duration | 5m | 连接最大空闲时间 |
+**SQLite**:
+```
+file:./cache.db?cache=shared&mode=rwc
+```
 
 ## 错误处理
 
-管理器采用优雅降级策略：
-
-1. 配置解析失败 → 降级到 None 驱动
-2. 驱动初始化失败 → 降级到 None 驱动
-3. 未知驱动类型 → 降级到 None 驱动
+所有错误都遵循 Go 的错误处理惯例:
 
 ```go
-// OnStart 会返回错误，但不会终止程序
-if err := mgr.OnStart(); err != nil {
-    log.Printf("Database manager initialization failed, using none driver: %v", err)
-}
-
-// 检查是否为 None 管理器
-if mgr.Driver() == "none" {
-    log.Println("Using none database driver")
+if err := dbMgr.AutoMigrate(&User{}); err != nil {
+    log.Printf("AutoMigrate failed: %v", err)
+    return err
 }
 ```
+
+常见错误:
+- 配置错误: 检查 DSN 和连接池配置
+- 连接错误: 检查数据库服务是否运行,网络是否可达
+- 迁移错误: 检查表结构定义是否正确
+- 查询错误: 检查 SQL 语法和数据类型匹配
 
 ## 线程安全
 
-DatabaseManager 的所有方法都是线程安全的，可以在多个 goroutine 中并发使用。
-
-```go
-// 并发安全
-var wg sync.WaitGroup
-for i := 0; i < 10; i++ {
-    wg.Add(1)
-    go func() {
-        defer wg.Done()
-        var users []User
-        mgr.DB().Find(&users)
-    }()
-}
-wg.Wait()
-```
+DatabaseManager 的所有方法都是线程安全的,可以并发使用。但对于需要多次操作的场景,建议使用事务确保一致性。

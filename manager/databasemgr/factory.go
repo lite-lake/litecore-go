@@ -4,90 +4,139 @@ import (
 	"fmt"
 
 	"com.litelake.litecore/common"
-	"com.litelake.litecore/manager/databasemgr/internal/config"
-	"com.litelake.litecore/manager/databasemgr/internal/drivers"
 )
 
-// Deprecated: Factory 模式已废弃，请使用依赖注入模式。
-// 推荐使用方式：
-//   mgr := databasemgr.NewManager("primary")
-//   container.Register(mgr)
-//   container.InjectAll()
-//   mgr.OnStart()
-type Factory struct{}
-
-// Deprecated: 请使用 NewManager 替代
-// NewFactory 创建数据库管理器工厂
-func NewFactory() *Factory {
-	return &Factory{}
-}
-
-// Deprecated: 请使用依赖注入模式替代
 // Build 创建数据库管理器实例
-func (f *Factory) Build(driver string, cfg map[string]any) common.BaseManager {
-	databaseConfig, err := config.ParseDatabaseConfigFromMap(cfg)
-	if err != nil {
-		return drivers.NewNoneDatabaseManager()
-	}
-
-	if driver != "" {
-		databaseConfig.Driver = driver
-	}
-
-	if err := databaseConfig.Validate(); err != nil {
-		return drivers.NewNoneDatabaseManager()
-	}
-
-	switch databaseConfig.Driver {
+// driverType: 驱动类型 ("mysql", "postgresql", "sqlite", "none")
+// driverConfig: 驱动配置 (根据驱动类型不同而不同)
+//   - mysql: 传递给 parseMySQLConfig 的 map[string]any
+//   - postgresql: 传递给 parsePostgreSQLConfig 的 map[string]any
+//   - sqlite: 传递给 parseSQLiteConfig 的 map[string]any
+//   - none: 忽略
+//
+// 返回 DatabaseManager 接口实例和可能的错误
+// 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
+func Build(
+	driverType string,
+	driverConfig map[string]any,
+) (DatabaseManager, error) {
+	switch driverType {
 	case "mysql":
-		mgr, err := drivers.NewMySQLManager(databaseConfig)
+		mysqlConfig, err := parseMySQLConfig(driverConfig)
 		if err != nil {
-			return drivers.NewNoneDatabaseManager()
+			return nil, err
 		}
-		return mgr
+
+		mgr, err := NewDatabaseManagerMySQLImpl(mysqlConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		return mgr, nil
 
 	case "postgresql":
-		mgr, err := drivers.NewPostgreSQLManager(databaseConfig)
+		postgresqlConfig, err := parsePostgreSQLConfig(driverConfig)
 		if err != nil {
-			return drivers.NewNoneDatabaseManager()
+			return nil, err
 		}
-		return mgr
+
+		mgr, err := NewDatabaseManagerPostgreSQLImpl(postgresqlConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		return mgr, nil
 
 	case "sqlite":
-		mgr, err := drivers.NewSQLiteManager(databaseConfig)
+		sqliteConfig, err := parseSQLiteConfig(driverConfig)
 		if err != nil {
-			return drivers.NewNoneDatabaseManager()
+			return nil, err
 		}
-		return mgr
+
+		mgr, err := NewDatabaseManagerSQLiteImpl(sqliteConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		return mgr, nil
 
 	case "none":
-		return drivers.NewNoneDatabaseManager()
+		mgr := NewDatabaseManagerNoneImpl()
+		return mgr, nil
 
 	default:
-		return drivers.NewNoneDatabaseManager()
+		return nil, fmt.Errorf("unsupported driver type: %s", driverType)
 	}
 }
 
-// Deprecated: 请使用依赖注入模式替代
-// BuildWithConfig 使用配置结构体创建数据库管理器
-func (f *Factory) BuildWithConfig(databaseConfig *config.DatabaseConfig) (DatabaseManager, error) {
-	if databaseConfig == nil {
-		return nil, fmt.Errorf("database config is required")
-	}
-	if err := databaseConfig.Validate(); err != nil {
-		return nil, err
+// BuildWithConfigProvider 从配置提供者创建数据库管理器实例
+// 自动从配置提供者读取 database.driver 和对应驱动配置
+// 配置路径：
+//   - database.driver: 驱动类型 ("mysql", "postgresql", "sqlite", "none")
+//   - database.mysql_config: MySQL 驱动配置（当 driver=mysql 时使用）
+//   - database.postgresql_config: PostgreSQL 驱动配置（当 driver=postgresql 时使用）
+//   - database.sqlite_config: SQLite 驱动配置（当 driver=sqlite 时使用）
+//
+// 返回 DatabaseManager 接口实例和可能的错误
+// 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
+func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (DatabaseManager, error) {
+	if configProvider == nil {
+		return nil, fmt.Errorf("configProvider cannot be nil")
 	}
 
-	switch databaseConfig.Driver {
-	case "mysql":
-		return drivers.NewMySQLManager(databaseConfig)
-	case "postgresql":
-		return drivers.NewPostgreSQLManager(databaseConfig)
-	case "sqlite":
-		return drivers.NewSQLiteManager(databaseConfig)
-	case "none":
-		return drivers.NewNoneDatabaseManager(), nil
-	default:
-		return drivers.NewNoneDatabaseManager(), nil
+	// 1. 读取驱动类型 database.driver
+	driverType, err := configProvider.Get("database.driver")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database.driver: %w", err)
 	}
+
+	driverTypeStr, ok := driverType.(string)
+	if !ok {
+		return nil, fmt.Errorf("database.driver must be a string, got %T", driverType)
+	}
+
+	// 2. 根据驱动类型读取对应配置
+	var driverConfig map[string]any
+
+	switch driverTypeStr {
+	case "mysql":
+		mysqlConfig, err := configProvider.Get("database.mysql_config")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get database.mysql_config: %w", err)
+		}
+		driverConfig, ok = mysqlConfig.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("database.mysql_config must be a map, got %T", mysqlConfig)
+		}
+
+	case "postgresql":
+		postgresqlConfig, err := configProvider.Get("database.postgresql_config")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get database.postgresql_config: %w", err)
+		}
+		driverConfig, ok = postgresqlConfig.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("database.postgresql_config must be a map, got %T", postgresqlConfig)
+		}
+
+	case "sqlite":
+		sqliteConfig, err := configProvider.Get("database.sqlite_config")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get database.sqlite_config: %w", err)
+		}
+		driverConfig, ok = sqliteConfig.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("database.sqlite_config must be a map, got %T", sqliteConfig)
+		}
+
+	case "none":
+		// none 驱动不需要配置
+		driverConfig = nil
+
+	default:
+		return nil, fmt.Errorf("unsupported driver type: %s (must be mysql, postgresql, sqlite, or none)", driverTypeStr)
+	}
+
+	// 3. 调用 Build 函数创建实例
+	return Build(driverTypeStr, driverConfig)
 }

@@ -1,4 +1,4 @@
-package config
+package databasemgr
 
 import (
 	"fmt"
@@ -58,6 +58,18 @@ type ObservabilityConfig struct {
 
 	// SampleRate 采样率（0.0-1.0），1.0 表示全部记录
 	SampleRate float64 `yaml:"sample_rate"`
+}
+
+// DefaultConfig 返回默认配置
+func DefaultConfig() *DatabaseConfig {
+	return &DatabaseConfig{
+		Driver: "none",
+		ObservabilityConfig: &ObservabilityConfig{
+			SlowQueryThreshold: 1 * time.Second,
+			LogSQL:             false,
+			SampleRate:         1.0,
+		},
+	}
 }
 
 // Validate 验证配置
@@ -184,16 +196,9 @@ func isValidDriver(driver string) bool {
 	}
 }
 
-// ParseFromMap 从 map 解析数据库配置（别名，保持兼容性）
-func ParseFromMap(cfg map[string]any) (*DatabaseConfig, error) {
-	return ParseDatabaseConfigFromMap(cfg)
-}
-
 // ParseDatabaseConfigFromMap 从 map 解析数据库配置
 func ParseDatabaseConfigFromMap(cfg map[string]any) (*DatabaseConfig, error) {
-	databaseConfig := &DatabaseConfig{
-		Driver: "none",
-	}
+	databaseConfig := DefaultConfig()
 
 	if cfg == nil {
 		return databaseConfig, nil
