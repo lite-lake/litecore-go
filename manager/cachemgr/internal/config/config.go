@@ -21,6 +21,27 @@ const (
 	DefaultMemoryCompress   = false
 )
 
+// DefaultConfig 返回默认配置（使用内存缓存驱动）
+func DefaultConfig() *CacheConfig {
+	return &CacheConfig{
+		Driver: "memory",
+		RedisConfig: &RedisConfig{
+			Host:            DefaultRedisHost,
+			Port:            DefaultRedisPort,
+			DB:              DefaultRedisDB,
+			MaxIdleConns:    DefaultRedisMaxIdleConns,
+			MaxOpenConns:    DefaultRedisMaxOpenConns,
+			ConnMaxLifetime: DefaultRedisConnMaxLifetime,
+		},
+		MemoryConfig: &MemoryConfig{
+			MaxSize:    DefaultMemoryMaxSize,
+			MaxAge:     DefaultMemoryMaxAge,
+			MaxBackups: DefaultMemoryMaxBackups,
+			Compress:   DefaultMemoryCompress,
+		},
+	}
+}
+
 // CacheConfig 缓存配置
 type CacheConfig struct {
 	Driver       string        `yaml:"driver"`        // 驱动类型: redis, memory, none

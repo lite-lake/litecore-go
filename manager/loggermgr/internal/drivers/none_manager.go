@@ -35,7 +35,8 @@ func (l *NoneLogger) Fatal(msg string, args ...any) {
 }
 
 // With 返回自身
-func (l *NoneLogger) With(args ...any) *NoneLogger {
+// 实现 Logger 接口
+func (l *NoneLogger) With(args ...any) Logger {
 	return l
 }
 

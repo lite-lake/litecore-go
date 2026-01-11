@@ -148,7 +148,8 @@ func (l *ZapLogger) Fatal(msg string, args ...any) {
 }
 
 // With 返回一个带有额外字段的新 Logger
-func (l *ZapLogger) With(args ...any) *ZapLogger {
+// 实现 Logger 接口
+func (l *ZapLogger) With(args ...any) Logger {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
@@ -164,10 +165,11 @@ func (l *ZapLogger) With(args ...any) *ZapLogger {
 }
 
 // SetLevel 设置日志级别
-func (l *ZapLogger) SetLevel(level zapcore.Level) {
+// 实现 Logger 接口
+func (l *ZapLogger) SetLevel(level loglevel.LogLevel) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.level = level
+	l.level = loglevel.LogLevelToZap(level)
 }
 
 // Sync 同步日志

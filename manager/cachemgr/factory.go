@@ -11,6 +11,18 @@ import (
 	"com.litelake.litecore/manager/telemetrymgr"
 )
 
+// Deprecated: Factory 模式已废弃，请使用依赖注入模式
+// 使用 container.ManagerContainer 和 cachemgr.NewManager() 代替
+// 例如：
+//
+//	container := container.NewManagerContainer(configContainer)
+//	mgr := cachemgr.NewManager("default")
+//	container.Register(mgr)
+//	container.InjectAll()
+//	mgr.OnStart()
+//
+// 本文件将在未来版本中移除
+
 // Build 创建缓存管理器实例
 // cfg: 缓存配置内容（包含 driver、redis_config、memory_config 等配置项）
 // loggerMgr: 可选的日志管理器

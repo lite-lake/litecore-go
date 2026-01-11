@@ -276,8 +276,8 @@ func TestZapLogger_SetLevel(t *testing.T) {
 	logger := mgr.GetLogger("test")
 
 	// Should not panic
-	logger.SetLevel(loglevel.LogLevelToZap(loglevel.DebugLevel))
-	logger.SetLevel(loglevel.LogLevelToZap(loglevel.ErrorLevel))
+	logger.SetLevel(loglevel.DebugLevel)
+	logger.SetLevel(loglevel.ErrorLevel)
 }
 
 func TestZapLogger_Sync(t *testing.T) {
