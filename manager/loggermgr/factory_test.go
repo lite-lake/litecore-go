@@ -11,9 +11,9 @@ import (
 
 func TestBuild(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         map[string]any
-		expectedType   interface{}
+		name         string
+		config       map[string]any
+		expectedType interface{}
 	}{
 		{
 			name: "valid config with console",
@@ -55,13 +55,13 @@ func TestBuild(t *testing.T) {
 			expectedType: &NoneLoggerManagerAdapter{},
 		},
 		{
-			name: "nil config - returns default",
-			config: nil,
+			name:         "nil config - returns default",
+			config:       nil,
 			expectedType: &NoneLoggerManagerAdapter{},
 		},
 		{
-			name: "empty config - returns default",
-			config: map[string]any{},
+			name:         "empty config - returns default",
+			config:       map[string]any{},
 			expectedType: &NoneLoggerManagerAdapter{},
 		},
 	}
@@ -206,9 +206,9 @@ func TestBuildWithConfig(t *testing.T) {
 
 func TestBuild_ErrorScenarios(t *testing.T) {
 	tests := []struct {
-		name         string
-		config       map[string]any
-		description  string
+		name        string
+		config      map[string]any
+		description string
 	}{
 		{
 			name: "missing file path",
@@ -224,7 +224,7 @@ func TestBuild_ErrorScenarios(t *testing.T) {
 			name: "invalid file config type",
 			config: map[string]any{
 				"file_enabled": true,
-				"file_config": "invalid",
+				"file_config":  "invalid",
 			},
 			description: "should return NoneLoggerManagerAdapter when file config is invalid type",
 		},
@@ -406,7 +406,7 @@ func TestBuild_WithTelemetryManager(t *testing.T) {
 	// Test that the config with telemetry enabled is parsed correctly
 	cfg2 := map[string]any{
 		"telemetry_enabled": false,
-		"console_enabled": true,
+		"console_enabled":   true,
 		"console_config": map[string]any{
 			"level": "info",
 		},
@@ -435,8 +435,8 @@ func TestBuildWithConfig_Telemetry(t *testing.T) {
 			config: &config.LoggerConfig{
 				TelemetryEnabled: true,
 				TelemetryConfig:  &config.LogLevelConfig{Level: "info"},
-				ConsoleEnabled:  true,
-				ConsoleConfig:   &config.LogLevelConfig{Level: "debug"},
+				ConsoleEnabled:   true,
+				ConsoleConfig:    &config.LogLevelConfig{Level: "debug"},
 			},
 			wantErr: false,
 		},
@@ -483,9 +483,9 @@ func TestBuildWithConfig_Telemetry(t *testing.T) {
 
 func TestBuild_InvalidCompressType(t *testing.T) {
 	tests := []struct {
-		name         string
-		compress     any
-		description  string
+		name        string
+		compress    any
+		description string
 	}{
 		{
 			name:        "compress is string",

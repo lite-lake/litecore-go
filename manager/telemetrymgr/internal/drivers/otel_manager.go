@@ -11,26 +11,26 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/metric"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // OtelManager OpenTelemetry 观测管理器
 type OtelManager struct {
 	*BaseManager
-	config          *config.TelemetryConfig
-	tracerProvider  *sdktrace.TracerProvider
-	meterProvider   *sdkmetric.MeterProvider
-	loggerProvider  *sdklog.LoggerProvider
-	resource        *resource.Resource
-	mu              sync.RWMutex
-	shutdownFuncs   []func(context.Context) error
-	shutdownOnce    sync.Once
+	config         *config.TelemetryConfig
+	tracerProvider *sdktrace.TracerProvider
+	meterProvider  *sdkmetric.MeterProvider
+	loggerProvider *sdklog.LoggerProvider
+	resource       *resource.Resource
+	mu             sync.RWMutex
+	shutdownFuncs  []func(context.Context) error
+	shutdownOnce   sync.Once
 }
 
 // NewOtelManager 创建 OTEL 观测管理器

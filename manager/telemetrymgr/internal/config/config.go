@@ -12,13 +12,13 @@ type TelemetryConfig struct {
 
 // OtelConfig OpenTelemetry 配置
 type OtelConfig struct {
-	Endpoint           string             `yaml:"endpoint"`             // OTLP 端点，如 http://localhost:4317
-	Insecure           bool               `yaml:"insecure"`             // 是否使用不安全连接（默认false，使用TLS）
+	Endpoint           string              `yaml:"endpoint"`            // OTLP 端点，如 http://localhost:4317
+	Insecure           bool                `yaml:"insecure"`            // 是否使用不安全连接（默认false，使用TLS）
 	ResourceAttributes []ResourceAttribute `yaml:"resource_attributes"` // 资源属性
-	Headers            map[string]string  `yaml:"headers"`              // 请求头（用于认证）
-	Traces             *FeatureConfig     `yaml:"traces"`               // 链路追踪配置
-	Metrics            *FeatureConfig     `yaml:"metrics"`              // 指标配置
-	Logs               *FeatureConfig     `yaml:"logs"`                 // 日志配置
+	Headers            map[string]string   `yaml:"headers"`             // 请求头（用于认证）
+	Traces             *FeatureConfig      `yaml:"traces"`              // 链路追踪配置
+	Metrics            *FeatureConfig      `yaml:"metrics"`             // 指标配置
+	Logs               *FeatureConfig      `yaml:"logs"`                // 日志配置
 }
 
 // ResourceAttribute 资源属性

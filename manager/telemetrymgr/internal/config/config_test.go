@@ -103,8 +103,8 @@ func TestParseOtelConfigFromMap(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "nil config - strict",
-			cfg:  nil,
+			name:   "nil config - strict",
+			cfg:    nil,
 			strict: true,
 			want: &OtelConfig{
 				Insecure: false,
@@ -287,7 +287,7 @@ func TestParseOtelConfigFromMap(t *testing.T) {
 			name: "unknown field - non-strict",
 			cfg: map[string]any{
 				"unknown_field": "value",
-				"endpoint":       "http://localhost:4317",
+				"endpoint":      "http://localhost:4317",
 			},
 			want: &OtelConfig{
 				Endpoint: "http://localhost:4317",

@@ -21,11 +21,11 @@ func TestNewManager(t *testing.T) {
 
 func TestManager_Register(t *testing.T) {
 	tests := []struct {
-		name      string
-		hookName  string
-		hook      interface{}
-		wantErr   bool
-		errMsg    string
+		name     string
+		hookName string
+		hook     interface{}
+		wantErr  bool
+		errMsg   string
 	}{
 		{
 			name:     "valid beforeCreate hook",

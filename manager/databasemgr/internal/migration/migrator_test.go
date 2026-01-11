@@ -463,7 +463,7 @@ func TestMigrator_GetIndexes(t *testing.T) {
 	migrator := NewMigrator(db)
 
 	type TestModel struct {
-		ID   uint `gorm:"primaryKey"`
+		ID   uint   `gorm:"primaryKey"`
 		Name string `gorm:"index"`
 	}
 
@@ -550,8 +550,8 @@ func TestMigrator_AutoMigrate_WithRelationships(t *testing.T) {
 	}
 
 	type User struct {
-		ID    uint
-		Name  string
+		ID   uint
+		Name string
 	}
 
 	// AutoMigrate should handle relationships

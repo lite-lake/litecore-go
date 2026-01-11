@@ -62,9 +62,9 @@ func TestBaseConfigProvider_Get_SimpleKey(t *testing.T) {
 	provider := NewBaseConfigProvider(data)
 
 	tests := []struct {
-		name      string
-		key       string
-		want      any
+		name string
+		key  string
+		want any
 	}{
 		{"string key", "name", "test"},
 		{"int key", "port", 8080},
@@ -89,8 +89,8 @@ func TestBaseConfigProvider_Get_SimpleKey(t *testing.T) {
 func TestBaseConfigProvider_Get_NestedKey(t *testing.T) {
 	data := map[string]any{
 		"database": map[string]any{
-			"host":     "localhost",
-			"port":     3306,
+			"host": "localhost",
+			"port": 3306,
 			"credentials": map[string]any{
 				"username": "admin",
 				"password": "secret",
@@ -104,9 +104,9 @@ func TestBaseConfigProvider_Get_NestedKey(t *testing.T) {
 	provider := NewBaseConfigProvider(data)
 
 	tests := []struct {
-		name  string
-		key   string
-		want  any
+		name string
+		key  string
+		want any
 	}{
 		{"first level nested", "database.host", "localhost"},
 		{"first level nested int", "database.port", 3306},
@@ -136,15 +136,15 @@ func TestBaseConfigProvider_Get_ArrayIndex(t *testing.T) {
 			map[string]any{"host": "server2", "port": 8002},
 			map[string]any{"host": "server3", "port": 8003},
 		},
-		"items": []any{"item1", "item2", "item3"},
+		"items":   []any{"item1", "item2", "item3"},
 		"numbers": []any{1, 2, 3, 4, 5},
 	}
 	provider := NewBaseConfigProvider(data)
 
 	tests := []struct {
-		name  string
-		key   string
-		want  any
+		name string
+		key  string
+		want any
 	}{
 		{"array index 0", "servers[0].host", "server1"},
 		{"array index 1", "servers[1].port", 8002},
@@ -340,11 +340,11 @@ func TestBaseConfigProvider_Get_ComplexPath(t *testing.T) {
 		"app": map[string]any{
 			"servers": []any{
 				map[string]any{
-					"name": "web",
+					"name":  "web",
 					"ports": []int{80, 443},
 				},
 				map[string]any{
-					"name": "api",
+					"name":  "api",
 					"ports": []int{8080, 8443},
 				},
 			},
@@ -409,13 +409,13 @@ func TestParsePath(t *testing.T) {
 	provider := NewBaseConfigProvider(map[string]any{})
 
 	tests := []struct {
-		name        string
-		path        string
-		wantLen     int
-		wantErr     bool
-		firstKey    string
-		firstIndex  int
-		hasIndex    bool
+		name       string
+		path       string
+		wantLen    int
+		wantErr    bool
+		firstKey   string
+		firstIndex int
+		hasIndex   bool
 	}{
 		{"simple key", "key", 1, false, "key", -1, false},
 		{"nested key", "a.b.c", 3, false, "a", -1, false},

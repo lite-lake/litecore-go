@@ -363,9 +363,9 @@ func TestParseDatabaseConfigFromMap(t *testing.T) {
 				"sqlite_config": map[string]any{
 					"dsn": "file:./test.db",
 					"pool_config": map[string]any{
-						"max_open_conns":    5,
-						"max_idle_conns":    2,
-						"conn_max_lifetime": 60,
+						"max_open_conns":     5,
+						"max_idle_conns":     2,
+						"conn_max_lifetime":  60,
 						"conn_max_idle_time": 300,
 					},
 				},
@@ -391,9 +391,9 @@ func TestParseDatabaseConfigFromMap(t *testing.T) {
 				"mysql_config": map[string]any{
 					"dsn": "root:password@tcp(localhost:3306)/test",
 					"pool_config": map[string]any{
-						"max_open_conns":    20,
-						"max_idle_conns":    10,
-						"conn_max_lifetime": "1m",
+						"max_open_conns":     20,
+						"max_idle_conns":     10,
+						"conn_max_lifetime":  "1m",
 						"conn_max_idle_time": "10m",
 					},
 				},

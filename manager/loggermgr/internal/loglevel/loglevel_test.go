@@ -66,9 +66,9 @@ func TestIsValidLogLevel(t *testing.T) {
 		{"warning", true},
 		{"error", true},
 		{"fatal", true},
-		{"", true},        // 空字符串视为有效（默认值）
+		{"", true}, // 空字符串视为有效（默认值）
 		{"invalid", false},
-		{"ERROR", true},   // 大小写不敏感
+		{"ERROR", true}, // 大小写不敏感
 	}
 
 	for _, tt := range tests {
@@ -82,8 +82,8 @@ func TestIsValidLogLevel(t *testing.T) {
 
 func TestLogLevel_Validate(t *testing.T) {
 	tests := []struct {
-		level    LogLevel
-		wantErr  bool
+		level   LogLevel
+		wantErr bool
 	}{
 		{DebugLevel, false},
 		{InfoLevel, false},

@@ -17,15 +17,15 @@ import (
 
 // FileWriter 文件日志输出器（基于 zap）
 type FileWriter struct {
-	logger        *zap.Logger
-	level         zapcore.Level
-	sync          *zap.SugaredLogger
-	lumberjack    *lumberjack.Logger
-	mu            sync.RWMutex
-	closed        bool
-	writeErrors   uint64 // 写入错误计数（原子操作）
+	logger         *zap.Logger
+	level          zapcore.Level
+	sync           *zap.SugaredLogger
+	lumberjack     *lumberjack.Logger
+	mu             sync.RWMutex
+	closed         bool
+	writeErrors    uint64 // 写入错误计数（原子操作）
 	lastWriteError time.Time
-	onWriteError  func(error) // 写入错误回调
+	onWriteError   func(error) // 写入错误回调
 }
 
 // NewFileWriter 创建文件日志输出器

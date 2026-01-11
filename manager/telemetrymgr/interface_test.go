@@ -5,25 +5,25 @@ import (
 	"testing"
 
 	"go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/metric"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // MockTelemetryManager 是一个实现 TelemetryManager 接口的模拟对象
 type MockTelemetryManager struct {
-	tracerProvider  *sdktrace.TracerProvider
-	meterProvider   *sdkmetric.MeterProvider
-	loggerProvider  *sdklog.LoggerProvider
+	tracerProvider *sdktrace.TracerProvider
+	meterProvider  *sdkmetric.MeterProvider
+	loggerProvider *sdklog.LoggerProvider
 }
 
 func NewMockTelemetryManager() *MockTelemetryManager {
 	return &MockTelemetryManager{
-		tracerProvider:  sdktrace.NewTracerProvider(),
-		meterProvider:   sdkmetric.NewMeterProvider(),
-		loggerProvider:  sdklog.NewLoggerProvider(),
+		tracerProvider: sdktrace.NewTracerProvider(),
+		meterProvider:  sdkmetric.NewMeterProvider(),
+		loggerProvider: sdklog.NewLoggerProvider(),
 	}
 }
 

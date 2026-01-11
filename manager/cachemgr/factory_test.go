@@ -14,8 +14,8 @@ func TestBuild(t *testing.T) {
 		wantMgr string
 	}{
 		{
-			name: "none driver with nil config",
-			cfg:  nil,
+			name:    "none driver with nil config",
+			cfg:     nil,
 			wantMgr: "none-cache",
 		},
 		{
@@ -139,7 +139,7 @@ func TestBuild_DegradationScenarios(t *testing.T) {
 		description string
 	}{
 		{
-			name:        "invalid driver type",
+			name: "invalid driver type",
 			cfg: map[string]any{
 				"driver": "invalid_driver",
 			},
@@ -147,7 +147,7 @@ func TestBuild_DegradationScenarios(t *testing.T) {
 			description: "should degrade to none when driver is invalid",
 		},
 		{
-			name:        "missing redis config",
+			name: "missing redis config",
 			cfg: map[string]any{
 				"driver": "redis",
 			},
@@ -155,7 +155,7 @@ func TestBuild_DegradationScenarios(t *testing.T) {
 			description: "should degrade to none when redis config is missing",
 		},
 		{
-			name:        "missing memory config",
+			name: "missing memory config",
 			cfg: map[string]any{
 				"driver": "memory",
 			},
@@ -175,7 +175,7 @@ func TestBuild_DegradationScenarios(t *testing.T) {
 			description: "should degrade to none when redis connection fails",
 		},
 		{
-			name:        "empty driver",
+			name: "empty driver",
 			cfg: map[string]any{
 				"driver": "",
 			},
