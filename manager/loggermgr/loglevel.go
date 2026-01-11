@@ -1,4 +1,4 @@
-package loglevel
+package loggermgr
 
 import (
 	"fmt"

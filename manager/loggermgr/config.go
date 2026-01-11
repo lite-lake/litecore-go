@@ -1,12 +1,10 @@
-package config
+package loggermgr
 
 import (
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
-
-	"com.litelake.litecore/manager/loggermgr/internal/loglevel"
 )
 
 const (
@@ -19,36 +17,22 @@ const (
 	MaxSafeBackups    = 1000  // 最大安全备份数
 )
 
-// DefaultLoggerConfig 返回默认日志配置
-// 默认配置：
-// - 观测日志：禁用
-// - 控制台日志：启用，info 级别
-// - 文件日志：禁用
-func DefaultLoggerConfig() *LoggerConfig {
+// DefaultConfig 返回默认配置（使用 none 驱动）
+func DefaultConfig() *LoggerConfig {
 	return &LoggerConfig{
-		TelemetryEnabled: false,
-		TelemetryConfig: &LogLevelConfig{
-			Level: "info",
-		},
-		ConsoleEnabled: true,
-		ConsoleConfig: &LogLevelConfig{
-			Level: "info",
-		},
-		FileEnabled: false,
-		FileConfig: &FileLogConfig{
-			Level: "info",
-			Rotation: &RotationConfig{
-				MaxSize:    DefaultMaxSize,
-				MaxAge:     DefaultMaxAge,
-				MaxBackups: DefaultMaxBackups,
-				Compress:   true,
-			},
-		},
+		Driver:    "none",
+		ZapConfig: DefaultZapConfig(),
 	}
 }
 
 // LoggerConfig 日志管理配置
 type LoggerConfig struct {
+	Driver    string      `yaml:"driver"`    // 驱动类型: zap, none
+	ZapConfig *ZapConfig  `yaml:"zap_config"` // Zap 驱动配置
+}
+
+// ZapConfig Zap 日志配置
+type ZapConfig struct {
 	TelemetryEnabled bool            `yaml:"telemetry_enabled"` // 是否启用观测日志
 	TelemetryConfig  *LogLevelConfig `yaml:"telemetry_config"`  // 观测日志配置
 	ConsoleEnabled   bool            `yaml:"console_enabled"`   // 是否启用控制台日志
@@ -77,8 +61,63 @@ type RotationConfig struct {
 	Compress   bool `yaml:"compress"`    // 是否压缩旧日志文件
 }
 
+// DefaultZapConfig 返回默认的 Zap 配置
+func DefaultZapConfig() *ZapConfig {
+	return &ZapConfig{
+		TelemetryEnabled: false,
+		TelemetryConfig: &LogLevelConfig{
+			Level: "info",
+		},
+		ConsoleEnabled: true,
+		ConsoleConfig: &LogLevelConfig{
+			Level: "info",
+		},
+		FileEnabled: false,
+		FileConfig: &FileLogConfig{
+			Level: "info",
+			Rotation: &RotationConfig{
+				MaxSize:    DefaultMaxSize,
+				MaxAge:     DefaultMaxAge,
+				MaxBackups: DefaultMaxBackups,
+				Compress:   true,
+			},
+		},
+	}
+}
+
 // Validate 验证配置
 func (c *LoggerConfig) Validate() error {
+	if c.Driver == "" {
+		return fmt.Errorf("driver is required")
+	}
+
+	// 标准化驱动名称
+	c.Driver = strings.ToLower(strings.TrimSpace(c.Driver))
+
+	switch c.Driver {
+	case "zap", "none":
+		// 有效驱动
+	default:
+		return fmt.Errorf("unsupported driver: %s (must be zap or none)", c.Driver)
+	}
+
+	// Zap 驱动需要 Zap 配置
+	if c.Driver == "zap" && c.ZapConfig == nil {
+		return fmt.Errorf("zap_config is required when driver is zap")
+	}
+
+	// 如果有 Zap 配置，验证它
+	if c.ZapConfig != nil {
+		if err := c.ZapConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid zap_config: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// Validate 验证 Zap 配置
+func (c *ZapConfig) Validate() error {
 	// 至少需要启用一种日志输出
 	if !c.TelemetryEnabled && !c.ConsoleEnabled && !c.FileEnabled {
 		return fmt.Errorf("at least one logger output must be enabled (telemetry, console, or file)")
@@ -86,21 +125,21 @@ func (c *LoggerConfig) Validate() error {
 
 	// 验证观测日志配置
 	if c.TelemetryEnabled && c.TelemetryConfig != nil {
-		if !loglevel.IsValidLogLevel(c.TelemetryConfig.Level) {
+		if !IsValidLogLevel(c.TelemetryConfig.Level) {
 			return fmt.Errorf("invalid telemetry log level: %s", c.TelemetryConfig.Level)
 		}
 	}
 
 	// 验证控制台日志配置
 	if c.ConsoleEnabled && c.ConsoleConfig != nil {
-		if !loglevel.IsValidLogLevel(c.ConsoleConfig.Level) {
+		if !IsValidLogLevel(c.ConsoleConfig.Level) {
 			return fmt.Errorf("invalid console log level: %s", c.ConsoleConfig.Level)
 		}
 	}
 
 	// 验证文件日志配置
 	if c.FileEnabled && c.FileConfig != nil {
-		if !loglevel.IsValidLogLevel(c.FileConfig.Level) {
+		if !IsValidLogLevel(c.FileConfig.Level) {
 			return fmt.Errorf("invalid file log level: %s", c.FileConfig.Level)
 		}
 		if c.FileConfig.Path == "" {
@@ -113,27 +152,43 @@ func (c *LoggerConfig) Validate() error {
 
 // ParseLoggerConfigFromMap 从 ConfigMap 解析日志配置
 func ParseLoggerConfigFromMap(cfg map[string]any) (*LoggerConfig, error) {
-	loggerConfig := &LoggerConfig{
-		TelemetryConfig: &LogLevelConfig{Level: "info"},
-		ConsoleConfig:   &LogLevelConfig{Level: "info"},
-		FileConfig: &FileLogConfig{
-			Level: "info",
-			Rotation: &RotationConfig{
-				MaxSize:    DefaultMaxSize,
-				MaxAge:     DefaultMaxAge,
-				MaxBackups: DefaultMaxBackups,
-				Compress:   true,
-			},
-		},
+	config := &LoggerConfig{
+		Driver:    "none", // 默认使用 none 驱动
+		ZapConfig: DefaultZapConfig(),
 	}
 
 	if cfg == nil {
-		return loggerConfig, nil
+		return config, nil
+	}
+
+	// 解析 driver
+	if driver, ok := cfg["driver"].(string); ok {
+		config.Driver = strings.ToLower(strings.TrimSpace(driver))
+	}
+
+	// 解析 zap_config
+	if zapConfigMap, ok := cfg["zap_config"].(map[string]any); ok {
+		zapConfig, err := parseZapConfig(zapConfigMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse zap_config: %w", err)
+		}
+		config.ZapConfig = zapConfig
+	}
+
+	return config, nil
+}
+
+// parseZapConfig 解析 Zap 配置
+func parseZapConfig(cfg map[string]any) (*ZapConfig, error) {
+	zapConfig := DefaultZapConfig()
+
+	if cfg == nil {
+		return zapConfig, nil
 	}
 
 	// 解析 telemetry_enabled
 	if telemetryEnabled, ok := cfg["telemetry_enabled"].(bool); ok {
-		loggerConfig.TelemetryEnabled = telemetryEnabled
+		zapConfig.TelemetryEnabled = telemetryEnabled
 	}
 
 	// 解析 telemetry_config
@@ -142,12 +197,12 @@ func ParseLoggerConfigFromMap(cfg map[string]any) (*LoggerConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse telemetry_config: %w", err)
 		}
-		loggerConfig.TelemetryConfig = telemetryConfig
+		zapConfig.TelemetryConfig = telemetryConfig
 	}
 
 	// 解析 console_enabled
 	if consoleEnabled, ok := cfg["console_enabled"].(bool); ok {
-		loggerConfig.ConsoleEnabled = consoleEnabled
+		zapConfig.ConsoleEnabled = consoleEnabled
 	}
 
 	// 解析 console_config
@@ -156,12 +211,12 @@ func ParseLoggerConfigFromMap(cfg map[string]any) (*LoggerConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse console_config: %w", err)
 		}
-		loggerConfig.ConsoleConfig = consoleConfig
+		zapConfig.ConsoleConfig = consoleConfig
 	}
 
 	// 解析 file_enabled
 	if fileEnabled, ok := cfg["file_enabled"].(bool); ok {
-		loggerConfig.FileEnabled = fileEnabled
+		zapConfig.FileEnabled = fileEnabled
 	}
 
 	// 解析 file_config
@@ -170,10 +225,10 @@ func ParseLoggerConfigFromMap(cfg map[string]any) (*LoggerConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse file_config: %w", err)
 		}
-		loggerConfig.FileConfig = fileConfig
+		zapConfig.FileConfig = fileConfig
 	}
 
-	return loggerConfig, nil
+	return zapConfig, nil
 }
 
 // parseLogLevelConfig 解析日志级别配置

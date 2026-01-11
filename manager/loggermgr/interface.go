@@ -2,28 +2,7 @@ package loggermgr
 
 import (
 	"context"
-
-	"com.litelake.litecore/manager/loggermgr/internal/loglevel"
 )
-
-// LogLevel 日志级别类型（对外暴露的类型别名）
-type LogLevel = loglevel.LogLevel
-
-const (
-	// DebugLevel 调试级别
-	DebugLevel = loglevel.DebugLevel
-	// InfoLevel 信息级别
-	InfoLevel = loglevel.InfoLevel
-	// WarnLevel 警告级别
-	WarnLevel = loglevel.WarnLevel
-	// ErrorLevel 错误级别
-	ErrorLevel = loglevel.ErrorLevel
-	// FatalLevel 致命错误级别
-	FatalLevel = loglevel.FatalLevel
-)
-
-// ParseLogLevel 从字符串解析日志级别
-var ParseLogLevel = loglevel.ParseLogLevel
 
 // Logger 日志接口
 type Logger interface {
