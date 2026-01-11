@@ -1,282 +1,329 @@
-# Telemetry Manager
+# telemetrymgr
 
-提供可观测性管理功能，支持分布式链路追踪、指标收集和日志关联。
+可观测性管理模块，提供统一的 Traces、Metrics、Logs 三大信号管理能力。
 
 ## 特性
 
-- **OpenTelemetry 集成** - 基于业界标准的 OpenTelemetry 协议，支持多种后端
-- **依赖注入支持** - 通过 Container 自动注入配置和依赖
-- **驱动抽象设计** - 统一接口支持多种实现，当前支持 OTEL 和 None 驱动
-- **优雅降级机制** - 配置解析失败或初始化错误时自动降级到空实现
-- **生命周期管理** - 完整的启动、健康检查和优雅关闭支持
-- **线程安全** - 所有操作均保证并发安全
+- **统一接口** - 提供 `TelemetryManager` 接口，统一管理可观测性组件
+- **多驱动支持** - 支持 none（空实现）和 otel（OpenTelemetry）两种驱动
+- **生命周期管理** - 集成 `OnStart/OnStop` 生命周期钩子，支持优雅关闭
+- **灵活配置** - 支持从配置提供者或直接配置创建管理器实例
+- **完整可观测性** - 支持链路追踪、指标收集和结构化日志
+- **线程安全** - 所有实现都是并发安全的
 
 ## 快速开始
 
-```go
-package main
+### 使用 none 驱动（空实现）
 
+```go
 import (
     "context"
-    "fmt"
-
     "com.litelake.litecore/manager/telemetrymgr"
 )
 
 func main() {
-    // 创建观测管理器
-    mgr := telemetrymgr.NewManager("default")
-
-    // 通过依赖注入容器初始化（推荐）
-    // container.Register("config", configProvider)
-    // container.Register("telemetry.default", mgr)
-    // container.InjectAll()
-
-    // 启动管理器（会从配置中读取配置）
-    if err := mgr.OnStart(); err != nil {
-        panic(err)
+    // 创建空实现管理器
+    mgr, err := telemetrymgr.Build("none", nil)
+    if err != nil {
+        log.Fatal(err)
     }
-    defer mgr.OnStop()
+    defer mgr.Shutdown(context.Background())
 
-    fmt.Println("Telemetry manager started:", mgr.ManagerName())
-
-    // 使用 Tracer 进行链路追踪
+    // 使用 tracer（no-op）
     tracer := mgr.Tracer("my-service")
     ctx, span := tracer.Start(context.Background(), "operation")
     defer span.End()
-
-    // 在这里执行业务逻辑
-    _ = ctx
 }
 ```
 
-## 创建管理器
-
-### 使用依赖注入（推荐）
+### 使用 OpenTelemetry 驱动
 
 ```go
-// 创建管理器
-mgr := telemetrymgr.NewManager("default")
-
-// 注册到容器
-container.Register("config", configProvider)
-container.Register("telemetry.default", mgr)
-
-// 注入依赖并启动
-container.InjectAll()
-mgr.OnStart()
-defer mgr.OnStop()
-```
-
-### 配置 OTEL 驱动
-
-在配置文件中添加观测配置：
-
-```yaml
-telemetry.default:
-  driver: otel
-  otel_config:
-    endpoint: http://localhost:4317
-    insecure: false  # 默认使用 TLS
-    resource_attributes:
-      - key: service.name
-        value: my-service
-      - key: environment
-        value: production
-    traces:
-      enabled: true
-    metrics:
-      enabled: true
-    logs:
-      enabled: true
-```
-
-### 使用 None 驱动
-
-```go
-// 创建管理器
-mgr := telemetrymgr.NewManager("default")
-
-// 不提供配置或配置 driver 为 none
-// 使用默认配置（禁用观测）
-mgr.OnStart()
-defer mgr.OnStop()
-```
-
-## 使用 Tracer
-
-Manager 实现了 TelemetryManager 接口，提供了获取 Tracer 实例的方法：
-
-```go
-tracer := mgr.Tracer("my-service")
-
-// 创建 Span
-ctx, span := tracer.Start(context.Background(), "operation-name")
-defer span.End()
-
-// 添加属性
-span.SetAttributes(
-    attribute.String("user.id", "123"),
-    attribute.String("action", "login"),
+import (
+    "com.litelake.litecore/manager/telemetrymgr"
 )
 
-// 添加事件
-span.AddEvent("user authenticated")
+func main() {
+    // 创建 OTel 管理器
+    mgr, err := telemetrymgr.Build("otel", map[string]any{
+        "endpoint": "localhost:4317",
+        "insecure": true,
+        "headers": map[string]any{
+            "authorization": "Bearer token",
+        },
+        "traces": map[string]any{
+            "enabled": true,
+        },
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer mgr.Shutdown(context.Background())
 
-// 记录错误
+    // 使用 tracer
+    tracer := mgr.Tracer("my-service")
+    ctx, span := tracer.Start(context.Background(), "operation")
+    defer span.End()
+    span.SetAttributes(attribute.String("user.id", "123"))
+}
+```
+
+### 从配置提供者创建
+
+```go
+// 配置提供者会读取以下配置：
+// - telemetry.driver: "otel" 或 "none"
+// - telemetry.otel_config: OTel 配置对象
+
+mgr, err := telemetrymgr.BuildWithConfigProvider(configProvider)
 if err != nil {
-    span.RecordError(err)
-    span.SetStatus(codes.Error, "operation failed")
+    log.Fatal(err)
+}
+defer mgr.Shutdown(context.Background())
+```
+
+## 配置
+
+### OTel 驱动配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `endpoint` | string | `localhost:4317` | OTLP 端点地址 |
+| `insecure` | bool | `false` | 是否使用不安全连接（非 TLS） |
+| `headers` | map[string]string | `nil` | 请求头（用于认证） |
+| `resource_attributes` | []ResourceAttribute | `nil` | 资源属性 |
+| `traces.enabled` | bool | `false` | 是否启用链路追踪 |
+| `metrics.enabled` | bool | `false` | 是否启用指标收集 |
+| `logs.enabled` | bool | `false` | 是否启用结构化日志 |
+
+### 资源属性配置
+
+```go
+resourceAttributes := []telemetrymgr.ResourceAttribute{
+    {Key: "service.name", Value: "my-service"},
+    {Key: "service.version", Value: "1.0.0"},
+    {Key: "deployment.environment", Value: "production"},
 }
 ```
 
-## 获取 Provider
+## 核心 API
 
-某些场景可能需要直接访问 TracerProvider：
+### 创建管理器
+
+#### Build() - 从直接配置创建
 
 ```go
-// 获取 TracerProvider
-tp := mgr.TracerProvider()
-if tp != nil {
-    // 直接使用 TracerProvider
-    _ = tp
-}
+func Build(driverType string, driverConfig map[string]any) (TelemetryManager, error)
 ```
 
-## 优雅关闭
+参数：
+- `driverType`: 驱动类型（"otel" 或 "none"）
+- `driverConfig`: 驱动配置（根据驱动类型不同而不同）
+
+#### BuildWithConfigProvider() - 从配置提供者创建
 
 ```go
+func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (TelemetryManager, error)
+```
+
+配置路径：
+- `telemetry.driver`: 驱动类型
+- `telemetry.otel_config`: OTel 配置
+
+### Tracer - 链路追踪
+
+```go
+// 获取 Tracer 实例
+tracer := mgr.Tracer("my-service")
+
+// 创建 span
+ctx, span := tracer.Start(ctx, "operation-name")
+defer span.End()
+
+// 设置属性
+span.SetAttributes(attribute.String("key", "value"))
+
+// 添加事件
+span.AddEvent("event-name", attribute.String("details", "..."))
+
+// 设置状态
+span.SetStatus(codes.Error, "operation failed")
+```
+
+### Meter - 指标收集
+
+```go
+// 获取 Meter 实例
+meter := mgr.Meter("my-service")
+
+// 创建计数器
+counter, _ := meter.Float64Counter("requests_total")
+counter.Add(ctx, 1, attribute.String("path", "/api/users"))
+
+// 创建直方图
+histogram, _ := meter.Float64Histogram("request_duration")
+histogram.Record(ctx, 123.45, attribute.String("status", "success"))
+```
+
+### Logger - 结构化日志
+
+```go
+// 获取 Logger 实例
+logger := mgr.Logger("my-service")
+
+// 发送日志记录
+logger.Emit(ctx, log.Record{
+    Timestamp:        time.Now(),
+    Severity:         log.SeverityInfo,
+    Body:             attribute.String("message", "operation completed"),
+    Attributes:       []attribute.KeyValue{attribute.String("user.id", "123")},
+})
+```
+
+## 驱动类型
+
+### none 驱动
+
+空实现，不产生任何可观测性数据。适用于：
+- 开发测试环境
+- 不需要遥测的场景
+- 性能敏感的应用
+
+所有方法都返回 no-op 实现，调用开销极小。
+
+### otel 驱动
+
+完整的 OpenTelemetry 实现，支持：
+- 连接到 OTLP 收集器（Jaeger、Tempo、Prometheus 等）
+- 发送链路追踪数据
+- 发送指标数据
+- 发送日志数据
+
+支持的功能：
+- 资源属性自定义
+- 请求头认证
+- TLS/非 TLS 连接
+- 三大信号独立启用/禁用
+
+## 生命周期管理
+
+```go
+// 启动时
+if err := mgr.OnStart(); err != nil {
+    log.Fatal(err)
+}
+
+// 健康检查
+if err := mgr.Health(); err != nil {
+    log.Printf("manager unhealthy: %v", err)
+}
+
+// 停止时（会自动调用 Shutdown）
+if err := mgr.OnStop(); err != nil {
+    log.Printf("manager stop failed: %v", err)
+}
+
+// 或手动关闭
 ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 defer cancel()
-
 if err := mgr.Shutdown(ctx); err != nil {
-    log.Printf("Failed to shutdown telemetry manager: %v", err)
-}
-```
-
-## API
-
-### 接口
-
-#### TelemetryManager
-
-```go
-type TelemetryManager interface {
-    // Tracer 获取 Tracer 实例
-    Tracer(name string) trace.Tracer
-
-    // TracerProvider 获取 TracerProvider
-    TracerProvider() *sdktrace.TracerProvider
-
-    // Meter 获取 Meter 实例
-    Meter(name string) metric.Meter
-
-    // MeterProvider 获取 MeterProvider
-    MeterProvider() *sdkmetric.MeterProvider
-
-    // Logger 获取 Logger 实例
-    Logger(name string) log.Logger
-
-    // LoggerProvider 获取 LoggerProvider
-    LoggerProvider() *sdklog.LoggerProvider
-
-    // Shutdown 关闭观测管理器，刷新所有待处理的数据
-    Shutdown(ctx context.Context) error
-}
-```
-
-### 构造函数
-
-#### NewManager
-
-```go
-func NewManager(name string) *Manager
-```
-
-创建观测管理器实例。
-
-- `name`: 管理器名称，用于配置键前缀（如 "default" → "telemetry.default"）
-
-## 配置说明
-
-### 依赖注入配置
-
-管理器通过依赖注入自动从配置中读取配置，配置键格式为 `telemetry.{manager_name}`：
-
-```yaml
-telemetry.default:
-  driver: otel
-  otel_config:
-    endpoint: http://localhost:4317
-    insecure: false
-    resource_attributes:
-      - key: service.name
-        value: my-service
-    traces:
-      enabled: true
-    metrics:
-      enabled: true
-    logs:
-      enabled: true
-```
-
-### OTEL 配置结构
-
-| 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
-| endpoint | string | 是 | OTLP collector 端点地址 |
-| insecure | bool | 否 | 是否使用不安全连接，默认 false（使用 TLS） |
-| resource_attributes | []ResourceAttribute | 否 | 资源属性列表 |
-| headers | map[string]string | 否 | 认证请求头 |
-| traces | FeatureConfig | 否 | 链路追踪配置 |
-| metrics | FeatureConfig | 否 | 指标配置 |
-| logs | FeatureConfig | 否 | 日志配置 |
-
-### ResourceAttribute 结构
-
-```go
-type ResourceAttribute struct {
-    Key   string
-    Value string
-}
-```
-
-### FeatureConfig 结构
-
-```go
-type FeatureConfig struct {
-    Enabled bool
+    log.Printf("manager shutdown failed: %v", err)
 }
 ```
 
 ## 错误处理
 
-管理器采用优雅降级策略：
-
-1. 配置解析失败 → 降级到 None 驱动
-2. 配置验证失败 → 降级到 None 驱动
-3. OTEL 初始化失败 → 降级到 None 驱动
-4. 未知驱动类型 → 降级到 None 驱动
+### 创建失败
 
 ```go
-// OnStart 会返回错误，但不会终止程序
-if err := mgr.OnStart(); err != nil {
-    log.Printf("Telemetry manager initialization failed, using none driver: %v", err)
+mgr, err := telemetrymgr.Build("otel", map[string]any{
+    "endpoint": "", // 空端点会导致验证失败
+})
+if err != nil {
+    // 错误会包含详细的失败原因
+    log.Printf("failed to create manager: %v", err)
+    return
 }
 ```
 
-## 线程安全
-
-所有管理器实现均保证并发安全：
-- Manager 使用 `sync.RWMutex` 保护内部状态
-- Shutdown 使用 `sync.Once` 确保只执行一次
-
-## 健康检查
-
-Manager 接口提供 `Health()` 方法用于健康检查：
+### 关闭失败
 
 ```go
-if err := mgr.Health(); err != nil {
-    log.Printf("Telemetry manager unhealthy: %v", err)
+// 关闭失败不会影响程序运行，但可能导致数据丢失
+if err := mgr.Shutdown(ctx); err != nil {
+    log.Printf("warning: manager shutdown incomplete: %v", err)
+}
+```
+
+## 最佳实践
+
+### 1. 使用 defer 确保资源释放
+
+```go
+mgr, err := telemetrymgr.Build("otel", config)
+if err != nil {
+    return err
+}
+defer mgr.Shutdown(context.Background())
+```
+
+### 2. 设置合理的关闭超时
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+mgr.Shutdown(ctx)
+```
+
+### 3. 为不同服务使用不同的名称
+
+```go
+userServiceTracer := mgr.Tracer("user-service")
+orderServiceTracer := mgr.Tracer("order-service")
+```
+
+### 4. 在开发环境使用 none 驱动
+
+```go
+driver := "none"
+if os.Getenv("ENV") == "production" {
+    driver = "otel"
+}
+
+mgr, err := telemetrymgr.Build(driver, config)
+```
+
+### 5. 资源属性包含服务信息
+
+```go
+config := map[string]any{
+    "resource_attributes": []telemetrymgr.ResourceAttribute{
+        {Key: "service.name", Value: "my-service"},
+        {Key: "service.version", Value: version},
+        {Key: "deployment.environment", Value: environment},
+    },
+}
+```
+
+## 性能考虑
+
+- **none 驱动**：开销极小，几乎可以忽略
+- **otel 驱动未启用特性时**：使用 no-op provider，开销很小
+- **otel 驱动启用特性后**：会建立网络连接，使用批处理减少开销
+- **并发安全**：所有方法都可以安全地并发调用
+
+## 线程安全
+
+`TelemetryManager` 接口的所有实现都是并发安全的，可以在多个 goroutine 中同时使用。
+
+```go
+// 多个 goroutine 可以安全地使用同一个管理器
+for i := 0; i < 10; i++ {
+    go func() {
+        tracer := mgr.Tracer("worker")
+        ctx, span := tracer.Start(context.Background(), "task")
+        defer span.End()
+        // ... 执行任务
+    }()
 }
 ```
