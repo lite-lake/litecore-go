@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"com.litelake.litecore/common"
-	"com.litelake.litecore/config/internal/drivers"
 )
 
 // Mock provider for testing
@@ -435,7 +434,7 @@ func TestGet_WithBaseProvider(t *testing.T) {
 			"value": 42,
 		},
 	}
-	provider := drivers.NewBaseConfigProvider(data)
+	provider := NewBaseConfigProvider(data)
 
 	tests := []struct {
 		name        string

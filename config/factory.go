@@ -4,15 +4,14 @@ import (
 	"errors"
 
 	"com.litelake.litecore/common"
-	"com.litelake.litecore/config/internal/drivers"
 )
 
 func NewConfigProvider(driver string, filePath string) (common.BaseConfigProvider, error) {
 	switch driver {
 	case "yaml":
-		return drivers.NewYamlConfigProvider(filePath)
+		return NewYamlConfigProvider(filePath)
 	case "json":
-		return drivers.NewJsonConfigProvider(filePath)
+		return NewJsonConfigProvider(filePath)
 	default:
 		return nil, errors.New("unsupported driver")
 	}
