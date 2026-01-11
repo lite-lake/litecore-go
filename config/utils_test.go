@@ -13,7 +13,7 @@ type mockProvider struct {
 	data map[string]any
 }
 
-func newMockProvider(data map[string]any) common.ConfigProvider {
+func newMockProvider(data map[string]any) common.BaseConfigProvider {
 	return &mockProvider{data: data}
 }
 

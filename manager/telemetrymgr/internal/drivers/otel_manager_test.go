@@ -435,8 +435,8 @@ func TestOtelManager_WithHeaders(t *testing.T) {
 }
 
 func TestOtelManagerImplementsManagerInterface(t *testing.T) {
-	// Compile-time check that OtelManager implements common.Manager
-	var _ common.Manager = (*OtelManager)(nil)
+	// Compile-time check that OtelManager implements common.BaseManager
+	var _ common.BaseManager = (*OtelManager)(nil)
 }
 
 func TestOtelManagerImplementsTelemetryManagerInterface(t *testing.T) {

@@ -70,8 +70,8 @@ func (m *NoneManager) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// ensure NoneManager implements common.Manager interface
-var _ common.Manager = (*NoneManager)(nil)
+// ensure NoneManager implements common.BaseManager interface
+var _ common.BaseManager = (*NoneManager)(nil)
 
 // ensure NoneManager implements telemetrymgr.TelemetryManager interface
 var _ interface {

@@ -26,7 +26,7 @@ func IsConfigKeyNotFound(err error) bool {
 
 // Get 获取配置项并进行类型转换
 // 支持数字类型的智能转换：JSON 中的 float64 可转换为 int/int64（如果是整数）
-func Get[T any](p common.ConfigProvider, key string) (T, error) {
+func Get[T any](p common.BaseConfigProvider, key string) (T, error) {
 	var zero T // 零值
 
 	val, err := p.Get(key)
@@ -54,7 +54,7 @@ func Get[T any](p common.ConfigProvider, key string) (T, error) {
 }
 
 // GetWithDefault 获取配置项，如果不存在则返回默认值
-func GetWithDefault[T any](p common.ConfigProvider, key string, defaultValue T) T {
+func GetWithDefault[T any](p common.BaseConfigProvider, key string, defaultValue T) T {
 	val, err := Get[T](p, key)
 	if err != nil {
 		return defaultValue

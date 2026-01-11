@@ -7,7 +7,7 @@ import (
 	"com.litelake.litecore/config/internal/drivers"
 )
 
-func NewConfigProvider(driver string, filePath string) (common.ConfigProvider, error) {
+func NewConfigProvider(driver string, filePath string) (common.BaseConfigProvider, error) {
 	switch driver {
 	case "yaml":
 		return drivers.NewYamlConfigProvider(filePath)

@@ -329,5 +329,5 @@ func (m *MemoryManager) ItemCount() int {
 	return m.cache.ItemCount()
 }
 
-// Ensure MemoryManager implements common.Manager interface
-var _ common.Manager = (*MemoryManager)(nil)
+// Ensure MemoryManager implements common.BaseManager interface
+var _ common.BaseManager = (*MemoryManager)(nil)

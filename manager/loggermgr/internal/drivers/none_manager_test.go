@@ -162,7 +162,7 @@ func TestNoneLoggerManager_Shutdown(t *testing.T) {
 func TestNoneLoggerManager_CommonManager(t *testing.T) {
 	mgr := NewNoneLoggerManager()
 
-	// Test common.Manager interface methods
+	// Test common.BaseManager interface methods
 	if err := mgr.Health(); err != nil {
 		t.Errorf("NoneLoggerManager.Health() error = %v, want nil", err)
 	}

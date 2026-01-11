@@ -8,7 +8,7 @@ import (
 )
 
 // BaseManager 基础数据库管理器
-// 提供 common.Manager 接口的公共实现
+// 提供 common.BaseManager 接口的公共实现
 type BaseManager struct {
 	name string
 }
@@ -45,8 +45,8 @@ func (m *BaseManager) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// 编译时检查：确保 BaseManager 实现了 common.Manager 接口
-var _ common.Manager = (*BaseManager)(nil)
+// 编译时检查：确保 BaseManager 实现了 common.BaseManager 接口
+var _ common.BaseManager = (*BaseManager)(nil)
 
 // ValidateContext 验证上下文是否有效
 func ValidateContext(ctx context.Context) error {

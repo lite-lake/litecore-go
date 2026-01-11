@@ -160,8 +160,8 @@ func TestNoneManager_Lifecycle(t *testing.T) {
 }
 
 func TestNoneManagerImplementsManagerInterface(t *testing.T) {
-	// Compile-time check that NoneManager implements common.Manager
-	var _ common.Manager = (*NoneManager)(nil)
+	// Compile-time check that NoneManager implements common.BaseManager
+	var _ common.BaseManager = (*NoneManager)(nil)
 }
 
 func TestNoneManagerImplementsTelemetryManagerInterface(t *testing.T) {

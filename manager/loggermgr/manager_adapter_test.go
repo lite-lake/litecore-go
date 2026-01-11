@@ -187,7 +187,7 @@ func TestLoggerManagerAdapter_CommonManager(t *testing.T) {
 
 	adapter := NewLoggerManagerAdapter(zapMgr)
 
-	// Test common.Manager interface methods
+	// Test common.BaseManager interface methods
 	if err := adapter.Health(); err != nil {
 		t.Errorf("LoggerManagerAdapter.Health() error = %v, want nil", err)
 	}

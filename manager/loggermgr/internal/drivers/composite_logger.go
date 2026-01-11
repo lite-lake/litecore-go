@@ -282,5 +282,5 @@ func (m *ZapLoggerManager) OnStart() error {
 	return nil
 }
 
-// ensure ZapLoggerManager implements common.Manager interface
-var _ common.Manager = (*ZapLoggerManager)(nil)
+// ensure ZapLoggerManager implements common.BaseManager interface
+var _ common.BaseManager = (*ZapLoggerManager)(nil)

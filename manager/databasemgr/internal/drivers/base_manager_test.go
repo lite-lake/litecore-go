@@ -86,9 +86,9 @@ func TestBaseManager_Shutdown(t *testing.T) {
 	}
 }
 
-// TestBaseManager_ImplementsCommonManager 测试 BaseManager 实现了 common.Manager 接口
+// TestBaseManager_ImplementsCommonManager 测试 BaseManager 实现了 common.BaseManager 接口
 func TestBaseManager_ImplementsCommonManager(t *testing.T) {
-	var _ common.Manager = (*BaseManager)(nil)
+	var _ common.BaseManager = (*BaseManager)(nil)
 	m := NewBaseManager("test-manager")
 	if m == nil {
 		t.Error("NewBaseManager() returned nil")

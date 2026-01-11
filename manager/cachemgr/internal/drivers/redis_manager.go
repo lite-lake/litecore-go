@@ -314,8 +314,8 @@ func (m *RedisManager) Health() error {
 	return m.client.Ping(ctx).Err()
 }
 
-// Ensure RedisManager implements common.Manager interface
-var _ common.Manager = (*RedisManager)(nil)
+// Ensure RedisManager implements common.BaseManager interface
+var _ common.BaseManager = (*RedisManager)(nil)
 
 // 序列化函数
 func serialize(value any) ([]byte, error) {
