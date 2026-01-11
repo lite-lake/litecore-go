@@ -1,323 +1,140 @@
 package databasemgr
 
 import (
+	"errors"
 	"testing"
 
 	"com.litelake.litecore/common"
-	"com.litelake.litecore/manager/databasemgr/internal/config"
 )
 
-// TestNewFactory 测试创建工厂
-func TestNewFactory(t *testing.T) {
-	f := NewFactory()
-	if f == nil {
-		t.Fatal("NewFactory() returned nil")
-	}
+// MockConfigProvider 用于测试的模拟配置提供者
+type MockConfigProvider struct {
+	data map[string]any
+	err  error
 }
 
-// TestFactory_Build_InvalidConfig 测试无效配置
-func TestFactory_Build_InvalidConfig(t *testing.T) {
-	f := NewFactory()
-
-	tests := []struct {
-		name   string
-		driver string
-		cfg    map[string]any
-	}{
-		{
-			name:   "nil 配置",
-			driver: "",
-			cfg:    nil,
-		},
-		{
-			name:   "空配置",
-			driver: "",
-			cfg:    map[string]any{},
-		},
-		{
-			name:   "无效驱动",
-			driver: "invalid",
-			cfg:    map[string]any{},
-		},
-		{
-			name: "SQLite 缺少 DSN",
-			driver: "sqlite",
-			cfg: map[string]any{
-				"sqlite_config": map[string]any{},
-			},
-		},
-		{
-			name: "MySQL 缺少 DSN",
-			driver: "mysql",
-			cfg: map[string]any{
-				"mysql_config": map[string]any{},
-			},
-		},
-		{
-			name: "PostgreSQL 缺少 DSN",
-			driver: "postgresql",
-			cfg: map[string]any{
-				"postgresql_config": map[string]any{},
-			},
-		},
+func (m *MockConfigProvider) Get(key string) (any, error) {
+	if m == nil {
+		return nil, errors.New("config provider is nil")
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mgr := f.Build(tt.driver, tt.cfg)
-			// 无效配置应该返回 NoneDatabaseManager
-			if mgr == nil {
-				t.Error("Build() should return NoneDatabaseManager for invalid config")
-			}
-			if mgr.ManagerName() != "none-database" {
-				t.Errorf("Build() should return NoneDatabaseManager, got %s", mgr.ManagerName())
-			}
-		})
+	if m.err != nil {
+		return nil, m.err
 	}
+	if val, ok := m.data[key]; ok {
+		return val, nil
+	}
+	return nil, errors.New("key not found")
 }
 
-// TestFactory_Build_NoneDriver 测试 none 驱动
-func TestFactory_Build_NoneDriver(t *testing.T) {
-	f := NewFactory()
+func (m *MockConfigProvider) Has(key string) bool {
+	if m == nil || m.err != nil {
+		return false
+	}
+	_, ok := m.data[key]
+	return ok
+}
 
-	mgr := f.Build("none", nil)
+func (m *MockConfigProvider) ConfigProviderName() string {
+	return "mock"
+}
+
+// TestBuild_NoneDriver 测试 none 驱动
+func TestBuild_NoneDriver(t *testing.T) {
+	mgr, err := Build("none", nil)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+
 	if mgr == nil {
 		t.Fatal("Build() returned nil")
 	}
 
-	if mgr.ManagerName() != "none-database" {
-		t.Errorf("ManagerName() = %v, want 'none-database'", mgr.ManagerName())
+	if mgr.ManagerName() != "none" {
+		t.Errorf("ManagerName() = %v, want 'none'", mgr.ManagerName())
 	}
 }
 
-// TestFactory_Build_SQLite 测试 SQLite 驱动
-func TestFactory_Build_SQLite(t *testing.T) {
-	f := NewFactory()
-
+// TestBuild_SQLite 测试 SQLite 驱动
+func TestBuild_SQLite(t *testing.T) {
 	cfg := map[string]any{
-		"driver": "sqlite",
-		"sqlite_config": map[string]any{
-			"dsn": ":memory:",
-		},
+		"dsn": ":memory:",
 	}
 
-	mgr := f.Build("", cfg)
+	mgr, err := Build("sqlite", cfg)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+
 	if mgr == nil {
 		t.Fatal("Build() returned nil")
 	}
 
-	if mgr.ManagerName() != "sqlite-database" {
-		t.Errorf("ManagerName() = %v, want 'sqlite-database'", mgr.ManagerName())
+	if mgr.ManagerName() != "sqlite" {
+		t.Errorf("ManagerName() = %v, want 'sqlite'", mgr.ManagerName())
 	}
 
 	// 验证实现了 common.BaseManager 接口
 	var _ common.BaseManager = mgr
+
+	// 清理
+	_ = mgr.Close()
 }
 
-// TestFactory_Build_SQLite_WithPoolConfig 测试 SQLite 带连接池配置
-func TestFactory_Build_SQLite_WithPoolConfig(t *testing.T) {
-	f := NewFactory()
-
+// TestBuild_SQLite_WithPoolConfig 测试 SQLite 带连接池配置
+func TestBuild_SQLite_WithPoolConfig(t *testing.T) {
 	cfg := map[string]any{
-		"driver": "sqlite",
-		"sqlite_config": map[string]any{
-			"dsn": ":memory:",
-			"pool_config": map[string]any{
-				"max_open_conns": 1,
-				"max_idle_conns": 1,
-			},
+		"dsn": ":memory:",
+		"pool_config": map[string]any{
+			"max_open_conns": 1,
+			"max_idle_conns": 1,
 		},
 	}
 
-	mgr := f.Build("", cfg)
-	if mgr == nil {
-		t.Fatal("Build() returned nil")
-	}
-
-	if mgr.ManagerName() != "sqlite-database" {
-		t.Errorf("ManagerName() = %v, want 'sqlite-database'", mgr.ManagerName())
-	}
-}
-
-// TestFactory_Build_DriverOverride 测试驱动覆盖
-func TestFactory_Build_DriverOverride(t *testing.T) {
-	f := NewFactory()
-
-	// 通过参数指定驱动，配置中提供 sqlite_config
-	cfg := map[string]any{
-		"sqlite_config": map[string]any{
-			"dsn": ":memory:",
-		},
-	}
-
-	mgr := f.Build("sqlite", cfg)
-	if mgr == nil {
-		t.Fatal("Build() returned nil")
-	}
-
-	if mgr.ManagerName() != "sqlite-database" {
-		t.Errorf("ManagerName() = %v, want 'sqlite-database'", mgr.ManagerName())
-	}
-}
-
-// TestFactory_BuildWithConfig_SQLite 测试使用配置结构体构建 SQLite
-func TestFactory_BuildWithConfig_SQLite(t *testing.T) {
-	f := NewFactory()
-
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: ":memory:",
-		},
-	}
-
-	mgr, err := f.BuildWithConfig(cfg)
+	mgr, err := Build("sqlite", cfg)
 	if err != nil {
-		t.Fatalf("BuildWithConfig() error = %v", err)
+		t.Fatalf("Build() error = %v", err)
 	}
 
 	if mgr == nil {
-		t.Fatal("BuildWithConfig() returned nil")
+		t.Fatal("Build() returned nil")
 	}
 
-	if mgr.ManagerName() != "sqlite-database" {
-		t.Errorf("ManagerName() = %v, want 'sqlite-database'", mgr.ManagerName())
+	if mgr.ManagerName() != "sqlite" {
+		t.Errorf("ManagerName() = %v, want 'sqlite'", mgr.ManagerName())
 	}
 
 	_ = mgr.Close()
 }
 
-// TestFactory_BuildWithConfig_InvalidConfig 测试无效配置结构体
-func TestFactory_BuildWithConfig_InvalidConfig(t *testing.T) {
-	f := NewFactory()
-
-	tests := []struct {
-		name    string
-		config  *config.DatabaseConfig
-		wantErr bool
-	}{
-		{
-			name:    "nil 配置",
-			config:  nil,
-			wantErr: true,
-		},
-		{
-			name: "空驱动",
-			config: &config.DatabaseConfig{
-				Driver: "",
-			},
-			wantErr: true,
-		},
-		{
-			name: "SQLite 配置为空",
-			config: &config.DatabaseConfig{
-				Driver: "sqlite",
-			},
-			wantErr: true,
-		},
-		{
-			name: "无效驱动",
-			config: &config.DatabaseConfig{
-				Driver: "invalid",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mgr, err := f.BuildWithConfig(tt.config)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BuildWithConfig() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err == nil && mgr != nil {
-				_ = mgr.Close()
-			}
-		})
+// TestBuild_InvalidDriver 测试无效驱动
+func TestBuild_InvalidDriver(t *testing.T) {
+	_, err := Build("invalid", nil)
+	if err == nil {
+		t.Error("Build() should return error for invalid driver")
 	}
 }
 
-// TestFactory_BuildWithConfig_AllDrivers 测试所有驱动类型
-func TestFactory_BuildWithConfig_AllDrivers(t *testing.T) {
-	f := NewFactory()
+// TestBuild_SQLite_MissingDSN 测试 SQLite 缺少 DSN
+func TestBuild_SQLite_MissingDSN(t *testing.T) {
+	cfg := map[string]any{}
 
-	tests := []struct {
-		name          string
-		config        *config.DatabaseConfig
-		expectSuccess bool
-	}{
-		{
-			name: "SQLite",
-			config: &config.DatabaseConfig{
-				Driver: "sqlite",
-				SQLiteConfig: &config.SQLiteConfig{
-					DSN: ":memory:",
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name: "none",
-			config: &config.DatabaseConfig{
-				Driver: "none",
-			},
-			expectSuccess: true,
-		},
-		{
-			name: "MySQL（需要真实连接）",
-			config: &config.DatabaseConfig{
-				Driver: "mysql",
-				MySQLConfig: &config.MySQLConfig{
-					DSN: "root:password@tcp(localhost:3306)/test",
-				},
-			},
-			expectSuccess: false,
-		},
-		{
-			name: "PostgreSQL（需要真实连接）",
-			config: &config.DatabaseConfig{
-				Driver: "postgresql",
-				PostgreSQLConfig: &config.PostgreSQLConfig{
-					DSN: "host=localhost port=5432",
-				},
-			},
-			expectSuccess: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mgr, err := f.BuildWithConfig(tt.config)
-			if tt.expectSuccess {
-				if err != nil {
-					t.Fatalf("BuildWithConfig() error = %v", err)
-				}
-				if mgr == nil {
-					t.Fatal("BuildWithConfig() returned nil")
-				}
-				_ = mgr.Close()
-			} else {
-				if err == nil {
-					_ = mgr.Close()
-					t.Skip("Database is available, skipping error test")
-				}
-			}
-		})
+	_, err := Build("sqlite", cfg)
+	if err == nil {
+		t.Error("Build() should return error for missing DSN")
 	}
 }
 
-// TestFactory_ImplementsManagerInterface 测试工厂实现了 Manager 接口
-func TestFactory_ImplementsManagerInterface(t *testing.T) {
-	f := NewFactory()
-
+// TestBuild_ImplementsManagerInterface 测试实现了 Manager 接口
+func TestBuild_ImplementsManagerInterface(t *testing.T) {
 	cfg := map[string]any{
-		"driver": "sqlite",
-		"sqlite_config": map[string]any{
-			"dsn": ":memory:",
-		},
+		"dsn": ":memory:",
 	}
 
-	mgr := f.Build("", cfg)
+	mgr, err := Build("sqlite", cfg)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+
 	if mgr == nil {
 		t.Fatal("Build() returned nil")
 	}
@@ -337,20 +154,15 @@ func TestFactory_ImplementsManagerInterface(t *testing.T) {
 	}
 }
 
-// BenchmarkFactory_Build 基准测试 Build 方法
-func BenchmarkFactory_Build(b *testing.B) {
-	f := NewFactory()
-
+// BenchmarkBuild 基准测试 Build 方法
+func BenchmarkBuild(b *testing.B) {
 	cfg := map[string]any{
-		"driver": "sqlite",
-		"sqlite_config": map[string]any{
-			"dsn": ":memory:",
-		},
+		"dsn": ":memory:",
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mgr := f.Build("", cfg)
+		mgr, _ := Build("sqlite", cfg)
 		if mgr != nil {
 			if dbMgr, ok := mgr.(DatabaseManager); ok {
 				_ = dbMgr.Close()
@@ -359,20 +171,106 @@ func BenchmarkFactory_Build(b *testing.B) {
 	}
 }
 
-// BenchmarkFactory_BuildWithConfig 基准测试 BuildWithConfig 方法
-func BenchmarkFactory_BuildWithConfig(b *testing.B) {
-	f := NewFactory()
+// TestBuildWithConfigProvider_NoneDriver 测试使用 ConfigProvider 构建 none 驱动
+func TestBuildWithConfigProvider_NoneDriver(t *testing.T) {
+	provider := &MockConfigProvider{
+		data: map[string]any{
+			"database.driver": "none",
+		},
+	}
 
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: ":memory:",
+	mgr, err := BuildWithConfigProvider(provider)
+	if err != nil {
+		t.Fatalf("BuildWithConfigProvider() error = %v", err)
+	}
+
+	if mgr == nil {
+		t.Fatal("BuildWithConfigProvider() returned nil")
+	}
+
+	if mgr.ManagerName() != "none" {
+		t.Errorf("ManagerName() = %v, want 'none'", mgr.ManagerName())
+	}
+}
+
+// TestBuildWithConfigProvider_SQLite 测试使用 ConfigProvider 构建 SQLite
+func TestBuildWithConfigProvider_SQLite(t *testing.T) {
+	provider := &MockConfigProvider{
+		data: map[string]any{
+			"database.driver": "sqlite",
+			"database.sqlite_config": map[string]any{
+				"dsn": ":memory:",
+			},
+		},
+	}
+
+	mgr, err := BuildWithConfigProvider(provider)
+	if err != nil {
+		t.Fatalf("BuildWithConfigProvider() error = %v", err)
+	}
+
+	if mgr == nil {
+		t.Fatal("BuildWithConfigProvider() returned nil")
+	}
+
+	if mgr.ManagerName() != "sqlite" {
+		t.Errorf("ManagerName() = %v, want 'sqlite'", mgr.ManagerName())
+	}
+
+	_ = mgr.Close()
+}
+
+// TestBuildWithConfigProvider_NilProvider 测试 nil provider
+func TestBuildWithConfigProvider_NilProvider(t *testing.T) {
+	_, err := BuildWithConfigProvider(nil)
+	if err == nil {
+		t.Error("BuildWithConfigProvider() should return error for nil provider")
+	}
+}
+
+// TestBuildWithConfigProvider_InvalidDriver 测试无效驱动
+func TestBuildWithConfigProvider_InvalidDriver(t *testing.T) {
+	provider := &MockConfigProvider{
+		data: map[string]any{
+			"database.driver": "invalid",
+		},
+	}
+
+	_, err := BuildWithConfigProvider(provider)
+	if err == nil {
+		t.Error("BuildWithConfigProvider() should return error for invalid driver")
+	}
+}
+
+// TestBuildWithConfigProvider_MissingConfig 测试缺少配置
+func TestBuildWithConfigProvider_MissingConfig(t *testing.T) {
+	provider := &MockConfigProvider{
+		data: map[string]any{
+			"database.driver": "sqlite",
+			// 缺少 sqlite_config
+		},
+	}
+
+	_, err := BuildWithConfigProvider(provider)
+	if err == nil {
+		t.Error("BuildWithConfigProvider() should return error for missing config")
+	}
+}
+
+// BenchmarkBuildWithConfigProvider 基准测试 BuildWithConfigProvider 方法
+func BenchmarkBuildWithConfigProvider(b *testing.B) {
+	provider := &MockConfigProvider{
+		data: map[string]any{
+			"database.driver": "sqlite",
+			"database.sqlite_config": map[string]any{
+				"dsn": ":memory:",
+			},
 		},
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mgr, _ := f.BuildWithConfig(cfg)
+		mgr, _ := BuildWithConfigProvider(provider)
 		if mgr != nil {
 			_ = mgr.Close()
 		}
