@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	"com.litelake.litecore/manager/loggermgr"
-	"com.litelake.litecore/manager/telemetrymgr"
 )
 
 // cacheManagerNoneImpl 空缓存实现（降级）
@@ -16,14 +13,13 @@ type cacheManagerNoneImpl struct {
 }
 
 // NewCacheManagerNoneImpl 创建空缓存实现
-func NewCacheManagerNoneImpl(
-	loggerMgr loggermgr.LoggerManager,
-	telemetryMgr telemetrymgr.TelemetryManager,
-) CacheManager {
-	return &cacheManagerNoneImpl{
-		cacheManagerBaseImpl: newCacheManagerBaseImpl(loggerMgr, telemetryMgr),
-		name:     "none-cache",
+func NewCacheManagerNoneImpl() CacheManager {
+	impl := &cacheManagerNoneImpl{
+		cacheManagerBaseImpl: newCacheManagerBaseImpl(),
+		name:                 "cacheManagerNoneImpl",
 	}
+	impl.initObservability()
+	return impl
 }
 
 // ManagerName 返回管理器名称

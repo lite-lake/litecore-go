@@ -6,9 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"com.litelake.litecore/manager/loggermgr"
-	"com.litelake.litecore/manager/telemetrymgr"
-
 	"github.com/patrickmn/go-cache"
 )
 
@@ -21,16 +18,14 @@ type cacheManagerMemoryImpl struct {
 }
 
 // NewCacheManagerMemoryImpl 创建内存缓存实现
-func NewCacheManagerMemoryImpl(
-	defaultExpiration, cleanupInterval time.Duration,
-	loggerMgr loggermgr.LoggerManager,
-	telemetryMgr telemetrymgr.TelemetryManager,
-) CacheManager {
-	return &cacheManagerMemoryImpl{
-		cacheManagerBaseImpl: newCacheManagerBaseImpl(loggerMgr, telemetryMgr),
-		cache:    cache.New(defaultExpiration, cleanupInterval),
-		name:     "memory-cache",
+func NewCacheManagerMemoryImpl(defaultExpiration, cleanupInterval time.Duration) CacheManager {
+	impl := &cacheManagerMemoryImpl{
+		cacheManagerBaseImpl: newCacheManagerBaseImpl(),
+		cache:                cache.New(defaultExpiration, cleanupInterval),
+		name:                 "cacheManagerMemoryImpl",
 	}
+	impl.initObservability()
+	return impl
 }
 
 // ManagerName 返回管理器名称
