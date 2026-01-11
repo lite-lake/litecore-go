@@ -1,0 +1,412 @@
+# Container - 分层依赖注入容器
+
+提供分层依赖注入容器，严格约束架构分层并管理组件生命周期。
+
+## 特性
+
+- **分层架构** - 定义 Config/Entity/Manager/Repository/Service/Controller/Middleware 七层容器
+- **单向依赖** - 上层可依赖下层，下层不能依赖上层，禁止跨层访问
+- **依赖注入** - 通过 inject 标签自动注入依赖，支持接口匹配
+- **同层依赖** - Manager 和 Service 层支持同层依赖，自动拓扑排序确定注入顺序
+- **错误检测** - 自动检测循环依赖、依赖缺失、多重匹配、重复注册等错误
+- **并发安全** - 容器内部使用 RWMutex 保护，支持多线程并发读取
+
+## 快速开始
+
+```go
+package main
+
+import (
+    "log"
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/container"
+)
+
+func main() {
+    // 1. 创建容器（按依赖顺序）
+    configContainer := container.NewConfigContainer()
+    managerContainer := container.NewManagerContainer(configContainer)
+    entityContainer := container.NewEntityContainer()
+    repositoryContainer := container.NewRepositoryContainer(configContainer, managerContainer, entityContainer)
+    serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
+    controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
+
+    // 2. 注册实例（可按任意顺序）
+    configContainer.Register(&AppConfig{})
+    managerContainer.Register(&DatabaseManager{})
+    entityContainer.Register(&User{})
+    repositoryContainer.Register(&UserRepositoryImpl{})
+    serviceContainer.Register(&UserServiceImpl{})
+    controllerContainer.Register(&UserControllerImpl{})
+
+    // 3. 执行依赖注入（按层次从下到上）
+    if err := managerContainer.InjectAll(); err != nil {
+        log.Fatalf("Manager injection failed: %v", err)
+    }
+    if err := repositoryContainer.InjectAll(); err != nil {
+        log.Fatalf("Repository injection failed: %v", err)
+    }
+    if err := serviceContainer.InjectAll(); err != nil {
+        log.Fatalf("Service injection failed: %v", err)
+    }
+    if err := controllerContainer.InjectAll(); err != nil {
+        log.Fatalf("Controller injection failed: %v", err)
+    }
+
+    // 4. 获取实例使用
+    userCtrl, _ := controllerContainer.GetByName("user")
+    userCtrl.Handle()
+}
+```
+
+## 容器层次
+
+系统定义以下七层容器，遵循单向依赖原则：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Controller Layer   (BaseController)                        │
+│  Middleware Layer   (BaseMiddleware)                        │
+├─────────────────────────────────────────────────────────────┤
+│  Service Layer      (BaseService)                           │
+├─────────────────────────────────────────────────────────────┤
+│  Repository Layer   (BaseRepository)                        │
+├─────────────────────────────────────────────────────────────┤
+│  Entity Layer       (BaseEntity)                            │
+│  Manager Layer      (BaseManager)                           │
+├─────────────────────────────────────────────────────────────┤
+│  Config Layer       (BaseConfigProvider)                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| 层级       | 可依赖的层级                              |
+| ---------- | ----------------------------------------- |
+| Config     | 无依赖                                    |
+| Entity     | 无依赖                                    |
+| Manager    | Config, 其他 Manager                      |
+| Repository | Config, Manager, Entity                   |
+| Service    | Config, Manager, Repository, 其他 Service |
+| Controller | Config, Manager, Service                  |
+| Middleware | Config, Manager, Service                  |
+
+## 依赖注入
+
+### 声明依赖
+
+在结构体字段上使用 `inject` 标签声明需要注入的依赖：
+
+```go
+type UserServiceImpl struct {
+    Config     BaseConfigProvider `inject:""`
+    DBManager  DatabaseManager    `inject:""`
+    UserRepo   UserRepository     `inject:""`
+    OrderSvc   OrderService       `inject:""`  // 同层依赖
+}
+
+func (s *UserServiceImpl) ServiceName() string {
+    return "user"
+}
+```
+
+### 注入规则
+
+1. **接口匹配**：字段类型是接口，注册实例实现了该接口
+2. **精确匹配**：字段类型与注册实例类型完全一致
+3. **唯一性要求**：匹配结果必须唯一，否则报错
+4. **可选依赖**：使用 `inject:"optional"` 标记可选依赖，找不到时不报错
+
+```go
+type UserServiceImpl struct {
+    Config    BaseConfigProvider `inject:""`
+    CacheMgr  CacheManager       `inject:"optional"` // 可选依赖
+}
+```
+
+### 两阶段注入
+
+容器采用 **注册-注入分离** 的两阶段模式：
+
+**阶段 1：注册阶段 (Register)**
+
+- 仅将实例加入容器的 items map
+- 不执行任何依赖注入操作
+- 可按任意顺序注册
+- 注册时检查名称唯一性
+
+**阶段 2：注入阶段 (InjectAll)**
+
+- 遍历容器内所有已注册实例
+- 反射解析实例字段，执行依赖注入
+- 对于同层依赖，按拓扑顺序注入
+- 检测循环依赖和缺失依赖，失败时报错
+
+## 同层依赖
+
+Service 和 Manager 层支持同层依赖，容器会自动构建依赖图并进行拓扑排序。
+
+### 示例场景
+
+```go
+// UserService 依赖 OrderService，OrderService 依赖 PaymentService
+type UserServiceImpl struct {
+    OrderSvc OrderService `inject:""`
+}
+
+type OrderServiceImpl struct {
+    PaymentSvc PaymentService `inject:""`
+}
+
+type PaymentServiceImpl struct {
+    // 无同层依赖
+}
+```
+
+### 注入顺序
+
+```go
+// 注册顺序不限
+serviceContainer.Register(&UserServiceImpl{})
+serviceContainer.Register(&OrderServiceImpl{})
+serviceContainer.Register(&PaymentServiceImpl{})
+
+// InjectAll 自动处理依赖顺序
+// 内部执行流程：
+// 1. 构建依赖图：UserService → OrderService → PaymentService
+// 2. 拓扑排序：[PaymentService, OrderService, UserService]
+// 3. 按顺序注入：先 PaymentService，再 OrderService，最后 UserService
+serviceContainer.InjectAll()
+```
+
+## 错误处理
+
+### 错误类型
+
+```go
+// 依赖缺失错误
+type DependencyNotFoundError struct {
+    InstanceName   string
+    FieldName      string
+    FieldType      reflect.Type
+    ContainerType  string
+}
+
+// 循环依赖错误
+type CircularDependencyError struct {
+    Cycle []string
+}
+
+// 多重匹配错误
+type AmbiguousMatchError struct {
+    InstanceName string
+    FieldName    string
+    FieldType    reflect.Type
+    Candidates   []string
+}
+
+// 重复注册错误
+type DuplicateRegistrationError struct {
+    Name     string
+    Existing interface{}
+    New      interface{}
+}
+
+// 实例未找到错误
+type InstanceNotFoundError struct {
+    Name  string
+    Layer string
+}
+```
+
+### 错误处理示例
+
+```go
+if err := serviceContainer.InjectAll(); err != nil {
+    var depErr *container.DependencyNotFoundError
+    if errors.As(err, &depErr) {
+        log.Fatalf("Missing dependency: %v", depErr)
+    }
+
+    var circErr *container.CircularDependencyError
+    if errors.As(err, &circErr) {
+        log.Fatalf("Circular dependency: %v", circErr)
+    }
+
+    log.Fatal(err)
+}
+```
+
+## API
+
+### ConfigContainer
+
+```go
+func NewConfigContainer() *ConfigContainer
+func (c *ConfigContainer) Register(ins common.BaseConfigProvider) error
+func (c *ConfigContainer) InjectAll() error
+func (c *ConfigContainer) GetAll() []common.BaseConfigProvider
+func (c *ConfigContainer) GetByName(name string) (common.BaseConfigProvider, error)
+func (c *ConfigContainer) GetByType(typ reflect.Type) ([]common.BaseConfigProvider, error)
+func (c *ConfigContainer) Count() int
+```
+
+### ManagerContainer
+
+```go
+func NewManagerContainer(config *ConfigContainer) *ManagerContainer
+func (m *ManagerContainer) Register(ins common.BaseManager) error
+func (m *ManagerContainer) InjectAll() error
+func (m *ManagerContainer) GetAll() []common.BaseManager
+func (m *ManagerContainer) GetByName(name string) (common.BaseManager, error)
+func (m *ManagerContainer) GetByType(typ reflect.Type) ([]common.BaseManager, error)
+func (m *ManagerContainer) Count() int
+```
+
+### EntityContainer
+
+```go
+func NewEntityContainer() *EntityContainer
+func (e *EntityContainer) Register(ins common.BaseEntity) error
+func (e *EntityContainer) InjectAll() error
+func (e *EntityContainer) GetAll() []common.BaseEntity
+func (e *EntityContainer) GetByName(name string) (common.BaseEntity, error)
+func (e *EntityContainer) GetByType(typ reflect.Type) ([]common.BaseEntity, error)
+func (e *EntityContainer) Count() int
+```
+
+### RepositoryContainer
+
+```go
+func NewRepositoryContainer(
+    config *ConfigContainer,
+    manager *ManagerContainer,
+    entity *EntityContainer,
+) *RepositoryContainer
+func (r *RepositoryContainer) Register(ins common.BaseRepository) error
+func (r *RepositoryContainer) InjectAll() error
+func (r *RepositoryContainer) GetAll() []common.BaseRepository
+func (r *RepositoryContainer) GetByName(name string) (common.BaseRepository, error)
+func (r *RepositoryContainer) GetByType(typ reflect.Type) ([]common.BaseRepository, error)
+func (r *RepositoryContainer) Count() int
+```
+
+### ServiceContainer
+
+```go
+func NewServiceContainer(
+    config *ConfigContainer,
+    manager *ManagerContainer,
+    repository *RepositoryContainer,
+) *ServiceContainer
+func (s *ServiceContainer) Register(ins common.BaseService) error
+func (s *ServiceContainer) InjectAll() error
+func (s *ServiceContainer) GetAll() []common.BaseService
+func (s *ServiceContainer) GetByName(name string) (common.BaseService, error)
+func (s *ServiceContainer) GetByType(typ reflect.Type) ([]common.BaseService, error)
+func (s *ServiceContainer) Count() int
+```
+
+### ControllerContainer
+
+```go
+func NewControllerContainer(
+    config *ConfigContainer,
+    manager *ManagerContainer,
+    service *ServiceContainer,
+) *ControllerContainer
+func (c *ControllerContainer) Register(ins common.BaseController) error
+func (c *ControllerContainer) InjectAll() error
+func (c *ControllerContainer) GetAll() []common.BaseController
+func (c *ControllerContainer) GetByName(name string) (common.BaseController, error)
+func (c *ControllerContainer) GetByType(typ reflect.Type) ([]common.BaseController, error)
+func (c *ControllerContainer) Count() int
+```
+
+### MiddlewareContainer
+
+```go
+func NewMiddlewareContainer(
+    config *ConfigContainer,
+    manager *ManagerContainer,
+    service *ServiceContainer,
+) *MiddlewareContainer
+func (m *MiddlewareContainer) Register(ins common.BaseMiddleware) error
+func (m *MiddlewareContainer) InjectAll() error
+func (m *MiddlewareContainer) GetAll() []common.BaseMiddleware
+func (m *MiddlewareContainer) GetByName(name string) (common.BaseMiddleware, error)
+func (m *MiddlewareContainer) GetByType(typ reflect.Type) ([]common.BaseMiddleware, error)
+func (m *MiddlewareContainer) Count() int
+```
+
+## 最佳实践
+
+### 1. 依赖声明为接口类型
+
+```go
+// 推荐：声明为接口类型
+type UserServiceImpl struct {
+    OrderSvc   OrderService    `inject:""`
+    UserRepo   UserRepository  `inject:""`
+}
+
+// 避免：声明为具体实现类型
+type UserServiceImpl struct {
+    OrderSvc   *OrderServiceImpl `inject:""`
+}
+```
+
+### 2. 避免循环依赖
+
+```go
+// 推荐：无环的依赖关系
+UserService → OrderService → PaymentService
+
+// 避免：循环依赖
+UserService → OrderService → UserService (循环!)
+```
+
+### 3. 避免过度依赖
+
+```go
+// 推荐：依赖聚焦
+type UserServiceImpl struct {
+    UserRepo   UserRepository  `inject:""`
+}
+
+// 避免：依赖过多
+type UserServiceImpl struct {
+    Config     BaseConfigProvider `inject:""`
+    DBManager  DatabaseManager    `inject:""`
+    CacheMgr   CacheManager       `inject:""`
+    UserRepo   UserRepository     `inject:""`
+    OrderRepo  OrderRepository    `inject:""`
+    OrderSvc   OrderService       `inject:""`
+    PaymentSvc PaymentService     `inject:""`
+    // ... 更多依赖
+}
+```
+
+### 4. 使用可选依赖
+
+对于非必须的依赖，使用 `inject:"optional"` 标记：
+
+```go
+type UserServiceImpl struct {
+    Config    BaseConfigProvider `inject:""`
+    CacheMgr  CacheManager       `inject:"optional"` // 可选依赖
+}
+```
+
+## 并发安全
+
+容器在访问时使用 `sync.RWMutex` 保护：
+
+- **写入阶段**：应用启动时单线程顺序注册，无并发写入
+- **读取阶段**：服务运行期间多线程并发读取
+
+Register 使用写锁（Lock），GetByName/GetByType/GetAll 使用读锁（RLock）。
+
+## 性能考虑
+
+1. **反射开销**：InjectAll 使用反射解析字段，仅在启动时执行一次，可接受
+2. **拓扑排序复杂度**：O(V + E)，V 为实例数量，E 为依赖边数
+3. **并发读取**：注入完成后使用 RWMutex 保护，读取性能高
