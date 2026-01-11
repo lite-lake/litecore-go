@@ -88,5 +88,5 @@ func (m *NoneManager) Decrement(ctx context.Context, key string, value int64) (i
 	return 0, nil
 }
 
-// Ensure NoneManager implements common.Manager interface
-var _ common.Manager = (*NoneManager)(nil)
+// Ensure NoneManager implements common.BaseManager interface
+var _ common.BaseManager = (*NoneManager)(nil)

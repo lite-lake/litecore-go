@@ -118,6 +118,6 @@ func TestValidateContext(t *testing.T) {
 }
 
 func TestBaseManagerImplementsManagerInterface(t *testing.T) {
-	// Compile-time check that BaseManager implements common.Manager
-	var _ common.Manager = (*BaseManager)(nil)
+	// Compile-time check that BaseManager implements common.BaseManager
+	var _ common.BaseManager = (*BaseManager)(nil)
 }

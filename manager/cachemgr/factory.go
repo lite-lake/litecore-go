@@ -15,12 +15,12 @@ import (
 // cfg: 缓存配置内容（包含 driver、redis_config、memory_config 等配置项）
 // loggerMgr: 可选的日志管理器
 // telemetryMgr: 可选的观测管理器
-// 返回实现 common.Manager 接口的缓存管理器
+// 返回实现 common.BaseManager 接口的缓存管理器
 func Build(
 	cfg map[string]any,
 	loggerMgr loggermgr.LoggerManager,
 	telemetryMgr telemetrymgr.TelemetryManager,
-) common.Manager {
+) common.BaseManager {
 	// 解析缓存配置
 	cacheConfig, err := config.ParseCacheConfigFromMap(cfg)
 	if err != nil {
@@ -35,7 +35,7 @@ func Build(
 	}
 
 	// 根据驱动类型创建相应的管理器
-	var mgr common.Manager
+	var mgr common.BaseManager
 	switch cacheConfig.Driver {
 	case "redis":
 		redisMgr, err := drivers.NewRedisManager(cacheConfig.RedisConfig)
@@ -64,17 +64,17 @@ func Build(
 // cacheConfig: 缓存配置结构体
 // loggerMgr: 可选的日志管理器
 // telemetryMgr: 可选的观测管理器
-// 返回实现 common.Manager 接口的缓存管理器和可能的错误
+// 返回实现 common.BaseManager 接口的缓存管理器和可能的错误
 func BuildWithConfig(
 	cacheConfig *config.CacheConfig,
 	loggerMgr loggermgr.LoggerManager,
 	telemetryMgr telemetrymgr.TelemetryManager,
-) (common.Manager, error) {
+) (common.BaseManager, error) {
 	if err := cacheConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid cache config: %w", err)
 	}
 
-	var mgr common.Manager
+	var mgr common.BaseManager
 	switch cacheConfig.Driver {
 	case "redis":
 		redisMgr, err := drivers.NewRedisManager(cacheConfig.RedisConfig)
@@ -104,7 +104,7 @@ func BuildRedis(
 	host string, port int, password string, db int,
 	loggerMgr loggermgr.LoggerManager,
 	telemetryMgr telemetrymgr.TelemetryManager,
-) common.Manager {
+) common.BaseManager {
 	cfg := &config.RedisConfig{
 		Host:            host,
 		Port:            port,
@@ -130,7 +130,7 @@ func BuildMemory(
 	defaultExpiration, cleanupInterval time.Duration,
 	loggerMgr loggermgr.LoggerManager,
 	telemetryMgr telemetrymgr.TelemetryManager,
-) common.Manager {
+) common.BaseManager {
 	memoryMgr := drivers.NewMemoryManager(defaultExpiration, cleanupInterval)
 	return NewCacheManagerAdapter(memoryMgr, loggerMgr, telemetryMgr)
 }
@@ -141,6 +141,6 @@ func BuildMemory(
 func BuildNone(
 	loggerMgr loggermgr.LoggerManager,
 	telemetryMgr telemetrymgr.TelemetryManager,
-) common.Manager {
+) common.BaseManager {
 	return NewCacheManagerAdapter(drivers.NewNoneManager(), loggerMgr, telemetryMgr)
 }

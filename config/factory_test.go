@@ -200,8 +200,8 @@ port: 8080`
 				t.Fatalf("NewConfigProvider() error = %v", err)
 			}
 
-			// Verify it implements ConfigProvider interface
-			var _ common.ConfigProvider = provider
+			// Verify it implements BaseConfigProvider interface
+			var _ common.BaseConfigProvider = provider
 
 			// Test Get method
 			name, err := provider.Get("name")

@@ -110,8 +110,8 @@ func TestFactory_Build_SQLite(t *testing.T) {
 		t.Errorf("ManagerName() = %v, want 'sqlite-database'", mgr.ManagerName())
 	}
 
-	// 验证实现了 common.Manager 接口
-	var _ common.Manager = mgr
+	// 验证实现了 common.BaseManager 接口
+	var _ common.BaseManager = mgr
 }
 
 // TestFactory_Build_SQLite_WithPoolConfig 测试 SQLite 带连接池配置
@@ -322,8 +322,8 @@ func TestFactory_ImplementsManagerInterface(t *testing.T) {
 		t.Fatal("Build() returned nil")
 	}
 
-	// 验证返回值实现了 common.Manager 接口
-	var _ common.Manager = mgr
+	// 验证返回值实现了 common.BaseManager 接口
+	var _ common.BaseManager = mgr
 
 	// 测试接口方法
 	_ = mgr.ManagerName()

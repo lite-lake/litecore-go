@@ -306,8 +306,8 @@ func (m *OtelManager) Shutdown(ctx context.Context) error {
 	return shutdownErr
 }
 
-// ensure OtelManager implements common.Manager interface
-var _ common.Manager = (*OtelManager)(nil)
+// ensure OtelManager implements common.BaseManager interface
+var _ common.BaseManager = (*OtelManager)(nil)
 
 // ensure OtelManager implements telemetrymgr.TelemetryManager interface
 var _ interface {

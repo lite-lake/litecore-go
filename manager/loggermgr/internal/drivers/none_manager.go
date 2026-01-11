@@ -67,5 +67,5 @@ func (m *NoneLoggerManager) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// ensure NoneLoggerManager implements common.Manager interface
-var _ common.Manager = (*NoneLoggerManager)(nil)
+// ensure NoneLoggerManager implements common.BaseManager interface
+var _ common.BaseManager = (*NoneLoggerManager)(nil)

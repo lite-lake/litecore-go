@@ -45,8 +45,8 @@ func (m *BaseManager) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// ensure BaseManager implements common.Manager interface
-var _ common.Manager = (*BaseManager)(nil)
+// ensure BaseManager implements common.BaseManager interface
+var _ common.BaseManager = (*BaseManager)(nil)
 
 // ValidateContext 验证上下文是否有效
 func ValidateContext(ctx context.Context) error {

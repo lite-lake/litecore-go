@@ -235,7 +235,7 @@ func TestFactory_Build_Lifecycle(t *testing.T) {
 func TestFactory_Build_ManagerImplementsCommonManager(t *testing.T) {
 	f := NewFactory()
 
-	// Test that all drivers return managers implementing common.Manager
+	// Test that all drivers return managers implementing common.BaseManager
 	drivers := []struct {
 		name   string
 		driver string
@@ -252,12 +252,12 @@ func TestFactory_Build_ManagerImplementsCommonManager(t *testing.T) {
 				t.Fatal("Build() returned nil manager")
 			}
 
-			// Compile-time check that mgr implements common.Manager
-			var _ common.Manager = mgr
+			// Compile-time check that mgr implements common.BaseManager
+			var _ common.BaseManager = mgr
 
 			// Runtime check
-			if _, ok := mgr.(common.Manager); !ok {
-				t.Error("Manager does not implement common.Manager interface")
+			if _, ok := mgr.(common.BaseManager); !ok {
+				t.Error("Manager does not implement common.BaseManager interface")
 			}
 		})
 	}

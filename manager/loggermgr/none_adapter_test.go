@@ -102,7 +102,7 @@ func TestNoneLoggerManagerAdapter_CommonManager(t *testing.T) {
 	noneMgr := drivers.NewNoneLoggerManager()
 	adapter := NewNoneLoggerManagerAdapter(noneMgr)
 
-	// Test common.Manager interface methods
+	// Test common.BaseManager interface methods
 	if err := adapter.Health(); err != nil {
 		t.Errorf("NoneLoggerManagerAdapter.Health() error = %v, want nil", err)
 	}

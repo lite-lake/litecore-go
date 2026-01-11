@@ -17,7 +17,7 @@ func NewFactory() *Factory {
 }
 
 // Build 创建数据库管理器实例
-func (f *Factory) Build(driver string, cfg map[string]any) common.Manager {
+func (f *Factory) Build(driver string, cfg map[string]any) common.BaseManager {
 	databaseConfig, err := config.ParseDatabaseConfigFromMap(cfg)
 	if err != nil {
 		return drivers.NewNoneDatabaseManager()
