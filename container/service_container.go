@@ -94,15 +94,12 @@ func (s *ServiceContainer) InjectAll() error {
 		svc := s.items[name]
 		s.mu.RUnlock()
 
-		fmt.Printf("[DEBUG] Injecting dependencies for %s...\n", name)
 		resolver := &serviceDependencyResolver{
 			container: s,
 		}
 		if err := injectDependencies(svc, resolver); err != nil {
-			fmt.Printf("[DEBUG] Failed to inject %s: %v\n", name, err)
 			return fmt.Errorf("inject %s failed: %w", name, err)
 		}
-		fmt.Printf("[DEBUG] Successfully injected %s\n", name)
 	}
 
 	s.mu.Lock()
@@ -212,6 +209,9 @@ func (s *ServiceContainer) GetByName(name string) (common.BaseService, error) {
 
 // GetByType 根据类型获取服务
 // 返回所有实现了该类型的服务列表
+// 支持：
+// 1. 接口类型匹配
+// 2. 具体类型指针匹配（如 *SessionService）
 func (s *ServiceContainer) GetByType(typ reflect.Type) ([]common.BaseService, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -219,8 +219,32 @@ func (s *ServiceContainer) GetByType(typ reflect.Type) ([]common.BaseService, er
 	var result []common.BaseService
 	for _, item := range s.items {
 		itemType := reflect.TypeOf(item)
+
+		// 标准类型匹配（接口类型）
 		if typeMatches(itemType, typ) {
 			result = append(result, item)
+			continue
+		}
+
+		// 如果存储的是接口值，检查其底层实际值的类型
+		// 这支持匹配具体类型指针，如 *SessionService
+		if itemType.Kind() == reflect.Interface {
+			itemValue := reflect.ValueOf(item)
+			if !itemValue.IsNil() {
+				// 获取接口中存储的实际值的类型
+				actualType := itemValue.Elem().Type()
+				// 尝试匹配实际类型（具体类型）
+				if typeMatches(actualType, typ) {
+					result = append(result, item)
+					continue
+				}
+				// 尝试匹配实际类型的指针类型
+				actualPtrType := reflect.PtrTo(actualType)
+				if typeMatches(actualPtrType, typ) {
+					result = append(result, item)
+					continue
+				}
+			}
 		}
 	}
 	return result, nil

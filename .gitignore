@@ -11,6 +11,12 @@
 # Output of the go coverage tool
 *.out
 
+# Go compiled binaries
+main
+messageboard
+[!w]*.exe
+*[!w].exe
+
 # Go workspace file
 go.work
 
