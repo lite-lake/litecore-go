@@ -17,12 +17,10 @@ func (e *Engine) startManagers() error {
 
 	// 按注册顺序启动（容器已保证拓扑顺序）
 	for _, mgr := range managers {
-		fmt.Printf("[DEBUG] Starting manager: %s...\n", mgr.ManagerName())
 		if err := mgr.OnStart(); err != nil {
 			return fmt.Errorf("failed to start manager %s: %w",
 				mgr.ManagerName(), err)
 		}
-		fmt.Printf("[DEBUG] Manager %s started\n", mgr.ManagerName())
 	}
 	return nil
 }

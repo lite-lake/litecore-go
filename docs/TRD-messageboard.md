@@ -239,7 +239,7 @@ samples/messageboard/
 ├── configs/
 │   └── config.yaml             # 配置文件
 ├── internal/
-│   ├── application/            # 应用层（依赖注入容器）
+│   ├── application/            # 应用启动及容器
 │   │   └── container.go
 │   ├── controllers/            # 控制器层
 │   │   ├── message_controller.go
@@ -575,6 +575,8 @@ engine.Shutdown()
 - CSRF防护：同源策略验证
 
 ## 9. 前端设计
+
+采用MUJI的设计风格。
 
 ### 9.1 用户首页 (index.html)
 

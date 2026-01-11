@@ -223,16 +223,12 @@ func (e *Engine) Start() error {
 	}
 	fmt.Println("[DEBUG] All managers started successfully")
 
-	fmt.Println("[DEBUG] Starting HTTP server...")
 	// 启动 HTTP 服务器
-	fmt.Printf("[DEBUG] HTTP server handler: %v\n", e.httpServer.Handler)
-	fmt.Printf("[DEBUG] Gin engine routes: %d\n", len(e.ginEngine.Routes()))
 	go func() {
 		if err := e.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			e.cancel()
 		}
 	}()
-	fmt.Printf("[DEBUG] HTTP server starting on %s\n", e.serverConfig.Address())
 
 	e.started = true
 	return nil

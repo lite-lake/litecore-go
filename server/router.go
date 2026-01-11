@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +14,6 @@ func (e *Engine) registerControllers() {
 
 	for _, ctrl := range controllers {
 		route, method := parseRouter(ctrl.GetRouter())
-		fmt.Printf("[DEBUG] Registering controller: %s -> %s %s\n", ctrl.ControllerName(), method, route)
 
 		// 注册到 Gin
 		switch method {
