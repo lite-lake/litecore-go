@@ -34,8 +34,8 @@ func TestNewDatabaseManagerMySQLImpl(t *testing.T) {
 	}
 	defer mgr.Close()
 
-	if mgr.ManagerName() != "mysql" {
-		t.Errorf("ManagerName() = %v, want 'mysql'", mgr.ManagerName())
+	if mgr.ManagerName() != "databaseManagerMysqlImpl" {
+		t.Errorf("ManagerName() = %v, want 'databaseManagerMysqlImpl'", mgr.ManagerName())
 	}
 
 	if mgr.Driver() != "mysql" {

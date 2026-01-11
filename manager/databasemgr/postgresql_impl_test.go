@@ -34,8 +34,8 @@ func TestNewDatabaseManagerPostgreSQLImpl(t *testing.T) {
 	}
 	defer mgr.Close()
 
-	if mgr.ManagerName() != "postgresql" {
-		t.Errorf("ManagerName() = %v, want 'postgresql'", mgr.ManagerName())
+	if mgr.ManagerName() != "databaseManagerPostgresqlImpl" {
+		t.Errorf("ManagerName() = %v, want 'databaseManagerPostgresqlImpl'", mgr.ManagerName())
 	}
 
 	if mgr.Driver() != "postgresql" {

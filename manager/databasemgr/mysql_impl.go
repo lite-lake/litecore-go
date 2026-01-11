@@ -11,8 +11,8 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// mysqlImpl MySQL 数据库管理器实现
-type mysqlImpl struct {
+// databaseManagerMysqlImpl MySQL 数据库管理器实现
+type databaseManagerMysqlImpl struct {
 	*databaseManagerBaseImpl
 }
 
@@ -56,7 +56,7 @@ func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (DatabaseManager, error) {
 	}
 
 	// 创建基础实现
-	baseImpl := newDatabaseManagerBaseImpl("mysql", "mysql", db)
+	baseImpl := newDatabaseManagerBaseImpl("databaseManagerMysqlImpl", "mysql", db)
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{
@@ -74,18 +74,18 @@ func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (DatabaseManager, error) {
 		return nil, fmt.Errorf("failed to ping mysql database: %w", err)
 	}
 
-	return &mysqlImpl{
+	return &databaseManagerMysqlImpl{
 		databaseManagerBaseImpl: baseImpl,
 	}, nil
 }
 
 // ManagerName 返回管理器名称
-func (m *mysqlImpl) ManagerName() string {
+func (m *databaseManagerMysqlImpl) ManagerName() string {
 	return m.name
 }
 
 // Health 健康检查
-func (m *mysqlImpl) Health() error {
+func (m *databaseManagerMysqlImpl) Health() error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -99,12 +99,12 @@ func (m *mysqlImpl) Health() error {
 }
 
 // OnStart 启动时初始化
-func (m *mysqlImpl) OnStart() error {
+func (m *databaseManagerMysqlImpl) OnStart() error {
 	return m.Health()
 }
 
 // OnStop 停止时清理
-func (m *mysqlImpl) OnStop() error {
+func (m *databaseManagerMysqlImpl) OnStop() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -121,60 +121,60 @@ func (m *mysqlImpl) OnStop() error {
 // ========== GORM 核心 ==========
 
 // DB 获取 GORM 数据库实例
-func (m *mysqlImpl) DB() *gorm.DB {
+func (m *databaseManagerMysqlImpl) DB() *gorm.DB {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.db
 }
 
 // Model 指定模型进行操作
-func (m *mysqlImpl) Model(value any) *gorm.DB {
+func (m *databaseManagerMysqlImpl) Model(value any) *gorm.DB {
 	return m.DB().Model(value)
 }
 
 // Table 指定表名进行操作
-func (m *mysqlImpl) Table(name string) *gorm.DB {
+func (m *databaseManagerMysqlImpl) Table(name string) *gorm.DB {
 	return m.DB().Table(name)
 }
 
 // WithContext 设置上下文
-func (m *mysqlImpl) WithContext(ctx context.Context) *gorm.DB {
+func (m *databaseManagerMysqlImpl) WithContext(ctx context.Context) *gorm.DB {
 	return m.DB().WithContext(ctx)
 }
 
 // ========== 事务管理 ==========
 
 // Transaction 执行事务
-func (m *mysqlImpl) Transaction(fn func(*gorm.DB) error, opts ...*sql.TxOptions) error {
+func (m *databaseManagerMysqlImpl) Transaction(fn func(*gorm.DB) error, opts ...*sql.TxOptions) error {
 	return m.DB().Transaction(fn, opts...)
 }
 
 // Begin 开启事务
-func (m *mysqlImpl) Begin(opts ...*sql.TxOptions) *gorm.DB {
+func (m *databaseManagerMysqlImpl) Begin(opts ...*sql.TxOptions) *gorm.DB {
 	return m.DB().Begin(opts...)
 }
 
 // ========== 迁移管理 ==========
 
 // AutoMigrate 自动迁移
-func (m *mysqlImpl) AutoMigrate(models ...any) error {
+func (m *databaseManagerMysqlImpl) AutoMigrate(models ...any) error {
 	return m.DB().AutoMigrate(models...)
 }
 
 // Migrator 获取迁移器
-func (m *mysqlImpl) Migrator() gorm.Migrator {
+func (m *databaseManagerMysqlImpl) Migrator() gorm.Migrator {
 	return m.DB().Migrator()
 }
 
 // ========== 连接管理 ==========
 
 // Driver 获取驱动类型
-func (m *mysqlImpl) Driver() string {
+func (m *databaseManagerMysqlImpl) Driver() string {
 	return m.driver
 }
 
 // Ping 检查数据库连接
-func (m *mysqlImpl) Ping(ctx context.Context) error {
+func (m *databaseManagerMysqlImpl) Ping(ctx context.Context) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -186,7 +186,7 @@ func (m *mysqlImpl) Ping(ctx context.Context) error {
 }
 
 // Stats 获取连接池统计信息
-func (m *mysqlImpl) Stats() sql.DBStats {
+func (m *databaseManagerMysqlImpl) Stats() sql.DBStats {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -198,18 +198,18 @@ func (m *mysqlImpl) Stats() sql.DBStats {
 }
 
 // Close 关闭数据库连接
-func (m *mysqlImpl) Close() error {
+func (m *databaseManagerMysqlImpl) Close() error {
 	return m.OnStop()
 }
 
 // ========== 原生 SQL ==========
 
 // Exec 执行原生 SQL
-func (m *mysqlImpl) Exec(sql string, values ...any) *gorm.DB {
+func (m *databaseManagerMysqlImpl) Exec(sql string, values ...any) *gorm.DB {
 	return m.DB().Exec(sql, values...)
 }
 
 // Raw 执行原生查询
-func (m *mysqlImpl) Raw(sql string, values ...any) *gorm.DB {
+func (m *databaseManagerMysqlImpl) Raw(sql string, values ...any) *gorm.DB {
 	return m.DB().Raw(sql, values...)
 }

@@ -11,8 +11,8 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// postgresqlImpl PostgreSQL 数据库管理器实现
-type postgresqlImpl struct {
+// databaseManagerPostgresqlImpl PostgreSQL 数据库管理器实现
+type databaseManagerPostgresqlImpl struct {
 	*databaseManagerBaseImpl
 }
 
@@ -56,7 +56,7 @@ func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (DatabaseManager, e
 	}
 
 	// 创建基础实现
-	baseImpl := newDatabaseManagerBaseImpl("postgresql", "postgresql", db)
+	baseImpl := newDatabaseManagerBaseImpl("databaseManagerPostgresqlImpl", "postgresql", db)
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{
@@ -74,18 +74,18 @@ func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (DatabaseManager, e
 		return nil, fmt.Errorf("failed to ping postgresql database: %w", err)
 	}
 
-	return &postgresqlImpl{
+	return &databaseManagerPostgresqlImpl{
 		databaseManagerBaseImpl: baseImpl,
 	}, nil
 }
 
 // ManagerName 返回管理器名称
-func (p *postgresqlImpl) ManagerName() string {
+func (p *databaseManagerPostgresqlImpl) ManagerName() string {
 	return p.name
 }
 
 // Health 健康检查
-func (p *postgresqlImpl) Health() error {
+func (p *databaseManagerPostgresqlImpl) Health() error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -99,12 +99,12 @@ func (p *postgresqlImpl) Health() error {
 }
 
 // OnStart 启动时初始化
-func (p *postgresqlImpl) OnStart() error {
+func (p *databaseManagerPostgresqlImpl) OnStart() error {
 	return p.Health()
 }
 
 // OnStop 停止时清理
-func (p *postgresqlImpl) OnStop() error {
+func (p *databaseManagerPostgresqlImpl) OnStop() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -121,60 +121,60 @@ func (p *postgresqlImpl) OnStop() error {
 // ========== GORM 核心 ==========
 
 // DB 获取 GORM 数据库实例
-func (p *postgresqlImpl) DB() *gorm.DB {
+func (p *databaseManagerPostgresqlImpl) DB() *gorm.DB {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.db
 }
 
 // Model 指定模型进行操作
-func (p *postgresqlImpl) Model(value any) *gorm.DB {
+func (p *databaseManagerPostgresqlImpl) Model(value any) *gorm.DB {
 	return p.DB().Model(value)
 }
 
 // Table 指定表名进行操作
-func (p *postgresqlImpl) Table(name string) *gorm.DB {
+func (p *databaseManagerPostgresqlImpl) Table(name string) *gorm.DB {
 	return p.DB().Table(name)
 }
 
 // WithContext 设置上下文
-func (p *postgresqlImpl) WithContext(ctx context.Context) *gorm.DB {
+func (p *databaseManagerPostgresqlImpl) WithContext(ctx context.Context) *gorm.DB {
 	return p.DB().WithContext(ctx)
 }
 
 // ========== 事务管理 ==========
 
 // Transaction 执行事务
-func (p *postgresqlImpl) Transaction(fn func(*gorm.DB) error, opts ...*sql.TxOptions) error {
+func (p *databaseManagerPostgresqlImpl) Transaction(fn func(*gorm.DB) error, opts ...*sql.TxOptions) error {
 	return p.DB().Transaction(fn, opts...)
 }
 
 // Begin 开启事务
-func (p *postgresqlImpl) Begin(opts ...*sql.TxOptions) *gorm.DB {
+func (p *databaseManagerPostgresqlImpl) Begin(opts ...*sql.TxOptions) *gorm.DB {
 	return p.DB().Begin(opts...)
 }
 
 // ========== 迁移管理 ==========
 
 // AutoMigrate 自动迁移
-func (p *postgresqlImpl) AutoMigrate(models ...any) error {
+func (p *databaseManagerPostgresqlImpl) AutoMigrate(models ...any) error {
 	return p.DB().AutoMigrate(models...)
 }
 
 // Migrator 获取迁移器
-func (p *postgresqlImpl) Migrator() gorm.Migrator {
+func (p *databaseManagerPostgresqlImpl) Migrator() gorm.Migrator {
 	return p.DB().Migrator()
 }
 
 // ========== 连接管理 ==========
 
 // Driver 获取驱动类型
-func (p *postgresqlImpl) Driver() string {
+func (p *databaseManagerPostgresqlImpl) Driver() string {
 	return p.driver
 }
 
 // Ping 检查数据库连接
-func (p *postgresqlImpl) Ping(ctx context.Context) error {
+func (p *databaseManagerPostgresqlImpl) Ping(ctx context.Context) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -186,7 +186,7 @@ func (p *postgresqlImpl) Ping(ctx context.Context) error {
 }
 
 // Stats 获取连接池统计信息
-func (p *postgresqlImpl) Stats() sql.DBStats {
+func (p *databaseManagerPostgresqlImpl) Stats() sql.DBStats {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -198,18 +198,18 @@ func (p *postgresqlImpl) Stats() sql.DBStats {
 }
 
 // Close 关闭数据库连接
-func (p *postgresqlImpl) Close() error {
+func (p *databaseManagerPostgresqlImpl) Close() error {
 	return p.OnStop()
 }
 
 // ========== 原生 SQL ==========
 
 // Exec 执行原生 SQL
-func (p *postgresqlImpl) Exec(sql string, values ...any) *gorm.DB {
+func (p *databaseManagerPostgresqlImpl) Exec(sql string, values ...any) *gorm.DB {
 	return p.DB().Exec(sql, values...)
 }
 
 // Raw 执行原生查询
-func (p *postgresqlImpl) Raw(sql string, values ...any) *gorm.DB {
+func (p *databaseManagerPostgresqlImpl) Raw(sql string, values ...any) *gorm.DB {
 	return p.DB().Raw(sql, values...)
 }

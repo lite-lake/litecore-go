@@ -17,8 +17,8 @@ func TestNewDatabaseManagerNoneImpl(t *testing.T) {
 		t.Fatal("NewDatabaseManagerNoneImpl() returned nil")
 	}
 
-	if mgr.ManagerName() != "none" {
-		t.Errorf("ManagerName() = %v, want 'none'", mgr.ManagerName())
+	if mgr.ManagerName() != "databaseManagerNoneImpl" {
+		t.Errorf("ManagerName() = %v, want 'databaseManagerNoneImpl'", mgr.ManagerName())
 	}
 
 	if mgr.Driver() != "none" {
