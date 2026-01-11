@@ -2,9 +2,6 @@ package cachemgr
 
 import (
 	"fmt"
-
-	"com.litelake.litecore/manager/loggermgr"
-	"com.litelake.litecore/manager/telemetrymgr"
 )
 
 // Build 创建缓存管理器实例
@@ -13,14 +10,11 @@ import (
 //   - redis: 传递给 parseRedisConfig 的 map[string]any
 //   - memory: 传递给 parseMemoryConfig 的 map[string]any
 //   - none: 忽略
-// loggerMgr: 可选的日志管理器
-// telemetryMgr: 可选的观测管理器
 // 返回 CacheManager 接口实例和可能的错误
+// 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
 func Build(
 	driverType string,
 	driverConfig map[string]any,
-	loggerMgr loggermgr.LoggerManager,
-	telemetryMgr telemetrymgr.TelemetryManager,
 ) (CacheManager, error) {
 	switch driverType {
 	case "redis":
@@ -29,7 +23,7 @@ func Build(
 			return nil, err
 		}
 
-		mgr, err := NewCacheManagerRedisImpl(redisConfig, loggerMgr, telemetryMgr)
+		mgr, err := NewCacheManagerRedisImpl(redisConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -46,14 +40,12 @@ func Build(
 		mgr := NewCacheManagerMemoryImpl(
 			memoryConfig.MaxAge,
 			memoryConfig.MaxAge/2, // 清理间隔设为过期时间的一半
-			loggerMgr,
-			telemetryMgr,
 		)
 
 		return mgr, nil
 
 	case "none":
-		mgr := NewCacheManagerNoneImpl(loggerMgr, telemetryMgr)
+		mgr := NewCacheManagerNoneImpl()
 		return mgr, nil
 
 	default:

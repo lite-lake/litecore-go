@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"com.litelake.litecore/manager/loggermgr"
-	"com.litelake.litecore/manager/telemetrymgr"
-
 	"github.com/redis/go-redis/v9"
 )
 
@@ -21,11 +18,7 @@ type cacheManagerRedisImpl struct {
 }
 
 // NewCacheManagerRedisImpl 创建 Redis 实现
-func NewCacheManagerRedisImpl(
-	cfg *RedisConfig,
-	loggerMgr loggermgr.LoggerManager,
-	telemetryMgr telemetrymgr.TelemetryManager,
-) (CacheManager, error) {
+func NewCacheManagerRedisImpl(cfg *RedisConfig) (CacheManager, error) {
 	// 创建 Redis 客户端
 	client := redis.NewClient(&redis.Options{
 		Addr:            fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -45,11 +38,13 @@ func NewCacheManagerRedisImpl(
 		return nil, fmt.Errorf("failed to connect to redis: %w", err)
 	}
 
-	return &cacheManagerRedisImpl{
-		cacheManagerBaseImpl: newCacheManagerBaseImpl(loggerMgr, telemetryMgr),
-		client:   client,
-		name:     "redis-cache",
-	}, nil
+	impl := &cacheManagerRedisImpl{
+		cacheManagerBaseImpl: newCacheManagerBaseImpl(),
+		client:               client,
+		name:                 "cacheManagerRedisImpl",
+	}
+	impl.initObservability()
+	return impl, nil
 }
 
 // ManagerName 返回管理器名称

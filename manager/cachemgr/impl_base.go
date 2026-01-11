@@ -16,6 +16,8 @@ import (
 
 // cacheManagerBaseImpl 提供可观测性和工具函数
 type cacheManagerBaseImpl struct {
+	loggerMgr         loggermgr.LoggerManager      `inject:""`
+	telemetryMgr      telemetrymgr.TelemetryManager `inject:""`
 	logger            loggermgr.Logger
 	tracer            trace.Tracer
 	meter             metric.Meter
@@ -25,41 +27,39 @@ type cacheManagerBaseImpl struct {
 }
 
 // newCacheManagerBaseImpl 创建基类
-func newCacheManagerBaseImpl(
-	loggerMgr loggermgr.LoggerManager,
-	telemetryMgr telemetrymgr.TelemetryManager,
-) *cacheManagerBaseImpl {
-	impl := &cacheManagerBaseImpl{}
+func newCacheManagerBaseImpl() *cacheManagerBaseImpl {
+	return &cacheManagerBaseImpl{}
+}
 
+// initObservability 初始化可观测性组件（在依赖注入后调用）
+func (b *cacheManagerBaseImpl) initObservability() {
 	// 初始化 logger
-	if loggerMgr != nil {
-		impl.logger = loggerMgr.Logger("cachemgr")
+	if b.loggerMgr != nil {
+		b.logger = b.loggerMgr.Logger("cachemgr")
 	}
 
 	// 初始化 telemetry
-	if telemetryMgr != nil {
-		impl.tracer = telemetryMgr.Tracer("cachemgr")
-		impl.meter = telemetryMgr.Meter("cachemgr")
+	if b.telemetryMgr != nil {
+		b.tracer = b.telemetryMgr.Tracer("cachemgr")
+		b.meter = b.telemetryMgr.Meter("cachemgr")
 
 		// 创建指标
-		impl.cacheHitCounter, _ = impl.meter.Int64Counter(
+		b.cacheHitCounter, _ = b.meter.Int64Counter(
 			"cache.hit",
 			metric.WithDescription("Cache hit count"),
 			metric.WithUnit("{hit}"),
 		)
-		impl.cacheMissCounter, _ = impl.meter.Int64Counter(
+		b.cacheMissCounter, _ = b.meter.Int64Counter(
 			"cache.miss",
 			metric.WithDescription("Cache miss count"),
 			metric.WithUnit("{miss}"),
 		)
-		impl.operationDuration, _ = impl.meter.Float64Histogram(
+		b.operationDuration, _ = b.meter.Float64Histogram(
 			"cache.operation.duration",
 			metric.WithDescription("Cache operation duration in seconds"),
 			metric.WithUnit("s"),
 		)
 	}
-
-	return impl
 }
 
 // recordOperation 记录操作（带链路追踪、指标、日志）
