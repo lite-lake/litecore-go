@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"com.litelake.litecore/server"
 	messageboardapp "com.litelake.litecore/samples/messageboard/internal/application"
+	"com.litelake.litecore/server"
 	"github.com/gin-gonic/gin"
 )
 
@@ -69,7 +69,7 @@ func setupRoutes(engine *server.Engine) {
 		})
 	})
 
-	router.GET("/admin.html", func(c *gin.Context) {
+	router.GET("/admin", func(c *gin.Context) {
 		c.HTML(200, "admin.html", gin.H{
 			"title": "留言管理",
 		})

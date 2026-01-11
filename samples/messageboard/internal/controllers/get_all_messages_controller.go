@@ -39,7 +39,7 @@ func (c *GetAllMessagesController) Handle(ctx *gin.Context) {
 	}
 
 	// 转换为响应格式
-	var responseList []dtos.MessageResponse
+	responseList := make([]dtos.MessageResponse, 0, len(messages))
 	for _, msg := range messages {
 		responseList = append(responseList, dtos.ToMessageResponse(
 			msg.ID,
