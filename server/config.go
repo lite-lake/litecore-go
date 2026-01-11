@@ -1,0 +1,59 @@
+package server
+
+import "time"
+
+// ServerConfig 服务器配置
+type ServerConfig struct {
+	// HTTP 配置
+	Host         string        // 监听地址，默认 0.0.0.0
+	Port         int           // 监听端口，默认 8080
+	Mode         string        // 运行模式：debug/release/test，默认 release
+	ReadTimeout  time.Duration // 读取超时，默认 10s
+	WriteTimeout time.Duration // 写入超时，默认 10s
+	IdleTimeout  time.Duration // 空闲超时，默认 60s
+
+	// 特性开关
+	EnableMetrics  bool // 是否启用 Prometheus 指标，默认 true
+	EnableHealth   bool // 是否启用健康检查，默认 true
+	EnablePprof    bool // 是否启用 pprof，默认 false
+	EnableRecovery bool // 是否启用 panic 恢复，默认 true
+
+	// 优雅关闭
+	ShutdownTimeout time.Duration // 关闭超时，默认 30s
+}
+
+// DefaultServerConfig 返回默认的服务器配置
+func DefaultServerConfig() *ServerConfig {
+	return &ServerConfig{
+		Host:            "0.0.0.0",
+		Port:            8080,
+		Mode:            "release",
+		ReadTimeout:     10 * time.Second,
+		WriteTimeout:    10 * time.Second,
+		IdleTimeout:     60 * time.Second,
+		EnableMetrics:   true,
+		EnableHealth:    true,
+		EnablePprof:     false,
+		EnableRecovery:  true,
+		ShutdownTimeout: 30 * time.Second,
+	}
+}
+
+// Address 返回服务器监听地址
+func (c *ServerConfig) Address() string {
+	return c.Host + ":" + toString(c.Port)
+}
+
+func toString(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	var buf [20]byte
+	i := len(buf)
+	for n > 0 {
+		i--
+		buf[i] = byte('0' + n%10)
+		n /= 10
+	}
+	return string(buf[i:])
+}
