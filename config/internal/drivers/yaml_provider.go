@@ -36,3 +36,7 @@ func (p *YamlConfigProvider) Get(key string) (any, error) {
 func (p *YamlConfigProvider) Has(key string) bool {
 	return p.base.Has(key)
 }
+
+func (p *YamlConfigProvider) ConfigProviderName() string {
+	return "YamlConfigProvider"
+}
