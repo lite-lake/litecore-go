@@ -404,8 +404,8 @@ func TestParseDatabaseConfigFromMap(t *testing.T) {
 			cfg: map[string]any{
 				"observability_config": map[string]any{
 					"slow_query_threshold": "2s",
-					"log_sql":               true,
-					"sample_rate":           0.5,
+					"log_sql":              true,
+					"sample_rate":          0.5,
 				},
 			},
 			check: func(c *DatabaseConfig) bool {

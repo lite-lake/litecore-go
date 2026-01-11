@@ -1,6 +1,7 @@
 package container
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -39,6 +40,8 @@ func injectDependencies(instance interface{}, resolver DependencyResolver) error
 			continue
 		}
 
+		fmt.Printf("[DEBUG] Found field %s with inject tag '%s' (type: %v)\n", field.Name, tagValue, field.Type)
+
 		// 检查是否为可选依赖
 		if tagValue == "optional" {
 			// 可选依赖，如果找不到也不报错
@@ -53,11 +56,17 @@ func injectDependencies(instance interface{}, resolver DependencyResolver) error
 		// 必需依赖（包括 tagValue == "" 的情况）
 		dependency, err := resolver.ResolveDependency(field.Type)
 		if err != nil {
+			fmt.Printf("[DEBUG] Failed to resolve dependency for field %s: %v\n", field.Name, err)
 			return err
 		}
 
+		fmt.Printf("[DEBUG] Resolved dependency for field %s: %v (nil: %v)\n", field.Name, dependency, dependency == nil)
+
 		if fieldVal.CanSet() {
 			fieldVal.Set(reflect.ValueOf(dependency))
+			fmt.Printf("[DEBUG] Set field %s successfully\n", field.Name)
+		} else {
+			fmt.Printf("[DEBUG] Cannot set field %s (unexported)\n", field.Name)
 		}
 	}
 

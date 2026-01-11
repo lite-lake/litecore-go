@@ -47,6 +47,7 @@
 // 同层依赖：
 //
 //	Service 和 Manager 层支持同层依赖，容器会自动构建依赖图并进行拓扑排序。
+//
 // 例如：UserService 依赖 OrderService，OrderService 依赖 PaymentService，
 // 容器会按 [PaymentService, OrderService, UserService] 的顺序注入。
 //

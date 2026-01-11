@@ -9,7 +9,8 @@ import (
 // TestNewDatabaseManagerMySQLImpl 测试 MySQL 管理器创建
 // 这是一个集成测试，需要实际的 MySQL 数据库
 // 运行测试前需要设置环境变量:
-//   MYSQL_DSN - MySQL 连接字符串 (可选，默认使用 test)
+//
+//	MYSQL_DSN - MySQL 连接字符串 (可选，默认使用 test)
 func TestNewDatabaseManagerMySQLImpl(t *testing.T) {
 	// 检查是否应该运行集成测试
 	if shouldSkipIntegrationTest() {

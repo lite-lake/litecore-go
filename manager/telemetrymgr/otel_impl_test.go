@@ -354,13 +354,12 @@ func TestTelemetryManagerOtelImpl_Shutdown(t *testing.T) {
 	}
 }
 
-
 // TestTelemetryManagerOtelImpl_ResourceAttributes 测试资源属性
 func TestTelemetryManagerOtelImpl_ResourceAttributes(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  *TelemetryConfig
-		verify  func(*testing.T, TelemetryManager)
+		name   string
+		config *TelemetryConfig
+		verify func(*testing.T, TelemetryManager)
 	}{
 		{
 			name: "with resource attributes",
@@ -423,9 +422,9 @@ func TestTelemetryManagerOtelImpl_ResourceAttributes(t *testing.T) {
 // TestTelemetryManagerOtelImpl_Features 测试特性启用/禁用
 func TestTelemetryManagerOtelImpl_Features(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  *TelemetryConfig
-		verify  func(*testing.T, TelemetryManager)
+		name   string
+		config *TelemetryConfig
+		verify func(*testing.T, TelemetryManager)
 	}{
 		{
 			name: "traces enabled",

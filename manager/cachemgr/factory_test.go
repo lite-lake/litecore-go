@@ -77,10 +77,10 @@ func TestBuild(t *testing.T) {
 			},
 		},
 		{
-			name:       "memory driver with empty config",
-			driverType: "memory",
+			name:         "memory driver with empty config",
+			driverType:   "memory",
 			driverConfig: map[string]any{},
-			wantErr: false,
+			wantErr:      false,
 			checkManager: func(t *testing.T, mgr CacheManager) {
 				if mgr == nil {
 					t.Error("expected manager to be created, got nil")
@@ -173,7 +173,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			name: "memory driver with empty config",
 			configProvider: &MockConfigProvider{
 				data: map[string]any{
-					"cache.driver":       "memory",
+					"cache.driver":        "memory",
 					"cache.memory_config": map[string]any{},
 				},
 			},
@@ -209,7 +209,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			name: "memory driver with invalid config type",
 			configProvider: &MockConfigProvider{
 				data: map[string]any{
-					"cache.driver":       "memory",
+					"cache.driver":        "memory",
 					"cache.memory_config": "invalid",
 				},
 			},
@@ -304,10 +304,10 @@ func TestBuildUpperCaseDriver(t *testing.T) {
 		wantName   string
 		wantErr    bool
 	}{
-		{"MEMORY", "MEMORY", "cacheManagerMemoryImpl", true}, // Build 函数不支持大写
-		{"Memory", "Memory", "cacheManagerMemoryImpl", true}, // Build 函数不支持大写
+		{"MEMORY", "MEMORY", "cacheManagerMemoryImpl", true},         // Build 函数不支持大写
+		{"Memory", "Memory", "cacheManagerMemoryImpl", true},         // Build 函数不支持大写
 		{"  Memory  ", "  Memory  ", "cacheManagerMemoryImpl", true}, // Build 函数不支持大写
-		{"NONE", "NONE", "cacheManagerNoneImpl", true}, // Build 函数不支持大写
+		{"NONE", "NONE", "cacheManagerNoneImpl", true},               // Build 函数不支持大写
 	}
 
 	for _, tt := range tests {

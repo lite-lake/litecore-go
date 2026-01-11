@@ -15,12 +15,12 @@ import (
 // 3. 注入 BaseRepository（从 RepositoryContainer 获取）
 // 4. 注入其他 BaseService（支持同层依赖，按拓扑顺序注入）
 type ServiceContainer struct {
-	mu                   sync.RWMutex
-	items                map[string]common.BaseService
-	configContainer      *ConfigContainer
-	managerContainer     *ManagerContainer
-	repositoryContainer  *RepositoryContainer
-	injected             bool
+	mu                  sync.RWMutex
+	items               map[string]common.BaseService
+	configContainer     *ConfigContainer
+	managerContainer    *ManagerContainer
+	repositoryContainer *RepositoryContainer
+	injected            bool
 }
 
 // NewServiceContainer 创建新的服务容器
@@ -66,36 +66,49 @@ func (s *ServiceContainer) Register(ins common.BaseService) error {
 // 3. 按顺序注入跨层依赖和同层依赖
 func (s *ServiceContainer) InjectAll() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if s.injected {
+		s.mu.Unlock()
 		return nil // 已注入，跳过
 	}
 
 	// 1. 构建依赖图
 	graph, err := s.buildDependencyGraph()
 	if err != nil {
+		s.mu.Unlock()
 		return fmt.Errorf("build dependency graph failed: %w", err)
 	}
 
 	// 2. 拓扑排序
 	order, err := topologicalSort(graph)
 	if err != nil {
+		s.mu.Unlock()
 		return fmt.Errorf("topological sort failed: %w", err)
 	}
 
-	// 3. 按顺序注入
+	s.mu.Unlock()
+
+	// 3. 按顺序注入（在锁外执行，避免死锁）
 	for _, name := range order {
+		s.mu.RLock()
 		svc := s.items[name]
+		s.mu.RUnlock()
+
+		fmt.Printf("[DEBUG] Injecting dependencies for %s...\n", name)
 		resolver := &serviceDependencyResolver{
 			container: s,
 		}
 		if err := injectDependencies(svc, resolver); err != nil {
+			fmt.Printf("[DEBUG] Failed to inject %s: %v\n", name, err)
 			return fmt.Errorf("inject %s failed: %w", name, err)
 		}
+		fmt.Printf("[DEBUG] Successfully injected %s\n", name)
 	}
 
+	s.mu.Lock()
 	s.injected = true
+	s.mu.Unlock()
+
 	return nil
 }
 
@@ -246,7 +259,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 				names = append(names, item.ConfigProviderName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}
@@ -272,7 +285,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 				names = append(names, item.ManagerName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}
@@ -298,7 +311,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 				names = append(names, item.RepositoryName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}
@@ -324,7 +337,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 				names = append(names, item.ServiceName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}

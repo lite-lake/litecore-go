@@ -199,9 +199,9 @@ func TestZapConfigValidate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:     "No output enabled",
-			config:   &ZapConfig{},
-			wantErr:  true,
+			name:      "No output enabled",
+			config:    &ZapConfig{},
+			wantErr:   true,
 			errString: "at least one logger output",
 		},
 		{

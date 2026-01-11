@@ -13,10 +13,10 @@ import (
 // 1. 注入 BaseConfigProvider（从 ConfigContainer 获取）
 // 2. 注入其他 BaseManager（支持同层依赖，按拓扑顺序注入）
 type ManagerContainer struct {
-	mu               sync.RWMutex
-	items            map[string]common.BaseManager
-	configContainer  *ConfigContainer
-	injected         bool // 标记是否已执行注入
+	mu              sync.RWMutex
+	items           map[string]common.BaseManager
+	configContainer *ConfigContainer
+	injected        bool // 标记是否已执行注入
 }
 
 // NewManagerContainer 创建新的管理器容器
@@ -239,7 +239,7 @@ func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 				names = append(names, item.ConfigProviderName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}
@@ -265,7 +265,7 @@ func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 				names = append(names, item.ManagerName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}

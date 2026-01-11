@@ -309,8 +309,8 @@ func TestParseTelemetryConfigFromMap(t *testing.T) {
 			},
 		},
 		{
-			name: "empty map returns defaults",
-			input: map[string]any{},
+			name:    "empty map returns defaults",
+			input:   map[string]any{},
 			wantErr: false,
 			verify: func(t *testing.T, cfg *TelemetryConfig) {
 				if cfg.Driver != "none" {

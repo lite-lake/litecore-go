@@ -14,12 +14,12 @@ import (
 // 2. 注入 BaseManager（从 ManagerContainer 获取）
 // 3. 注入 BaseService（从 ServiceContainer 获取）
 type MiddlewareContainer struct {
-	mu                sync.RWMutex
-	items             map[string]common.BaseMiddleware
-	configContainer   *ConfigContainer
-	managerContainer  *ManagerContainer
-	serviceContainer  *ServiceContainer
-	injected          bool
+	mu               sync.RWMutex
+	items            map[string]common.BaseMiddleware
+	configContainer  *ConfigContainer
+	managerContainer *ManagerContainer
+	serviceContainer *ServiceContainer
+	injected         bool
 }
 
 // NewMiddlewareContainer 创建新的中间件容器
@@ -157,7 +157,7 @@ func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type)
 				names = append(names, item.ConfigProviderName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}
@@ -183,7 +183,7 @@ func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type)
 				names = append(names, item.ManagerName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}
@@ -209,7 +209,7 @@ func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type)
 				names = append(names, item.ServiceName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}

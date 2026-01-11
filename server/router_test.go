@@ -9,87 +9,87 @@ import (
 
 func TestParseRouter(t *testing.T) {
 	tests := []struct {
-		name          string
-		router        string
-		expectedRoute string
+		name           string
+		router         string
+		expectedRoute  string
 		expectedMethod string
 	}{
 		{
-			name:          "simple route",
-			router:        "/api/users",
-			expectedRoute: "/api/users",
+			name:           "simple route",
+			router:         "/api/users",
+			expectedRoute:  "/api/users",
 			expectedMethod: "GET",
 		},
 		{
-			name:          "route with uppercase method in brackets",
-			router:        "/api/users [POST]",
-			expectedRoute: "/api/users",
+			name:           "route with uppercase method in brackets",
+			router:         "/api/users [POST]",
+			expectedRoute:  "/api/users",
 			expectedMethod: "POST",
 		},
 		{
-			name:          "route with lowercase method in brackets",
-			router:        "/api/users [post]",
-			expectedRoute: "/api/users",
+			name:           "route with lowercase method in brackets",
+			router:         "/api/users [post]",
+			expectedRoute:  "/api/users",
 			expectedMethod: "POST",
 		},
 		{
-			name:          "route with space and method",
-			router:        "/api/users DELETE",
-			expectedRoute: "/api/users",
+			name:           "route with space and method",
+			router:         "/api/users DELETE",
+			expectedRoute:  "/api/users",
 			expectedMethod: "DELETE",
 		},
 		{
-			name:          "route with space and uppercase method",
-			router:        "/api/users PUT",
-			expectedRoute: "/api/users",
+			name:           "route with space and uppercase method",
+			router:         "/api/users PUT",
+			expectedRoute:  "/api/users",
 			expectedMethod: "PUT",
 		},
 		{
-			name:          "PATCH method",
-			router:        "/api/users [PATCH]",
-			expectedRoute: "/api/users",
+			name:           "PATCH method",
+			router:         "/api/users [PATCH]",
+			expectedRoute:  "/api/users",
 			expectedMethod: "PATCH",
 		},
 		{
-			name:          "HEAD method",
-			router:        "/api/users [HEAD]",
-			expectedRoute: "/api/users",
+			name:           "HEAD method",
+			router:         "/api/users [HEAD]",
+			expectedRoute:  "/api/users",
 			expectedMethod: "HEAD",
 		},
 		{
-			name:          "OPTIONS method",
-			router:        "/api/users [OPTIONS]",
-			expectedRoute: "/api/users",
+			name:           "OPTIONS method",
+			router:         "/api/users [OPTIONS]",
+			expectedRoute:  "/api/users",
 			expectedMethod: "OPTIONS",
 		},
 		{
-			name:          "route with leading/trailing spaces",
-			router:        "  /api/users  ",
-			expectedRoute: "/api/users",
+			name:           "route with leading/trailing spaces",
+			router:         "  /api/users  ",
+			expectedRoute:  "/api/users",
 			expectedMethod: "GET",
 		},
 		{
-			name:          "route with path params",
-			router:        "/api/users/:id",
-			expectedRoute: "/api/users/:id",
+			name:           "route with path params",
+			router:         "/api/users/:id",
+			expectedRoute:  "/api/users/:id",
 			expectedMethod: "GET",
 		},
 		{
-			name:          "route with wildcard",
-			router:        "/api/files/*filepath",
-			expectedRoute: "/api/files/*filepath",
+			name:           "route with wildcard",
+			router:         "/api/files/*filepath",
+			expectedRoute:  "/api/files/*filepath",
 			expectedMethod: "GET",
 		},
 		{
-			name:          "nested route",
-			router:        "/api/v1/users/:id/posts",
-			expectedRoute: "/api/v1/users/:id/posts",
+			name:           "nested route",
+			router:         "/api/v1/users/:id/posts",
+			expectedRoute:  "/api/v1/users/:id/posts",
 			expectedMethod: "GET",
 		},
 		{
-			name:          "invalid method defaults to GET",
-			router:        "/api/users INVALID",
-			expectedRoute: "/api/users",
+			name:           "invalid method defaults to GET",
+			router:         "/api/users INVALID",
+			expectedRoute:  "/api/users",
 			expectedMethod: "GET",
 		},
 	}
@@ -444,9 +444,9 @@ func TestEngine_GetRouteInfo(t *testing.T) {
 		engine, err := NewEngine(
 			RegisterControllers(ctrl),
 			WithServerConfig(&ServerConfig{
-				EnableHealth: false,
+				EnableHealth:  false,
 				EnableMetrics: false,
-				EnablePprof: false,
+				EnablePprof:   false,
 			}),
 		)
 		if err != nil {
@@ -557,8 +557,8 @@ func TestControllerRegistrationWithDifferentMethods(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		method        string
-		router        string
+		method         string
+		router         string
 		expectedStatus int
 	}{
 		{"GET", "/test/get", 200},
@@ -622,4 +622,3 @@ func toLower(s string) string {
 		return s
 	}
 }
-

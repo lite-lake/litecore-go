@@ -367,8 +367,8 @@ func TestZapLoggerManagerFileLogging(t *testing.T) {
 				Level: "debug",
 				Path:  logPath,
 				Rotation: &RotationConfig{
-					MaxSize:    1,  // 1MB
-					MaxAge:     1,  // 1 day
+					MaxSize:    1, // 1MB
+					MaxAge:     1, // 1 day
 					MaxBackups: 2,
 					Compress:   false,
 				},
@@ -449,13 +449,13 @@ func TestZapLoggerManagerLifecycle(t *testing.T) {
 // TestZapLoggerLevelFiltering 测试日志级别过滤
 func TestZapLoggerLevelFiltering(t *testing.T) {
 	tests := []struct {
-		name         string
-		configLevel  string
-		setLevel     LogLevel
-		expectDebug  bool
-		expectInfo   bool
-		expectWarn   bool
-		expectError  bool
+		name        string
+		configLevel string
+		setLevel    LogLevel
+		expectDebug bool
+		expectInfo  bool
+		expectWarn  bool
+		expectError bool
 	}{
 		{
 			name:        "Info level",

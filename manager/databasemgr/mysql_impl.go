@@ -60,8 +60,8 @@ func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (DatabaseManager, error) {
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{
-		Driver:       "mysql",
-		MySQLConfig:  cfg,
+		Driver:      "mysql",
+		MySQLConfig: cfg,
 	}
 
 	// 初始化可观测性

@@ -435,27 +435,27 @@ func TestRedisManager_PasswordConfig(t *testing.T) {
 // TestRedisManager_ConnectionPoolConfig 测试连接池配置
 func TestRedisManager_ConnectionPoolConfig(t *testing.T) {
 	tests := []struct {
-		name           string
-		maxIdleConns   int
-		maxOpenConns   int
+		name            string
+		maxIdleConns    int
+		maxOpenConns    int
 		connMaxLifetime time.Duration
 	}{
 		{
-			name:           "small pool",
-			maxIdleConns:   1,
-			maxOpenConns:   5,
+			name:            "small pool",
+			maxIdleConns:    1,
+			maxOpenConns:    5,
 			connMaxLifetime: 10 * time.Second,
 		},
 		{
-			name:           "medium pool",
-			maxIdleConns:   10,
-			maxOpenConns:   50,
+			name:            "medium pool",
+			maxIdleConns:    10,
+			maxOpenConns:    50,
 			connMaxLifetime: 30 * time.Second,
 		},
 		{
-			name:           "large pool",
-			maxIdleConns:   100,
-			maxOpenConns:   500,
+			name:            "large pool",
+			maxIdleConns:    100,
+			maxOpenConns:    500,
 			connMaxLifetime: 60 * time.Second,
 		},
 	}

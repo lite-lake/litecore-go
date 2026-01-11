@@ -452,12 +452,12 @@ func (w *consoleWriter) GetLogger() *zap.Logger {
 
 // fileWriter 文件日志输出器（基于 zap）
 type fileWriter struct {
-	logger         *zap.Logger
-	level          zapcore.Level
-	sync           *zap.SugaredLogger
-	lumberjack     *lumberjack.Logger
-	mu             sync.RWMutex
-	closed         bool
+	logger     *zap.Logger
+	level      zapcore.Level
+	sync       *zap.SugaredLogger
+	lumberjack *lumberjack.Logger
+	mu         sync.RWMutex
+	closed     bool
 }
 
 // newFileWriter 创建文件日志输出器
