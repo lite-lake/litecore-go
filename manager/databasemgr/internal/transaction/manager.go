@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"database/sql"
+
 	"gorm.io/gorm"
 )
 
@@ -25,7 +27,7 @@ func (m *Manager) Begin() *gorm.DB {
 }
 
 // BeginTx 开启事务（带选项）
-func (m *Manager) BeginTx(opts ...*interface{}) *gorm.DB {
+func (m *Manager) BeginTx(opts ...*sql.TxOptions) *gorm.DB {
 	return m.db.Begin(opts...)
 }
 

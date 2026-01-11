@@ -1,13 +1,15 @@
 # Database Manager - 数据库管理器
 
-提供灵活、高性能的数据库管理功能，支持 MySQL、PostgreSQL 和 SQLite 三种数据库驱动。
+提供基于 GORM 的灵活、高性能数据库管理功能，支持 MySQL、PostgreSQL 和 SQLite 三种数据库驱动。
 
 ## 特性
 
+- **完全基于 GORM** - 提供 GORM 的全部功能，包括链式查询、自动迁移、钩子等
 - **多驱动支持** - 支持 MySQL、PostgreSQL 和 SQLite 三种数据库驱动
 - **连接池管理** - 自动管理数据库连接池，支持连接池参数配置
+- **自动迁移** - 支持数据库表结构的自动创建和更新
+- **事务管理** - 支持事务操作，包括嵌套事务和保存点
 - **健康检查** - 提供数据库连接健康检查功能
-- **事务支持** - 支持事务操作，保证数据一致性
 - **零成本降级** - 配置失败时自动降级到空数据库管理器，避免影响程序运行
 - **线程安全** - 所有操作都是线程安全的，支持并发访问
 
@@ -17,11 +19,18 @@
 package main
 
 import (
-    "context"
     "fmt"
 
     "com.litelake.litecore/manager/databasemgr"
+    "gorm.io/gorm"
 )
+
+// User 用户模型
+type User struct {
+    ID   uint   `gorm:"primaryKey"`
+    Name string `gorm:"size:255"`
+    Age  int    `gorm:"index"`
+}
 
 func main() {
     // 创建工厂实例
@@ -45,27 +54,41 @@ func main() {
         return
     }
 
-    // 执行查询
-    ctx := context.Background()
-    rows, err := dbMgr.DB().QueryContext(ctx, "SELECT * FROM users")
+    // 自动迁移表结构
+    err := dbMgr.AutoMigrate(&User{})
     if err != nil {
         panic(err)
     }
-    defer rows.Close()
+
+    // 使用 GORM 创建记录
+    err = dbMgr.DB().Create(&User{Name: "John", Age: 30}).Error
+    if err != nil {
+        panic(err)
+    }
+
+    // 查询记录
+    var users []User
+    err = dbMgr.DB().Where("age > ?", 18).Find(&users).Error
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("找到 %d 个用户\n", len(users))
 
     // 使用事务
-    tx, err := dbMgr.BeginTx(ctx, nil)
-    if err != nil {
-        panic(err)
-    }
-    defer tx.Rollback()
+    err = dbMgr.Transaction(func(tx *gorm.DB) error {
+        // 创建用户
+        if err := tx.Create(&User{Name: "Alice", Age: 25}).Error; err != nil {
+            return err
+        }
 
-    _, err = tx.Exec("INSERT INTO users (name) VALUES (?)", "John")
-    if err != nil {
-        panic(err)
-    }
+        // 更新用户
+        if err := tx.Model(&User{}).Where("name = ?", "John").Update("age", 31).Error; err != nil {
+            return err
+        }
 
-    err = tx.Commit()
+        return nil
+    })
     if err != nil {
         panic(err)
     }
@@ -81,10 +104,67 @@ func main() {
 
 | 驱动 | 数据库 | 适合场景 | 底层驱动 |
 |------|--------|----------|----------|
-| **mysql** | MySQL | 生产环境、高并发场景 | go-sql-driver/mysql |
-| **postgresql** | PostgreSQL | 企业级应用、高级功能需求 | lib/pq |
-| **sqlite** | SQLite | 嵌入式应用、测试环境 | mattn/go-sqlite3 |
+| **mysql** | MySQL | 生产环境、高并发场景 | gorm.io/driver/mysql |
+| **postgresql** | PostgreSQL | 企业级应用、高级功能需求 | gorm.io/driver/postgres |
+| **sqlite** | SQLite | 嵌入式应用、测试环境 | gorm.io/driver/sqlite |
 | **none** | - | 降级场景、配置失败时 | - |
+
+## GORM 集成
+
+DatabaseManager 完全基于 GORM 构建，提供 GORM 的所有功能。
+
+### 核心方法
+
+```go
+// DB 获取 GORM 数据库实例
+db := dbMgr.DB()
+
+// Model 指定模型进行操作
+dbMgr.Model(&User{}).Where("age > ?", 18).Find(&users)
+
+// Table 指定表名进行操作
+dbMgr.Table("users").Where("age > ?", 18).Find(&results)
+
+// WithContext 设置上下文
+ctx := context.Background()
+dbMgr.WithContext(ctx).Find(&users)
+
+// Transaction 执行事务
+err := dbMgr.Transaction(func(tx *gorm.DB) error {
+    return tx.Create(&User{Name: "John"}).Error
+})
+
+// Begin 开启事务
+tx := dbMgr.Begin()
+tx.Create(&User{Name: "Alice"})
+tx.Commit()
+
+// AutoMigrate 自动迁移
+err := dbMgr.AutoMigrate(&User{}, &Product{})
+
+// Migrator 获取迁移器
+migrator := dbMgr.Migrator()
+migrator.CreateTable(&User{})
+
+// Exec 执行原生 SQL
+dbMgr.Exec("DELETE FROM users WHERE age < ?", 18)
+
+// Raw 执行原生查询
+dbMgr.Raw("SELECT * FROM users WHERE age > ?", 18).Scan(&results)
+```
+
+### 链式查询
+
+```go
+// 使用 GORM 的链式查询
+var users []User
+dbMgr.DB().
+    Select("name, age").
+    Where("age > ?", 18).
+    Order("age DESC").
+    Limit(10).
+    Find(&users)
+```
 
 ## 工厂模式
 
@@ -252,11 +332,126 @@ file:path?param=value
 ```go
 // 获取连接池统计信息
 stats := dbMgr.Stats()
-fmt.Printf("Open Connections: %d\n", stats.OpenConnections)
+fmt.Printf("Open Connections: %d\n", stats.MaxOpenConnections)
 fmt.Printf("In Use: %d\n", stats.InUse)
 fmt.Printf("Idle: %d\n", stats.Idle)
 fmt.Printf("Wait Count: %d\n", stats.WaitCount)
 fmt.Printf("Wait Duration: %v\n", stats.WaitDuration)
+```
+
+## 事务管理
+
+### 基本事务
+
+```go
+// 使用 Transaction 方法自动管理事务
+err := dbMgr.Transaction(func(tx *gorm.DB) error {
+    // 创建用户
+    if err := tx.Create(&User{Name: "John"}).Error; err != nil {
+        return err // 返回错误会自动回滚
+    }
+
+    // 更新用户
+    if err := tx.Model(&User{}).Where("name = ?", "Alice").Update("age", 25).Error; err != nil {
+        return err
+    }
+
+    return nil // 返回 nil 会自动提交
+})
+```
+
+### 手动事务
+
+```go
+// 手动开启事务
+tx := dbMgr.Begin()
+
+// 执行操作
+tx.Create(&User{Name: "John"})
+
+// 提交或回滚
+if err != nil {
+    tx.Rollback()
+} else {
+    tx.Commit()
+}
+```
+
+### 嵌套事务
+
+```go
+// GORM 支持嵌套事务（通过保存点实现）
+err := dbMgr.Transaction(func(tx *gorm.DB) error {
+    // 外层事务
+    if err := tx.Create(&User{Name: "John"}).Error; err != nil {
+        return err
+    }
+
+    // 内层事务（保存点）
+    return tx.Transaction(func(tx2 *gorm.DB) error {
+        return tx2.Create(&User{Name: "Alice"}).Error
+    })
+})
+```
+
+## 自动迁移
+
+### 基本用法
+
+```go
+// 自动迁移模型
+err := dbMgr.AutoMigrate(&User{}, &Product{}, &Order{})
+if err != nil {
+    panic(err)
+}
+```
+
+### 模型定义
+
+```go
+type User struct {
+    ID        uint      `gorm:"primaryKey"`
+    Name      string    `gorm:"size:255;not null"`
+    Email     string    `gorm:"size:255;uniqueIndex"`
+    Age       int       `gorm:"index"`
+    Active    bool      `gorm:"default:true"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
+}
+```
+
+### 迁移器 API
+
+```go
+// 获取迁移器
+migrator := dbMgr.Migrator()
+
+// 创建表
+migrator.CreateTable(&User{})
+
+// 删除表
+migrator.DropTable(&User{})
+
+// 重命名表
+migrator.RenameTable("users", "user_accounts")
+
+// 添加列
+migrator.AddColumn(&User{}, "Avatar")
+
+// 删除列
+migrator.DropColumn(&User{}, "Avatar")
+
+// 创建索引
+migrator.CreateIndex(&User{}, "IdxEmail")
+
+// 删除索引
+migrator.DropIndex(&User{}, "IdxEmail")
+
+// 检查列是否存在
+hasColumn := migrator.HasColumn(&User{}, "Email")
+
+// 检查索引是否存在
+hasIndex := migrator.HasIndex(&User{}, "IdxEmail")
 ```
 
 ## API 文档
@@ -265,35 +460,35 @@ fmt.Printf("Wait Duration: %v\n", stats.WaitDuration)
 
 ```go
 type DatabaseManager interface {
-    // ManagerName 返回管理器名称
+    // ========== 生命周期管理 ==========
     ManagerName() string
-
-    // Health 检查管理器健康状态
     Health() error
-
-    // OnStart 在服务器启动时触发
     OnStart() error
-
-    // OnStop 在服务器停止时触发
     OnStop() error
 
-    // DB 获取数据库连接
-    DB() *sql.DB
+    // ========== GORM 核心 ==========
+    DB() *gorm.DB
+    Model(value any) *gorm.DB
+    Table(name string) *gorm.DB
+    WithContext(ctx context.Context) *gorm.DB
 
-    // Driver 获取数据库驱动类型
+    // ========== 事务管理 ==========
+    Transaction(fn func(*gorm.DB) error, opts ...*sql.TxOptions) error
+    Begin(opts ...*sql.TxOptions) *gorm.DB
+
+    // ========== 迁移管理 ==========
+    AutoMigrate(models ...any) error
+    Migrator() gorm.Migrator
+
+    // ========== 连接管理 ==========
     Driver() string
-
-    // Ping 检查数据库连接
     Ping(ctx context.Context) error
-
-    // BeginTx 开始事务
-    BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-
-    // Stats 获取数据库连接池统计信息
-    Stats() sql.DBStats
-
-    // Close 关闭数据库连接
+    Stats() gorm.SQLStats
     Close() error
+
+    // ========== 原生 SQL ==========
+    Exec(sql string, values ...any) *gorm.DB
+    Raw(sql string, values ...any) *gorm.DB
 }
 ```
 
@@ -301,11 +496,89 @@ type DatabaseManager interface {
 
 #### DB()
 
-获取底层的 `*sql.DB` 实例，用于执行原生 SQL 操作。
+获取 GORM 数据库实例，用于执行所有 GORM 操作。
 
 ```go
 db := dbMgr.DB()
-rows, err := db.QueryContext(ctx, "SELECT * FROM users WHERE id = ?", userID)
+var users []User
+db.Where("age > ?", 18).Find(&users)
+```
+
+#### Model()
+
+指定模型进行操作。
+
+```go
+dbMgr.Model(&User{}).Where("age > ?", 18).Find(&users)
+dbMgr.Model(&User{}).Update("active", true)
+```
+
+#### Table()
+
+指定表名进行操作。
+
+```go
+dbMgr.Table("user_profiles").Where("user_id = ?", userID).First(&profile)
+```
+
+#### WithContext()
+
+设置上下文，用于超时控制和追踪。
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+dbMgr.WithContext(ctx).Find(&users)
+```
+
+#### Transaction()
+
+执行事务，自动处理提交和回滚。
+
+```go
+err := dbMgr.Transaction(func(tx *gorm.DB) error {
+    if err := tx.Create(&User{Name: "John"}).Error; err != nil {
+        return err // 自动回滚
+    }
+    return nil // 自动提交
+})
+```
+
+#### Begin()
+
+手动开启事务，返回事务对象。
+
+```go
+tx := dbMgr.Begin()
+tx.Create(&User{Name: "John"})
+tx.Commit() // 或 tx.Rollback()
+```
+
+#### AutoMigrate()
+
+自动迁移模型到数据库。
+
+```go
+err := dbMgr.AutoMigrate(&User{}, &Product{})
+```
+
+#### Migrator()
+
+获取 GORM 迁移器，用于高级迁移操作。
+
+```go
+migrator := dbMgr.Migrator()
+migrator.CreateTable(&User{})
+migrator.AddColumn(&User{}, "Avatar")
+```
+
+#### Driver()
+
+获取数据库驱动类型。
+
+```go
+driver := dbMgr.Driver() // "mysql", "postgresql", "sqlite", "none"
 ```
 
 #### Ping()
@@ -313,69 +586,30 @@ rows, err := db.QueryContext(ctx, "SELECT * FROM users WHERE id = ?", userID)
 检查数据库连接是否正常。
 
 ```go
-ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-defer cancel()
-
+ctx := context.Background()
 err := dbMgr.Ping(ctx)
 if err != nil {
     // 数据库连接失败
 }
 ```
 
-#### BeginTx()
-
-开始一个新事务。
-
-```go
-tx, err := dbMgr.BeginTx(ctx, &sql.TxOptions{
-    Isolation: sql.LevelSerializable,
-    ReadOnly:  false,
-})
-if err != nil {
-    return err
-}
-defer tx.Rollback()
-
-// 执行事务操作
-_, err = tx.Exec("UPDATE accounts SET balance = balance - ? WHERE id = ?", amount, fromID)
-if err != nil {
-    return err
-}
-
-// 提交事务
-err = tx.Commit()
-```
-
 #### Stats()
 
-获取连接池统计信息，用于监控和调优。
+获取连接池统计信息。
 
 ```go
 stats := dbMgr.Stats()
-fmt.Printf("Open Connections: %d\n", stats.OpenConnections)
-fmt.Printf("In Use: %d\n", stats.InUse)
-fmt.Printf("Idle: %d\n", stats.Idle)
-```
-
-#### Driver()
-
-获取当前使用的数据库驱动类型，可用于检查降级状态。
-
-```go
-if dbMgr.Driver() == "none" {
-    return errors.New("database not available")
-}
+fmt.Printf("MaxOpenConnections: %d\n", stats.MaxOpenConnections)
+fmt.Printf("OpenConnections: %d\n", stats.OpenConnections)
+fmt.Printf("InUse: %d\n", stats.InUse)
 ```
 
 #### Close()
 
-关闭数据库连接并释放资源。
+关闭数据库连接。
 
 ```go
 err := dbMgr.Close()
-if err != nil {
-    log.Printf("failed to close database: %v", err)
-}
 ```
 
 ## 错误处理
@@ -406,45 +640,62 @@ if dbMgr.Driver() == "none" {
 }
 
 // 执行查询并处理错误
-rows, err := dbMgr.DB().QueryContext(ctx, "SELECT * FROM users")
-if err != nil {
+var users []User
+if err := dbMgr.DB().Find(&users).Error; err != nil {
     return fmt.Errorf("failed to query users: %w", err)
 }
-defer rows.Close()
+
+// 使用事务并处理错误
+err := dbMgr.Transaction(func(tx *gorm.DB) error {
+    if err := tx.Create(&User{Name: "John"}).Error; err != nil {
+        return err
+    }
+    return nil
+})
+if err != nil {
+    return fmt.Errorf("transaction failed: %w", err)
+}
 ```
 
 ## 性能考虑
 
 - **连接池配置**：合理配置连接池大小，避免连接泄漏和资源浪费
-- **使用连接池**：复用数据库连接，减少连接创建开销
-- **使用 context**：使用 context 控制查询超时，避免长时间阻塞
-- **避免长事务**：及时提交或回滚事务，减少锁竞争
-- **使用预编译语句**：使用预编译语句提高查询性能
+- **使用索引**：为常用查询字段创建索引
+- **批量操作**：使用 CreateInBatches 进行批量插入
+- **预加载**：使用 Preload 避免N+1查询问题
+- **选择字段**：使用 Select 只查询需要的字段
+- **使用 context**：使用 context 控制查询超时
 
 ### 性能优化示例
 
 ```go
+// 批量插入
+users := []User{{Name: "John"}, {Name: "Alice"}}
+dbMgr.DB().CreateInBatches(users, 100)
+
+// 预加载关联数据
+type User struct {
+    ID      uint
+    Name    string
+    Orders  []Order
+}
+dbMgr.DB().Preload("Orders").Find(&users)
+
+// 只查询需要的字段
+dbMgr.DB().Select("id", "name").Find(&users)
+
 // 使用 context 控制超时
 ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 defer cancel()
-
-rows, err := db.QueryContext(ctx, "SELECT * FROM users")
-
-// 使用预编译语句
-stmt, err := db.Prepare("SELECT * FROM users WHERE id = ?")
-if err != nil {
-    return err
-}
-defer stmt.Close()
-
-rows, err = stmt.Query(userID)
+dbMgr.WithContext(ctx).Find(&users)
 ```
 
 ## 安全性
 
 - **敏感信息保护**：不要在日志中打印密码，使用环境变量管理敏感信息
 - **SSL/TLS 支持**：PostgreSQL 和 MySQL 支持 SSL/TLS 加密连接
-- **参数化查询**：使用参数化查询避免 SQL 注入
+- **参数化查询**：GORM 自动使用参数化查询，避免 SQL 注入
+- **输入验证**：在应用层验证用户输入
 
 ### 安全配置示例
 
@@ -469,13 +720,15 @@ cfg := map[string]any{
 ## 最佳实践
 
 1. **使用连接池**：不要每次查询都创建新连接
-2. **及时释放资源**：使用 defer 关闭 rows 和 stmt
-3. **使用事务**：保证数据一致性
-4. **处理错误**：检查所有可能的错误
-5. **监控连接池**：定期检查连接池统计信息
-6. **使用 context**：控制查询超时
-7. **使用预编译语句**：提高查询性能
+2. **使用事务**：保证数据一致性
+3. **处理错误**：检查所有可能的错误
+4. **监控连接池**：定期检查连接池统计信息
+5. **使用 context**：控制查询超时
+6. **使用自动迁移**：保持数据库结构与模型同步
+7. **使用索引**：为常用查询字段创建索引
 8. **避免长事务**：及时提交或回滚事务
+9. **使用预加载**：避免 N+1 查询问题
+10. **参数化查询**：GORM 自动使用参数化查询，避免 SQL 注入
 
 ## 测试
 
@@ -488,6 +741,24 @@ go test ./manager/databasemgr/...
 # 运行测试并显示覆盖率
 go test -cover ./manager/databasemgr/...
 
+# 运行特定模块的测试
+go test ./manager/databasemgr/internal/config/...
+go test ./manager/databasemgr/internal/hooks/...
+go test ./manager/databasemgr/internal/migration/...
+go test ./manager/databasemgr/internal/transaction/...
+
 # 运行特定驱动的测试
 go test ./manager/databasemgr/internal/drivers/... -run TestSQLite
 ```
+
+## 架构说明
+
+DatabaseManager 由以下核心组件构成：
+
+- **config**: 配置解析和验证
+- **drivers**: 数据库驱动实现（MySQL、PostgreSQL、SQLite、None）
+- **hooks**: GORM 钩子管理
+- **migration**: 数据库迁移管理
+- **transaction**: 事务管理
+
+所有组件都经过完整的单元测试覆盖，确保功能正确性和稳定性。

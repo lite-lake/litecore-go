@@ -64,7 +64,7 @@ func (d *DummyDialector) DefaultValueOf(field *schema.Field) clause.Expression {
 	return clause.Expr{}
 }
 
-func (d DummyDialector) BindVarTo(writer clause.Writer, stmt *Statement, v interface{}) {
+func (d DummyDialector) BindVarTo(writer clause.Writer, stmt *gorm.Statement, v interface{}) {
 	return
 }
 

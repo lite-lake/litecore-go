@@ -1,8 +1,6 @@
 package migration
 
 import (
-	"fmt"
-
 	"gorm.io/gorm"
 )
 
@@ -78,5 +76,5 @@ func (m *Migrator) GetIndexes(model interface{}) ([]gorm.Index, error) {
 
 // GetColumns 获取所有列
 func (m *Migrator) GetColumns(model interface{}) ([]gorm.ColumnType, error) {
-	return m.db.Migrator().GetColumns(model)
+	return m.db.Migrator().ColumnTypes(model)
 }
