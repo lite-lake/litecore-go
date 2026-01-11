@@ -12,8 +12,10 @@
 *.out
 
 # Go compiled binaries
-main
-messageboard
+/main
+/messageboard
+samples/*/main
+samples/*/messageboard
 [!w]*.exe
 *[!w].exe
 
