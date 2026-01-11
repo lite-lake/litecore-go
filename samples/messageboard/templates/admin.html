@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- 登录面板 -->
+    <div id="login-panel" class="container">
+        <div class="row justify-content-center align-items-center min-vh-100">
+            <div class="col-md-4">
+                <div class="card border-0 shadow">
+                    <div class="card-body p-5">
+                        <h2 class="text-center mb-4 fw-light">管理员登录</h2>
+                        <form id="login-form">
+                            <div class="mb-3">
+                                <label for="password" class="form-label">密码</label>
+                                <input type="password" class="form-control" id="password" name="password"
+                                       placeholder="请输入管理员密码" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">登录</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理面板 -->
+    <div id="admin-panel" class="container d-none">
+        <header class="py-4 d-flex justify-content-between align-items-center">
+            <h1 class="h3 fw-light m-0">留言管理</h1>
+            <button id="logout-btn" class="btn btn-outline-secondary btn-sm">退出登录</button>
+        </header>
+
+        <!-- 统计信息 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">待审核</h6>
+                        <h3 class="mb-0" id="pending-count">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">已通过</h6>
+                        <h3 class="mb-0 text-success" id="approved-count">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">已拒绝</h6>
+                        <h3 class="mb-0 text-danger" id="rejected-count">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">总计</h6>
+                        <h3 class="mb-0" id="total-count">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 留言列表 -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>昵称</th>
+                                <th>内容</th>
+                                <th>状态</th>
+                                <th>时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-message-list">
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                                    <span class="ms-2">加载中...</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- jQuery Validation -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.21.0/dist/jquery.validate.min.js"></script>
+    <script src="/static/js/admin.js"></script>
+</body>
+</html>

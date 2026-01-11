@@ -1,0 +1,67 @@
+# 留言板应用配置文件
+
+# 应用配置
+app:
+  name: "litecore-messageboard"
+  version: "1.0.0"
+  admin:
+    password: "admin123"        # 管理员密码
+    session_timeout: 3600       # 会话超时时间（秒）
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "debug"                 # debug, release, test
+  read_timeout: "10s"
+  write_timeout: "10s"
+  idle_timeout: "60s"
+  enable_metrics: true
+  enable_health: true
+  enable_pprof: false
+  enable_recovery: true
+  shutdown_timeout: "30s"
+
+# 数据库配置
+database:
+  driver: "sqlite"              # mysql, postgresql, sqlite, none
+  sqlite_config:
+    dsn: "./data/messageboard.db"
+    pool_config:
+      max_open_conns: 1         # SQLite 通常设置为 1
+      max_idle_conns: 1
+      conn_max_lifetime: "30s"
+      conn_max_idle_time: "5m"
+  observability_config:
+    slow_query_threshold: "1s"  # 慢查询阈值
+    log_sql: false              # 是否记录完整 SQL（生产环境建议关闭）
+    sample_rate: 1.0            # 采样率（0.0-1.0）
+
+# 缓存配置
+cache:
+  driver: "memory"              # redis, memory, none
+  memory_config:
+    max_size: 100               # 最大缓存大小（MB）
+    max_age: "720h"             # 最大缓存时间（30天）
+    max_backups: 1000           # 最大备份项数
+    compress: false             # 是否压缩
+
+# 日志配置
+logger:
+  driver: "zap"                 # zap, none
+  zap_config:
+    telemetry_enabled: false
+    telemetry_config:
+      level: "info"
+    console_enabled: true
+    console_config:
+      level: "info"
+    file_enabled: false
+    file_config:
+      level: "info"
+      path: "./logs/messageboard.log"
+      rotation:
+        max_size: 100           # MB
+        max_age: 30             # days
+        max_backups: 10
+        compress: true

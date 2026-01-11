@@ -1,0 +1,299 @@
+/* 留言板 - MUJI 风格样式 */
+
+:root {
+    --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --color-primary: #333333;
+    --color-secondary: #666666;
+    --color-muted: #999999;
+    --color-border: #e5e5e5;
+    --color-background: #fafafa;
+    --color-success: #5cb85c;
+    --color-danger: #d9534f;
+    --color-warning: #f0ad4e;
+    --color-info: #5bc0de;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --radius: 4px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family-base);
+    background-color: var(--color-background);
+    color: var(--color-primary);
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 容器 */
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* 标题 */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 300;
+    color: var(--color-primary);
+}
+
+/* 留言列表 */
+.message-list {
+    min-height: 200px;
+}
+
+.message-item {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.3s ease;
+}
+
+.message-item:hover {
+    box-shadow: var(--shadow);
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.message-nickname {
+    font-weight: 500;
+    color: var(--color-primary);
+    font-size: 16px;
+}
+
+.message-time {
+    font-size: 13px;
+    color: var(--color-muted);
+}
+
+.message-content {
+    color: var(--color-secondary);
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 卡片 */
+.card {
+    background: #fff;
+    border-radius: var(--radius);
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow);
+}
+
+/* 表单 */
+.form-control {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 15px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(51, 51, 51, 0.1);
+    outline: none;
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--color-primary);
+    margin-bottom: 8px;
+}
+
+/* 按钮 */
+.btn {
+    border-radius: var(--radius);
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: #555;
+    color: #fff;
+}
+
+.btn-outline-secondary {
+    border: 1px solid var(--color-border);
+    color: var(--color-secondary);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+}
+
+/* 状态标签 */
+.badge {
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.badge-pending {
+    background-color: var(--color-warning);
+    color: #fff;
+}
+
+.badge-approved {
+    background-color: var(--color-success);
+    color: #fff;
+}
+
+.badge-rejected {
+    background-color: var(--color-danger);
+    color: #fff;
+}
+
+/* 表格 */
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    border-bottom: 2px solid var(--color-border);
+    font-weight: 500;
+    color: var(--color-primary);
+    padding: 16px;
+}
+
+.table tbody td {
+    padding: 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--color-background);
+}
+
+/* 操作按钮组 */
+.btn-group-sm > .btn,
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* 统计卡片 */
+.card-body {
+    padding: 20px;
+}
+
+.card-body h3 {
+    font-size: 32px;
+    font-weight: 300;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--color-muted);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* 加载动画 */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+}
+
+/* Toast 通知 */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.toast {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    min-width: 300px;
+}
+
+.toast-success {
+    border-left: 4px solid var(--color-success);
+}
+
+.toast-error {
+    border-left: 4px solid var(--color-danger);
+}
+
+.toast-info {
+    border-left: 4px solid var(--color-info);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 15px;
+    }
+
+    .message-item {
+        padding: 16px;
+    }
+
+    .card-body {
+        padding: 16px;
+    }
+
+    .table thead th,
+    .table tbody td {
+        padding: 12px 8px;
+        font-size: 14px;
+    }
+
+    h1.display-4 {
+        font-size: 32px;
+    }
+}
+
+/* 工具类 */
+.fw-light {
+    font-weight: 300 !important;
+}
+
+.text-muted {
+    color: var(--color-muted) !important;
+}
+
+.bg-light {
+    background-color: var(--color-background) !important;
+}
