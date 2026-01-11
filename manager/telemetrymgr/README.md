@@ -5,6 +5,7 @@
 ## 特性
 
 - **OpenTelemetry 集成** - 基于业界标准的 OpenTelemetry 协议，支持多种后端
+- **依赖注入支持** - 通过 Container 自动注入配置和依赖
 - **驱动抽象设计** - 统一接口支持多种实现，当前支持 OTEL 和 None 驱动
 - **优雅降级机制** - 配置解析失败或初始化错误时自动降级到空实现
 - **生命周期管理** - 完整的启动、健康检查和优雅关闭支持
@@ -23,23 +24,15 @@ import (
 )
 
 func main() {
-    // 创建工厂
-    factory := telemetrymgr.NewFactory()
+    // 创建观测管理器
+    mgr := telemetrymgr.NewManager("default")
 
-    // 配置 OTEL 驱动
-    config := map[string]any{
-        "endpoint": "http://localhost:4317",
-        "resource_attributes": []any{
-            map[string]any{"key": "service.name", "value": "my-service"},
-            map[string]any{"key": "environment", "value": "production"},
-        },
-        "traces":  map[string]any{"enabled": true},
-        "metrics": map[string]any{"enabled": true},
-        "logs":    map[string]any{"enabled": true},
-    }
+    // 通过依赖注入容器初始化（推荐）
+    // container.Register("config", configProvider)
+    // container.Register("telemetry.default", mgr)
+    // container.InjectAll()
 
-    // 创建并启动管理器
-    mgr := factory.Build("otel", config)
+    // 启动管理器（会从配置中读取配置）
     if err := mgr.OnStart(); err != nil {
         panic(err)
     }
@@ -48,93 +41,92 @@ func main() {
     fmt.Println("Telemetry manager started:", mgr.ManagerName())
 
     // 使用 Tracer 进行链路追踪
-    if telemetryMgr, ok := mgr.(telemetrymgr.TelemetryManager); ok {
-        tracer := telemetryMgr.Tracer("my-service")
-        ctx, span := tracer.Start(context.Background(), "operation")
-        defer span.End()
+    tracer := mgr.Tracer("my-service")
+    ctx, span := tracer.Start(context.Background(), "operation")
+    defer span.End()
 
-        // 在这里执行业务逻辑
-        _ = ctx
-    }
+    // 在这里执行业务逻辑
+    _ = ctx
 }
 ```
 
 ## 创建管理器
 
-### 使用 OTEL 驱动
+### 使用依赖注入（推荐）
 
 ```go
-factory := telemetrymgr.NewFactory()
+// 创建管理器
+mgr := telemetrymgr.NewManager("default")
 
-config := map[string]any{
-    "endpoint": "http://localhost:4317",
-    "insecure": false, // 默认使用 TLS
-    "traces":   map[string]any{"enabled": true},
-}
+// 注册到容器
+container.Register("config", configProvider)
+container.Register("telemetry.default", mgr)
 
-mgr := factory.Build("otel", config)
+// 注入依赖并启动
+container.InjectAll()
 mgr.OnStart()
 defer mgr.OnStop()
+```
+
+### 配置 OTEL 驱动
+
+在配置文件中添加观测配置：
+
+```yaml
+telemetry.default:
+  driver: otel
+  otel_config:
+    endpoint: http://localhost:4317
+    insecure: false  # 默认使用 TLS
+    resource_attributes:
+      - key: service.name
+        value: my-service
+      - key: environment
+        value: production
+    traces:
+      enabled: true
+    metrics:
+      enabled: true
+    logs:
+      enabled: true
 ```
 
 ### 使用 None 驱动
 
 ```go
-factory := telemetrymgr.NewFactory()
+// 创建管理器
+mgr := telemetrymgr.NewManager("default")
 
-// none 驱动不需要配置
-mgr := factory.Build("none", nil)
-
+// 不提供配置或配置 driver 为 none
+// 使用默认配置（禁用观测）
 mgr.OnStart()
 defer mgr.OnStop()
 ```
 
-### 使用配置结构体
-
-```go
-factory := telemetrymgr.NewFactory()
-
-telemetryConfig := &config.TelemetryConfig{
-    Driver: "otel",
-    OtelConfig: &config.OtelConfig{
-        Endpoint: "http://localhost:4317",
-        Traces:   &config.FeatureConfig{Enabled: true},
-        Metrics:  &config.FeatureConfig{Enabled: true},
-    },
-}
-
-mgr, err := factory.BuildWithConfig(telemetryConfig)
-if err != nil {
-    panic(err)
-}
-```
-
 ## 使用 Tracer
 
-TelemetryManager 接口提供了获取 Tracer 实例的方法：
+Manager 实现了 TelemetryManager 接口，提供了获取 Tracer 实例的方法：
 
 ```go
-if telemetryMgr, ok := mgr.(telemetrymgr.TelemetryManager); ok {
-    tracer := telemetryMgr.Tracer("my-service")
+tracer := mgr.Tracer("my-service")
 
-    // 创建 Span
-    ctx, span := tracer.Start(context.Background(), "operation-name")
-    defer span.End()
+// 创建 Span
+ctx, span := tracer.Start(context.Background(), "operation-name")
+defer span.End()
 
-    // 添加属性
-    span.SetAttributes(
-        attribute.String("user.id", "123"),
-        attribute.String("action", "login"),
-    )
+// 添加属性
+span.SetAttributes(
+    attribute.String("user.id", "123"),
+    attribute.String("action", "login"),
+)
 
-    // 添加事件
-    span.AddEvent("user authenticated")
+// 添加事件
+span.AddEvent("user authenticated")
 
-    // 记录错误
-    if err != nil {
-        span.RecordError(err)
-        span.SetStatus(codes.Error, "operation failed")
-    }
+// 记录错误
+if err != nil {
+    span.RecordError(err)
+    span.SetStatus(codes.Error, "operation failed")
 }
 ```
 
@@ -144,7 +136,7 @@ if telemetryMgr, ok := mgr.(telemetrymgr.TelemetryManager); ok {
 
 ```go
 // 获取 TracerProvider
-tp := telemetrymgr.TracerProvider(mgr)
+tp := mgr.TracerProvider()
 if tp != nil {
     // 直接使用 TracerProvider
     _ = tp
@@ -154,13 +146,11 @@ if tp != nil {
 ## 优雅关闭
 
 ```go
-if telemetryMgr, ok := mgr.(telemetrymgr.TelemetryManager); ok {
-    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-    defer cancel()
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
 
-    if err := telemetryMgr.Shutdown(ctx); err != nil {
-        log.Printf("Failed to shutdown telemetry manager: %v", err)
-    }
+if err := mgr.Shutdown(ctx); err != nil {
+    log.Printf("Failed to shutdown telemetry manager: %v", err)
 }
 ```
 
@@ -175,59 +165,60 @@ type TelemetryManager interface {
     // Tracer 获取 Tracer 实例
     Tracer(name string) trace.Tracer
 
+    // TracerProvider 获取 TracerProvider
+    TracerProvider() *sdktrace.TracerProvider
+
+    // Meter 获取 Meter 实例
+    Meter(name string) metric.Meter
+
+    // MeterProvider 获取 MeterProvider
+    MeterProvider() *sdkmetric.MeterProvider
+
+    // Logger 获取 Logger 实例
+    Logger(name string) log.Logger
+
+    // LoggerProvider 获取 LoggerProvider
+    LoggerProvider() *sdklog.LoggerProvider
+
     // Shutdown 关闭观测管理器，刷新所有待处理的数据
     Shutdown(ctx context.Context) error
 }
 ```
 
-#### TracerProviderGetter
+### 构造函数
+
+#### NewManager
 
 ```go
-type TracerProviderGetter interface {
-    TracerProvider() *sdktrace.TracerProvider
-}
-```
-
-### 工厂方法
-
-#### NewFactory
-
-```go
-func NewFactory() *Factory
-```
-
-创建观测管理器工厂。
-
-#### Build
-
-```go
-func (f *Factory) Build(driver string, cfg map[string]any) common.Manager
+func NewManager(name string) *Manager
 ```
 
 创建观测管理器实例。
 
-- `driver`: 驱动类型，支持 "none", "otel"
-- `cfg`: 驱动专属的配置数据
-
-#### BuildWithConfig
-
-```go
-func (f *Factory) BuildWithConfig(telemetryConfig *config.TelemetryConfig) (common.Manager, error)
-```
-
-使用配置结构体创建观测管理器。
-
-### 辅助函数
-
-#### TracerProvider
-
-```go
-func TracerProvider(mgr any) *sdktrace.TracerProvider
-```
-
-获取 TracerProvider，用于需要直接使用 TracerProvider 的场景。
+- `name`: 管理器名称，用于配置键前缀（如 "default" → "telemetry.default"）
 
 ## 配置说明
+
+### 依赖注入配置
+
+管理器通过依赖注入自动从配置中读取配置，配置键格式为 `telemetry.{manager_name}`：
+
+```yaml
+telemetry.default:
+  driver: otel
+  otel_config:
+    endpoint: http://localhost:4317
+    insecure: false
+    resource_attributes:
+      - key: service.name
+        value: my-service
+    traces:
+      enabled: true
+    metrics:
+      enabled: true
+    logs:
+      enabled: true
+```
 
 ### OTEL 配置结构
 
@@ -260,27 +251,24 @@ type FeatureConfig struct {
 
 ## 错误处理
 
-`Build` 方法采用优雅降级策略：
+管理器采用优雅降级策略：
 
 1. 配置解析失败 → 降级到 None 驱动
 2. 配置验证失败 → 降级到 None 驱动
 3. OTEL 初始化失败 → 降级到 None 驱动
 4. 未知驱动类型 → 降级到 None 驱动
 
-`BuildWithConfig` 方法在错误时返回 error，需要调用方处理：
-
 ```go
-mgr, err := factory.BuildWithConfig(telemetryConfig)
-if err != nil {
-    return fmt.Errorf("failed to create telemetry manager: %w", err)
+// OnStart 会返回错误，但不会终止程序
+if err := mgr.OnStart(); err != nil {
+    log.Printf("Telemetry manager initialization failed, using none driver: %v", err)
 }
 ```
 
 ## 线程安全
 
 所有管理器实现均保证并发安全：
-- OtelManager 使用 `sync.RWMutex` 保护内部状态
-- NoneManager 是无状态的，天然并发安全
+- Manager 使用 `sync.RWMutex` 保护内部状态
 - Shutdown 使用 `sync.Once` 确保只执行一次
 
 ## 健康检查
