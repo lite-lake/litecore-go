@@ -3,6 +3,7 @@ package cachemgr
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -66,24 +67,35 @@ func (m *cacheManagerMemoryImpl) Get(ctx context.Context, key string, dest any) 
 			return fmt.Errorf("key not found: %s", key)
 		}
 
-		// 类型断言和赋值
-		switch d := dest.(type) {
-		case *any:
-			*d = value
-		case *string:
-			if str, ok := value.(string); ok {
-				*d = str
-			} else {
-				return fmt.Errorf("value is not a string")
-			}
-		case *int, *int64, *float64, *bool:
-			// 基本类型需要通过反射或类型断言处理
-			return fmt.Errorf("unsupported destination type %T, use *any instead", dest)
-		default:
-			// 尝试直接赋值（用于指针类型）
-			// 这里简化处理，实际可能需要更复杂的类型转换
-			return fmt.Errorf("unsupported destination type %T", dest)
+		// 使用反射来支持任意类型的赋值
+		destValue := reflect.ValueOf(dest)
+		if destValue.Kind() != reflect.Ptr {
+			return fmt.Errorf("dest must be a pointer")
 		}
+
+		valueValue := reflect.ValueOf(value)
+		if !valueValue.IsValid() {
+			return fmt.Errorf("cached value is invalid")
+		}
+
+		// 如果 value 是指针，获取其指向的值
+		if valueValue.Kind() == reflect.Ptr {
+			if valueValue.IsNil() {
+				return fmt.Errorf("cached value is nil")
+			}
+			valueValue = valueValue.Elem()
+		}
+
+		// 获取 dest 指向的元素
+		destElem := destValue.Elem()
+
+		// 检查类型是否匹配
+		if !valueValue.Type().AssignableTo(destElem.Type()) {
+			return fmt.Errorf("type mismatch: cannot assign %v to %v", valueValue.Type(), destElem.Type())
+		}
+
+		// 赋值
+		destElem.Set(valueValue)
 
 		return nil
 	})
