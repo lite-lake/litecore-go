@@ -25,6 +25,34 @@ func (e *Engine) startManagers() error {
 	return nil
 }
 
+// startRepositories 启动所有仓储
+func (e *Engine) startRepositories() error {
+	repositories := e.containers.repository.GetAll()
+
+	// 按注册顺序启动
+	for _, repo := range repositories {
+		if err := repo.OnStart(); err != nil {
+			return fmt.Errorf("failed to start repository %s: %w",
+				repo.RepositoryName(), err)
+		}
+	}
+	return nil
+}
+
+// startServices 启动所有服务
+func (e *Engine) startServices() error {
+	services := e.containers.service.GetAll()
+
+	// 按注册顺序启动（容器已保证拓扑顺序）
+	for _, svc := range services {
+		if err := svc.OnStart(); err != nil {
+			return fmt.Errorf("failed to start service %s: %w",
+				svc.ServiceName(), err)
+		}
+	}
+	return nil
+}
+
 // stopManagers 停止所有管理器
 func (e *Engine) stopManagers() error {
 	managers := e.containers.manager.GetAll()
@@ -40,8 +68,40 @@ func (e *Engine) stopManagers() error {
 	return nil
 }
 
+// stopServices 停止所有服务
+func (e *Engine) stopServices() error {
+	services := e.containers.service.GetAll()
+
+	// 逆序停止
+	for i := len(services) - 1; i >= 0; i-- {
+		if err := services[i].OnStop(); err != nil {
+			// 记录错误但继续停止其他 Service
+			fmt.Printf("warning: failed to stop service %s: %v\n",
+				services[i].ServiceName(), err)
+		}
+	}
+	return nil
+}
+
+// stopRepositories 停止所有仓储
+func (e *Engine) stopRepositories() error {
+	repositories := e.containers.repository.GetAll()
+
+	// 逆序停止
+	for i := len(repositories) - 1; i >= 0; i-- {
+		if err := repositories[i].OnStop(); err != nil {
+			// 记录错误但继续停止其他 Repository
+			fmt.Printf("warning: failed to stop repository %s: %v\n",
+				repositories[i].RepositoryName(), err)
+		}
+	}
+	return nil
+}
+
 // Stop 停止引擎（实现 LiteServer 接口）
 // - 停止 HTTP 服务器
+// - 停止所有 Service
+// - 停止所有 Repository
 // - 停止所有 Manager
 func (e *Engine) Stop() error {
 	e.mu.Lock()
@@ -59,7 +119,17 @@ func (e *Engine) Stop() error {
 		return fmt.Errorf("HTTP server shutdown error: %w", err)
 	}
 
-	// 2. 停止所有 Manager
+	// 2. 停止所有 Service
+	if err := e.stopServices(); err != nil {
+		return err
+	}
+
+	// 3. 停止所有 Repository
+	if err := e.stopRepositories(); err != nil {
+		return err
+	}
+
+	// 4. 停止所有 Manager
 	if err := e.stopManagers(); err != nil {
 		return err
 	}
@@ -114,7 +184,17 @@ func (e *Engine) GracefulShutdown(timeout time.Duration) error {
 		return fmt.Errorf("HTTP server shutdown error: %w", err)
 	}
 
-	// 2. 停止所有 Manager
+	// 2. 停止所有 Service
+	if err := e.stopServices(); err != nil {
+		return err
+	}
+
+	// 3. 停止所有 Repository
+	if err := e.stopRepositories(); err != nil {
+		return err
+	}
+
+	// 4. 停止所有 Manager
 	if err := e.stopManagers(); err != nil {
 		return err
 	}

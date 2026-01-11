@@ -207,6 +207,8 @@ func (e *Engine) autoInject() error {
 
 // Start 启动引擎（实现 LiteServer 接口）
 // - 启动所有 Manager
+// - 启动所有 Repository
+// - 启动所有 Service
 // - 启动 HTTP 服务器
 func (e *Engine) Start() error {
 	e.mu.Lock()
@@ -217,13 +219,27 @@ func (e *Engine) Start() error {
 	}
 
 	fmt.Println("[DEBUG] Starting all managers...")
-	// 启动所有 Manager
+	// 1. 启动所有 Manager
 	if err := e.startManagers(); err != nil {
 		return fmt.Errorf("start managers failed: %w", err)
 	}
 	fmt.Println("[DEBUG] All managers started successfully")
 
-	// 启动 HTTP 服务器
+	fmt.Println("[DEBUG] Starting all repositories...")
+	// 2. 启动所有 Repository
+	if err := e.startRepositories(); err != nil {
+		return fmt.Errorf("start repositories failed: %w", err)
+	}
+	fmt.Println("[DEBUG] All repositories started successfully")
+
+	fmt.Println("[DEBUG] Starting all services...")
+	// 3. 启动所有 Service
+	if err := e.startServices(); err != nil {
+		return fmt.Errorf("start services failed: %w", err)
+	}
+	fmt.Println("[DEBUG] All services started successfully")
+
+	// 4. 启动 HTTP 服务器
 	go func() {
 		if err := e.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			e.cancel()
