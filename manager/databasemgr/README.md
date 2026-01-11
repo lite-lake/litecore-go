@@ -9,6 +9,7 @@
 - **连接池管理** - 支持连接池配置和状态监控
 - **事务支持** - 完整的事务管理和自动迁移功能
 - **生命周期管理** - 集成服务启停接口，支持健康检查
+- **可观测性** - 集成 OpenTelemetry，支持链路追踪、指标和日志
 
 ## 快速开始
 
@@ -233,6 +234,88 @@ stats := mgr.Stats()
 fmt.Printf("Open Connections: %d\n", stats.OpenConnections)
 fmt.Printf("In Use: %d\n", stats.InUse)
 fmt.Printf("Idle: %d\n", stats.Idle)
+```
+
+## 可观测性
+
+Manager 支持完整的 OpenTelemetry 可观测性，包括链路追踪、指标和日志。
+
+### 启用可观测性
+
+通过依赖注入容器接入 loggermgr 和 telemetrymgr：
+
+```go
+import (
+    "com.litelake.litecore/manager/databasemgr"
+    "com.litelake.litecore/manager/loggermgr"
+    "com.litelake.litecore/manager/telemetrymgr"
+)
+
+// 注册到容器
+container.Register("config", configProvider)
+container.Register("logger.default", loggermgr.NewManager("default"))
+container.Register("telemetry.default", telemetrymgr.NewManager("default"))
+container.Register("database.default", databasemgr.NewManager("default"))
+
+// 启动容器
+container.Start()
+defer container.Stop()
+```
+
+### 可观测性配置
+
+在数据库配置中添加可观测性选项：
+
+```go
+cfg := &config.DatabaseConfig{
+    Driver: "mysql",
+    MySQLConfig: &config.MySQLConfig{
+        DSN: "user:password@tcp(localhost:3306)/dbname",
+    },
+    ObservabilityConfig: &config.ObservabilityConfig{
+        SlowQueryThreshold: 1 * time.Second,  // 慢查询阈值
+        LogSQL:             false,              // 是否记录完整 SQL
+        SampleRate:         0.1,                // 10% 采样率
+    },
+}
+```
+
+### 配置选项
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `SlowQueryThreshold` | Duration | 1s | 慢查询阈值，超过此时长的查询会被标记 |
+| `LogSQL` | bool | false | 是否在日志中记录完整 SQL（生产环境建议关闭） |
+| `SampleRate` | float64 | 1.0 | 采样率（0.0-1.0），1.0 表示全采样 |
+
+### 自动采集的指标
+
+| 指标名称 | 类型 | 描述 | 属性 |
+|---------|------|------|------|
+| `db.query.duration` | Histogram | 查询耗时（秒） | operation, table, status |
+| `db.query.count` | Counter | 查询总数 | operation, table, status |
+| `db.query.error_count` | Counter | 查询错误数 | operation, table, status |
+| `db.query.slow_count` | Counter | 慢查询数 | operation, table |
+| `db.connection.pool` | Gauge | 连接池状态 | state (open/in_use/idle) |
+
+### 日志级别
+
+- **Debug** - 正常数据库操作（仅包含操作类型、表名、耗时）
+- **Warn** - 慢查询告警
+- **Error** - 数据库操作失败
+
+### SQL 脱敏
+
+当 `LogSQL=true` 时，插件会自动脱敏 SQL 语句中的敏感信息：
+- 密码字段（password, pwd, token, secret, api_key）
+- 限制 SQL 语句长度（最大 500 字符）
+
+### 示例输出
+
+```
+[DEBUG] database operation success operation=query table=users duration=0.002
+[WARN] slow database query detected operation=query table=orders duration=1.234 threshold=1.000
+[ERROR] database operation failed operation=update table=users error="duplicate key" duration=0.005
 ```
 
 ## 健康检查
