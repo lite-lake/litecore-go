@@ -114,7 +114,7 @@
                 'Authorization': `Bearer ${authToken}`
             },
             success: function(response) {
-                if (response.code === 200 && response.data) {
+                if (response.code === 200) {
                     renderMessages(response.data);
                 } else {
                     showError('加载留言失败');
@@ -356,8 +356,9 @@
         const className = type === 'success' ? 'toast-success' : 'toast-error';
 
         const toast = $(`
-            <div class="toast ${className}">
-                ${message}
+            <div class="toast ${className} show">
+                <span class="toast-message">${message}</span>
+                <button class="toast-close">&times;</button>
             </div>
         `);
 
@@ -368,11 +369,43 @@
 
         container.append(toast);
 
-        setTimeout(function() {
+        let timer = setTimeout(function() {
             toast.fadeOut(function() {
                 toast.remove();
             });
         }, 3000);
+
+        // 点击关闭按钮
+        toast.find('.toast-close').on('click', function() {
+            clearTimeout(timer);
+            toast.fadeOut(function() {
+                toast.remove();
+            });
+        });
+
+        // 点击 toast 本体也可以关闭
+        toast.on('click', function(e) {
+            if (!$(e.target).hasClass('.toast-close')) {
+                clearTimeout(timer);
+                toast.fadeOut(function() {
+                    toast.remove();
+                });
+            }
+        });
+
+        // 鼠标悬停时暂停自动消失
+        toast.on('mouseenter', function() {
+            clearTimeout(timer);
+        });
+
+        // 鼠标离开后继续计时（1秒后消失）
+        toast.on('mouseleave', function() {
+            timer = setTimeout(function() {
+                toast.fadeOut(function() {
+                    toast.remove();
+                });
+            }, 1000);
+        });
     }
 
 })();
