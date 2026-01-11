@@ -171,6 +171,11 @@ func isValidDriver(driver string) bool {
 	}
 }
 
+// ParseFromMap 从 map 解析数据库配置（别名，保持兼容性）
+func ParseFromMap(cfg map[string]any) (*DatabaseConfig, error) {
+	return ParseDatabaseConfigFromMap(cfg)
+}
+
 // ParseDatabaseConfigFromMap 从 map 解析数据库配置
 func ParseDatabaseConfigFromMap(cfg map[string]any) (*DatabaseConfig, error) {
 	databaseConfig := &DatabaseConfig{

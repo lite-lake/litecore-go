@@ -19,6 +19,34 @@ const (
 	MaxSafeBackups    = 1000  // 最大安全备份数
 )
 
+// DefaultLoggerConfig 返回默认日志配置
+// 默认配置：
+// - 观测日志：禁用
+// - 控制台日志：启用，info 级别
+// - 文件日志：禁用
+func DefaultLoggerConfig() *LoggerConfig {
+	return &LoggerConfig{
+		TelemetryEnabled: false,
+		TelemetryConfig: &LogLevelConfig{
+			Level: "info",
+		},
+		ConsoleEnabled: true,
+		ConsoleConfig: &LogLevelConfig{
+			Level: "info",
+		},
+		FileEnabled: false,
+		FileConfig: &FileLogConfig{
+			Level: "info",
+			Rotation: &RotationConfig{
+				MaxSize:    DefaultMaxSize,
+				MaxAge:     DefaultMaxAge,
+				MaxBackups: DefaultMaxBackups,
+				Compress:   true,
+			},
+		},
+	}
+}
+
 // LoggerConfig 日志管理配置
 type LoggerConfig struct {
 	TelemetryEnabled bool            `yaml:"telemetry_enabled"` // 是否启用观测日志

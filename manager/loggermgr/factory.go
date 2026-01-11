@@ -8,7 +8,27 @@ import (
 	"com.litelake.litecore/manager/telemetrymgr"
 )
 
+// Deprecated: Build 已废弃，请使用依赖注入模式
+//
+// 旧用法（Factory 模式）：
+//   mgr := loggermgr.Build(cfg, telemetryMgr)
+//
+// 新用法（DI 模式）：
+//   mgr := loggermgr.NewManager("default")
+//   container.Register(mgr)
+//   container.InjectAll()
+//   mgr.OnStart()
+//
+// 迁移指南：
+// 1. 创建 Manager 实例：loggermgr.NewManager(name)
+// 2. 注册到容器：container.Register(mgr)
+// 3. 执行依赖注入：container.InjectAll()
+// 4. 启动管理器：mgr.OnStart()
+//
+// 该函数将在 v2.0 版本移除
+
 // Build 创建日志管理器实例
+// Deprecated: 使用 NewManager + 依赖注入替代
 // cfg: 日志配置内容（包含 telemetry_enabled、console_enabled、file_enabled 等配置项）
 // telemetryMgr: 可选的观测管理器，用于发送观测日志
 // 返回 LoggerManager 接口，可直接使用 Logger/SetGlobalLevel 等方法
@@ -38,6 +58,7 @@ func Build(cfg map[string]any, telemetryMgr telemetrymgr.TelemetryManager) Logge
 }
 
 // BuildWithConfig 使用配置结构体创建日志管理器
+// Deprecated: 使用 NewManager + 依赖注入替代
 // loggerConfig: 日志配置结构体
 // telemetryMgr: 可选的观测管理器，用于发送观测日志
 // 返回 LoggerManager 接口，可直接使用 Logger/SetGlobalLevel 等方法

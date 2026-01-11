@@ -46,12 +46,18 @@ func (a *LoggerAdapter) Fatal(msg string, args ...any) {
 func (a *LoggerAdapter) With(args ...any) Logger {
 	// 调用底层驱动的 With 方法，返回新的适配器
 	newDriver := a.driver.With(args...)
-	return &LoggerAdapter{driver: newDriver}
+	// With 返回的是 drivers.Logger 接口，需要判断类型
+	if zapLogger, ok := newDriver.(*drivers.ZapLogger); ok {
+		return &LoggerAdapter{driver: zapLogger}
+	}
+	// 对于其他类型，返回通用适配器
+	return &genericLoggerAdapter{driver: newDriver}
 }
 
 // SetLevel 设置日志级别
 func (a *LoggerAdapter) SetLevel(level LogLevel) {
-	a.driver.SetLevel(loglevel.LogLevelToZap(loglevel.LogLevel(level)))
+	internalLevel := loglevel.LogLevel(level)
+	a.driver.SetLevel(internalLevel)
 }
 
 // ensure LoggerAdapter implements Logger interface

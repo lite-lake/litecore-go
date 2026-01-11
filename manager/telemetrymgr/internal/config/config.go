@@ -55,6 +55,20 @@ func (c *TelemetryConfig) Validate() error {
 	return nil
 }
 
+// DefaultConfig 返回默认配置（禁用观测）
+func DefaultConfig() *TelemetryConfig {
+	return &TelemetryConfig{
+		Driver: "none",
+		OtelConfig: &OtelConfig{
+			Insecure: false,
+			Headers:  make(map[string]string),
+			Traces:   &FeatureConfig{Enabled: false},
+			Metrics:  &FeatureConfig{Enabled: false},
+			Logs:     &FeatureConfig{Enabled: false},
+		},
+	}
+}
+
 // ParseOtelConfigFromMap 从 ConfigMap 解析 OTEL 配置
 // cfg 是 OTEL 驱动的配置内容（不包含 driver 字段）
 // strict: 是否严格模式，严格模式下类型断言失败会返回错误

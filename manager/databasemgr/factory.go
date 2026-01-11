@@ -8,14 +8,21 @@ import (
 	"com.litelake.litecore/manager/databasemgr/internal/drivers"
 )
 
-// Factory 数据库管理器工厂
+// Deprecated: Factory 模式已废弃，请使用依赖注入模式。
+// 推荐使用方式：
+//   mgr := databasemgr.NewManager("primary")
+//   container.Register(mgr)
+//   container.InjectAll()
+//   mgr.OnStart()
 type Factory struct{}
 
+// Deprecated: 请使用 NewManager 替代
 // NewFactory 创建数据库管理器工厂
 func NewFactory() *Factory {
 	return &Factory{}
 }
 
+// Deprecated: 请使用依赖注入模式替代
 // Build 创建数据库管理器实例
 func (f *Factory) Build(driver string, cfg map[string]any) common.BaseManager {
 	databaseConfig, err := config.ParseDatabaseConfigFromMap(cfg)
@@ -61,6 +68,7 @@ func (f *Factory) Build(driver string, cfg map[string]any) common.BaseManager {
 	}
 }
 
+// Deprecated: 请使用依赖注入模式替代
 // BuildWithConfig 使用配置结构体创建数据库管理器
 func (f *Factory) BuildWithConfig(databaseConfig *config.DatabaseConfig) (DatabaseManager, error) {
 	if databaseConfig == nil {
