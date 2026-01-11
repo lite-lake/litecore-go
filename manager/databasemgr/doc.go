@@ -4,7 +4,7 @@ package databasemgr
 //
 // 核心特性：
 //   - 多数据库支持：MySQL、PostgreSQL、SQLite
-//   - 工厂模式创建：通过 Factory 统一创建不同驱动的管理器
+//   - 依赖注入支持：通过 Container 自动注入配置和依赖
 //   - 连接池管理：支持连接池配置和状态监控
 //   - 事务支持：完整的事务管理和自动迁移功能
 //   - 生命周期管理：集成服务启停接口，支持健康检查
@@ -12,18 +12,17 @@ package databasemgr
 //
 // 基本用法：
 //
-//	factory := NewFactory()
-//	cfg := &config.DatabaseConfig{
-//	    Driver: "sqlite",
-//	    SQLiteConfig: &config.SQLiteConfig{
-//	        DSN: ":memory:",
-//	    },
-//	}
-//	mgr, err := factory.BuildWithConfig(cfg)
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	defer mgr.Close()
+//	// 创建数据库管理器
+//	mgr := databasemgr.NewManager("primary")
+//
+//	// 通过依赖注入容器初始化（推荐）
+//	container.Register("config", configProvider)
+//	container.Register("logger.default", loggermgr.NewManager("default"))
+//	container.Register("telemetry.default", telemetrymgr.NewManager("default"))
+//	container.Register("database.primary", mgr)
+//	container.InjectAll()
+//	mgr.OnStart()
+//	defer mgr.OnStop()
 //
 //	// 使用 GORM 操作数据库
 //	db := mgr.DB()
@@ -33,11 +32,12 @@ package databasemgr
 //
 //	Manager 支持可选的日志和遥测功能，通过依赖注入接入：
 //
-//	container.Register("database.default", databasemgr.NewManager("default"))
 //	container.Register("logger.default", loggermgr.NewManager("default"))
 //	container.Register("telemetry.default", telemetrymgr.NewManager("default"))
+//	container.Register("database.default", databasemgr.NewManager("default"))
+//	container.InjectAll()
 //
-//	配置可观测性选项：
+//	配置可观测性选项（在数据库配置中）：
 //	  - SlowQueryThreshold：慢查询阈值
 //	  - LogSQL：是否记录完整 SQL（生产环境建议关闭）
 //	  - SampleRate：采样率（0.0-1.0）
@@ -50,6 +50,22 @@ package databasemgr
 //	  - db.connection.pool：连接池状态
 //
 // 配置选项：
+//
+//	通过依赖注入自动从配置中读取（配置键：database.{manager_name}）：
+//
+//	database.primary:
+//	  driver: mysql
+//	  mysql_config:
+//	    dsn: user:password@tcp(localhost:3306)/dbname?charset=utf8mb4
+//	    pool_config:
+//	      max_open_conns: 20
+//	      max_idle_conns: 10
+//	      conn_max_lifetime: 30s
+//	      conn_max_idle_time: 5m
+//	  observability_config:
+//	    slow_query_threshold: 1s
+//	    log_sql: false
+//	    sample_rate: 1.0
 //
 //	连接池配置（PoolConfig）：
 //	  - MaxOpenConns：最大打开连接数
@@ -67,11 +83,17 @@ package databasemgr
 //	  - MySQL：user:password@tcp(localhost:3306)/dbname?charset=utf8mb4&parseTime=True&loc=Local
 //	  - PostgreSQL：host=localhost port=5432 user=postgres password=password dbname=dbname sslmode=disable
 //
+// 支持的驱动类型：
+//
+//   - "mysql": MySQL 数据库
+//   - "postgresql": PostgreSQL 数据库
+//   - "sqlite": SQLite 数据库
+//   - "none": 无数据库（空管理器）
+//
 // 错误处理：
 //
-//	BuildWithConfig 方法会验证配置并返回详细的错误信息。
-//	Build 方法在配置错误时会返回 NoneDatabaseManager（空管理器），不会返回错误。
-//	建议使用 BuildWithConfig 以获得更好的错误处理能力。
+//	OnStart 方法会验证配置并返回详细的错误信息。
+//	配置解析失败或驱动初始化失败时，会返回 NoneDatabaseManager（空管理器）。
 //
 // 线程安全：
 //

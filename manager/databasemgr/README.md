@@ -5,7 +5,7 @@
 ## 特性
 
 - **多数据库支持** - 支持 MySQL、PostgreSQL、SQLite，以及无数据库模式
-- **工厂模式创建** - 通过 Factory 统一创建不同驱动的管理器
+- **依赖注入支持** - 通过 Container 自动注入配置和依赖
 - **连接池管理** - 支持连接池配置和状态监控
 - **事务支持** - 完整的事务管理和自动迁移功能
 - **生命周期管理** - 集成服务启停接口，支持健康检查
@@ -20,27 +20,24 @@ import (
     "log"
 
     "com.litelake.litecore/manager/databasemgr"
-    "com.litelake.litecore/manager/databasemgr/internal/config"
 )
 
 func main() {
-    // 创建工厂
-    factory := databasemgr.NewFactory()
+    // 创建数据库管理器
+    mgr := databasemgr.NewManager("primary")
 
-    // 配置 SQLite 内存数据库
-    cfg := &config.DatabaseConfig{
-        Driver: "sqlite",
-        SQLiteConfig: &config.SQLiteConfig{
-            DSN: ":memory:",
-        },
-    }
+    // 通过依赖注入容器初始化（推荐）
+    // container.Register("config", configProvider)
+    // container.Register("database.primary", mgr)
+    // container.InjectAll()
+    // mgr.OnStart()
+    // defer mgr.OnStop()
 
-    // 创建管理器
-    mgr, err := factory.BuildWithConfig(cfg)
-    if err != nil {
+    // 或者直接启动（使用默认配置或通过配置文件）
+    if err := mgr.OnStart(); err != nil {
         log.Fatal(err)
     }
-    defer mgr.Close()
+    defer mgr.OnStop()
 
     // 使用 GORM 操作数据库
     db := mgr.DB()
@@ -62,47 +59,61 @@ type User struct {
 
 ## 创建管理器
 
-### 使用配置结构体（推荐）
+### 使用依赖注入（推荐）
 
 ```go
-cfg := &config.DatabaseConfig{
-    Driver: "mysql",
-    MySQLConfig: &config.MySQLConfig{
-        DSN: "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local",
-        PoolConfig: &config.PoolConfig{
-            MaxOpenConns:    20,
-            MaxIdleConns:    10,
-            ConnMaxLifetime: 30 * time.Second,
-            ConnMaxIdleTime: 5 * time.Minute,
-        },
-    },
-}
+// 创建管理器
+mgr := databasemgr.NewManager("primary")
 
-mgr, err := factory.BuildWithConfig(cfg)
-if err != nil {
-    log.Fatal(err)
-}
+// 注册到容器
+container.Register("config", configProvider)
+container.Register("database.primary", mgr)
+
+// 注入依赖并启动
+container.InjectAll()
+mgr.OnStart()
+defer mgr.OnStop()
 ```
 
-### 使用 map 配置
+### 配置 MySQL 数据库
 
-```go
-cfg := map[string]any{
-    "driver": "postgresql",
-    "postgresql_config": map[string]any{
-        "dsn": "host=localhost port=5432 user=postgres password=password dbname=mydb sslmode=disable",
-        "pool_config": map[string]any{
-            "max_open_conns": 20,
-            "max_idle_conns": 10,
-        },
-    },
-}
+在配置文件中添加数据库配置：
 
-mgr := factory.Build("", cfg)
-// 无效配置会返回 NoneDatabaseManager
-if mgr.ManagerName() == "none-database" {
-    log.Fatal("Failed to create database manager")
-}
+```yaml
+database.primary:
+  driver: mysql
+  mysql_config:
+    dsn: root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local
+    pool_config:
+      max_open_conns: 20
+      max_idle_conns: 10
+      conn_max_lifetime: 30s
+      conn_max_idle_time: 5m
+  observability_config:
+    slow_query_threshold: 1s
+    log_sql: false
+    sample_rate: 1.0
+```
+
+### 配置 PostgreSQL 数据库
+
+```yaml
+database.primary:
+  driver: postgresql
+  postgresql_config:
+    dsn: host=localhost port=5432 user=postgres password=password dbname=mydb sslmode=disable
+    pool_config:
+      max_open_conns: 20
+      max_idle_conns: 10
+```
+
+### 配置 SQLite 数据库
+
+```yaml
+database.primary:
+  driver: sqlite
+  sqlite_config:
+    dsn: file:./data.db?cache=shared&mode=rwc
 ```
 
 ## GORM 操作
@@ -358,13 +369,11 @@ if err := mgr.OnStop(); err != nil {
 |------|------|
 | `DatabaseManager` | 数据库管理器核心接口 |
 
-### 工厂方法
+### 构造函数
 
 | 方法 | 说明 |
 |------|------|
-| `NewFactory()` | 创建工厂实例 |
-| `Build(driver, cfg)` | 从 map 配置创建管理器（错误时返回 NoneDatabaseManager） |
-| `BuildWithConfig(cfg)` | 从配置结构体创建管理器（返回详细错误） |
+| `NewManager(name)` | 创建数据库管理器实例 |
 
 ### 核心方法
 
@@ -428,28 +437,21 @@ host=localhost port=5432 user=postgres password=password dbname=dbname sslmode=d
 
 ## 错误处理
 
-`BuildWithConfig` 方法会验证配置并返回详细的错误信息：
+管理器采用优雅降级策略：
+
+1. 配置解析失败 → 降级到 None 驱动
+2. 驱动初始化失败 → 降级到 None 驱动
+3. 未知驱动类型 → 降级到 None 驱动
 
 ```go
-mgr, err := factory.BuildWithConfig(cfg)
-if err != nil {
-    // 处理配置错误
-    if strings.Contains(err.Error(), "driver is required") {
-        log.Fatal("Driver must be specified")
-    }
-    if strings.Contains(err.Error(), "DSN is required") {
-        log.Fatal("Database DSN is required")
-    }
-    log.Fatal(err)
+// OnStart 会返回错误，但不会终止程序
+if err := mgr.OnStart(); err != nil {
+    log.Printf("Database manager initialization failed, using none driver: %v", err)
 }
-```
 
-`Build` 方法在配置错误时不会返回错误，而是返回 `NoneDatabaseManager`：
-
-```go
-mgr := factory.Build("", cfg)
-if mgr.ManagerName() == "none-database" {
-    log.Fatal("Failed to create database manager")
+// 检查是否为 None 管理器
+if mgr.Driver() == "none" {
+    log.Println("Using none database driver")
 }
 ```
 
