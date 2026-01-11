@@ -2,11 +2,10 @@ package drivers
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync"
 	"time"
-
-	"database/sql"
 
 	"gorm.io/gorm"
 )
@@ -125,12 +124,12 @@ func (m *GormBaseManager) WithContext(ctx context.Context) *gorm.DB {
 }
 
 // Transaction 执行事务
-func (m *GormBaseManager) Transaction(fn func(*gorm.DB) error, opts ...*interface{}) error {
+func (m *GormBaseManager) Transaction(fn func(*gorm.DB) error, opts ...*sql.TxOptions) error {
 	return m.db.Transaction(fn, opts...)
 }
 
 // Begin 开启事务
-func (m *GormBaseManager) Begin(opts ...*interface{}) *gorm.DB {
+func (m *GormBaseManager) Begin(opts ...*sql.TxOptions) *gorm.DB {
 	return m.db.Begin(opts...)
 }
 
