@@ -15,10 +15,11 @@ const (
 
 // DatabaseConfig 数据库管理配置
 type DatabaseConfig struct {
-	Driver           string            `yaml:"driver"`            // 驱动类型: mysql, postgresql, sqlite, none
-	SQLiteConfig     *SQLiteConfig     `yaml:"sqlite_config"`     // SQLite 配置
-	PostgreSQLConfig *PostgreSQLConfig `yaml:"postgresql_config"` // PostgreSQL 配置
-	MySQLConfig      *MySQLConfig      `yaml:"mysql_config"`      // MySQL 配置
+	Driver              string                 `yaml:"driver"`                // 驱动类型: mysql, postgresql, sqlite, none
+	SQLiteConfig        *SQLiteConfig          `yaml:"sqlite_config"`         // SQLite 配置
+	PostgreSQLConfig    *PostgreSQLConfig      `yaml:"postgresql_config"`     // PostgreSQL 配置
+	MySQLConfig         *MySQLConfig           `yaml:"mysql_config"`          // MySQL 配置
+	ObservabilityConfig *ObservabilityConfig   `yaml:"observability_config"`  // 可观测性配置
 }
 
 // PoolConfig 数据库连接池配置（所有驱动通用）
@@ -45,6 +46,18 @@ type PostgreSQLConfig struct {
 type MySQLConfig struct {
 	DSN        string      `yaml:"dsn"`         // MySQL DSN，如: root:password@tcp(localhost:3306)/lite_demo?charset=utf8mb4&parseTime=True&loc=Local
 	PoolConfig *PoolConfig `yaml:"pool_config"` // 连接池配置（可选）
+}
+
+// ObservabilityConfig 可观测性配置
+type ObservabilityConfig struct {
+	// SlowQueryThreshold 慢查询阈值，0 表示不记录慢查询
+	SlowQueryThreshold time.Duration `yaml:"slow_query_threshold"`
+
+	// LogSQL 是否记录完整的 SQL 语句（生产环境建议关闭）
+	LogSQL bool `yaml:"log_sql"`
+
+	// SampleRate 采样率（0.0-1.0），1.0 表示全部记录
+	SampleRate float64 `yaml:"sample_rate"`
 }
 
 // Validate 验证配置
@@ -218,6 +231,15 @@ func ParseDatabaseConfigFromMap(cfg map[string]any) (*DatabaseConfig, error) {
 		databaseConfig.MySQLConfig = mysqlConfig
 	}
 
+	// 解析 observability_config
+	if obsConfigMap, ok := cfg["observability_config"].(map[string]any); ok {
+		obsConfig, err := parseObservabilityConfig(obsConfigMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse observability_config: %w", err)
+		}
+		databaseConfig.ObservabilityConfig = obsConfig
+	}
+
 	return databaseConfig, nil
 }
 
@@ -353,6 +375,47 @@ func parsePoolConfig(cfg map[string]any) (*PoolConfig, error) {
 				return nil, fmt.Errorf("invalid conn_max_idle_time format: %s", durationStr)
 			}
 			config.ConnMaxIdleTime = duration
+		}
+	}
+
+	return config, nil
+}
+
+// parseObservabilityConfig 解析可观测性配置
+func parseObservabilityConfig(cfg map[string]any) (*ObservabilityConfig, error) {
+	config := &ObservabilityConfig{
+		SlowQueryThreshold: 1 * time.Second, // 默认 1 秒
+		LogSQL:             false,           // 默认不记录 SQL
+		SampleRate:         1.0,             // 默认全采样
+	}
+
+	// 解析 slow_query_threshold
+	if v, ok := cfg["slow_query_threshold"]; ok {
+		if duration, ok := v.(int); ok {
+			config.SlowQueryThreshold = time.Duration(duration) * time.Second
+		} else if duration, ok := v.(float64); ok {
+			config.SlowQueryThreshold = time.Duration(duration) * time.Second
+		} else if durationStr, ok := v.(string); ok {
+			duration, err := time.ParseDuration(durationStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid slow_query_threshold format: %s", durationStr)
+			}
+			config.SlowQueryThreshold = duration
+		}
+	}
+
+	// 解析 log_sql
+	if logSQL, ok := cfg["log_sql"].(bool); ok {
+		config.LogSQL = logSQL
+	}
+
+	// 解析 sample_rate
+	if sampleRate, ok := cfg["sample_rate"]; ok {
+		if rate, ok := sampleRate.(float64); ok {
+			if rate < 0 || rate > 1 {
+				return nil, fmt.Errorf("sample_rate must be between 0 and 1, got: %f", rate)
+			}
+			config.SampleRate = rate
 		}
 	}
 
