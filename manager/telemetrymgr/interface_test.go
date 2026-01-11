@@ -51,6 +51,24 @@ func (m *MockTelemetryManager) LoggerProvider() *sdklog.LoggerProvider {
 	return m.loggerProvider
 }
 
+// ========== 生命周期管理方法 ==========
+
+func (m *MockTelemetryManager) ManagerName() string {
+	return "mock-telemetry"
+}
+
+func (m *MockTelemetryManager) Health() error {
+	return nil
+}
+
+func (m *MockTelemetryManager) OnStart() error {
+	return nil
+}
+
+func (m *MockTelemetryManager) OnStop() error {
+	return nil
+}
+
 func (m *MockTelemetryManager) Shutdown(ctx context.Context) error {
 	return nil
 }

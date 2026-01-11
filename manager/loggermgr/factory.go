@@ -3,7 +3,6 @@ package loggermgr
 import (
 	"fmt"
 
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/manager/loggermgr/internal/config"
 	"com.litelake.litecore/manager/loggermgr/internal/drivers"
 	"com.litelake.litecore/manager/telemetrymgr"
@@ -12,7 +11,8 @@ import (
 // Build 创建日志管理器实例
 // cfg: 日志配置内容（包含 telemetry_enabled、console_enabled、file_enabled 等配置项）
 // telemetryMgr: 可选的观测管理器，用于发送观测日志
-func Build(cfg map[string]any, telemetryMgr telemetrymgr.TelemetryManager) common.BaseManager {
+// 返回 LoggerManager 接口，可直接使用 Logger/SetGlobalLevel 等方法
+func Build(cfg map[string]any, telemetryMgr telemetrymgr.TelemetryManager) LoggerManager {
 	// 解析日志配置
 	loggerConfig, err := config.ParseLoggerConfigFromMap(cfg)
 	if err != nil {
@@ -40,7 +40,8 @@ func Build(cfg map[string]any, telemetryMgr telemetrymgr.TelemetryManager) commo
 // BuildWithConfig 使用配置结构体创建日志管理器
 // loggerConfig: 日志配置结构体
 // telemetryMgr: 可选的观测管理器，用于发送观测日志
-func BuildWithConfig(loggerConfig *config.LoggerConfig, telemetryMgr telemetrymgr.TelemetryManager) (common.BaseManager, error) {
+// 返回 LoggerManager 接口，可直接使用 Logger/SetGlobalLevel 等方法
+func BuildWithConfig(loggerConfig *config.LoggerConfig, telemetryMgr telemetrymgr.TelemetryManager) (LoggerManager, error) {
 	if err := loggerConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid logger config: %w", err)
 	}

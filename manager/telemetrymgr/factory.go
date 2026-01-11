@@ -3,7 +3,6 @@ package telemetrymgr
 import (
 	"fmt"
 
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/manager/telemetrymgr/internal/config"
 	"com.litelake.litecore/manager/telemetrymgr/internal/drivers"
 )
@@ -21,7 +20,8 @@ func NewFactory() *Factory {
 // cfg: 驱动专属的配置数据
 //   - driver="otel": cfg 是 OTEL 配置内容 (endpoint, traces, metrics 等)
 //   - driver="none": cfg 可以为 nil 或空
-func (f *Factory) Build(driver string, cfg map[string]any) common.BaseManager {
+// 返回 TelemetryManager 接口，可直接使用 Tracer/Meter/Logger 等方法
+func (f *Factory) Build(driver string, cfg map[string]any) TelemetryManager {
 	switch driver {
 	case "otel":
 		// 解析 OTEL 配置
@@ -62,7 +62,8 @@ func (f *Factory) Build(driver string, cfg map[string]any) common.BaseManager {
 }
 
 // BuildWithConfig 使用配置结构体创建观测管理器
-func (f *Factory) BuildWithConfig(telemetryConfig *config.TelemetryConfig) (common.BaseManager, error) {
+// 返回 TelemetryManager 接口，可直接使用 Tracer/Meter/Logger 等方法
+func (f *Factory) BuildWithConfig(telemetryConfig *config.TelemetryConfig) (TelemetryManager, error) {
 	if err := telemetryConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid telemetry config: %w", err)
 	}

@@ -62,6 +62,12 @@ func (m *NoneLoggerManager) GetLogger(name string) *NoneLogger {
 // SetGlobalLevel 空实现
 func (m *NoneLoggerManager) SetGlobalLevel(level loglevel.LogLevel) {}
 
+// Logger 返回空日志输出器（实现 LoggerManager 接口）
+// 返回一个适配器，符合 Logger 接口
+func (m *NoneLoggerManager) Logger(name string) *NoneLogger {
+	return m.GetLogger(name)
+}
+
 // Shutdown 空实现，无需清理资源
 func (m *NoneLoggerManager) Shutdown(ctx context.Context) error {
 	return nil
