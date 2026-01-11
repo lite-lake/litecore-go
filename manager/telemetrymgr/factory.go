@@ -2,102 +2,110 @@ package telemetrymgr
 
 import (
 	"fmt"
+	"strings"
 
-	"com.litelake.litecore/manager/telemetrymgr/internal/config"
-	"com.litelake.litecore/manager/telemetrymgr/internal/drivers"
+	"com.litelake.litecore/common"
 )
 
-// Factory 观测管理器工厂
-//
-// Deprecated: Factory 模式已废弃，请使用依赖注入模式替代。
-// 使用 NewManager() 创建 Manager 实例，并通过 Container 注入依赖。
-// 迁移示例：
-//
-//	旧方式：
-//	  factory := telemetrymgr.NewFactory()
-//	  mgr := factory.Build("otel", cfg)
-//
-//	新方式：
-//	  mgr := telemetrymgr.NewManager("default")
-//	  container.Register(mgr)
-//	  container.InjectAll()
-//	  mgr.OnStart()
-type Factory struct{}
-
-// NewFactory 创建观测管理器工厂
-//
-// Deprecated: 请使用 NewManager() 替代
-func NewFactory() *Factory {
-	return &Factory{}
-}
-
 // Build 创建观测管理器实例
+// driverType: 驱动类型 ("otel", "none")
+// driverConfig: 驱动配置 (根据驱动类型不同而不同)
+//   - otel: 传递给 parseOtelConfig 的 map[string]any
+//   - none: 忽略
 //
-// Deprecated: 请使用依赖注入模式替代
-// driver: 驱动类型，支持 "none", "otel"
-// cfg: 驱动专属的配置数据
-//   - driver="otel": cfg 是 OTEL 配置内容 (endpoint, traces, metrics 等)
-//   - driver="none": cfg 可以为 nil 或空
-// 返回 TelemetryManager 接口，可直接使用 Tracer/Meter/Logger 等方法
-func (f *Factory) Build(driver string, cfg map[string]any) TelemetryManager {
-	switch driver {
+// 返回 TelemetryManager 接口实例和可能的错误
+func Build(
+	driverType string,
+	driverConfig map[string]any,
+) (TelemetryManager, error) {
+	// 标准化驱动类型（大小写不敏感，去除空格）
+	driverType = strings.ToLower(strings.TrimSpace(driverType))
+
+	switch driverType {
 	case "otel":
 		// 解析 OTEL 配置
-		otelConfig, err := config.ParseOtelConfigFromMap(cfg)
+		otelConfig, err := parseOtelConfig(driverConfig)
 		if err != nil {
-			// 配置解析失败，返回 none 驱动作为降级
-			return drivers.NewNoneManager()
+			return nil, fmt.Errorf("failed to parse otel config: %w", err)
 		}
 
-		// 创建 TelemetryConfig
-		telemetryConfig := &config.TelemetryConfig{
-			Driver:     driver,
+		// 创建完整的 TelemetryConfig
+		config := &TelemetryConfig{
+			Driver:     driverType,
 			OtelConfig: otelConfig,
 		}
 
 		// 验证配置
-		if err := telemetryConfig.Validate(); err != nil {
-			// 配置验证失败，返回 none 驱动作为降级
-			return drivers.NewNoneManager()
+		if err := config.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid config: %w", err)
 		}
 
-		// 创建 OTEL 管理器
-		mgr, err := drivers.NewOtelManager(telemetryConfig)
-		if err != nil {
-			// OTEL 初始化失败，降级到 none 驱动
-			return drivers.NewNoneManager()
-		}
-		return mgr
-
-	case "none":
-		// none 驱动无需配置
-		return drivers.NewNoneManager()
-
-	default:
-		// 未知驱动类型，返回 none 驱动作为降级
-		return drivers.NewNoneManager()
-	}
-}
-
-// BuildWithConfig 使用配置结构体创建观测管理器
-//
-// Deprecated: 请使用依赖注入模式替代
-// 返回 TelemetryManager 接口，可直接使用 Tracer/Meter/Logger 等方法
-func (f *Factory) BuildWithConfig(telemetryConfig *config.TelemetryConfig) (TelemetryManager, error) {
-	if err := telemetryConfig.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid telemetry config: %w", err)
-	}
-
-	switch telemetryConfig.Driver {
-	case "otel":
-		mgr, err := drivers.NewOtelManager(telemetryConfig)
+		// 创建 OTEL 实现
+		mgr, err := NewTelemetryManagerOtelImpl(config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create otel manager: %w", err)
 		}
+
 		return mgr, nil
+
 	case "none":
-		return drivers.NewNoneManager(), nil
+		mgr := NewTelemetryManagerNoneImpl()
+		return mgr, nil
+
 	default:
-		return nil, fmt.Errorf("unsupported telemetry driver: %s", telemetryConfig.Driver)
+		return nil, fmt.Errorf("unsupported driver type: %s (must be otel or none)", driverType)
 	}
+}
+
+// BuildWithConfigProvider 从配置提供者创建观测管理器实例
+// 自动从配置提供者读取 telemetry.driver 和对应驱动配置
+// 配置路径：
+//   - telemetry.driver: 驱动类型 ("otel", "none")
+//   - telemetry.otel_config: OTEL 驱动配置（当 driver=otel 时使用）
+//
+// 返回 TelemetryManager 接口实例和可能的错误
+func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (TelemetryManager, error) {
+	if configProvider == nil {
+		return nil, fmt.Errorf("configProvider cannot be nil")
+	}
+
+	// 1. 读取驱动类型 telemetry.driver
+	driverType, err := configProvider.Get("telemetry.driver")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get telemetry.driver: %w", err)
+	}
+
+	driverTypeStr, ok := driverType.(string)
+	if !ok {
+		return nil, fmt.Errorf("telemetry.driver must be a string, got %T", driverType)
+	}
+
+	// 标准化驱动类型（大小写不敏感，去除空格）
+	driverTypeStr = strings.ToLower(strings.TrimSpace(driverTypeStr))
+
+	// 2. 根据驱动类型读取对应配置
+	var driverConfig map[string]any
+
+	switch driverTypeStr {
+	case "otel":
+		// 读取 otel_config
+		otelConfig, err := configProvider.Get("telemetry.otel_config")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get telemetry.otel_config: %w", err)
+		}
+		driverConfig, ok = otelConfig.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("telemetry.otel_config must be a map, got %T", otelConfig)
+		}
+
+	case "none":
+		// none 驱动不需要配置
+		driverConfig = nil
+
+	default:
+		return nil, fmt.Errorf("unsupported driver type: %s (must be otel or none)", driverTypeStr)
+	}
+
+	// 3. 调用 Build 函数创建实例
+	return Build(driverTypeStr, driverConfig)
 }
