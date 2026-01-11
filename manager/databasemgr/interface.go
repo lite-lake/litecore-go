@@ -2,6 +2,7 @@ package databasemgr
 
 import (
 	"context"
+	"database/sql"
 	"gorm.io/gorm"
 )
 
@@ -35,10 +36,10 @@ type DatabaseManager interface {
 
 	// ========== 事务管理 ==========
 	// Transaction 执行事务
-	Transaction(fn func(*gorm.DB) error, opts ...*interface{}) error
+	Transaction(fn func(*gorm.DB) error, opts ...*sql.TxOptions) error
 
 	// Begin 开启事务
-	Begin(opts ...*interface{}) *gorm.DB
+	Begin(opts ...*sql.TxOptions) *gorm.DB
 
 	// ========== 迁移管理 ==========
 	// AutoMigrate 自动迁移
@@ -55,7 +56,7 @@ type DatabaseManager interface {
 	Ping(ctx context.Context) error
 
 	// Stats 获取连接池统计信息
-	Stats() gorm.SQLStats
+	Stats() sql.DBStats
 
 	// Close 关闭数据库连接
 	Close() error

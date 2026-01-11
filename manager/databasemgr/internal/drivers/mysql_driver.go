@@ -18,6 +18,9 @@ type MySQLManager struct {
 
 // NewMySQLManager 创建 MySQL 数据库管理器
 func NewMySQLManager(cfg *config.DatabaseConfig) (*MySQLManager, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("database config is required")
+	}
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid database config: %w", err)
 	}
