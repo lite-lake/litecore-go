@@ -18,6 +18,9 @@ type PostgreSQLManager struct {
 
 // NewPostgreSQLManager 创建 PostgreSQL 数据库管理器
 func NewPostgreSQLManager(cfg *config.DatabaseConfig) (*PostgreSQLManager, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("database config is required")
+	}
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid database config: %w", err)
 	}

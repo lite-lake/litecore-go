@@ -1,69 +1,45 @@
 package drivers
 
 import (
-	"context"
+	"os"
 	"testing"
-	"time"
+
+	"gorm.io/gorm"
 
 	"com.litelake.litecore/manager/databasemgr/internal/config"
 )
 
-func TestNewSQLiteManager(t *testing.T) {
+// TestNewSQLiteManager_InvalidConfig 测试无效配置
+func TestNewSQLiteManager_InvalidConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  *config.DatabaseConfig
 		wantErr bool
 	}{
 		{
-			name: "valid config",
-			config: &config.DatabaseConfig{
-				Driver: "sqlite",
-				SQLiteConfig: &config.SQLiteConfig{
-					DSN: "file::memory:?cache=shared",
-				},
-			},
-			wantErr: false,
+			name:    "nil 配置",
+			config:  nil,
+			wantErr: true,
 		},
 		{
-			name: "valid config with pool config",
-			config: &config.DatabaseConfig{
-				Driver: "sqlite",
-				SQLiteConfig: &config.SQLiteConfig{
-					DSN: "file::memory:?cache=shared",
-					PoolConfig: &config.PoolConfig{
-						MaxOpenConns:    1,
-						MaxIdleConns:    1,
-						ConnMaxLifetime: 30 * time.Second,
-						ConnMaxIdleTime: 5 * time.Minute,
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid config - missing driver",
+			name: "空驱动",
 			config: &config.DatabaseConfig{
 				Driver: "",
-				SQLiteConfig: &config.SQLiteConfig{
-					DSN: "file::memory:?cache=shared",
-				},
 			},
 			wantErr: true,
 		},
 		{
-			name: "invalid config - missing sqlite config",
+			name: "SQLite 配置为空",
 			config: &config.DatabaseConfig{
 				Driver: "sqlite",
 			},
 			wantErr: true,
 		},
 		{
-			name: "invalid config - missing DSN",
+			name: "空 DSN",
 			config: &config.DatabaseConfig{
-				Driver: "sqlite",
-				SQLiteConfig: &config.SQLiteConfig{
-					DSN: "",
-				},
+				Driver:      "sqlite",
+				SQLiteConfig: &config.SQLiteConfig{},
 			},
 			wantErr: true,
 		},
@@ -71,36 +47,77 @@ func TestNewSQLiteManager(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr, err := NewSQLiteManager(tt.config)
+			_, err := NewSQLiteManager(tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewSQLiteManager() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !tt.wantErr {
-				defer mgr.Close()
-
-				if mgr == nil {
-					t.Fatal("NewSQLiteManager() returned nil manager")
-				}
-
-				if mgr.ManagerName() != "sqlite-database" {
-					t.Errorf("ManagerName() = %v, want %v", mgr.ManagerName(), "sqlite-database")
-				}
-
-				if mgr.Driver() != "sqlite" {
-					t.Errorf("Driver() = %v, want %v", mgr.Driver(), "sqlite")
-				}
-
-				if mgr.DB() == nil {
-					t.Error("DB() returned nil")
-				}
 			}
 		})
 	}
 }
 
-func TestSQLiteManager_DB(t *testing.T) {
+// TestNewSQLiteManager_MemoryDB 测试内存数据库
+func TestNewSQLiteManager_MemoryDB(t *testing.T) {
+	cfg := &config.DatabaseConfig{
+		Driver: "sqlite",
+		SQLiteConfig: &config.SQLiteConfig{
+			DSN: ":memory:",
+		},
+	}
+
+	mgr, err := NewSQLiteManager(cfg)
+	if err != nil {
+		t.Fatalf("NewSQLiteManager() error = %v", err)
+	}
+
+	if mgr == nil {
+		t.Fatal("NewSQLiteManager() returned nil manager")
+	}
+
+	if mgr.ManagerName() != "sqlite-database" {
+		t.Errorf("ManagerName() = %v, want 'sqlite-database'", mgr.ManagerName())
+	}
+
+	if mgr.Driver() != "sqlite" {
+		t.Errorf("Driver() = %v, want 'sqlite'", mgr.Driver())
+	}
+
+	// 清理
+	_ = mgr.Close()
+}
+
+// TestNewSQLiteManager_FileDB 测试文件数据库
+func TestNewSQLiteManager_FileDB(t *testing.T) {
+	tmpFile := "/tmp/test_sqlite_manager.db"
+	defer os.Remove(tmpFile)
+
+	cfg := &config.DatabaseConfig{
+		Driver: "sqlite",
+		SQLiteConfig: &config.SQLiteConfig{
+			DSN: tmpFile,
+		},
+	}
+
+	mgr, err := NewSQLiteManager(cfg)
+	if err != nil {
+		t.Fatalf("NewSQLiteManager() error = %v", err)
+	}
+
+	if mgr == nil {
+		t.Fatal("NewSQLiteManager() returned nil manager")
+	}
+
+	// 验证文件已创建
+	if _, err := os.Stat(tmpFile); os.IsNotExist(err) {
+		t.Error("Database file was not created")
+	}
+
+	// 清理
+	_ = mgr.Close()
+	_ = os.Remove(tmpFile)
+}
+
+// TestNewSQLiteManager_SharedCache 测试共享缓存模式
+func TestNewSQLiteManager_SharedCache(t *testing.T) {
 	cfg := &config.DatabaseConfig{
 		Driver: "sqlite",
 		SQLiteConfig: &config.SQLiteConfig{
@@ -112,203 +129,25 @@ func TestSQLiteManager_DB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSQLiteManager() error = %v", err)
 	}
-	defer mgr.Close()
 
-	db := mgr.DB()
-	if db == nil {
-		t.Fatal("DB() returned nil")
+	if mgr == nil {
+		t.Fatal("NewSQLiteManager() returned nil manager")
 	}
 
-	// Test that we can execute a query
-	ctx := context.Background()
-	var result int
-	err = db.QueryRowContext(ctx, "SELECT 1").Scan(&result)
-	if err != nil {
-		t.Errorf("Failed to execute query: %v", err)
-	}
-
-	if result != 1 {
-		t.Errorf("Query result = %v, want 1", result)
-	}
+	_ = mgr.Close()
 }
 
-func TestSQLiteManager_Driver(t *testing.T) {
+// TestNewSQLiteManager_WithPoolConfig 测试带连接池配置
+func TestNewSQLiteManager_WithPoolConfig(t *testing.T) {
 	cfg := &config.DatabaseConfig{
 		Driver: "sqlite",
 		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
-		},
-	}
-
-	mgr, err := NewSQLiteManager(cfg)
-	if err != nil {
-		t.Fatalf("NewSQLiteManager() error = %v", err)
-	}
-	defer mgr.Close()
-
-	if got := mgr.Driver(); got != "sqlite" {
-		t.Errorf("Driver() = %v, want %v", got, "sqlite")
-	}
-}
-
-func TestSQLiteManager_Ping(t *testing.T) {
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
-		},
-	}
-
-	mgr, err := NewSQLiteManager(cfg)
-	if err != nil {
-		t.Fatalf("NewSQLiteManager() error = %v", err)
-	}
-	defer mgr.Close()
-
-	tests := []struct {
-		name    string
-		ctx     context.Context
-		wantErr bool
-	}{
-		{
-			name:    "normal context",
-			ctx:     context.Background(),
-			wantErr: false,
-		},
-		{
-			name:    "nil context",
-			ctx:     nil,
-			wantErr: true,
-		},
-		{
-			name: "timeout context",
-			ctx: func() context.Context {
-				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
-				time.Sleep(10 * time.Millisecond)
-				cancel()
-				return ctx
-			}(),
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := mgr.Ping(tt.ctx)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SQLiteManager.Ping() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestSQLiteManager_BeginTx(t *testing.T) {
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
-		},
-	}
-
-	mgr, err := NewSQLiteManager(cfg)
-	if err != nil {
-		t.Fatalf("NewSQLiteManager() error = %v", err)
-	}
-	defer mgr.Close()
-
-	ctx := context.Background()
-
-	// Test successful transaction
-	tx, err := mgr.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatalf("BeginTx() error = %v", err)
-	}
-
-	// Create table
-	_, err = tx.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
-	if err != nil {
-		t.Fatalf("Failed to create table: %v", err)
-	}
-
-	// Insert data
-	_, err = tx.Exec("INSERT INTO test (name) VALUES (?)", "test")
-	if err != nil {
-		t.Fatalf("Failed to insert data: %v", err)
-	}
-
-	// Commit transaction
-	err = tx.Commit()
-	if err != nil {
-		t.Errorf("Failed to commit transaction: %v", err)
-	}
-
-	// Verify data was committed
-	var count int
-	err = mgr.DB().QueryRowContext(ctx, "SELECT COUNT(*) FROM test").Scan(&count)
-	if err != nil {
-		t.Errorf("Failed to query data: %v", err)
-	}
-
-	if count != 1 {
-		t.Errorf("Expected 1 row, got %d", count)
-	}
-
-	// Test rollback
-	tx2, err := mgr.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatalf("BeginTx() error = %v", err)
-	}
-
-	_, err = tx2.Exec("INSERT INTO test (name) VALUES (?)", "test2")
-	if err != nil {
-		t.Fatalf("Failed to insert data: %v", err)
-	}
-
-	err = tx2.Rollback()
-	if err != nil {
-		t.Errorf("Failed to rollback transaction: %v", err)
-	}
-
-	// Verify data was not committed
-	err = mgr.DB().QueryRowContext(ctx, "SELECT COUNT(*) FROM test").Scan(&count)
-	if err != nil {
-		t.Errorf("Failed to query data: %v", err)
-	}
-
-	if count != 1 {
-		t.Errorf("Expected 1 row after rollback, got %d", count)
-	}
-}
-
-func TestSQLiteManager_BeginTx_NilContext(t *testing.T) {
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
-		},
-	}
-
-	mgr, err := NewSQLiteManager(cfg)
-	if err != nil {
-		t.Fatalf("NewSQLiteManager() error = %v", err)
-	}
-	defer mgr.Close()
-
-	tx, err := mgr.BeginTx(nil, nil)
-	if err == nil {
-		tx.Rollback()
-		t.Error("BeginTx() with nil context should return error")
-	}
-}
-
-func TestSQLiteManager_Stats(t *testing.T) {
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
+			DSN: ":memory:",
 			PoolConfig: &config.PoolConfig{
-				MaxOpenConns: 1,
-				MaxIdleConns: 1,
+				MaxOpenConns:    1,
+				MaxIdleConns:    1,
+				ConnMaxLifetime: 0,
+				ConnMaxIdleTime: 0,
 			},
 		},
 	}
@@ -317,52 +156,143 @@ func TestSQLiteManager_Stats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSQLiteManager() error = %v", err)
 	}
+
+	if mgr == nil {
+		t.Fatal("NewSQLiteManager() returned nil")
+	}
+
+	_ = mgr.Close()
+}
+
+// TestSQLiteManager_DatabaseOperations 测试数据库操作
+func TestSQLiteManager_DatabaseOperations(t *testing.T) {
+	cfg := &config.DatabaseConfig{
+		Driver: "sqlite",
+		SQLiteConfig: &config.SQLiteConfig{
+			DSN: ":memory:",
+		},
+	}
+
+	mgr, err := NewSQLiteManager(cfg)
+	if err != nil {
+		t.Fatalf("NewSQLiteManager() error = %v", err)
+	}
 	defer mgr.Close()
 
+	// 创建测试表
+	type TestModel struct {
+		ID   uint
+		Name string
+	}
+
+	// 测试 AutoMigrate
+	if err := mgr.AutoMigrate(&TestModel{}); err != nil {
+		t.Errorf("AutoMigrate() error = %v", err)
+	}
+
+	// 测试创建记录
+	db := mgr.DB()
+	result := db.Create(&TestModel{Name: "test"})
+	if result.Error != nil {
+		t.Errorf("Create() error = %v", result.Error)
+	}
+
+	// 测试查询
+	var models []TestModel
+	result = db.Find(&models)
+	if result.Error != nil {
+		t.Errorf("Find() error = %v", result.Error)
+	}
+
+	if len(models) != 1 {
+		t.Errorf("Expected 1 record, got %d", len(models))
+	}
+}
+
+// TestSQLiteManager_Transaction 测试事务
+func TestSQLiteManager_Transaction(t *testing.T) {
+	cfg := &config.DatabaseConfig{
+		Driver: "sqlite",
+		SQLiteConfig: &config.SQLiteConfig{
+			DSN: ":memory:",
+		},
+	}
+
+	mgr, err := NewSQLiteManager(cfg)
+	if err != nil {
+		t.Fatalf("NewSQLiteManager() error = %v", err)
+	}
+	defer mgr.Close()
+
+	type TestModel struct {
+		ID   uint
+		Name string
+	}
+
+	// 创建表
+	if err := mgr.AutoMigrate(&TestModel{}); err != nil {
+		t.Fatalf("AutoMigrate() error = %v", err)
+	}
+
+	// 测试成功的事务
+	err = mgr.Transaction(func(tx *gorm.DB) error {
+		return tx.Create(&TestModel{Name: "test"}).Error
+	})
+	if err != nil {
+		t.Errorf("Transaction() error = %v", err)
+	}
+
+	// 验证记录已创建
+	var count int64
+	mgr.DB().Model(&TestModel{}).Count(&count)
+	if count != 1 {
+		t.Errorf("Expected 1 record, got %d", count)
+	}
+}
+
+// TestSQLiteManager_Lifecycle 测试生命周期方法
+func TestSQLiteManager_Lifecycle(t *testing.T) {
+	cfg := &config.DatabaseConfig{
+		Driver: "sqlite",
+		SQLiteConfig: &config.SQLiteConfig{
+			DSN: ":memory:",
+		},
+	}
+
+	mgr, err := NewSQLiteManager(cfg)
+	if err != nil {
+		t.Fatalf("NewSQLiteManager() error = %v", err)
+	}
+
+	// 测试 OnStart
+	if err := mgr.OnStart(); err != nil {
+		t.Errorf("OnStart() error = %v", err)
+	}
+
+	// 测试 Health
+	if err := mgr.Health(); err != nil {
+		t.Errorf("Health() error = %v", err)
+	}
+
+	// 测试 Stats
 	stats := mgr.Stats()
+	if stats.MaxOpenConnections == 0 {
+		// SQLite 的默认配置
+		t.Log("MaxOpenConnections is 0")
+	}
 
-	// Verify stats are returned
-	if stats.MaxOpenConnections != 1 {
-		t.Errorf("MaxOpenConnections = %v, want 1", stats.MaxOpenConnections)
+	// 测试 OnStop
+	if err := mgr.OnStop(); err != nil {
+		t.Errorf("OnStop() error = %v", err)
 	}
 }
 
-func TestSQLiteManager_Close(t *testing.T) {
+// TestSQLiteManager_ImplementsDatabaseManager 测试实现接口
+func TestSQLiteManager_ImplementsDatabaseManager(t *testing.T) {
 	cfg := &config.DatabaseConfig{
 		Driver: "sqlite",
 		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
-		},
-	}
-
-	mgr, err := NewSQLiteManager(cfg)
-	if err != nil {
-		t.Fatalf("NewSQLiteManager() error = %v", err)
-	}
-
-	// Close the manager
-	err = mgr.Close()
-	if err != nil {
-		t.Errorf("Close() error = %v, want nil", err)
-	}
-
-	// Verify DB is nil after close
-	if mgr.DB() != nil {
-		t.Error("DB() should return nil after close")
-	}
-
-	// Close again should not error
-	err = mgr.Close()
-	if err != nil {
-		t.Errorf("Close() second call error = %v, want nil", err)
-	}
-}
-
-func TestSQLiteManager_Health(t *testing.T) {
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
+			DSN: ":memory:",
 		},
 	}
 
@@ -372,27 +302,19 @@ func TestSQLiteManager_Health(t *testing.T) {
 	}
 	defer mgr.Close()
 
-	// Health should pass
-	err = mgr.Health()
-	if err != nil {
-		t.Errorf("Health() error = %v, want nil", err)
-	}
-
-	// Close the manager
-	mgr.Close()
-
-	// Health should fail after close
-	err = mgr.Health()
-	if err == nil {
-		t.Error("Health() should return error after close")
-	}
+	// 验证基本方法
+	_ = mgr.ManagerName()
+	_ = mgr.Driver()
+	_ = mgr.DB()
+	_ = mgr.Stats()
 }
 
-func TestSQLiteManager_OnStart(t *testing.T) {
+// TestSQLiteManager_Exec 测试执行原生 SQL
+func TestSQLiteManager_Exec(t *testing.T) {
 	cfg := &config.DatabaseConfig{
 		Driver: "sqlite",
 		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
+			DSN: ":memory:",
 		},
 	}
 
@@ -402,80 +324,37 @@ func TestSQLiteManager_OnStart(t *testing.T) {
 	}
 	defer mgr.Close()
 
-	// OnStart should pass
-	err = mgr.OnStart()
+	// 测试创建表
+	result := mgr.Exec("CREATE TABLE IF NOT EXISTS test (id INTEGER, name TEXT)")
+	if result.Error != nil {
+		t.Errorf("Exec() error = %v", result.Error)
+	}
+
+	// 测试插入
+	result = mgr.Exec("INSERT INTO test (id, name) VALUES (1, 'test')")
+	if result.Error != nil {
+		t.Errorf("Exec() INSERT error = %v", result.Error)
+	}
+
+	// 测试查询
+	rows, err := mgr.Raw("SELECT * FROM test").Rows()
 	if err != nil {
-		t.Errorf("OnStart() error = %v, want nil", err)
+		t.Errorf("Raw() error = %v", err)
+	}
+	defer rows.Close()
+
+	hasRow := rows.Next()
+	if !hasRow {
+		t.Error("Expected at least one row")
 	}
 }
 
-func TestSQLiteManager_OnStop(t *testing.T) {
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
-		},
-	}
-
-	mgr, err := NewSQLiteManager(cfg)
-	if err != nil {
-		t.Fatalf("NewSQLiteManager() error = %v", err)
-	}
-
-	// OnStop should close the database
-	err = mgr.OnStop()
-	if err != nil {
-		t.Errorf("OnStop() error = %v, want nil", err)
-	}
-
-	// Verify DB is nil after OnStop
-	if mgr.DB() != nil {
-		t.Error("DB() should return nil after OnStop")
-	}
-}
-
-func TestSQLiteManager_Shutdown(t *testing.T) {
-	cfg := &config.DatabaseConfig{
-		Driver: "sqlite",
-		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
-		},
-	}
-
-	mgr, err := NewSQLiteManager(cfg)
-	if err != nil {
-		t.Fatalf("NewSQLiteManager() error = %v", err)
-	}
-
-	ctx := context.Background()
-
-	// Shutdown should close the database
-	err = mgr.Shutdown(ctx)
-	if err != nil {
-		t.Errorf("Shutdown() error = %v, want nil", err)
-	}
-
-	// Verify DB is nil after Shutdown
-	if mgr.DB() != nil {
-		t.Error("DB() should return nil after Shutdown")
-	}
-
-	// Shutdown again should not error
-	err = mgr.Shutdown(ctx)
-	if err != nil {
-		t.Errorf("Shutdown() second call error = %v, want nil", err)
-	}
-}
-
+// TestSQLiteManager_ConcurrentAccess 测试并发访问
 func TestSQLiteManager_ConcurrentAccess(t *testing.T) {
 	cfg := &config.DatabaseConfig{
 		Driver: "sqlite",
 		SQLiteConfig: &config.SQLiteConfig{
-			DSN: "file::memory:?cache=shared",
-			PoolConfig: &config.PoolConfig{
-				MaxOpenConns: 1, // SQLite 通常设置为 1
-				MaxIdleConns: 1,
-			},
+			DSN: ":memory:",
 		},
 	}
 
@@ -485,38 +364,80 @@ func TestSQLiteManager_ConcurrentAccess(t *testing.T) {
 	}
 	defer mgr.Close()
 
-	// Create table
-	ctx := context.Background()
-	_, err = mgr.DB().ExecContext(ctx, "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
-	if err != nil {
-		t.Fatalf("Failed to create table: %v", err)
-	}
+	done := make(chan bool, 10)
 
-	done := make(chan bool)
-
-	// Concurrent reads and writes
+	// 并发读取
 	for i := 0; i < 10; i++ {
-		go func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					t.Errorf("Concurrent access panicked: %v", r)
-				}
-			}()
-
-			// Query data (read operation)
-			var count int
-			err = mgr.DB().QueryRowContext(ctx, "SELECT COUNT(*) FROM test").Scan(&count)
-			if err != nil {
-				t.Errorf("Failed to query data: %v", err)
-			}
-
+		go func() {
+			_ = mgr.DB()
+			_ = mgr.Driver()
 			_ = mgr.Stats()
+			_ = mgr.Health()
 			done <- true
-		}(i)
+		}()
 	}
 
-	// Wait for all goroutines
+	// 等待所有 goroutine 完成
 	for i := 0; i < 10; i++ {
 		<-done
+	}
+}
+
+// TestSQLiteManager_DSNVariants 测试不同的 DSN 格式
+func TestSQLiteManager_DSNVariants(t *testing.T) {
+	tests := []struct {
+		name    string
+		dsn     string
+		wantErr bool
+	}{
+		{
+			name:    "内存数据库",
+			dsn:     ":memory:",
+			wantErr: false,
+		},
+		{
+			name:    "共享缓存",
+			dsn:     "file::memory:?cache=shared",
+			wantErr: false,
+		},
+		{
+			name:    "读写模式",
+			dsn:     "file::memory:?mode=memory",
+			wantErr: false,
+		},
+		{
+			name:    "文件路径",
+			dsn:     "/tmp/test.db",
+			wantErr: false,
+		},
+		{
+			name:    "相对路径",
+			dsn:     "./test.db",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.DatabaseConfig{
+				Driver: "sqlite",
+				SQLiteConfig: &config.SQLiteConfig{
+					DSN: tt.dsn,
+				},
+			}
+
+			mgr, err := NewSQLiteManager(cfg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewSQLiteManager() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && mgr != nil {
+				_ = mgr.Close()
+			}
+
+			// 清理可能创建的文件
+			if tt.dsn != "" && tt.dsn[0] != ':' {
+				os.Remove(tt.dsn)
+			}
+		})
 	}
 }

@@ -1,6 +1,8 @@
 package databasemgr
 
 import (
+	"fmt"
+
 	"com.litelake.litecore/common"
 	"com.litelake.litecore/manager/databasemgr/internal/config"
 	"com.litelake.litecore/manager/databasemgr/internal/drivers"
@@ -61,6 +63,9 @@ func (f *Factory) Build(driver string, cfg map[string]any) common.Manager {
 
 // BuildWithConfig 使用配置结构体创建数据库管理器
 func (f *Factory) BuildWithConfig(databaseConfig *config.DatabaseConfig) (DatabaseManager, error) {
+	if databaseConfig == nil {
+		return nil, fmt.Errorf("database config is required")
+	}
 	if err := databaseConfig.Validate(); err != nil {
 		return nil, err
 	}
