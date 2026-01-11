@@ -33,6 +33,10 @@ func (m *mockProvider) Has(key string) bool {
 	return ok
 }
 
+func (m *mockProvider) ConfigProviderName() string {
+	return "mockProvider"
+}
+
 func TestIsConfigKeyNotFound(t *testing.T) {
 	tests := []struct {
 		name     string

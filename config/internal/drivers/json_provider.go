@@ -35,3 +35,7 @@ func (p *JsonConfigProvider) Get(key string) (any, error) {
 func (p *JsonConfigProvider) Has(key string) bool {
 	return p.base.Has(key)
 }
+
+func (p *JsonConfigProvider) ConfigProviderName() string {
+	return "JsonConfigProvider"
+}

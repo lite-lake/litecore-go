@@ -146,3 +146,8 @@ func (p *BaseConfigProvider) Has(key string) bool {
 	_, err := p.Get(key)
 	return err == nil
 }
+
+// ConfigProviderName 返回当前配置提供者的类名
+func (p *BaseConfigProvider) ConfigProviderName() string {
+	return "BaseConfigProvider"
+}
