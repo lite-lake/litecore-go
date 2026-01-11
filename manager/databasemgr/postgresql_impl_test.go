@@ -9,7 +9,8 @@ import (
 // TestNewDatabaseManagerPostgreSQLImpl 测试 PostgreSQL 管理器创建
 // 这是一个集成测试，需要实际的 PostgreSQL 数据库
 // 运行测试前需要设置环境变量:
-//   POSTGRESQL_DSN - PostgreSQL 连接字符串 (可选，默认使用 test)
+//
+//	POSTGRESQL_DSN - PostgreSQL 连接字符串 (可选，默认使用 test)
 func TestNewDatabaseManagerPostgreSQLImpl(t *testing.T) {
 	// 检查是否应该运行集成测试
 	if shouldSkipPostgreSQLIntegrationTest() {

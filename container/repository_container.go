@@ -14,12 +14,12 @@ import (
 // 2. 注入 BaseManager（从 ManagerContainer 获取）
 // 3. 注入 BaseEntity（从 EntityContainer 获取）
 type RepositoryContainer struct {
-	mu                 sync.RWMutex
-	items              map[string]common.BaseRepository
-	configContainer    *ConfigContainer
-	managerContainer   *ManagerContainer
-	entityContainer    *EntityContainer
-	injected           bool
+	mu               sync.RWMutex
+	items            map[string]common.BaseRepository
+	configContainer  *ConfigContainer
+	managerContainer *ManagerContainer
+	entityContainer  *EntityContainer
+	injected         bool
 }
 
 // NewRepositoryContainer 创建新的存储库容器
@@ -157,7 +157,7 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 				names = append(names, item.ConfigProviderName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}
@@ -183,7 +183,7 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 				names = append(names, item.ManagerName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}
@@ -209,7 +209,7 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 				names = append(names, item.EntityName())
 			}
 			return nil, &AmbiguousMatchError{
-				FieldType:   fieldType,
+				FieldType:  fieldType,
 				Candidates: names,
 			}
 		}

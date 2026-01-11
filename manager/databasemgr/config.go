@@ -15,11 +15,11 @@ const (
 
 // DatabaseConfig 数据库管理配置
 type DatabaseConfig struct {
-	Driver              string                 `yaml:"driver"`                // 驱动类型: mysql, postgresql, sqlite, none
-	SQLiteConfig        *SQLiteConfig          `yaml:"sqlite_config"`         // SQLite 配置
-	PostgreSQLConfig    *PostgreSQLConfig      `yaml:"postgresql_config"`     // PostgreSQL 配置
-	MySQLConfig         *MySQLConfig           `yaml:"mysql_config"`          // MySQL 配置
-	ObservabilityConfig *ObservabilityConfig   `yaml:"observability_config"`  // 可观测性配置
+	Driver              string               `yaml:"driver"`               // 驱动类型: mysql, postgresql, sqlite, none
+	SQLiteConfig        *SQLiteConfig        `yaml:"sqlite_config"`        // SQLite 配置
+	PostgreSQLConfig    *PostgreSQLConfig    `yaml:"postgresql_config"`    // PostgreSQL 配置
+	MySQLConfig         *MySQLConfig         `yaml:"mysql_config"`         // MySQL 配置
+	ObservabilityConfig *ObservabilityConfig `yaml:"observability_config"` // 可观测性配置
 }
 
 // PoolConfig 数据库连接池配置（所有驱动通用）

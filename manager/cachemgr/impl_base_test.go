@@ -29,7 +29,7 @@ func TestValidateContext(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid context - WithCancel",
+			name: "valid context - WithCancel",
 			ctx: func() context.Context {
 				ctx, _ := context.WithCancel(context.Background())
 				return ctx
@@ -37,7 +37,7 @@ func TestValidateContext(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid context - WithTimeout",
+			name: "valid context - WithTimeout",
 			ctx: func() context.Context {
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 				return ctx
@@ -45,7 +45,7 @@ func TestValidateContext(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid context - WithDeadline",
+			name: "valid context - WithDeadline",
 			ctx: func() context.Context {
 				ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 				return ctx

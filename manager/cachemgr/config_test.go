@@ -144,7 +144,7 @@ func TestParseCacheConfigFromMap(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "empty config returns defaults",
+			name:    "empty config returns defaults",
 			cfg:     map[string]any{},
 			wantErr: false,
 		},
@@ -230,8 +230,8 @@ func TestParseRedisConfig(t *testing.T) {
 		check   func(*RedisConfig) error
 	}{
 		{
-			name: "empty config uses defaults",
-			cfg:  map[string]any{},
+			name:    "empty config uses defaults",
+			cfg:     map[string]any{},
 			wantErr: false,
 			check: func(c *RedisConfig) error {
 				if c.Host != DefaultRedisHost {
@@ -492,10 +492,10 @@ func TestParseMemoryConfig(t *testing.T) {
 // TestToInt 测试类型转换函数
 func TestToInt(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   any
-		want    int
-		wantOk  bool
+		name   string
+		input  any
+		want   int
+		wantOk bool
 	}{
 		{"int", 42, 42, true},
 		{"int64", int64(42), 42, true},

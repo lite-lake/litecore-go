@@ -13,15 +13,15 @@ import (
 // Mock managers for lifecycle testing
 
 type lifecycleManager struct {
-	name         string
-	startCalled  bool
-	stopCalled   bool
-	startOrder   int
-	stopOrder    int
-	startErr     error
-	stopErr      error
-	startDelay   time.Duration
-	stopDelay    time.Duration
+	name        string
+	startCalled bool
+	stopCalled  bool
+	startOrder  int
+	stopOrder   int
+	startErr    error
+	stopErr     error
+	startDelay  time.Duration
+	stopDelay   time.Duration
 }
 
 func (m *lifecycleManager) ManagerName() string {
@@ -311,8 +311,8 @@ func TestEngine_GracefulShutdown(t *testing.T) {
 
 	t.Run("graceful shutdown with timeout", func(t *testing.T) {
 		mgr := &lifecycleManager{
-			name:       "testManager",
-			stopDelay:  100 * time.Millisecond,
+			name:      "testManager",
+			stopDelay: 100 * time.Millisecond,
 		}
 
 		engine, err := NewEngine(
@@ -521,4 +521,3 @@ func TestEngine_ConcurrentLifecycle(t *testing.T) {
 		wg.Wait()
 	})
 }
-

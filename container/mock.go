@@ -1,8 +1,8 @@
 package container
 
 import (
-	"github.com/gin-gonic/gin"
 	"com.litelake.litecore/common"
+	"github.com/gin-gonic/gin"
 )
 
 // MockConfigProvider Mock 配置提供者
@@ -64,10 +64,10 @@ func (m *MockEntity) GetId() string {
 
 // MockRepository Mock 存储库
 type MockRepository struct {
-	name      string
-	Config    common.BaseConfigProvider `inject:""`
-	Manager   common.BaseManager       `inject:""`
-	Entity    common.BaseEntity        `inject:""`
+	name    string
+	Config  common.BaseConfigProvider `inject:""`
+	Manager common.BaseManager        `inject:""`
+	Entity  common.BaseEntity         `inject:""`
 }
 
 func (m *MockRepository) RepositoryName() string {
@@ -86,7 +86,7 @@ func (m *MockRepository) OnStop() error {
 type MockService struct {
 	name   string
 	Config common.BaseConfigProvider `inject:""`
-	Repo   common.BaseRepository    `inject:""`
+	Repo   common.BaseRepository     `inject:""`
 }
 
 func (m *MockService) ServiceName() string {

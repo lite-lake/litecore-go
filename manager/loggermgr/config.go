@@ -27,8 +27,8 @@ func DefaultConfig() *LoggerConfig {
 
 // LoggerConfig 日志管理配置
 type LoggerConfig struct {
-	Driver    string      `yaml:"driver"`    // 驱动类型: zap, none
-	ZapConfig *ZapConfig  `yaml:"zap_config"` // Zap 驱动配置
+	Driver    string     `yaml:"driver"`     // 驱动类型: zap, none
+	ZapConfig *ZapConfig `yaml:"zap_config"` // Zap 驱动配置
 }
 
 // ZapConfig Zap 日志配置

@@ -22,7 +22,7 @@ import (
 
 // databaseManagerBaseImpl 数据库管理器基础实现
 type databaseManagerBaseImpl struct {
-	loggerMgr    loggermgr.LoggerManager      `inject:""`
+	loggerMgr    loggermgr.LoggerManager       `inject:""`
 	telemetryMgr telemetrymgr.TelemetryManager `inject:""`
 	logger       loggermgr.Logger
 	tracer       trace.Tracer
@@ -51,10 +51,10 @@ type databaseManagerBaseImpl struct {
 func newDatabaseManagerBaseImpl(name, driver string, db *gorm.DB) *databaseManagerBaseImpl {
 	sqlDB, _ := db.DB()
 	return &databaseManagerBaseImpl{
-		name:             name,
-		driver:           driver,
-		db:               db,
-		sqlDB:            sqlDB,
+		name:                name,
+		driver:              driver,
+		db:                  db,
+		sqlDB:               sqlDB,
 		observabilityPlugin: newObservabilityPlugin(),
 	}
 }

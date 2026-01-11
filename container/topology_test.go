@@ -40,7 +40,7 @@ func TestTopologicalSort(t *testing.T) {
 				"B": {"C"},
 				"C": {},
 			},
-			wantErr: false,
+			wantErr:   false,
 			wantOrder: []string{"C", "B", "A"}, // 或其他有效顺序
 		},
 		{
@@ -51,7 +51,7 @@ func TestTopologicalSort(t *testing.T) {
 				"C": {"D"},
 				"D": {},
 			},
-			wantErr: false,
+			wantErr:   false,
 			wantOrder: []string{"D", "B", "C", "A"}, // D 必须在最后，A 必须在最前
 		},
 		{
@@ -64,9 +64,9 @@ func TestTopologicalSort(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "empty",
-			graph: map[string][]string{},
-			wantErr: false,
+			name:      "empty",
+			graph:     map[string][]string{},
+			wantErr:   false,
 			wantOrder: []string{},
 		},
 	}

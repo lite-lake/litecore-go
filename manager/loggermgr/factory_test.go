@@ -42,12 +42,12 @@ func (m *mockConfigProvider) Has(key string) bool {
 // TestBuild 测试 Build 函数
 func TestBuild(t *testing.T) {
 	tests := []struct {
-		name        string
-		driverType  string
+		name         string
+		driverType   string
 		driverConfig map[string]any
-		wantErr     bool
-		errString   string
-		validate    func(*testing.T, LoggerManager)
+		wantErr      bool
+		errString    string
+		validate     func(*testing.T, LoggerManager)
 	}{
 		{
 			name:       "Valid none driver",
@@ -126,10 +126,10 @@ func TestBuild(t *testing.T) {
 			errString:  "unsupported driver type",
 		},
 		{
-			name:       "Zap driver with no output - has default console enabled",
-			driverType: "zap",
+			name:         "Zap driver with no output - has default console enabled",
+			driverType:   "zap",
 			driverConfig: map[string]any{},
-			wantErr:    false, // DefaultZapConfig has console enabled
+			wantErr:      false, // DefaultZapConfig has console enabled
 		},
 		{
 			name:       "Zap driver with file but no path",
@@ -167,10 +167,10 @@ func TestBuild(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:       "Empty driver config",
-			driverType: "zap",
+			name:         "Empty driver config",
+			driverType:   "zap",
 			driverConfig: nil,
-			wantErr:    false, // DefaultZapConfig has console enabled
+			wantErr:      false, // DefaultZapConfig has console enabled
 		},
 		{
 			name:       "Invalid telemetry level",
@@ -344,7 +344,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			name: "Zap config not map",
 			setupConfig: func() *mockConfigProvider {
 				return newMockConfigProvider(map[string]any{
-					"logger.driver":    "zap",
+					"logger.driver":     "zap",
 					"logger.zap_config": "invalid",
 				})
 			},

@@ -8,10 +8,10 @@ import (
 
 // DependencyNotFoundError 依赖缺失错误
 type DependencyNotFoundError struct {
-	InstanceName   string        // 当前实例名称
-	FieldName      string        // 缺失依赖的字段名
-	FieldType      reflect.Type  // 期望的依赖类型
-	ContainerType  string        // 应该从哪个容器查找
+	InstanceName  string       // 当前实例名称
+	FieldName     string       // 缺失依赖的字段名
+	FieldType     reflect.Type // 期望的依赖类型
+	ContainerType string       // 应该从哪个容器查找
 }
 
 func (e *DependencyNotFoundError) Error() string {
@@ -21,7 +21,7 @@ func (e *DependencyNotFoundError) Error() string {
 
 // CircularDependencyError 循环依赖错误
 type CircularDependencyError struct {
-	Cycle []string  // 循环依赖链
+	Cycle []string // 循环依赖链
 }
 
 func (e *CircularDependencyError) Error() string {
@@ -37,7 +37,7 @@ type AmbiguousMatchError struct {
 	InstanceName string
 	FieldName    string
 	FieldType    reflect.Type
-	Candidates   []string  // 匹配的候选实例名称
+	Candidates   []string // 匹配的候选实例名称
 }
 
 func (e *AmbiguousMatchError) Error() string {

@@ -10,14 +10,14 @@ import (
 
 // mockConfigProvider 模拟配置提供者
 type mockConfigProvider struct {
-	data map[string]any
+	data   map[string]any
 	getErr map[string]error
 }
 
 func newMockConfigProvider(data map[string]any) *mockConfigProvider {
 	return &mockConfigProvider{
-		data:    data,
-		getErr:  make(map[string]error),
+		data:   data,
+		getErr: make(map[string]error),
 	}
 }
 
@@ -223,11 +223,11 @@ func TestBuild(t *testing.T) {
 // TestBuildWithConfigProvider 测试 BuildWithConfigProvider 函数
 func TestBuildWithConfigProvider(t *testing.T) {
 	tests := []struct {
-		name          string
+		name           string
 		configProvider *mockConfigProvider
-		wantErr       bool
-		errMsg        string
-		verify        func(*testing.T, TelemetryManager)
+		wantErr        bool
+		errMsg         string
+		verify         func(*testing.T, TelemetryManager)
 	}{
 		{
 			name: "none driver from config provider",
@@ -258,16 +258,16 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		},
 		{
-			name: "nil config provider",
+			name:           "nil config provider",
 			configProvider: nil,
-			wantErr: true,
-			errMsg: "configProvider cannot be nil",
+			wantErr:        true,
+			errMsg:         "configProvider cannot be nil",
 		},
 		{
-			name: "missing telemetry.driver",
+			name:           "missing telemetry.driver",
 			configProvider: newMockConfigProvider(map[string]any{}),
-			wantErr: true,
-			errMsg: "failed to get telemetry.driver",
+			wantErr:        true,
+			errMsg:         "failed to get telemetry.driver",
 		},
 		{
 			name: "telemetry.driver is not a string",
@@ -275,7 +275,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"telemetry.driver": 123,
 			}),
 			wantErr: true,
-			errMsg: "telemetry.driver must be a string",
+			errMsg:  "telemetry.driver must be a string",
 		},
 		{
 			name: "otel driver without otel_config",
@@ -283,16 +283,16 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"telemetry.driver": "otel",
 			}),
 			wantErr: true,
-			errMsg: "failed to get telemetry.otel_config",
+			errMsg:  "failed to get telemetry.otel_config",
 		},
 		{
 			name: "otel_config is not a map",
 			configProvider: newMockConfigProvider(map[string]any{
-				"telemetry.driver":       "otel",
-				"telemetry.otel_config":  "invalid",
+				"telemetry.driver":      "otel",
+				"telemetry.otel_config": "invalid",
 			}),
 			wantErr: true,
-			errMsg: "telemetry.otel_config must be a map",
+			errMsg:  "telemetry.otel_config must be a map",
 		},
 		{
 			name: "unsupported driver type",
@@ -300,7 +300,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"telemetry.driver": "invalid",
 			}),
 			wantErr: true,
-			errMsg: "unsupported driver type",
+			errMsg:  "unsupported driver type",
 		},
 		{
 			name: "driver name case insensitive",

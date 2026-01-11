@@ -272,7 +272,7 @@ func TestNoneLoggerNilSafe(t *testing.T) {
 	logger.Info("test", nil)
 
 	// 奇数个参数
-	logger.With("key1") // 只有一个参数
+	logger.With("key1")                   // 只有一个参数
 	logger.With("key1", "value1", "key2") // 三个参数
 }
 

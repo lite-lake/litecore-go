@@ -16,7 +16,7 @@ import (
 
 // cacheManagerBaseImpl 提供可观测性和工具函数
 type cacheManagerBaseImpl struct {
-	loggerMgr         loggermgr.LoggerManager      `inject:""`
+	loggerMgr         loggermgr.LoggerManager       `inject:""`
 	telemetryMgr      telemetrymgr.TelemetryManager `inject:""`
 	logger            loggermgr.Logger
 	tracer            trace.Tracer
