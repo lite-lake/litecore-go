@@ -49,8 +49,8 @@ func TestBuild_NoneDriver(t *testing.T) {
 		t.Fatal("Build() returned nil")
 	}
 
-	if mgr.ManagerName() != "none" {
-		t.Errorf("ManagerName() = %v, want 'none'", mgr.ManagerName())
+	if mgr.ManagerName() != "databaseManagerNoneImpl" {
+		t.Errorf("ManagerName() = %v, want 'databaseManagerNoneImpl'", mgr.ManagerName())
 	}
 }
 
@@ -69,8 +69,8 @@ func TestBuild_SQLite(t *testing.T) {
 		t.Fatal("Build() returned nil")
 	}
 
-	if mgr.ManagerName() != "sqlite" {
-		t.Errorf("ManagerName() = %v, want 'sqlite'", mgr.ManagerName())
+	if mgr.ManagerName() != "databaseManagerSqliteImpl" {
+		t.Errorf("ManagerName() = %v, want 'databaseManagerSqliteImpl'", mgr.ManagerName())
 	}
 
 	// 验证实现了 common.BaseManager 接口
@@ -99,8 +99,8 @@ func TestBuild_SQLite_WithPoolConfig(t *testing.T) {
 		t.Fatal("Build() returned nil")
 	}
 
-	if mgr.ManagerName() != "sqlite" {
-		t.Errorf("ManagerName() = %v, want 'sqlite'", mgr.ManagerName())
+	if mgr.ManagerName() != "databaseManagerSqliteImpl" {
+		t.Errorf("ManagerName() = %v, want 'databaseManagerSqliteImpl'", mgr.ManagerName())
 	}
 
 	_ = mgr.Close()
@@ -188,8 +188,8 @@ func TestBuildWithConfigProvider_NoneDriver(t *testing.T) {
 		t.Fatal("BuildWithConfigProvider() returned nil")
 	}
 
-	if mgr.ManagerName() != "none" {
-		t.Errorf("ManagerName() = %v, want 'none'", mgr.ManagerName())
+	if mgr.ManagerName() != "databaseManagerNoneImpl" {
+		t.Errorf("ManagerName() = %v, want 'databaseManagerNoneImpl'", mgr.ManagerName())
 	}
 }
 
@@ -213,8 +213,8 @@ func TestBuildWithConfigProvider_SQLite(t *testing.T) {
 		t.Fatal("BuildWithConfigProvider() returned nil")
 	}
 
-	if mgr.ManagerName() != "sqlite" {
-		t.Errorf("ManagerName() = %v, want 'sqlite'", mgr.ManagerName())
+	if mgr.ManagerName() != "databaseManagerSqliteImpl" {
+		t.Errorf("ManagerName() = %v, want 'databaseManagerSqliteImpl'", mgr.ManagerName())
 	}
 
 	_ = mgr.Close()

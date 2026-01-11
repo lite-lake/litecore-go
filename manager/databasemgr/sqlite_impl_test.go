@@ -69,8 +69,8 @@ func TestNewDatabaseManagerSQLiteImpl(t *testing.T) {
 				}
 				if mgr != nil {
 					defer mgr.Close()
-					if mgr.ManagerName() != "sqlite" {
-						t.Errorf("ManagerName() = %v, want 'sqlite'", mgr.ManagerName())
+					if mgr.ManagerName() != "databaseManagerSqliteImpl" {
+						t.Errorf("ManagerName() = %v, want 'databaseManagerSqliteImpl'", mgr.ManagerName())
 					}
 					if mgr.Driver() != "sqlite" {
 						t.Errorf("Driver() = %v, want 'sqlite'", mgr.Driver())
