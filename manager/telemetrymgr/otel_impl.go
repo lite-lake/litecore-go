@@ -1,12 +1,10 @@
-package drivers
+package telemetrymgr
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/manager/telemetrymgr/internal/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -20,10 +18,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// OtelManager OpenTelemetry 观测管理器
-type OtelManager struct {
-	*BaseManager
-	config         *config.TelemetryConfig
+// telemetryManagerOtelImpl OpenTelemetry 观测管理器实现
+type telemetryManagerOtelImpl struct {
+	*telemetryManagerBaseImpl
+	config         *TelemetryConfig
 	tracerProvider *sdktrace.TracerProvider
 	meterProvider  *sdkmetric.MeterProvider
 	loggerProvider *sdklog.LoggerProvider
@@ -33,17 +31,17 @@ type OtelManager struct {
 	shutdownOnce   sync.Once
 }
 
-// NewOtelManager 创建 OTEL 观测管理器
-func NewOtelManager(cfg *config.TelemetryConfig) (*OtelManager, error) {
+// NewTelemetryManagerOtelImpl 创建 OTEL 观测管理器实现
+func NewTelemetryManagerOtelImpl(cfg *TelemetryConfig) (TelemetryManager, error) {
 	if cfg.Driver != "otel" {
 		return nil, fmt.Errorf("invalid driver for otel manager: %s", cfg.Driver)
 	}
 
 	ctx := context.Background()
-	mgr := &OtelManager{
-		BaseManager:   NewBaseManager("otel-telemetry"),
-		config:        cfg,
-		shutdownFuncs: make([]func(context.Context) error, 0),
+	mgr := &telemetryManagerOtelImpl{
+		telemetryManagerBaseImpl: newTelemetryManagerBaseImpl("otel-telemetry"),
+		config:                   cfg,
+		shutdownFuncs:            make([]func(context.Context) error, 0),
 	}
 
 	// 初始化资源
@@ -70,7 +68,7 @@ func NewOtelManager(cfg *config.TelemetryConfig) (*OtelManager, error) {
 }
 
 // initResource 初始化 OTEL 资源
-func (m *OtelManager) initResource(ctx context.Context) error {
+func (m *telemetryManagerOtelImpl) initResource(ctx context.Context) error {
 	// 构建资源属性
 	attrs := []attribute.KeyValue{
 		semconv.ServiceNameKey.String("litecore-app"),
@@ -99,8 +97,8 @@ func (m *OtelManager) initResource(ctx context.Context) error {
 }
 
 // initTracerProvider 初始化 TracerProvider
-func (m *OtelManager) initTracerProvider(ctx context.Context) error {
-	if !m.config.OtelConfig.Traces.Enabled {
+func (m *telemetryManagerOtelImpl) initTracerProvider(ctx context.Context) error {
+	if m.config.OtelConfig.Traces == nil || !m.config.OtelConfig.Traces.Enabled {
 		// 如果未启用链路追踪，使用 NoOpProvider
 		m.mu.Lock()
 		m.tracerProvider = sdktrace.NewTracerProvider()
@@ -151,10 +149,10 @@ func (m *OtelManager) initTracerProvider(ctx context.Context) error {
 }
 
 // initMeterProvider 初始化 MeterProvider
-func (m *OtelManager) initMeterProvider(ctx context.Context) error {
+func (m *telemetryManagerOtelImpl) initMeterProvider(ctx context.Context) error {
 	// 确保 Metrics 字段已初始化
 	if m.config.OtelConfig.Metrics == nil {
-		m.config.OtelConfig.Metrics = &config.FeatureConfig{Enabled: false}
+		m.config.OtelConfig.Metrics = &FeatureConfig{Enabled: false}
 	}
 
 	if !m.config.OtelConfig.Metrics.Enabled {
@@ -175,10 +173,10 @@ func (m *OtelManager) initMeterProvider(ctx context.Context) error {
 }
 
 // initLoggerProvider 初始化 LoggerProvider
-func (m *OtelManager) initLoggerProvider(ctx context.Context) error {
+func (m *telemetryManagerOtelImpl) initLoggerProvider(ctx context.Context) error {
 	// 确保 Logs 字段已初始化
 	if m.config.OtelConfig.Logs == nil {
-		m.config.OtelConfig.Logs = &config.FeatureConfig{Enabled: false}
+		m.config.OtelConfig.Logs = &FeatureConfig{Enabled: false}
 	}
 
 	if !m.config.OtelConfig.Logs.Enabled {
@@ -199,7 +197,7 @@ func (m *OtelManager) initLoggerProvider(ctx context.Context) error {
 }
 
 // Tracer 获取 Tracer 实例
-func (m *OtelManager) Tracer(name string) trace.Tracer {
+func (m *telemetryManagerOtelImpl) Tracer(name string) trace.Tracer {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if m.tracerProvider == nil {
@@ -209,14 +207,14 @@ func (m *OtelManager) Tracer(name string) trace.Tracer {
 }
 
 // TracerProvider 获取 TracerProvider
-func (m *OtelManager) TracerProvider() *sdktrace.TracerProvider {
+func (m *telemetryManagerOtelImpl) TracerProvider() *sdktrace.TracerProvider {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.tracerProvider
 }
 
 // Meter 获取 Meter 实例
-func (m *OtelManager) Meter(name string) metric.Meter {
+func (m *telemetryManagerOtelImpl) Meter(name string) metric.Meter {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if m.meterProvider == nil {
@@ -226,14 +224,14 @@ func (m *OtelManager) Meter(name string) metric.Meter {
 }
 
 // MeterProvider 获取 MeterProvider
-func (m *OtelManager) MeterProvider() *sdkmetric.MeterProvider {
+func (m *telemetryManagerOtelImpl) MeterProvider() *sdkmetric.MeterProvider {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.meterProvider
 }
 
 // Logger 获取 Logger 实例
-func (m *OtelManager) Logger(name string) log.Logger {
+func (m *telemetryManagerOtelImpl) Logger(name string) log.Logger {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if m.loggerProvider == nil {
@@ -243,14 +241,14 @@ func (m *OtelManager) Logger(name string) log.Logger {
 }
 
 // LoggerProvider 获取 LoggerProvider
-func (m *OtelManager) LoggerProvider() *sdklog.LoggerProvider {
+func (m *telemetryManagerOtelImpl) LoggerProvider() *sdklog.LoggerProvider {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.loggerProvider
 }
 
 // Health 检查管理器健康状态
-func (m *OtelManager) Health() error {
+func (m *telemetryManagerOtelImpl) Health() error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -271,7 +269,7 @@ func (m *OtelManager) Health() error {
 }
 
 // OnStart 在服务器启动时触发
-func (m *OtelManager) OnStart() error {
+func (m *telemetryManagerOtelImpl) OnStart() error {
 	// OTEL 管理器在创建时就已经初始化完成
 	// 这里可以添加启动时的额外逻辑
 	return nil
@@ -279,7 +277,7 @@ func (m *OtelManager) OnStart() error {
 
 // OnStop 在服务器停止时触发
 // 使用默认的超时时间
-func (m *OtelManager) OnStop() error {
+func (m *telemetryManagerOtelImpl) OnStop() error {
 	// 触发优雅关闭
 	ctx, cancel := context.WithTimeout(context.Background(), 30)
 	defer cancel()
@@ -288,7 +286,7 @@ func (m *OtelManager) OnStop() error {
 
 // Shutdown 关闭观测管理器
 // 使用 sync.Once 确保只关闭一次
-func (m *OtelManager) Shutdown(ctx context.Context) error {
+func (m *telemetryManagerOtelImpl) Shutdown(ctx context.Context) error {
 	var shutdownErr error
 
 	m.shutdownOnce.Do(func() {
@@ -306,16 +304,12 @@ func (m *OtelManager) Shutdown(ctx context.Context) error {
 	return shutdownErr
 }
 
-// ensure OtelManager implements common.BaseManager interface
-var _ common.BaseManager = (*OtelManager)(nil)
+// Close 关闭观测管理器（别名方法）
+func (m *telemetryManagerOtelImpl) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30)
+	defer cancel()
+	return m.Shutdown(ctx)
+}
 
-// ensure OtelManager implements telemetrymgr.TelemetryManager interface
-var _ interface {
-	Tracer(name string) trace.Tracer
-	TracerProvider() *sdktrace.TracerProvider
-	Meter(name string) metric.Meter
-	MeterProvider() *sdkmetric.MeterProvider
-	Logger(name string) log.Logger
-	LoggerProvider() *sdklog.LoggerProvider
-	Shutdown(ctx context.Context) error
-} = (*OtelManager)(nil)
+// 确保实现 TelemetryManager 接口
+var _ TelemetryManager = (*telemetryManagerOtelImpl)(nil)
