@@ -15,7 +15,7 @@ const (
 	DefaultRedisMaxOpenConns    = 100
 	DefaultRedisConnMaxLifetime = 30 * time.Second
 
-	DefaultMemoryMaxSize    = 100  // MB
+	DefaultMemoryMaxSize    = 100                 // MB
 	DefaultMemoryMaxAge     = 30 * 24 * time.Hour // 30 天
 	DefaultMemoryMaxBackups = 1000
 	DefaultMemoryCompress   = false
@@ -23,8 +23,8 @@ const (
 
 // CacheConfig 缓存配置
 type CacheConfig struct {
-	Driver       string       `yaml:"driver"`        // 驱动类型: redis, memory, none
-	RedisConfig  *RedisConfig `yaml:"redis_config"`  // Redis 配置
+	Driver       string        `yaml:"driver"`        // 驱动类型: redis, memory, none
+	RedisConfig  *RedisConfig  `yaml:"redis_config"`  // Redis 配置
 	MemoryConfig *MemoryConfig `yaml:"memory_config"` // Memory 配置
 }
 

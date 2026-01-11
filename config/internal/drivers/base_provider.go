@@ -37,7 +37,7 @@ func (p *BaseConfigProvider) Get(key string) (any, error) {
 // pathPart 表示路径中的一个部分
 type pathPart struct {
 	key      string
-	index    int    // 数组索引，-1 表示非数组
+	index    int // 数组索引，-1 表示非数组
 	hasIndex bool
 }
 

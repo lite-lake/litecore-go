@@ -181,8 +181,13 @@ func TestSQLiteManager_Ping(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "timeout context",
-			ctx:     func() context.Context { ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond); time.Sleep(10 * time.Millisecond); cancel(); return ctx }(),
+			name: "timeout context",
+			ctx: func() context.Context {
+				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+				time.Sleep(10 * time.Millisecond)
+				cancel()
+				return ctx
+			}(),
 			wantErr: true,
 		},
 	}

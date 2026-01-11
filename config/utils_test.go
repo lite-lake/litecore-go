@@ -156,11 +156,11 @@ func TestGet_Int32(t *testing.T) {
 
 func TestGet_Float64(t *testing.T) {
 	provider := newMockProvider(map[string]any{
-		"float_val":     3.14,
-		"int_val":       42,
-		"string_float":  "3.14",
-		"string_int":    "42",
-		"invalid":       "not a number",
+		"float_val":    3.14,
+		"int_val":      42,
+		"string_float": "3.14",
+		"string_int":   "42",
+		"invalid":      "not a number",
 	})
 
 	tests := []struct {
@@ -246,8 +246,8 @@ func TestGet_Bool(t *testing.T) {
 		{"existing bool", "bool_val", true, false},
 		{"string true", "string_true", true, false},
 		{"string false", "string_false", false, false},
-		{"string yes", "string_yes", true, true},   // lancet doesn't support "yes"/"no"
-		{"string no", "string_no", false, true},    // lancet doesn't support "yes"/"no"
+		{"string yes", "string_yes", true, true}, // lancet doesn't support "yes"/"no"
+		{"string no", "string_no", false, true},  // lancet doesn't support "yes"/"no"
 		{"string one", "string_one", true, false},
 		{"string zero", "string_zero", false, false},
 		{"invalid string", "string_invalid", false, true},
@@ -423,10 +423,10 @@ func TestGetWithDefault_Pointer(t *testing.T) {
 // Test with BaseConfigProvider integration
 func TestGet_WithBaseProvider(t *testing.T) {
 	data := map[string]any{
-		"name":      "test",
-		"port":      8080,
-		"enabled":   true,
-		"rate":      3.14,
+		"name":    "test",
+		"port":    8080,
+		"enabled": true,
+		"rate":    3.14,
 		"nested": map[string]any{
 			"value": 42,
 		},

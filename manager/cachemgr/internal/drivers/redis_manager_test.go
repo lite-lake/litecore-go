@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"com.litelake.litecore/manager/cachemgr/internal/config"
+	"github.com/alicebob/miniredis/v2"
 )
 
 func setupTestRedis(t *testing.T) (*miniredis.Miniredis, *RedisManager) {

@@ -18,11 +18,11 @@ import (
 // 将内部驱动适配到 CacheManager 接口
 type CacheManagerAdapter struct {
 	driver            CacheDriver
-	logger            loggermgr.Logger      // 日志实例
-	tracer            trace.Tracer           // 链路追踪
-	meter             metric.Meter           // 指标收集
-	cacheHitCounter   metric.Int64Counter    // 缓存命中计数器
-	cacheMissCounter  metric.Int64Counter    // 缓存未命中计数器
+	logger            loggermgr.Logger        // 日志实例
+	tracer            trace.Tracer            // 链路追踪
+	meter             metric.Meter            // 指标收集
+	cacheHitCounter   metric.Int64Counter     // 缓存命中计数器
+	cacheMissCounter  metric.Int64Counter     // 缓存未命中计数器
 	operationDuration metric.Float64Histogram // 操作耗时
 }
 

@@ -39,7 +39,7 @@ func detectColorSupport() bool {
 	}
 
 	// 检查输出是否为终端
-	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode()&os.ModeCharDevice) == 0 {
+	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) == 0 {
 		return false
 	}
 
@@ -48,20 +48,20 @@ func detectColorSupport() bool {
 
 // ConsoleEncoderConfig 控制台编码器配置
 type ConsoleEncoderConfig struct {
-	EncodeLevel     zapcore.LevelEncoder
-	EncodeTime      zapcore.TimeEncoder
-	EncodeDuration  zapcore.DurationEncoder
-	EncodeCaller    zapcore.CallerEncoder
+	EncodeLevel      zapcore.LevelEncoder
+	EncodeTime       zapcore.TimeEncoder
+	EncodeDuration   zapcore.DurationEncoder
+	EncodeCaller     zapcore.CallerEncoder
 	ConsoleSeparator string
 }
 
 // DefaultConsoleEncoderConfig 默认控制台编码器配置
 func DefaultConsoleEncoderConfig() ConsoleEncoderConfig {
 	return ConsoleEncoderConfig{
-		EncodeLevel:     customLevelEncoder,
-		EncodeTime:      CustomTimeEncoder,
-		EncodeDuration:  zapcore.StringDurationEncoder,
-		EncodeCaller:    zapcore.ShortCallerEncoder,
+		EncodeLevel:      customLevelEncoder,
+		EncodeTime:       CustomTimeEncoder,
+		EncodeDuration:   zapcore.StringDurationEncoder,
+		EncodeCaller:     zapcore.ShortCallerEncoder,
 		ConsoleSeparator: " | ",
 	}
 }

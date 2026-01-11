@@ -30,5 +30,4 @@
 //	// 数组元素
 //	provider.Get("servers[0].port")
 //	provider.Get("items[2]")
-//
 package config

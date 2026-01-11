@@ -131,9 +131,9 @@ func TestJsonConfigProvider_Get_SimpleValues(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		key   string
-		want  any
+		name string
+		key  string
+		want any
 	}{
 		{"string value", "string", "value"},
 		{"number value", "number", 42.0},
@@ -176,9 +176,9 @@ func TestJsonConfigProvider_Get_NestedValues(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		key   string
-		want  any
+		name string
+		key  string
+		want any
 	}{
 		{"nested host", "database.host", "localhost"},
 		{"nested port", "database.port", 3306.0},
@@ -219,9 +219,9 @@ func TestJsonConfigProvider_Get_ArrayValues(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		key   string
-		want  any
+		name string
+		key  string
+		want any
 	}{
 		{"array first element", "servers[0].name", "server1"},
 		{"array second element", "servers[1].port", 8002.0},
@@ -373,9 +373,9 @@ func TestJsonConfigProvider_ComplexStructure(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		key   string
-		want  any
+		name string
+		key  string
+		want any
 	}{
 		{"app name", "app.name", "myapp"},
 		{"app version", "app.version", "1.0.0"},

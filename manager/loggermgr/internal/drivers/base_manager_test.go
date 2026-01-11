@@ -203,10 +203,10 @@ func TestBaseLogger_GetLevel(t *testing.T) {
 
 func TestBaseLogger_IsEnabled(t *testing.T) {
 	tests := []struct {
-		name          string
-		loggerLevel   loglevel.LogLevel
-		checkLevel    loglevel.LogLevel
-		expected      bool
+		name        string
+		loggerLevel loglevel.LogLevel
+		checkLevel  loglevel.LogLevel
+		expected    bool
 	}{
 		{"debug logger, check debug - enabled", loglevel.DebugLevel, loglevel.DebugLevel, true},
 		{"debug logger, check info - enabled", loglevel.DebugLevel, loglevel.InfoLevel, true},

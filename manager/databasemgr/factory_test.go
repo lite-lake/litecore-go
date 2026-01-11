@@ -54,21 +54,21 @@ func TestFactory_Build(t *testing.T) {
 			expectedDriver: "postgresql", // 会降级到 none 驱动，但驱动类型仍然是 postgresql
 		},
 		{
-			name:   "none driver",
-			driver: "none",
-			config: map[string]any{},
+			name:           "none driver",
+			driver:         "none",
+			config:         map[string]any{},
 			expectedDriver: "none",
 		},
 		{
-			name:   "invalid config - missing driver config",
-			driver: "sqlite",
-			config: map[string]any{},
+			name:           "invalid config - missing driver config",
+			driver:         "sqlite",
+			config:         map[string]any{},
 			expectedDriver: "none", // 会降级到 none
 		},
 		{
-			name:   "unknown driver",
-			driver: "unknown",
-			config: map[string]any{},
+			name:           "unknown driver",
+			driver:         "unknown",
+			config:         map[string]any{},
 			expectedDriver: "none", // 会降级到 none
 		},
 		{
