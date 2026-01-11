@@ -2,332 +2,496 @@ package telemetrymgr
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"com.litelake.litecore/common"
 )
 
-func TestNewFactory(t *testing.T) {
-	f := NewFactory()
+// mockConfigProvider 模拟配置提供者
+type mockConfigProvider struct {
+	data map[string]any
+	getErr map[string]error
+}
 
-	if f == nil {
-		t.Fatal("NewFactory() returned nil")
+func newMockConfigProvider(data map[string]any) *mockConfigProvider {
+	return &mockConfigProvider{
+		data:    data,
+		getErr:  make(map[string]error),
 	}
 }
 
-func TestFactory_Build_NoneDriver(t *testing.T) {
-	f := NewFactory()
-
-	mgr := f.Build("none", nil)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	if mgr.ManagerName() != "none-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'none-telemetry'", mgr.ManagerName())
-	}
-
-	// Cleanup
-	_ = mgr.OnStart()
-	_ = mgr.OnStop()
+func (m *mockConfigProvider) ConfigProviderName() string {
+	return "mock-config-provider"
 }
 
-func TestFactory_Build_NoneDriverWithConfig(t *testing.T) {
-	f := NewFactory()
-
-	// none driver should ignore config
-	cfg := map[string]any{
-		"some": "config",
+func (m *mockConfigProvider) Get(key string) (any, error) {
+	if err, ok := m.getErr[key]; ok {
+		return nil, err
 	}
-	mgr := f.Build("none", cfg)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
+	if val, ok := m.data[key]; ok {
+		return val, nil
 	}
-	if mgr.ManagerName() != "none-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'none-telemetry'", mgr.ManagerName())
-	}
+	return nil, errors.New("key not found")
 }
 
-func TestFactory_Build_OtelDriver(t *testing.T) {
-	f := NewFactory()
-
-	otelCfg := map[string]any{
-		"endpoint": "http://localhost:4317",
-		"traces":   map[string]any{"enabled": true},
-	}
-	mgr := f.Build("otel", otelCfg)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	if mgr.ManagerName() != "otel-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'otel-telemetry'", mgr.ManagerName())
-	}
-
-	// Cleanup
-	_ = mgr.OnStart()
-	_ = mgr.OnStop()
+func (m *mockConfigProvider) Has(key string) bool {
+	_, ok := m.data[key]
+	return ok
 }
 
-func TestFactory_Build_OtelDriverWithoutEndpoint(t *testing.T) {
-	f := NewFactory()
-
-	// Missing endpoint should cause fallback to none driver
-	otelCfg := map[string]any{
-		"traces": map[string]any{"enabled": true},
-	}
-	mgr := f.Build("otel", otelCfg)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	// Should fallback to none driver
-	if mgr.ManagerName() != "none-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'none-telemetry' (fallback)", mgr.ManagerName())
-	}
-}
-
-func TestFactory_Build_OtelDriverWithNilConfig(t *testing.T) {
-	f := NewFactory()
-
-	// nil config should cause fallback to none driver (no endpoint)
-	mgr := f.Build("otel", nil)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	// Should fallback to none driver
-	if mgr.ManagerName() != "none-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'none-telemetry' (fallback)", mgr.ManagerName())
-	}
-}
-
-func TestFactory_Build_OtelDriverWithFullConfig(t *testing.T) {
-	f := NewFactory()
-
-	otelCfg := map[string]any{
-		"endpoint": "http://localhost:4317",
-		"insecure": true,
-		"headers": map[string]any{
-			"authorization": "Bearer token",
-		},
-		"resource_attributes": []any{
-			map[string]any{"key": "service.name", "value": "test-service"},
-			map[string]any{"key": "env", "value": "test"},
-		},
-		"traces":  map[string]any{"enabled": true},
-		"metrics": map[string]any{"enabled": true},
-		"logs":    map[string]any{"enabled": false},
-	}
-	mgr := f.Build("otel", otelCfg)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	if mgr.ManagerName() != "otel-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'otel-telemetry'", mgr.ManagerName())
-	}
-
-	// Test that it implements TelemetryManager
-	if tm, ok := mgr.(TelemetryManager); ok {
-		tracer := tm.Tracer("test")
-		if tracer == nil {
-			t.Error("TelemetryManager.Tracer() returned nil")
-		}
-
-		ctx := context.Background()
-		if err := tm.Shutdown(ctx); err != nil {
-			t.Errorf("TelemetryManager.Shutdown() error = %v", err)
-		}
-	} else {
-		t.Error("Manager does not implement TelemetryManager interface")
-	}
-
-	// Cleanup
-	_ = mgr.OnStart()
-	_ = mgr.OnStop()
-}
-
-func TestFactory_Build_UnknownDriver(t *testing.T) {
-	f := NewFactory()
-
-	mgr := f.Build("unknown", nil)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	// Should fallback to none driver
-	if mgr.ManagerName() != "none-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'none-telemetry' (fallback)", mgr.ManagerName())
-	}
-}
-
-func TestFactory_Build_EmptyDriver(t *testing.T) {
-	f := NewFactory()
-
-	mgr := f.Build("", nil)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	// Should fallback to none driver
-	if mgr.ManagerName() != "none-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'none-telemetry' (fallback)", mgr.ManagerName())
-	}
-}
-
-func TestFactory_Build_OtelDriverWithInvalidConfigType(t *testing.T) {
-	f := NewFactory()
-
-	otelCfg := map[string]any{
-		"endpoint": 123, // Invalid type
-	}
-	mgr := f.Build("otel", otelCfg)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	// In non-strict mode, invalid types are ignored, so endpoint will be empty
-	// and it should fallback to none driver
-	if mgr.ManagerName() != "none-telemetry" {
-		t.Errorf("Build() manager name = %v, want 'none-telemetry' (fallback)", mgr.ManagerName())
-	}
-}
-
-func TestFactory_Build_Lifecycle(t *testing.T) {
-	f := NewFactory()
-
+// TestBuild 测试 Build 函数
+func TestBuild(t *testing.T) {
 	tests := []struct {
-		name   string
-		driver string
-		cfg    map[string]any
+		name         string
+		driverType   string
+		driverConfig map[string]any
+		wantErr      bool
+		errMsg       string
+		verify       func(*testing.T, TelemetryManager)
 	}{
 		{
-			name:   "none driver",
-			driver: "none",
-			cfg:    nil,
+			name:       "none driver",
+			driverType: "none",
+			wantErr:    false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				if mgr.ManagerName() != "none-telemetry" {
+					t.Errorf("expected manager name 'none-telemetry', got '%s'", mgr.ManagerName())
+				}
+			},
 		},
 		{
-			name:   "otel driver",
-			driver: "otel",
-			cfg: map[string]any{
-				"endpoint": "http://localhost:4317",
-				"traces":   map[string]any{"enabled": false},
+			name:       "none driver with config ignored",
+			driverType: "none",
+			driverConfig: map[string]any{
+				"endpoint": "should-be-ignored",
+			},
+			wantErr: false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				if mgr.ManagerName() != "none-telemetry" {
+					t.Errorf("expected manager name 'none-telemetry', got '%s'", mgr.ManagerName())
+				}
+			},
+		},
+		{
+			name:       "otel driver with minimal valid config",
+			driverType: "otel",
+			driverConfig: map[string]any{
+				"endpoint": "localhost:4317",
+			},
+			wantErr: false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				if mgr.ManagerName() != "otel-telemetry" {
+					t.Errorf("expected manager name 'otel-telemetry', got '%s'", mgr.ManagerName())
+				}
+				// 验证健康检查
+				if err := mgr.Health(); err != nil {
+					t.Errorf("expected healthy manager, got error: %v", err)
+				}
+				// 验证 shutdown
+				ctx := context.Background()
+				if err := mgr.Shutdown(ctx); err != nil {
+					t.Errorf("expected clean shutdown, got error: %v", err)
+				}
+			},
+		},
+		{
+			name:       "otel driver with full config",
+			driverType: "otel",
+			driverConfig: map[string]any{
+				"endpoint": "otel-collector:4317",
+				"insecure": true,
+				"headers": map[string]any{
+					"authorization": "Bearer token",
+				},
+				"resource_attributes": []any{
+					map[string]any{
+						"key":   "service.name",
+						"value": "test-service",
+					},
+				},
+				"traces": map[string]any{
+					"enabled": true,
+				},
+			},
+			wantErr: false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				if mgr.ManagerName() != "otel-telemetry" {
+					t.Errorf("expected manager name 'otel-telemetry', got '%s'", mgr.ManagerName())
+				}
+				// 获取 tracer 验证工作正常
+				tracer := mgr.Tracer("test")
+				if tracer == nil {
+					t.Error("expected non-nil tracer")
+				}
+			},
+		},
+		{
+			name:         "otel driver without endpoint uses default",
+			driverType:   "otel",
+			driverConfig: map[string]any{},
+			wantErr:      false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				// 默认 endpoint 应该被使用
+				if mgr == nil {
+					t.Error("expected non-nil manager")
+				}
+			},
+		},
+		{
+			name:       "otel driver with empty endpoint",
+			driverType: "otel",
+			driverConfig: map[string]any{
+				"endpoint": "",
+			},
+			wantErr: true,
+			errMsg:  "invalid config: otel endpoint is required",
+		},
+		{
+			name:       "unsupported driver type",
+			driverType: "invalid",
+			wantErr:    true,
+			errMsg:     "unsupported driver type",
+		},
+		{
+			name:       "otel driver ignores invalid endpoint type and uses default",
+			driverType: "otel",
+			driverConfig: map[string]any{
+				"endpoint": 123, // 无效类型，会被忽略，使用默认值
+			},
+			wantErr: false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				if mgr == nil {
+					t.Error("expected non-nil manager")
+				}
+			},
+		},
+		{
+			name:       "driver type case insensitive - NONE",
+			driverType: "NONE",
+			wantErr:    false,
+		},
+		{
+			name:       "driver type case insensitive - OTEL",
+			driverType: "OTEL",
+			driverConfig: map[string]any{
+				"endpoint": "localhost:4317",
+			},
+			wantErr: false,
+		},
+		{
+			name:       "driver type with spaces trimmed",
+			driverType: "  otel  ",
+			driverConfig: map[string]any{
+				"endpoint": "localhost:4317",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mgr, err := Build(tt.driverType, tt.driverConfig)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errMsg)
+				}
+				if tt.errMsg != "" && err != nil {
+					if len(err.Error()) < len(tt.errMsg) || err.Error()[:len(tt.errMsg)] != tt.errMsg {
+						t.Errorf("expected error containing '%s', got '%s'", tt.errMsg, err.Error())
+					}
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("expected no error, got %v", err)
+				return
+			}
+
+			if mgr == nil {
+				t.Fatal("expected non-nil manager")
+			}
+
+			if tt.verify != nil {
+				tt.verify(t, mgr)
+			}
+		})
+	}
+}
+
+// TestBuildWithConfigProvider 测试 BuildWithConfigProvider 函数
+func TestBuildWithConfigProvider(t *testing.T) {
+	tests := []struct {
+		name          string
+		configProvider *mockConfigProvider
+		wantErr       bool
+		errMsg        string
+		verify        func(*testing.T, TelemetryManager)
+	}{
+		{
+			name: "none driver from config provider",
+			configProvider: newMockConfigProvider(map[string]any{
+				"telemetry.driver": "none",
+			}),
+			wantErr: false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				if mgr.ManagerName() != "none-telemetry" {
+					t.Errorf("expected manager name 'none-telemetry', got '%s'", mgr.ManagerName())
+				}
+			},
+		},
+		{
+			name: "otel driver from config provider",
+			configProvider: newMockConfigProvider(map[string]any{
+				"telemetry.driver": "otel",
+				"telemetry.otel_config": map[string]any{
+					"endpoint": "otel:4317",
+					"insecure": true,
+				},
+			}),
+			wantErr: false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				if mgr.ManagerName() != "otel-telemetry" {
+					t.Errorf("expected manager name 'otel-telemetry', got '%s'", mgr.ManagerName())
+				}
+			},
+		},
+		{
+			name: "nil config provider",
+			configProvider: nil,
+			wantErr: true,
+			errMsg: "configProvider cannot be nil",
+		},
+		{
+			name: "missing telemetry.driver",
+			configProvider: newMockConfigProvider(map[string]any{}),
+			wantErr: true,
+			errMsg: "failed to get telemetry.driver",
+		},
+		{
+			name: "telemetry.driver is not a string",
+			configProvider: newMockConfigProvider(map[string]any{
+				"telemetry.driver": 123,
+			}),
+			wantErr: true,
+			errMsg: "telemetry.driver must be a string",
+		},
+		{
+			name: "otel driver without otel_config",
+			configProvider: newMockConfigProvider(map[string]any{
+				"telemetry.driver": "otel",
+			}),
+			wantErr: true,
+			errMsg: "failed to get telemetry.otel_config",
+		},
+		{
+			name: "otel_config is not a map",
+			configProvider: newMockConfigProvider(map[string]any{
+				"telemetry.driver":       "otel",
+				"telemetry.otel_config":  "invalid",
+			}),
+			wantErr: true,
+			errMsg: "telemetry.otel_config must be a map",
+		},
+		{
+			name: "unsupported driver type",
+			configProvider: newMockConfigProvider(map[string]any{
+				"telemetry.driver": "invalid",
+			}),
+			wantErr: true,
+			errMsg: "unsupported driver type",
+		},
+		{
+			name: "driver name case insensitive",
+			configProvider: newMockConfigProvider(map[string]any{
+				"telemetry.driver": "OTEL",
+				"telemetry.otel_config": map[string]any{
+					"endpoint": "otel:4317",
+				},
+			}),
+			wantErr: false,
+			verify: func(t *testing.T, mgr TelemetryManager) {
+				if mgr.ManagerName() != "otel-telemetry" {
+					t.Errorf("expected manager name 'otel-telemetry', got '%s'", mgr.ManagerName())
+				}
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr := f.Build(tt.driver, tt.cfg)
+			var provider common.BaseConfigProvider
+			if tt.configProvider == nil {
+				provider = nil // 确保是接口类型的 nil
+			} else {
+				provider = tt.configProvider
+			}
+			mgr, err := BuildWithConfigProvider(provider)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errMsg)
+				}
+				if tt.errMsg != "" && err != nil {
+					if len(err.Error()) < len(tt.errMsg) || err.Error()[:len(tt.errMsg)] != tt.errMsg {
+						t.Errorf("expected error containing '%s', got '%s'", tt.errMsg, err.Error())
+					}
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("expected no error, got %v", err)
+				return
+			}
+
 			if mgr == nil {
-				t.Fatal("Build() returned nil manager")
+				t.Fatal("expected non-nil manager")
 			}
 
-			// Test lifecycle
-			if err := mgr.OnStart(); err != nil {
-				t.Errorf("OnStart() error = %v", err)
-			}
-
-			if err := mgr.Health(); err != nil {
-				t.Errorf("Health() error = %v", err)
-			}
-
-			if err := mgr.OnStop(); err != nil {
-				t.Errorf("OnStop() error = %v", err)
+			if tt.verify != nil {
+				tt.verify(t, mgr)
 			}
 		})
 	}
 }
 
-func TestFactory_Build_ManagerImplementsCommonManager(t *testing.T) {
-	f := NewFactory()
-
-	// Test that all drivers return managers implementing common.BaseManager
-	drivers := []struct {
-		name   string
-		driver string
-		cfg    map[string]any
+// TestBuildWithConfigProvider_GetError 测试配置提供者返回错误的情况
+func TestBuildWithConfigProvider_GetError(t *testing.T) {
+	tests := []struct {
+		name          string
+		getErrorKey   string
+		getError      error
+		expectedError string
 	}{
-		{"none", "none", nil},
-		{"otel", "otel", map[string]any{"endpoint": "http://localhost:4317"}},
+		{
+			name:          "error getting driver",
+			getErrorKey:   "telemetry.driver",
+			getError:      errors.New("connection error"),
+			expectedError: "failed to get telemetry.driver",
+		},
 	}
 
-	for _, d := range drivers {
-		t.Run(d.name, func(t *testing.T) {
-			mgr := f.Build(d.driver, d.cfg)
-			if mgr == nil {
-				t.Fatal("Build() returned nil manager")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := newMockConfigProvider(map[string]any{})
+			provider.getErr[tt.getErrorKey] = tt.getError
+
+			_, err := BuildWithConfigProvider(provider)
+			if err == nil {
+				t.Errorf("expected error, got nil")
 			}
-
-			// Compile-time check that mgr implements common.BaseManager
-			var _ common.BaseManager = mgr
-
-			// Runtime check
-			if _, ok := mgr.(common.BaseManager); !ok {
-				t.Error("Manager does not implement common.BaseManager interface")
+			if len(err.Error()) < len(tt.expectedError) || err.Error()[:len(tt.expectedError)] != tt.expectedError {
+				t.Errorf("expected error containing '%s', got '%s'", tt.expectedError, err.Error())
 			}
 		})
 	}
 }
 
-func TestFactory_Build_ManagerImplementsTelemetryManager(t *testing.T) {
-	f := NewFactory()
+// TestBuild_Integration 测试完整集成场景
+func TestBuild_Integration(t *testing.T) {
+	t.Run("build and shutdown otel manager", func(t *testing.T) {
+		mgr, err := Build("otel", map[string]any{
+			"endpoint": "localhost:4317",
+			"traces": map[string]any{
+				"enabled": false,
+			},
+		})
+		if err != nil {
+			t.Fatalf("failed to build manager: %v", err)
+		}
 
-	// Test that all drivers return managers implementing TelemetryManager
-	drivers := []struct {
-		name   string
-		driver string
-		cfg    map[string]any
+		// 测试生命周期方法
+		if err := mgr.OnStart(); err != nil {
+			t.Errorf("OnStart failed: %v", err)
+		}
+
+		if err := mgr.Health(); err != nil {
+			t.Errorf("Health check failed: %v", err)
+		}
+
+		if err := mgr.OnStop(); err != nil {
+			t.Errorf("OnStop failed: %v", err)
+		}
+	})
+
+	t.Run("multiple shutdown calls should be safe", func(t *testing.T) {
+		mgr, err := Build("otel", map[string]any{
+			"endpoint": "localhost:4317",
+		})
+		if err != nil {
+			t.Fatalf("failed to build manager: %v", err)
+		}
+
+		ctx := context.Background()
+
+		// 第一次 shutdown
+		if err := mgr.Shutdown(ctx); err != nil {
+			t.Errorf("first shutdown failed: %v", err)
+		}
+
+		// 第二次 shutdown 应该也是安全的（使用 sync.Once）
+		if err := mgr.Shutdown(ctx); err != nil {
+			t.Errorf("second shutdown failed: %v", err)
+		}
+	})
+}
+
+// TestBuild_OtelFeatures 测试 OTel 特性配置
+func TestBuild_OtelFeatures(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  map[string]any
+		enabled map[string]bool // traces, metrics, logs
 	}{
-		{"none", "none", nil},
-		{"otel", "otel", map[string]any{"endpoint": "http://localhost:4317"}},
+		{
+			name: "all features enabled",
+			config: map[string]any{
+				"endpoint": "localhost:4317",
+				"traces":   map[string]any{"enabled": true},
+				"metrics":  map[string]any{"enabled": true},
+				"logs":     map[string]any{"enabled": true},
+			},
+			enabled: map[string]bool{"traces": true, "metrics": true, "logs": true},
+		},
+		{
+			name: "all features disabled",
+			config: map[string]any{
+				"endpoint": "localhost:4317",
+				"traces":   map[string]any{"enabled": false},
+				"metrics":  map[string]any{"enabled": false},
+				"logs":     map[string]any{"enabled": false},
+			},
+			enabled: map[string]bool{"traces": false, "metrics": false, "logs": false},
+		},
+		{
+			name: "only traces enabled",
+			config: map[string]any{
+				"endpoint": "localhost:4317",
+				"traces":   map[string]any{"enabled": true},
+			},
+			enabled: map[string]bool{"traces": true, "metrics": false, "logs": false},
+		},
 	}
 
-	for _, d := range drivers {
-		t.Run(d.name, func(t *testing.T) {
-			mgr := f.Build(d.driver, d.cfg)
-			if mgr == nil {
-				t.Fatal("Build() returned nil manager")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mgr, err := Build("otel", tt.config)
+			if err != nil {
+				t.Fatalf("failed to build manager: %v", err)
 			}
+			defer mgr.Shutdown(context.Background())
 
-			// Runtime check
-			if _, ok := mgr.(TelemetryManager); !ok {
-				t.Error("Manager does not implement TelemetryManager interface")
+			// 验证 provider 可以获取（即使特性未启用）
+			if mgr.TracerProvider() == nil {
+				t.Error("expected non-nil TracerProvider")
+			}
+			if mgr.MeterProvider() == nil {
+				t.Error("expected non-nil MeterProvider")
+			}
+			if mgr.LoggerProvider() == nil {
+				t.Error("expected non-nil LoggerProvider")
 			}
 		})
-	}
-}
-
-func TestFactory_Build_TelemetryManagerMethods(t *testing.T) {
-	f := NewFactory()
-
-	otelCfg := map[string]any{
-		"endpoint": "http://localhost:4317",
-		"traces":   map[string]any{"enabled": true},
-	}
-	mgr := f.Build("otel", otelCfg)
-	if mgr == nil {
-		t.Fatal("Build() returned nil manager")
-	}
-	defer mgr.OnStop()
-
-	tm, ok := mgr.(TelemetryManager)
-	if !ok {
-		t.Fatal("Manager does not implement TelemetryManager interface")
-	}
-
-	// Test Tracer method
-	tracer := tm.Tracer("test-service")
-	if tracer == nil {
-		t.Error("Tracer() returned nil")
-	}
-
-	// Test Tracer with span
-	ctx, span := tracer.Start(context.Background(), "test-operation")
-	if ctx == nil {
-		t.Error("Tracer.Start() returned nil context")
-	}
-	if span == nil {
-		t.Error("Tracer.Start() returned nil span")
-	}
-	span.End()
-
-	// Test Shutdown method
-	ctx2 := context.Background()
-	if err := tm.Shutdown(ctx2); err != nil {
-		t.Errorf("Shutdown() error = %v", err)
 	}
 }
