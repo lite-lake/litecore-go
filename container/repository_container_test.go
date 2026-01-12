@@ -1,6 +1,11 @@
 package container
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+
+	"com.litelake.litecore/common"
+)
 
 // TestRepositoryContainer 测试 RepositoryContainer（含依赖注入）
 func TestRepositoryContainer(t *testing.T) {
@@ -11,21 +16,30 @@ func TestRepositoryContainer(t *testing.T) {
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}
-	configContainer.Register(config)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), config)
+	if err != nil {
+		t.Fatalf("Register config failed: %v", err)
+	}
 
 	// 注册管理器
 	manager := &MockManager{name: "db-manager"}
-	managerContainer.Register(manager)
+	err = managerContainer.RegisterByType(reflect.TypeOf((*common.BaseManager)(nil)).Elem(), manager)
+	if err != nil {
+		t.Fatalf("Register manager failed: %v", err)
+	}
 
 	// 注册实体
 	entity := &MockEntity{name: "user-entity", id: "1"}
-	entityContainer.Register(entity)
+	err = entityContainer.Register(entity)
+	if err != nil {
+		t.Fatalf("Register entity failed: %v", err)
+	}
 
 	// 注册存储库（依赖配置、管理器、实体）
 	repo := &MockRepository{name: "user-repo"}
-	err := repositoryContainer.Register(repo)
+	err = repositoryContainer.RegisterByType(reflect.TypeOf((*common.BaseRepository)(nil)).Elem(), repo)
 	if err != nil {
-		t.Fatalf("Register failed: %v", err)
+		t.Fatalf("Register repository failed: %v", err)
 	}
 
 	// 需要先注入 Manager（因为 Repository 依赖 Manager）

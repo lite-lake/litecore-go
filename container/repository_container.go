@@ -158,7 +158,7 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 	}
 
 	baseEntityType := reflect.TypeOf((*common.BaseEntity)(nil)).Elem()
-	if fieldType.Implements(baseEntityType) {
+	if fieldType == baseEntityType || fieldType.Implements(baseEntityType) {
 		items, err := r.container.entityContainer.GetByType(fieldType)
 		if err != nil {
 			return nil, err

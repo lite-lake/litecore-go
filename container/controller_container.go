@@ -134,7 +134,7 @@ type controllerDependencyResolver struct {
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
 	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
-	if fieldType.Implements(baseConfigType) {
+	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
 		impl := r.container.configContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
@@ -146,7 +146,7 @@ func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type)
 	}
 
 	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
-	if fieldType.Implements(baseManagerType) {
+	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
 		impl := r.container.managerContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
@@ -158,7 +158,7 @@ func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type)
 	}
 
 	baseServiceType := reflect.TypeOf((*common.BaseService)(nil)).Elem()
-	if fieldType.Implements(baseServiceType) {
+	if fieldType == baseServiceType || fieldType.Implements(baseServiceType) {
 		impl := r.container.serviceContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{

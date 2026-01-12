@@ -2,7 +2,10 @@ package container
 
 import (
 	"errors"
+	"reflect"
 	"testing"
+
+	"com.litelake.litecore/common"
 )
 
 // TestCircularDependencyDetection 测试循环依赖检测
@@ -13,10 +16,16 @@ func TestCircularDependencyDetection(t *testing.T) {
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}
-	configContainer.Register(config)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), config)
+	if err != nil {
+		t.Fatalf("Register config failed: %v", err)
+	}
 
 	// 注入下层容器
-	managerContainer.InjectAll()
+	err = managerContainer.InjectAll()
+	if err != nil {
+		t.Fatalf("Manager InjectAll failed: %v", err)
+	}
 
 	// 这里需要创建真正有循环依赖的服务
 	// 由于 MockService 无法直接表达同层依赖关系，
@@ -114,7 +123,7 @@ func TestTopologicalSort(t *testing.T) {
 func TestNilRegistration(t *testing.T) {
 	configContainer := NewConfigContainer()
 
-	err := configContainer.Register(nil)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), nil)
 	if err == nil {
 		t.Fatal("Expected error when registering nil")
 	}

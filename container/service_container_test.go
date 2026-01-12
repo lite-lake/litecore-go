@@ -1,58 +1,79 @@
 package container
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+
+	"com.litelake.litecore/common"
+)
 
 // TestServiceContainerWithSameLayerDependency 测试 ServiceContainer 的同层依赖
 func TestServiceContainerWithSameLayerDependency(t *testing.T) {
 	configContainer := NewConfigContainer()
 	managerContainer := NewManagerContainer(configContainer)
-	repositoryContainer := NewRepositoryContainer(configContainer, managerContainer, NewEntityContainer())
+	entityContainer := NewEntityContainer()
+	repositoryContainer := NewRepositoryContainer(configContainer, managerContainer, entityContainer)
 	serviceContainer := NewServiceContainer(configContainer, managerContainer, repositoryContainer)
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}
-	configContainer.Register(config)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), config)
+	if err != nil {
+		t.Fatalf("Register config failed: %v", err)
+	}
 
 	// 注册管理器
 	manager := &MockManager{name: "db-manager"}
-	managerContainer.Register(manager)
+	err = managerContainer.RegisterByType(reflect.TypeOf((*common.BaseManager)(nil)).Elem(), manager)
+	if err != nil {
+		t.Fatalf("Register manager failed: %v", err)
+	}
+
+	// 注册实体
+	entity := &MockEntity{name: "user-entity", id: "1"}
+	err = entityContainer.Register(entity)
+	if err != nil {
+		t.Fatalf("Register entity failed: %v", err)
+	}
 
 	// 注册存储库
 	repo := &MockRepository{name: "user-repo"}
-	repositoryContainer.Register(repo)
+	err = repositoryContainer.RegisterByType(reflect.TypeOf((*common.BaseRepository)(nil)).Elem(), repo)
+	if err != nil {
+		t.Fatalf("Register repository failed: %v", err)
+	}
 
 	// 注入下层容器
-	managerContainer.InjectAll()
-	repositoryContainer.InjectAll()
+	err = managerContainer.InjectAll()
+	if err != nil {
+		t.Fatalf("Manager InjectAll failed: %v", err)
+	}
 
-	// 创建服务：OrderService 无同层依赖，UserService 依赖 OrderService
-	orderService := &MockService{name: "order-service"}
-	userService := &MockService{name: "user-service"}
+	err = repositoryContainer.InjectAll()
+	if err != nil {
+		t.Fatalf("Repository InjectAll failed: %v", err)
+	}
 
-	// 手动设置 UserService 依赖 OrderService（通过反射无法直接设置接口）
-	// 实际场景中，这会通过 inject 标签自动注入
+	// 创建服务
+	service := &MockService{name: "user-service"}
 
-	// 注册服务（顺序不限）
-	serviceContainer.Register(userService)  // 依赖 OrderService
-	serviceContainer.Register(orderService) // 无依赖
+	// 注册服务
+	err = serviceContainer.RegisterByType(reflect.TypeOf((*common.BaseService)(nil)).Elem(), service)
+	if err != nil {
+		t.Fatalf("Register service failed: %v", err)
+	}
 
 	// 注入服务依赖
-	err := serviceContainer.InjectAll()
+	err = serviceContainer.InjectAll()
 	if err != nil {
 		t.Fatalf("InjectAll failed: %v", err)
 	}
 
 	// 验证 Config 和 Repo 已注入到服务
-	if orderService.Config == nil {
-		t.Error("Config was not injected into orderService")
+	if service.Config == nil {
+		t.Error("Config was not injected into service")
 	}
-	if orderService.Repo == nil {
-		t.Error("Repo was not injected into orderService")
-	}
-	if userService.Config == nil {
-		t.Error("Config was not injected into userService")
-	}
-	if userService.Repo == nil {
-		t.Error("Repo was not injected into userService")
+	if service.Repo == nil {
+		t.Error("Repo was not injected into service")
 	}
 }

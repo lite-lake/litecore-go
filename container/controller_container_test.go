@@ -1,35 +1,77 @@
 package container
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+
+	"com.litelake.litecore/common"
+)
 
 // TestControllerContainer 测试 ControllerContainer
 func TestControllerContainer(t *testing.T) {
 	configContainer := NewConfigContainer()
 	managerContainer := NewManagerContainer(configContainer)
-	serviceContainer := NewServiceContainer(configContainer, managerContainer, NewRepositoryContainer(configContainer, managerContainer, NewEntityContainer()))
+	entityContainer := NewEntityContainer()
+	repositoryContainer := NewRepositoryContainer(configContainer, managerContainer, entityContainer)
+	serviceContainer := NewServiceContainer(configContainer, managerContainer, repositoryContainer)
 	controllerContainer := NewControllerContainer(configContainer, managerContainer, serviceContainer)
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}
-	configContainer.Register(config)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), config)
+	if err != nil {
+		t.Fatalf("Register config failed: %v", err)
+	}
 
 	// 注册管理器
 	manager := &MockManager{name: "db-manager"}
-	managerContainer.Register(manager)
+	err = managerContainer.RegisterByType(reflect.TypeOf((*common.BaseManager)(nil)).Elem(), manager)
+	if err != nil {
+		t.Fatalf("Register manager failed: %v", err)
+	}
+
+	// 注册实体
+	entity := &MockEntity{name: "user-entity", id: "1"}
+	err = entityContainer.Register(entity)
+	if err != nil {
+		t.Fatalf("Register entity failed: %v", err)
+	}
+
+	// 注册存储库
+	repo := &MockRepository{name: "user-repo"}
+	err = repositoryContainer.RegisterByType(reflect.TypeOf((*common.BaseRepository)(nil)).Elem(), repo)
+	if err != nil {
+		t.Fatalf("Register repository failed: %v", err)
+	}
 
 	// 注册服务
 	service := &MockService{name: "user-service"}
-	serviceContainer.Register(service)
+	err = serviceContainer.RegisterByType(reflect.TypeOf((*common.BaseService)(nil)).Elem(), service)
+	if err != nil {
+		t.Fatalf("Register service failed: %v", err)
+	}
 
 	// 注入下层容器
-	managerContainer.InjectAll()
-	serviceContainer.InjectAll()
+	err = managerContainer.InjectAll()
+	if err != nil {
+		t.Fatalf("Manager InjectAll failed: %v", err)
+	}
+
+	err = repositoryContainer.InjectAll()
+	if err != nil {
+		t.Fatalf("Repository InjectAll failed: %v", err)
+	}
+
+	err = serviceContainer.InjectAll()
+	if err != nil {
+		t.Fatalf("Service InjectAll failed: %v", err)
+	}
 
 	// 注册控制器
 	controller := &MockController{name: "user-controller"}
-	err := controllerContainer.Register(controller)
+	err = controllerContainer.RegisterByType(reflect.TypeOf((*common.BaseController)(nil)).Elem(), controller)
 	if err != nil {
-		t.Fatalf("Register failed: %v", err)
+		t.Fatalf("Register controller failed: %v", err)
 	}
 
 	// 注入依赖
