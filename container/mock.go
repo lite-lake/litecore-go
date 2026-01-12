@@ -5,6 +5,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// IMockService Mock 服务接口
+type IMockService interface {
+	common.BaseService
+}
+
+// IMockRepository Mock 仓储接口
+type IMockRepository interface {
+	common.BaseRepository
+}
+
+// IMockController Mock 控制器接口
+type IMockController interface {
+	common.BaseController
+}
+
+// IMockMiddleware Mock 中间件接口
+type IMockMiddleware interface {
+	common.BaseMiddleware
+}
+
 // MockConfigProvider Mock 配置提供者
 type MockConfigProvider struct {
 	name string
@@ -82,6 +102,8 @@ func (m *MockRepository) OnStop() error {
 	return nil
 }
 
+var _ IMockRepository = (*MockRepository)(nil)
+
 // MockService Mock 服务
 type MockService struct {
 	name   string
@@ -101,6 +123,8 @@ func (m *MockService) OnStop() error {
 	return nil
 }
 
+var _ IMockService = (*MockService)(nil)
+
 // MockController Mock 控制器
 type MockController struct {
 	name    string
@@ -118,6 +142,8 @@ func (m *MockController) GetRouter() string {
 func (m *MockController) Handle(ctx *gin.Context) {
 	// Mock 实现
 }
+
+var _ IMockController = (*MockController)(nil)
 
 // MockMiddleware Mock 中间件
 type MockMiddleware struct {
@@ -144,3 +170,5 @@ func (m *MockMiddleware) OnStart() error {
 func (m *MockMiddleware) OnStop() error {
 	return nil
 }
+
+var _ IMockMiddleware = (*MockMiddleware)(nil)

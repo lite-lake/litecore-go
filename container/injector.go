@@ -65,38 +65,6 @@ func injectDependencies(instance interface{}, resolver DependencyResolver) error
 	return nil
 }
 
-// typeMatches 检查 itemType 是否匹配 targetType
-// 支持：
-// 1. 精确类型匹配
-// 2. 接口实现检查（targetType 是接口）
-// 3. 指针类型的元素匹配
-func typeMatches(itemType, targetType reflect.Type) bool {
-	// 精确匹配
-	if itemType == targetType {
-		return true
-	}
-
-	// 如果 targetType 是接口类型，检查 item 是否实现该接口
-	if targetType.Kind() == reflect.Interface && itemType.Implements(targetType) {
-		return true
-	}
-
-	// 如果 item 是指针类型，检查其元素类型
-	if itemType.Kind() == reflect.Ptr {
-		elemType := itemType.Elem()
-		// 检查元素类型是否精确匹配
-		if elemType == targetType {
-			return true
-		}
-		// 检查元素类型是否实现接口（如果 targetType 是接口）
-		if targetType.Kind() == reflect.Interface && elemType.Implements(targetType) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // extractNameFromType 从类型名称中提取简单名称
 // 例如：*UserServiceImpl -> UserServiceImpl
 func extractNameFromType(typ reflect.Type) string {

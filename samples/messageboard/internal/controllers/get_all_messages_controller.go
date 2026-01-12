@@ -2,7 +2,6 @@
 package controllers
 
 import (
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 
@@ -11,7 +10,7 @@ import (
 
 // GetAllMessagesController 获取所有留言控制器（管理端）
 type GetAllMessagesController struct {
-	MessageService *services.MessageService `inject:""`
+	MessageService services.IMessageService `inject:""`
 }
 
 // NewGetAllMessagesController 创建控制器实例
@@ -53,4 +52,4 @@ func (c *GetAllMessagesController) Handle(ctx *gin.Context) {
 	ctx.JSON(200, dtos.SuccessWithData(responseList))
 }
 
-var _ common.BaseController = (*GetAllMessagesController)(nil)
+var _ IGetAllMessagesController = (*GetAllMessagesController)(nil)

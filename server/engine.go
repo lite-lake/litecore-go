@@ -283,16 +283,6 @@ func (e *Engine) GetConfig() common.BaseConfigProvider {
 	return configs[0]
 }
 
-// GetManager 获取指定管理器
-func (e *Engine) GetManager(name string) (common.BaseManager, error) {
-	return e.containers.manager.GetByName(name)
-}
-
-// GetService 获取指定服务
-func (e *Engine) GetService(name string) (common.BaseService, error) {
-	return e.containers.service.GetByName(name)
-}
-
 // GetLogger 获取日志记录器
 // 如果有 LoggerManager，返回其默认 logger；否则返回 nil
 func (e *Engine) GetLogger() interface{} {

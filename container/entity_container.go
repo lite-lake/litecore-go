@@ -83,8 +83,26 @@ func (e *EntityContainer) GetByType(typ reflect.Type) ([]common.BaseEntity, erro
 	var result []common.BaseEntity
 	for _, item := range e.items {
 		itemType := reflect.TypeOf(item)
-		if typeMatches(itemType, typ) {
+
+		if itemType == typ {
 			result = append(result, item)
+			continue
+		}
+
+		if typ.Kind() == reflect.Interface && itemType.Implements(typ) {
+			result = append(result, item)
+			continue
+		}
+
+		if itemType.Kind() == reflect.Ptr {
+			elemType := itemType.Elem()
+			if elemType == typ {
+				result = append(result, item)
+				continue
+			}
+			if typ.Kind() == reflect.Interface && elemType.Implements(typ) {
+				result = append(result, item)
+			}
 		}
 	}
 	return result, nil

@@ -2,6 +2,7 @@ package container
 
 import (
 	"reflect"
+	"sort"
 	"sync"
 
 	"com.litelake.litecore/common"
@@ -11,43 +12,61 @@ import (
 // Config 层无依赖，InjectAll 为空操作
 type ConfigContainer struct {
 	mu    sync.RWMutex
-	items map[string]common.BaseConfigProvider
+	items map[reflect.Type]common.BaseConfigProvider
 }
 
 // NewConfigContainer 创建新的配置容器
 func NewConfigContainer() *ConfigContainer {
 	return &ConfigContainer{
-		items: make(map[string]common.BaseConfigProvider),
+		items: make(map[reflect.Type]common.BaseConfigProvider),
 	}
 }
 
-// Register 注册配置提供者实例
-func (c *ConfigContainer) Register(ins common.BaseConfigProvider) error {
-	if ins == nil {
+// RegisterByType 按接口类型注册
+func (c *ConfigContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseConfigProvider) error {
+	implType := reflect.TypeOf(impl)
+
+	if impl == nil {
 		return &DuplicateRegistrationError{Name: "nil"}
 	}
 
-	name := ins.ConfigProviderName()
+	if !implType.Implements(ifaceType) {
+		return &ImplementationDoesNotImplementInterfaceError{
+			InterfaceType:  ifaceType,
+			Implementation: impl,
+		}
+	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if _, exists := c.items[name]; exists {
-		return &DuplicateRegistrationError{
-			Name:     name,
-			Existing: c.items[name],
-			New:      ins,
+	if _, exists := c.items[ifaceType]; exists {
+		return &InterfaceAlreadyRegisteredError{
+			InterfaceType: ifaceType,
+			ExistingImpl:  c.items[ifaceType],
+			NewImpl:       impl,
 		}
 	}
 
-	c.items[name] = ins
+	c.items[ifaceType] = impl
 	return nil
 }
 
 // InjectAll 注入所有依赖
 // Config 层无依赖，此方法为空操作
 func (c *ConfigContainer) InjectAll() error {
-	// Config 层无依赖，无需注入
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	for ifaceType, impl := range c.items {
+		if impl == nil {
+			return &ImplementationDoesNotImplementInterfaceError{
+				InterfaceType:  ifaceType,
+				Implementation: nil,
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -60,34 +79,24 @@ func (c *ConfigContainer) GetAll() []common.BaseConfigProvider {
 	for _, item := range c.items {
 		result = append(result, item)
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].ConfigProviderName() < result[j].ConfigProviderName()
+	})
+
 	return result
 }
 
-// GetByName 根据名称获取配置提供者
-func (c *ConfigContainer) GetByName(name string) (common.BaseConfigProvider, error) {
+// GetByType 按接口类型获取（返回单例）
+func (c *ConfigContainer) GetByType(ifaceType reflect.Type) common.BaseConfigProvider {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if ins, exists := c.items[name]; exists {
-		return ins, nil
+	impl, exists := c.items[ifaceType]
+	if !exists {
+		return nil
 	}
-	return nil, &InstanceNotFoundError{Name: name, Layer: "Config"}
-}
-
-// GetByType 根据类型获取配置提供者
-// 返回所有实现了该类型的配置提供者列表
-func (c *ConfigContainer) GetByType(typ reflect.Type) ([]common.BaseConfigProvider, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	var result []common.BaseConfigProvider
-	for _, item := range c.items {
-		itemType := reflect.TypeOf(item)
-		if typeMatches(itemType, typ) {
-			result = append(result, item)
-		}
-	}
-	return result, nil
+	return impl
 }
 
 // Count 返回已注册的配置提供者数量

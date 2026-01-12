@@ -93,4 +93,4 @@ func (r *MessageRepository) CountByStatus(status string) (int64, error) {
 	return count, err
 }
 
-var _ common.BaseRepository = (*MessageRepository)(nil)
+var _ IMessageRepository = (*MessageRepository)(nil)

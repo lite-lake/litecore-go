@@ -2,7 +2,6 @@
 package middlewares
 
 import (
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 	"strings"
 
@@ -13,7 +12,7 @@ import (
 // 基于 BaseMiddleware 接口实现
 // 只对 /api/admin 路径进行认证检查
 type AuthMiddleware struct {
-	AuthService *services.AuthService `inject:""`
+	AuthService services.IAuthService `inject:""`
 }
 
 // NewAuthMiddleware 创建认证中间件实例
@@ -99,4 +98,4 @@ func (m *AuthMiddleware) OnStop() error {
 	return nil
 }
 
-var _ common.BaseMiddleware = (*AuthMiddleware)(nil)
+var _ IAuthMiddleware = (*AuthMiddleware)(nil)

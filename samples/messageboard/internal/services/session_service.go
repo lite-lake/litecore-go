@@ -22,9 +22,9 @@ type AdminSession struct {
 
 // SessionService 会话管理服务
 type SessionService struct {
-	Config     common.BaseConfigProvider `inject:""`
-	CacheMgr   cachemgr.CacheManager     `inject:""`
-	timeout    time.Duration
+	Config   common.BaseConfigProvider `inject:""`
+	CacheMgr cachemgr.CacheManager     `inject:""`
+	timeout  time.Duration
 }
 
 // NewSessionService 创建会话服务实例
@@ -97,4 +97,4 @@ func (s *SessionService) DeleteSession(token string) error {
 	return s.CacheMgr.Delete(ctx, sessionKey)
 }
 
-var _ common.BaseService = (*SessionService)(nil)
+var _ ISessionService = (*SessionService)(nil)

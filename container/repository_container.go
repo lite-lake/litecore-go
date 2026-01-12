@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 
 	"com.litelake.litecore/common"
@@ -15,7 +16,7 @@ import (
 // 3. 注入 BaseEntity（从 EntityContainer 获取）
 type RepositoryContainer struct {
 	mu               sync.RWMutex
-	items            map[string]common.BaseRepository
+	items            map[reflect.Type]common.BaseRepository
 	configContainer  *ConfigContainer
 	managerContainer *ManagerContainer
 	entityContainer  *EntityContainer
@@ -29,33 +30,40 @@ func NewRepositoryContainer(
 	entity *EntityContainer,
 ) *RepositoryContainer {
 	return &RepositoryContainer{
-		items:            make(map[string]common.BaseRepository),
+		items:            make(map[reflect.Type]common.BaseRepository),
 		configContainer:  config,
 		managerContainer: manager,
 		entityContainer:  entity,
 	}
 }
 
-// Register 注册存储库实例
-func (r *RepositoryContainer) Register(ins common.BaseRepository) error {
-	if ins == nil {
+// RegisterByType 按接口类型注册
+func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseRepository) error {
+	implType := reflect.TypeOf(impl)
+
+	if impl == nil {
 		return &DuplicateRegistrationError{Name: "nil"}
 	}
 
-	name := ins.RepositoryName()
+	if !implType.Implements(ifaceType) {
+		return &ImplementationDoesNotImplementInterfaceError{
+			InterfaceType:  ifaceType,
+			Implementation: impl,
+		}
+	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.items[name]; exists {
-		return &DuplicateRegistrationError{
-			Name:     name,
-			Existing: r.items[name],
-			New:      ins,
+	if _, exists := r.items[ifaceType]; exists {
+		return &InterfaceAlreadyRegisteredError{
+			InterfaceType: ifaceType,
+			ExistingImpl:  r.items[ifaceType],
+			NewImpl:       impl,
 		}
 	}
 
-	r.items[name] = ins
+	r.items[ifaceType] = impl
 	return nil
 }
 
@@ -68,16 +76,13 @@ func (r *RepositoryContainer) InjectAll() error {
 	defer r.mu.Unlock()
 
 	if r.injected {
-		return nil // 已注入，跳过
+		return nil
 	}
 
-	// 按任意顺序注入（Repository 之间无同层依赖）
-	for name, repo := range r.items {
-		resolver := &repositoryDependencyResolver{
-			container: r,
-		}
+	for ifaceType, repo := range r.items {
+		resolver := &repositoryDependencyResolver{container: r}
 		if err := injectDependencies(repo, resolver); err != nil {
-			return fmt.Errorf("inject %s failed: %w", name, err)
+			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
 		}
 	}
 
@@ -94,34 +99,24 @@ func (r *RepositoryContainer) GetAll() []common.BaseRepository {
 	for _, item := range r.items {
 		result = append(result, item)
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].RepositoryName() < result[j].RepositoryName()
+	})
+
 	return result
 }
 
-// GetByName 根据名称获取存储库
-func (r *RepositoryContainer) GetByName(name string) (common.BaseRepository, error) {
+// GetByType 按接口类型获取（返回单例）
+func (r *RepositoryContainer) GetByType(ifaceType reflect.Type) common.BaseRepository {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if ins, exists := r.items[name]; exists {
-		return ins, nil
+	impl, exists := r.items[ifaceType]
+	if !exists {
+		return nil
 	}
-	return nil, &InstanceNotFoundError{Name: name, Layer: "Repository"}
-}
-
-// GetByType 根据类型获取存储库
-// 返回所有实现了该类型的存储库列表
-func (r *RepositoryContainer) GetByType(typ reflect.Type) ([]common.BaseRepository, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var result []common.BaseRepository
-	for _, item := range r.items {
-		itemType := reflect.TypeOf(item)
-		if typeMatches(itemType, typ) {
-			result = append(result, item)
-		}
-	}
-	return result, nil
+	return impl
 }
 
 // Count 返回已注册的存储库数量
@@ -138,59 +133,30 @@ type repositoryDependencyResolver struct {
 
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
-	// 1. 尝试从 ConfigContainer 获取 BaseConfigProvider
 	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
 	if fieldType.Implements(baseConfigType) {
-		items, err := r.container.configContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.configContainer.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Config",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.ConfigProviderName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
-	// 2. 尝试从 ManagerContainer 获取 BaseManager
 	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
 	if fieldType.Implements(baseManagerType) {
-		items, err := r.container.managerContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.managerContainer.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Manager",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.ManagerName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
-	// 3. 尝试从 EntityContainer 获取 BaseEntity
 	baseEntityType := reflect.TypeOf((*common.BaseEntity)(nil)).Elem()
 	if fieldType.Implements(baseEntityType) {
 		items, err := r.container.entityContainer.GetByType(fieldType)
