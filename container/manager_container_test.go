@@ -1,6 +1,11 @@
 package container
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+
+	"com.litelake.litecore/common"
+)
 
 // TestManagerContainer 测试 ManagerContainer（含依赖注入）
 func TestManagerContainer(t *testing.T) {
@@ -9,13 +14,16 @@ func TestManagerContainer(t *testing.T) {
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}
-	configContainer.Register(config)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), config)
+	if err != nil {
+		t.Fatalf("Register config failed: %v", err)
+	}
 
 	// 注册管理器（依赖配置）
 	manager := &MockManager{name: "db-manager"}
-	err := managerContainer.Register(manager)
+	err = managerContainer.RegisterByType(reflect.TypeOf((*common.BaseManager)(nil)).Elem(), manager)
 	if err != nil {
-		t.Fatalf("Register failed: %v", err)
+		t.Fatalf("Register manager failed: %v", err)
 	}
 
 	// 注入依赖

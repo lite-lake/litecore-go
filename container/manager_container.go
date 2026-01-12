@@ -64,19 +64,21 @@ func (m *ManagerContainer) RegisterByType(ifaceType reflect.Type, impl common.Ba
 // 3. 按顺序注入跨层依赖（Config）和同层依赖（Manager）
 func (m *ManagerContainer) InjectAll() error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	if m.injected {
+		m.mu.Unlock()
 		return nil
 	}
 
 	graph, err := m.buildDependencyGraph()
 	if err != nil {
+		m.mu.Unlock()
 		return fmt.Errorf("build dependency graph failed: %w", err)
 	}
 
 	order, err := topologicalSortByInterfaceType(graph)
 	if err != nil {
+		m.mu.Unlock()
 		return fmt.Errorf("topological sort failed: %w", err)
 	}
 
@@ -202,7 +204,7 @@ type managerDependencyResolver struct {
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
 	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
-	if fieldType.Implements(baseConfigType) {
+	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
 		impl := r.container.configContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
@@ -214,7 +216,7 @@ func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 	}
 
 	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
-	if fieldType.Implements(baseManagerType) {
+	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
 		impl := r.container.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{

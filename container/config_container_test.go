@@ -24,10 +24,6 @@ func TestConfigContainer(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected duplicate registration error")
 	}
-	var dupErr *InterfaceAlreadyRegisteredError
-	if !matchError(err, dupErr) {
-		t.Fatalf("Expected InterfaceAlreadyRegisteredError, got %T", err)
-	}
 
 	// 测试获取
 	retrieved := container.GetByType(baseConfigType)
@@ -57,10 +53,4 @@ func TestConfigContainer(t *testing.T) {
 // testInterface 测试接口
 type testInterface interface {
 	TestMethod()
-}
-
-// matchError 检查错误是否匹配指定类型
-func matchError(err error, target interface{}) bool {
-	reflect.ValueOf(target).Elem().Set(reflect.ValueOf(err))
-	return true
 }

@@ -238,7 +238,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 	}
 
 	baseRepositoryType := reflect.TypeOf((*common.BaseRepository)(nil)).Elem()
-	if fieldType.Implements(baseRepositoryType) {
+	if fieldType == baseRepositoryType || fieldType.Implements(baseRepositoryType) {
 		impl := r.container.repositoryContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
@@ -250,7 +250,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 	}
 
 	baseServiceType := reflect.TypeOf((*common.BaseService)(nil)).Elem()
-	if fieldType.Implements(baseServiceType) {
+	if fieldType == baseServiceType || fieldType.Implements(baseServiceType) {
 		impl := r.container.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
