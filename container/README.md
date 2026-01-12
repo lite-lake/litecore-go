@@ -6,9 +6,10 @@
 
 - **分层架构** - 定义 Config/Entity/Manager/Repository/Service/Controller/Middleware 七层容器
 - **单向依赖** - 上层可依赖下层，下层不能依赖上层，禁止跨层访问
-- **依赖注入** - 通过 inject 标签自动注入依赖，支持接口匹配
+- **依赖注入** - 通过 inject 标签自动注入依赖，支持接口类型匹配
 - **同层依赖** - Manager 和 Service 层支持同层依赖，自动拓扑排序确定注入顺序
-- **错误检测** - 自动检测循环依赖、依赖缺失、多重匹配、重复注册等错误
+- **按类型注册** - 使用接口类型作为索引，每个接口类型只能注册一个实现
+- **错误检测** - 自动检测循环依赖、依赖缺失、接口未实现等错误
 - **并发安全** - 容器内部使用 RWMutex 保护，支持多线程并发读取
 
 ## 快速开始
@@ -18,6 +19,8 @@ package main
 
 import (
     "log"
+    "reflect"
+
     "com.litelake.litecore/common"
     "com.litelake.litecore/container"
 )
@@ -31,13 +34,24 @@ func main() {
     serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
     controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
 
-    // 2. 注册实例（可按任意顺序）
-    configContainer.Register(&AppConfig{})
-    managerContainer.Register(&DatabaseManager{})
-    entityContainer.Register(&User{})
-    repositoryContainer.Register(&UserRepositoryImpl{})
-    serviceContainer.Register(&UserServiceImpl{})
-    controllerContainer.Register(&UserControllerImpl{})
+    // 2. 注册实例（按接口类型注册）
+    appConfig := &AppConfig{}
+    configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), appConfig)
+
+    dbManager := &DatabaseManager{}
+    managerContainer.RegisterByType(reflect.TypeOf((*DatabaseManager)(nil)).Elem(), dbManager)
+
+    userEntity := &User{}
+    entityContainer.RegisterByType(reflect.TypeOf((*User)(nil)).Elem(), userEntity)
+
+    userRepo := &UserRepositoryImpl{}
+    repositoryContainer.RegisterByType(reflect.TypeOf((*UserRepository)(nil)).Elem(), userRepo)
+
+    userService := &UserServiceImpl{}
+    serviceContainer.RegisterByType(reflect.TypeOf((*UserService)(nil)).Elem(), userService)
+
+    userController := &UserControllerImpl{}
+    controllerContainer.RegisterByType(reflect.TypeOf((*UserController)(nil)).Elem(), userController)
 
     // 3. 执行依赖注入（按层次从下到上）
     if err := managerContainer.InjectAll(); err != nil {
@@ -54,8 +68,11 @@ func main() {
     }
 
     // 4. 获取实例使用
-    userCtrl, _ := controllerContainer.GetByName("user")
-    userCtrl.Handle()
+    userService, err := serviceContainer.GetByType(reflect.TypeOf((*UserService)(nil)).Elem())
+    if err != nil {
+        log.Fatalf("Get service failed: %v", err)
+    }
+    userService.Handle()
 }
 ```
 
@@ -89,6 +106,43 @@ func main() {
 | Controller | Config, Manager, Service                  |
 | Middleware | Config, Manager, Service                  |
 
+## 注册实例
+
+### 按接口类型注册
+
+容器使用接口类型作为索引，每个接口类型只能注册一个实现：
+
+```go
+// 使用 RegisterByType 注册
+var userService UserService = &UserServiceImpl{}
+serviceContainer.RegisterByType(
+    reflect.TypeOf((*UserService)(nil)).Elem(),
+    userService,
+)
+```
+
+### 注册规则
+
+1. **接口唯一性**：每个接口类型只能注册一个实现
+2. **实现校验**：注册时会检查实现是否真正实现了接口
+3. **并发安全**：RegisterByType 使用写锁，GetByType 使用读锁
+
+```go
+// 错误：重复注册相同接口
+err := serviceContainer.RegisterByType(
+    reflect.TypeOf((*UserService)(nil)).Elem(),
+    &UserServiceImpl{},
+)
+// 第二次注册会返回 InterfaceAlreadyRegisteredError
+
+// 错误：实现未实现接口
+err := serviceContainer.RegisterByType(
+    reflect.TypeOf((*UserService)(nil)).Elem(),
+    &InvalidServiceImpl{}, // 未实现 UserService
+)
+// 会返回 ImplementationDoesNotImplementInterfaceError
+```
+
 ## 依赖注入
 
 ### 声明依赖
@@ -97,10 +151,11 @@ func main() {
 
 ```go
 type UserServiceImpl struct {
-    Config     BaseConfigProvider `inject:""`
-    DBManager  DatabaseManager    `inject:""`
-    UserRepo   UserRepository     `inject:""`
-    OrderSvc   OrderService       `inject:""`  // 同层依赖
+    Config     common.BaseConfigProvider `inject:""`
+    DBManager  DatabaseManager           `inject:""`
+    UserRepo   UserRepository            `inject:""`
+    OrderSvc   OrderService              `inject:""`  // 同层依赖
+    CacheMgr   CacheManager              `inject:"optional"` // 可选依赖
 }
 
 func (s *UserServiceImpl) ServiceName() string {
@@ -117,8 +172,8 @@ func (s *UserServiceImpl) ServiceName() string {
 
 ```go
 type UserServiceImpl struct {
-    Config    BaseConfigProvider `inject:""`
-    CacheMgr  CacheManager       `inject:"optional"` // 可选依赖
+    Config    common.BaseConfigProvider `inject:""`
+    CacheMgr  CacheManager              `inject:"optional"` // 可选依赖
 }
 ```
 
@@ -126,12 +181,12 @@ type UserServiceImpl struct {
 
 容器采用 **注册-注入分离** 的两阶段模式：
 
-**阶段 1：注册阶段 (Register)**
+**阶段 1：注册阶段 (RegisterByType)**
 
-- 仅将实例加入容器的 items map
+- 仅将实例加入容器的 items map（以接口类型为键）
 - 不执行任何依赖注入操作
 - 可按任意顺序注册
-- 注册时检查名称唯一性
+- 注册时检查接口唯一性和实现校验
 
 **阶段 2：注入阶段 (InjectAll)**
 
@@ -165,16 +220,41 @@ type PaymentServiceImpl struct {
 
 ```go
 // 注册顺序不限
-serviceContainer.Register(&UserServiceImpl{})
-serviceContainer.Register(&OrderServiceImpl{})
-serviceContainer.Register(&PaymentServiceImpl{})
+serviceContainer.RegisterByType(reflect.TypeOf((*UserService)(nil)).Elem(), &UserServiceImpl{})
+serviceContainer.RegisterByType(reflect.TypeOf((*OrderService)(nil)).Elem(), &OrderServiceImpl{})
+serviceContainer.RegisterByType(reflect.TypeOf((*PaymentService)(nil)).Elem(), &PaymentServiceImpl{})
 
 // InjectAll 自动处理依赖顺序
 // 内部执行流程：
 // 1. 构建依赖图：UserService → OrderService → PaymentService
 // 2. 拓扑排序：[PaymentService, OrderService, UserService]
 // 3. 按顺序注入：先 PaymentService，再 OrderService，最后 UserService
-serviceContainer.InjectAll()
+err := serviceContainer.InjectAll()
+```
+
+## 获取实例
+
+### 按接口类型获取
+
+```go
+// 使用 GetByType 获取实例
+userService, err := serviceContainer.GetByType(reflect.TypeOf((*UserService)(nil)).Elem())
+if err != nil {
+    log.Fatal(err)
+}
+
+// 使用实例
+userService.Handle()
+```
+
+### 获取所有实例
+
+```go
+// 获取所有 Service
+allServices := serviceContainer.GetAll()
+for _, svc := range allServices {
+    log.Printf("Service: %s", svc.ServiceName())
+}
 ```
 
 ## 错误处理
@@ -184,36 +264,34 @@ serviceContainer.InjectAll()
 ```go
 // 依赖缺失错误
 type DependencyNotFoundError struct {
-    InstanceName   string
-    FieldName      string
-    FieldType      reflect.Type
-    ContainerType  string
+    InstanceName  string       // 当前实例名称
+    FieldName     string       // 缺失依赖的字段名
+    FieldType     reflect.Type // 期望的依赖类型
+    ContainerType string       // 应该从哪个容器查找
 }
 
 // 循环依赖错误
 type CircularDependencyError struct {
-    Cycle []string
+    Cycle []string // 循环依赖链
 }
 
-// 多重匹配错误
-type AmbiguousMatchError struct {
-    InstanceName string
-    FieldName    string
-    FieldType    reflect.Type
-    Candidates   []string
+// 接口已被注册错误
+type InterfaceAlreadyRegisteredError struct {
+    InterfaceType reflect.Type // 接口类型
+    ExistingImpl  interface{}  // 已存在的实现
+    NewImpl       interface{}  // 新的实现
 }
 
-// 重复注册错误
-type DuplicateRegistrationError struct {
-    Name     string
-    Existing interface{}
-    New      interface{}
+// 实现未实现接口错误
+type ImplementationDoesNotImplementInterfaceError struct {
+    InterfaceType  reflect.Type // 接口类型
+    Implementation interface{}  // 实现
 }
 
 // 实例未找到错误
 type InstanceNotFoundError struct {
-    Name  string
-    Layer string
+    Name  string // 实例名称
+    Layer string // 层级名称
 }
 ```
 
@@ -221,17 +299,17 @@ type InstanceNotFoundError struct {
 
 ```go
 if err := serviceContainer.InjectAll(); err != nil {
-    var depErr *container.DependencyNotFoundError
-    if errors.As(err, &depErr) {
-        log.Fatalf("Missing dependency: %v", depErr)
+    switch e := err.(type) {
+    case *container.DependencyNotFoundError:
+        log.Fatalf("Missing dependency: %v.%s needs %v from %s",
+            e.InstanceName, e.FieldName, e.FieldType, e.ContainerType)
+    case *container.CircularDependencyError:
+        log.Fatalf("Circular dependency detected: %s", strings.Join(e.Cycle, " → "))
+    case *container.InterfaceAlreadyRegisteredError:
+        log.Fatalf("Interface %v already registered", e.InterfaceType)
+    default:
+        log.Fatal(err)
     }
-
-    var circErr *container.CircularDependencyError
-    if errors.As(err, &circErr) {
-        log.Fatalf("Circular dependency: %v", circErr)
-    }
-
-    log.Fatal(err)
 }
 ```
 
@@ -241,11 +319,10 @@ if err := serviceContainer.InjectAll(); err != nil {
 
 ```go
 func NewConfigContainer() *ConfigContainer
-func (c *ConfigContainer) Register(ins common.BaseConfigProvider) error
+func (c *ConfigContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseConfigProvider) error
 func (c *ConfigContainer) InjectAll() error
 func (c *ConfigContainer) GetAll() []common.BaseConfigProvider
-func (c *ConfigContainer) GetByName(name string) (common.BaseConfigProvider, error)
-func (c *ConfigContainer) GetByType(typ reflect.Type) ([]common.BaseConfigProvider, error)
+func (c *ConfigContainer) GetByType(typ reflect.Type) (common.BaseConfigProvider, error)
 func (c *ConfigContainer) Count() int
 ```
 
@@ -253,11 +330,10 @@ func (c *ConfigContainer) Count() int
 
 ```go
 func NewManagerContainer(config *ConfigContainer) *ManagerContainer
-func (m *ManagerContainer) Register(ins common.BaseManager) error
+func (m *ManagerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseManager) error
 func (m *ManagerContainer) InjectAll() error
 func (m *ManagerContainer) GetAll() []common.BaseManager
-func (m *ManagerContainer) GetByName(name string) (common.BaseManager, error)
-func (m *ManagerContainer) GetByType(typ reflect.Type) ([]common.BaseManager, error)
+func (m *ManagerContainer) GetByType(typ reflect.Type) (common.BaseManager, error)
 func (m *ManagerContainer) Count() int
 ```
 
@@ -265,11 +341,10 @@ func (m *ManagerContainer) Count() int
 
 ```go
 func NewEntityContainer() *EntityContainer
-func (e *EntityContainer) Register(ins common.BaseEntity) error
+func (e *EntityContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseEntity) error
 func (e *EntityContainer) InjectAll() error
 func (e *EntityContainer) GetAll() []common.BaseEntity
-func (e *EntityContainer) GetByName(name string) (common.BaseEntity, error)
-func (e *EntityContainer) GetByType(typ reflect.Type) ([]common.BaseEntity, error)
+func (e *EntityContainer) GetByType(typ reflect.Type) (common.BaseEntity, error)
 func (e *EntityContainer) Count() int
 ```
 
@@ -281,11 +356,10 @@ func NewRepositoryContainer(
     manager *ManagerContainer,
     entity *EntityContainer,
 ) *RepositoryContainer
-func (r *RepositoryContainer) Register(ins common.BaseRepository) error
+func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseRepository) error
 func (r *RepositoryContainer) InjectAll() error
 func (r *RepositoryContainer) GetAll() []common.BaseRepository
-func (r *RepositoryContainer) GetByName(name string) (common.BaseRepository, error)
-func (r *RepositoryContainer) GetByType(typ reflect.Type) ([]common.BaseRepository, error)
+func (r *RepositoryContainer) GetByType(typ reflect.Type) (common.BaseRepository, error)
 func (r *RepositoryContainer) Count() int
 ```
 
@@ -297,11 +371,10 @@ func NewServiceContainer(
     manager *ManagerContainer,
     repository *RepositoryContainer,
 ) *ServiceContainer
-func (s *ServiceContainer) Register(ins common.BaseService) error
+func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseService) error
 func (s *ServiceContainer) InjectAll() error
 func (s *ServiceContainer) GetAll() []common.BaseService
-func (s *ServiceContainer) GetByName(name string) (common.BaseService, error)
-func (s *ServiceContainer) GetByType(typ reflect.Type) ([]common.BaseService, error)
+func (s *ServiceContainer) GetByType(typ reflect.Type) (common.BaseService, error)
 func (s *ServiceContainer) Count() int
 ```
 
@@ -313,11 +386,10 @@ func NewControllerContainer(
     manager *ManagerContainer,
     service *ServiceContainer,
 ) *ControllerContainer
-func (c *ControllerContainer) Register(ins common.BaseController) error
+func (c *ControllerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseController) error
 func (c *ControllerContainer) InjectAll() error
 func (c *ControllerContainer) GetAll() []common.BaseController
-func (c *ControllerContainer) GetByName(name string) (common.BaseController, error)
-func (c *ControllerContainer) GetByType(typ reflect.Type) ([]common.BaseController, error)
+func (c *ControllerContainer) GetByType(typ reflect.Type) (common.BaseController, error)
 func (c *ControllerContainer) Count() int
 ```
 
@@ -329,11 +401,10 @@ func NewMiddlewareContainer(
     manager *ManagerContainer,
     service *ServiceContainer,
 ) *MiddlewareContainer
-func (m *MiddlewareContainer) Register(ins common.BaseMiddleware) error
+func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseMiddleware) error
 func (m *MiddlewareContainer) InjectAll() error
 func (m *MiddlewareContainer) GetAll() []common.BaseMiddleware
-func (m *MiddlewareContainer) GetByName(name string) (common.BaseMiddleware, error)
-func (m *MiddlewareContainer) GetByType(typ reflect.Type) ([]common.BaseMiddleware, error)
+func (m *MiddlewareContainer) GetByType(typ reflect.Type) (common.BaseMiddleware, error)
 func (m *MiddlewareContainer) Count() int
 ```
 
@@ -374,13 +445,13 @@ type UserServiceImpl struct {
 
 // 避免：依赖过多
 type UserServiceImpl struct {
-    Config     BaseConfigProvider `inject:""`
-    DBManager  DatabaseManager    `inject:""`
-    CacheMgr   CacheManager       `inject:""`
-    UserRepo   UserRepository     `inject:""`
-    OrderRepo  OrderRepository    `inject:""`
-    OrderSvc   OrderService       `inject:""`
-    PaymentSvc PaymentService     `inject:""`
+    Config     common.BaseConfigProvider `inject:""`
+    DBManager  DatabaseManager           `inject:""`
+    CacheMgr   CacheManager              `inject:""`
+    UserRepo   UserRepository            `inject:""`
+    OrderRepo  OrderRepository           `inject:""`
+    OrderSvc   OrderService              `inject:""`
+    PaymentSvc PaymentService            `inject:""`
     // ... 更多依赖
 }
 ```
@@ -391,8 +462,8 @@ type UserServiceImpl struct {
 
 ```go
 type UserServiceImpl struct {
-    Config    BaseConfigProvider `inject:""`
-    CacheMgr  CacheManager       `inject:"optional"` // 可选依赖
+    Config    common.BaseConfigProvider `inject:""`
+    CacheMgr  CacheManager              `inject:"optional"` // 可选依赖
 }
 ```
 
@@ -403,10 +474,11 @@ type UserServiceImpl struct {
 - **写入阶段**：应用启动时单线程顺序注册，无并发写入
 - **读取阶段**：服务运行期间多线程并发读取
 
-Register 使用写锁（Lock），GetByName/GetByType/GetAll 使用读锁（RLock）。
+RegisterByType 使用写锁（Lock），GetByType/GetAll 使用读锁（RLock）。
 
 ## 性能考虑
 
 1. **反射开销**：InjectAll 使用反射解析字段，仅在启动时执行一次，可接受
 2. **拓扑排序复杂度**：O(V + E)，V 为实例数量，E 为依赖边数
 3. **并发读取**：注入完成后使用 RWMutex 保护，读取性能高
+4. **按类型索引**：使用 map[reflect.Type] 作为索引，查找复杂度 O(1)
