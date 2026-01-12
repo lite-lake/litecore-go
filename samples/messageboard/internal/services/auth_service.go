@@ -11,7 +11,7 @@ import (
 // AuthService 认证服务
 type AuthService struct {
 	Config         common.BaseConfigProvider `inject:""`
-	SessionService *SessionService           `inject:""`
+	SessionService ISessionService           `inject:""`
 }
 
 // NewAuthService 创建认证服务实例
@@ -69,4 +69,4 @@ func (s *AuthService) ValidateToken(token string) (*AdminSession, error) {
 	return s.SessionService.ValidateSession(token)
 }
 
-var _ common.BaseService = (*AuthService)(nil)
+var _ IAuthService = (*AuthService)(nil)

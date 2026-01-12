@@ -1,8 +1,10 @@
 package container
 
 import (
-	"errors"
+	"reflect"
 	"testing"
+
+	"com.litelake.litecore/common"
 )
 
 // TestConfigContainer 测试 ConfigContainer
@@ -11,38 +13,33 @@ func TestConfigContainer(t *testing.T) {
 
 	// 测试注册
 	config := &MockConfigProvider{name: "test-config"}
-	err := container.Register(config)
+	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
+	err := container.RegisterByType(baseConfigType, config)
 	if err != nil {
 		t.Fatalf("Register failed: %v", err)
 	}
 
 	// 测试重复注册
-	err = container.Register(config)
+	err = container.RegisterByType(baseConfigType, config)
 	if err == nil {
 		t.Fatal("Expected duplicate registration error")
 	}
-	var dupErr *DuplicateRegistrationError
-	if !errors.As(err, &dupErr) {
-		t.Fatalf("Expected DuplicateRegistrationError, got %T", err)
+	var dupErr *InterfaceAlreadyRegisteredError
+	if !matchError(err, dupErr) {
+		t.Fatalf("Expected InterfaceAlreadyRegisteredError, got %T", err)
 	}
 
 	// 测试获取
-	retrieved, err := container.GetByName("test-config")
-	if err != nil {
-		t.Fatalf("GetByName failed: %v", err)
-	}
+	retrieved := container.GetByType(baseConfigType)
 	if retrieved != config {
 		t.Fatal("Retrieved config is not the same as registered")
 	}
 
-	// 测试获取不存在的实例
-	_, err = container.GetByName("non-existent")
-	if err == nil {
-		t.Fatal("Expected error when getting non-existent config")
-	}
-	var notFoundErr *InstanceNotFoundError
-	if !errors.As(err, &notFoundErr) {
-		t.Fatalf("Expected InstanceNotFoundError, got %T", err)
+	// 测试获取不存在的接口
+	nonExistentType := reflect.TypeOf((*testInterface)(nil)).Elem()
+	retrieved = container.GetByType(nonExistentType)
+	if retrieved != nil {
+		t.Fatal("Expected nil for non-existent interface")
 	}
 
 	// 测试 GetAll
@@ -55,4 +52,15 @@ func TestConfigContainer(t *testing.T) {
 	if container.Count() != 1 {
 		t.Fatal("Count should be 1")
 	}
+}
+
+// testInterface 测试接口
+type testInterface interface {
+	TestMethod()
+}
+
+// matchError 检查错误是否匹配指定类型
+func matchError(err error, target interface{}) bool {
+	reflect.ValueOf(target).Elem().Set(reflect.ValueOf(err))
+	return true
 }

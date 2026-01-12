@@ -13,8 +13,8 @@ import (
 
 // MessageService 留言业务服务
 type MessageService struct {
-	Config     common.BaseConfigProvider  `inject:""`
-	Repository *repositories.MessageRepository `inject:""`
+	Config     common.BaseConfigProvider       `inject:""`
+	Repository repositories.IMessageRepository `inject:""`
 }
 
 // NewMessageService 创建留言服务实例
@@ -150,4 +150,4 @@ func (s *MessageService) GetStatistics() (map[string]int64, error) {
 	}, nil
 }
 
-var _ common.BaseService = (*MessageService)(nil)
+var _ IMessageService = (*MessageService)(nil)

@@ -2,7 +2,6 @@
 package controllers
 
 import (
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 
@@ -11,7 +10,7 @@ import (
 
 // CreateMessageController 创建留言控制器
 type CreateMessageController struct {
-	MessageService *services.MessageService `inject:""`
+	MessageService services.IMessageService `inject:""`
 }
 
 // NewCreateMessageController 创建控制器实例
@@ -51,4 +50,4 @@ func (c *CreateMessageController) Handle(ctx *gin.Context) {
 	}))
 }
 
-var _ common.BaseController = (*CreateMessageController)(nil)
+var _ ICreateMessageController = (*CreateMessageController)(nil)

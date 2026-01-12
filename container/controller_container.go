@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 
 	"com.litelake.litecore/common"
@@ -15,7 +16,7 @@ import (
 // 3. 注入 BaseService（从 ServiceContainer 获取）
 type ControllerContainer struct {
 	mu               sync.RWMutex
-	items            map[string]common.BaseController
+	items            map[reflect.Type]common.BaseController
 	configContainer  *ConfigContainer
 	managerContainer *ManagerContainer
 	serviceContainer *ServiceContainer
@@ -29,33 +30,40 @@ func NewControllerContainer(
 	service *ServiceContainer,
 ) *ControllerContainer {
 	return &ControllerContainer{
-		items:            make(map[string]common.BaseController),
+		items:            make(map[reflect.Type]common.BaseController),
 		configContainer:  config,
 		managerContainer: manager,
 		serviceContainer: service,
 	}
 }
 
-// Register 注册控制器实例
-func (c *ControllerContainer) Register(ins common.BaseController) error {
-	if ins == nil {
+// RegisterByType 按接口类型注册
+func (c *ControllerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseController) error {
+	implType := reflect.TypeOf(impl)
+
+	if impl == nil {
 		return &DuplicateRegistrationError{Name: "nil"}
 	}
 
-	name := ins.ControllerName()
+	if !implType.Implements(ifaceType) {
+		return &ImplementationDoesNotImplementInterfaceError{
+			InterfaceType:  ifaceType,
+			Implementation: impl,
+		}
+	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if _, exists := c.items[name]; exists {
-		return &DuplicateRegistrationError{
-			Name:     name,
-			Existing: c.items[name],
-			New:      ins,
+	if _, exists := c.items[ifaceType]; exists {
+		return &InterfaceAlreadyRegisteredError{
+			InterfaceType: ifaceType,
+			ExistingImpl:  c.items[ifaceType],
+			NewImpl:       impl,
 		}
 	}
 
-	c.items[name] = ins
+	c.items[ifaceType] = impl
 	return nil
 }
 
@@ -68,16 +76,13 @@ func (c *ControllerContainer) InjectAll() error {
 	defer c.mu.Unlock()
 
 	if c.injected {
-		return nil // 已注入，跳过
+		return nil
 	}
 
-	// 按任意顺序注入（Controller 之间无同层依赖）
-	for name, ctrl := range c.items {
-		resolver := &controllerDependencyResolver{
-			container: c,
-		}
+	for ifaceType, ctrl := range c.items {
+		resolver := &controllerDependencyResolver{container: c}
 		if err := injectDependencies(ctrl, resolver); err != nil {
-			return fmt.Errorf("inject %s failed: %w", name, err)
+			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
 		}
 	}
 
@@ -94,34 +99,24 @@ func (c *ControllerContainer) GetAll() []common.BaseController {
 	for _, item := range c.items {
 		result = append(result, item)
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].ControllerName() < result[j].ControllerName()
+	})
+
 	return result
 }
 
-// GetByName 根据名称获取控制器
-func (c *ControllerContainer) GetByName(name string) (common.BaseController, error) {
+// GetByType 按接口类型获取（返回单例）
+func (c *ControllerContainer) GetByType(ifaceType reflect.Type) common.BaseController {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if ins, exists := c.items[name]; exists {
-		return ins, nil
+	impl, exists := c.items[ifaceType]
+	if !exists {
+		return nil
 	}
-	return nil, &InstanceNotFoundError{Name: name, Layer: "Controller"}
-}
-
-// GetByType 根据类型获取控制器
-// 返回所有实现了该类型的控制器列表
-func (c *ControllerContainer) GetByType(typ reflect.Type) ([]common.BaseController, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	var result []common.BaseController
-	for _, item := range c.items {
-		itemType := reflect.TypeOf(item)
-		if typeMatches(itemType, typ) {
-			result = append(result, item)
-		}
-	}
-	return result, nil
+	return impl
 }
 
 // Count 返回已注册的控制器数量
@@ -138,82 +133,40 @@ type controllerDependencyResolver struct {
 
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
-	// 1. 尝试从 ConfigContainer 获取 BaseConfigProvider
 	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
 	if fieldType.Implements(baseConfigType) {
-		items, err := r.container.configContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.configContainer.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Config",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.ConfigProviderName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
-	// 2. 尝试从 ManagerContainer 获取 BaseManager
 	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
 	if fieldType.Implements(baseManagerType) {
-		items, err := r.container.managerContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.managerContainer.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Manager",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.ManagerName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
-	// 3. 尝试从 ServiceContainer 获取 BaseService
 	baseServiceType := reflect.TypeOf((*common.BaseService)(nil)).Elem()
 	if fieldType.Implements(baseServiceType) {
-		items, err := r.container.serviceContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.serviceContainer.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Service",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.ServiceName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
 	return nil, &DependencyNotFoundError{

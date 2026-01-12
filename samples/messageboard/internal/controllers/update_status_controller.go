@@ -2,7 +2,6 @@
 package controllers
 
 import (
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 	"strconv"
@@ -12,7 +11,7 @@ import (
 
 // UpdateStatusController 更新留言状态控制器
 type UpdateStatusController struct {
-	MessageService *services.MessageService `inject:""`
+	MessageService services.IMessageService `inject:""`
 }
 
 // NewUpdateStatusController 创建控制器实例
@@ -56,4 +55,4 @@ func (c *UpdateStatusController) Handle(ctx *gin.Context) {
 	ctx.JSON(200, dtos.SuccessWithMessage("状态更新成功"))
 }
 
-var _ common.BaseController = (*UpdateStatusController)(nil)
+var _ IUpdateStatusController = (*UpdateStatusController)(nil)

@@ -2,7 +2,6 @@
 package controllers
 
 import (
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 
@@ -11,7 +10,7 @@ import (
 
 // GetMessagesController 获取已审核留言列表控制器
 type GetMessagesController struct {
-	MessageService *services.MessageService `inject:""`
+	MessageService services.IMessageService `inject:""`
 }
 
 // NewGetMessagesController 创建控制器实例
@@ -58,4 +57,4 @@ func (c *GetMessagesController) Handle(ctx *gin.Context) {
 	ctx.JSON(200, dtos.SuccessWithData(responseList))
 }
 
-var _ common.BaseController = (*GetMessagesController)(nil)
+var _ IGetMessagesController = (*GetMessagesController)(nil)

@@ -2,7 +2,6 @@
 package controllers
 
 import (
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 
@@ -11,7 +10,7 @@ import (
 
 // AdminLoginController 管理员登录控制器
 type AdminLoginController struct {
-	AuthService *services.AuthService `inject:""`
+	AuthService services.IAuthService `inject:""`
 }
 
 // NewAdminLoginController 创建控制器实例
@@ -51,4 +50,4 @@ func (c *AdminLoginController) Handle(ctx *gin.Context) {
 	}))
 }
 
-var _ common.BaseController = (*AdminLoginController)(nil)
+var _ IAdminLoginController = (*AdminLoginController)(nil)

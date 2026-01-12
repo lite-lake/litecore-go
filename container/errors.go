@@ -65,3 +65,33 @@ type InstanceNotFoundError struct {
 func (e *InstanceNotFoundError) Error() string {
 	return fmt.Sprintf("%s instance not found: '%s'", e.Layer, e.Name)
 }
+
+// InterfaceAlreadyRegisteredError 接口已被注册错误
+type InterfaceAlreadyRegisteredError struct {
+	InterfaceType reflect.Type
+	ExistingImpl  interface{}
+	NewImpl       interface{}
+}
+
+func (e *InterfaceAlreadyRegisteredError) Error() string {
+	return fmt.Sprintf("interface %v already registered with implementation %v", e.InterfaceType, e.ExistingImpl)
+}
+
+// ImplementationDoesNotImplementInterfaceError 实现未实现接口错误
+type ImplementationDoesNotImplementInterfaceError struct {
+	InterfaceType  reflect.Type
+	Implementation interface{}
+}
+
+func (e *ImplementationDoesNotImplementInterfaceError) Error() string {
+	return fmt.Sprintf("implementation %T does not implement interface %v", e.Implementation, e.InterfaceType)
+}
+
+// InterfaceNotRegisteredError 接口未注册错误
+type InterfaceNotRegisteredError struct {
+	InterfaceType reflect.Type
+}
+
+func (e *InterfaceNotRegisteredError) Error() string {
+	return fmt.Sprintf("interface %v not registered", e.InterfaceType)
+}

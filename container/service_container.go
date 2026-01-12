@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 
 	"com.litelake.litecore/common"
@@ -16,7 +17,7 @@ import (
 // 4. 注入其他 BaseService（支持同层依赖，按拓扑顺序注入）
 type ServiceContainer struct {
 	mu                  sync.RWMutex
-	items               map[string]common.BaseService
+	items               map[reflect.Type]common.BaseService
 	configContainer     *ConfigContainer
 	managerContainer    *ManagerContainer
 	repositoryContainer *RepositoryContainer
@@ -30,33 +31,40 @@ func NewServiceContainer(
 	repository *RepositoryContainer,
 ) *ServiceContainer {
 	return &ServiceContainer{
-		items:               make(map[string]common.BaseService),
+		items:               make(map[reflect.Type]common.BaseService),
 		configContainer:     config,
 		managerContainer:    manager,
 		repositoryContainer: repository,
 	}
 }
 
-// Register 注册服务实例
-func (s *ServiceContainer) Register(ins common.BaseService) error {
-	if ins == nil {
+// RegisterByType 按接口类型注册
+func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseService) error {
+	implType := reflect.TypeOf(impl)
+
+	if impl == nil {
 		return &DuplicateRegistrationError{Name: "nil"}
 	}
 
-	name := ins.ServiceName()
+	if !implType.Implements(ifaceType) {
+		return &ImplementationDoesNotImplementInterfaceError{
+			InterfaceType:  ifaceType,
+			Implementation: impl,
+		}
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.items[name]; exists {
-		return &DuplicateRegistrationError{
-			Name:     name,
-			Existing: s.items[name],
-			New:      ins,
+	if _, exists := s.items[ifaceType]; exists {
+		return &InterfaceAlreadyRegisteredError{
+			InterfaceType: ifaceType,
+			ExistingImpl:  s.items[ifaceType],
+			NewImpl:       impl,
 		}
 	}
 
-	s.items[name] = ins
+	s.items[ifaceType] = impl
 	return nil
 }
 
@@ -69,18 +77,16 @@ func (s *ServiceContainer) InjectAll() error {
 
 	if s.injected {
 		s.mu.Unlock()
-		return nil // 已注入，跳过
+		return nil
 	}
 
-	// 1. 构建依赖图
 	graph, err := s.buildDependencyGraph()
 	if err != nil {
 		s.mu.Unlock()
 		return fmt.Errorf("build dependency graph failed: %w", err)
 	}
 
-	// 2. 拓扑排序
-	order, err := topologicalSort(graph)
+	order, err := topologicalSortByInterfaceType(graph)
 	if err != nil {
 		s.mu.Unlock()
 		return fmt.Errorf("topological sort failed: %w", err)
@@ -88,17 +94,14 @@ func (s *ServiceContainer) InjectAll() error {
 
 	s.mu.Unlock()
 
-	// 3. 按顺序注入（在锁外执行，避免死锁）
-	for _, name := range order {
+	for _, ifaceType := range order {
 		s.mu.RLock()
-		svc := s.items[name]
+		svc := s.items[ifaceType]
 		s.mu.RUnlock()
 
-		resolver := &serviceDependencyResolver{
-			container: s,
-		}
+		resolver := &serviceDependencyResolver{container: s}
 		if err := injectDependencies(svc, resolver); err != nil {
-			return fmt.Errorf("inject %s failed: %w", name, err)
+			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
 		}
 	}
 
@@ -109,23 +112,23 @@ func (s *ServiceContainer) InjectAll() error {
 	return nil
 }
 
-// buildDependencyGraph 构建服务之间的依赖图
-func (s *ServiceContainer) buildDependencyGraph() (map[string][]string, error) {
-	graph := make(map[string][]string)
+// buildDependencyGraph 构建服务之间的依赖图（按接口类型）
+func (s *ServiceContainer) buildDependencyGraph() (map[reflect.Type][]reflect.Type, error) {
+	graph := make(map[reflect.Type][]reflect.Type)
 
-	for name, item := range s.items {
+	for ifaceType, item := range s.items {
 		deps, err := s.getSameLayerDependencies(item)
 		if err != nil {
-			return nil, fmt.Errorf("build graph for %s failed: %w", name, err)
+			return nil, fmt.Errorf("build graph for %v failed: %w", ifaceType, err)
 		}
-		graph[name] = deps
+		graph[ifaceType] = deps
 	}
 
 	return graph, nil
 }
 
 // getSameLayerDependencies 获取服务的同层依赖（其他 Service）
-func (s *ServiceContainer) getSameLayerDependencies(instance interface{}) ([]string, error) {
+func (s *ServiceContainer) getSameLayerDependencies(instance interface{}) ([]reflect.Type, error) {
 	val := reflect.ValueOf(instance)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -136,28 +139,25 @@ func (s *ServiceContainer) getSameLayerDependencies(instance interface{}) ([]str
 	}
 
 	typ := val.Type()
-	var deps []string
+	var deps []reflect.Type
 
 	for i := 0; i < val.NumField(); i++ {
 		field := typ.Field(i)
 
-		// 只处理标记了 inject 的字段
 		if field.Tag.Get("inject") == "" {
 			continue
 		}
 
 		fieldType := field.Type
 
-		// 判断是否为 BaseService 类型（同层依赖）
 		if s.isBaseServiceType(fieldType) {
-			// 查找该字段依赖的 Service 实例名称
-			depName, err := s.findDependencyByName(fieldType)
-			if err != nil {
-				return nil, err
+			if _, exists := s.items[fieldType]; !exists {
+				return nil, &DependencyNotFoundError{
+					FieldType:     fieldType,
+					ContainerType: "Service",
+				}
 			}
-			if depName != "" {
-				deps = append(deps, depName)
-			}
+			deps = append(deps, fieldType)
 		}
 	}
 
@@ -170,20 +170,6 @@ func (s *ServiceContainer) isBaseServiceType(typ reflect.Type) bool {
 	return typ.Implements(baseServiceType)
 }
 
-// findDependencyByName 根据类型查找服务实例名称
-func (s *ServiceContainer) findDependencyByName(fieldType reflect.Type) (string, error) {
-	for name, item := range s.items {
-		itemType := reflect.TypeOf(item)
-		if itemType == fieldType {
-			return name, nil
-		}
-		if itemType.Implements(fieldType) {
-			return name, nil
-		}
-	}
-	return "", nil
-}
-
 // GetAll 获取所有已注册的服务
 func (s *ServiceContainer) GetAll() []common.BaseService {
 	s.mu.RLock()
@@ -193,61 +179,24 @@ func (s *ServiceContainer) GetAll() []common.BaseService {
 	for _, item := range s.items {
 		result = append(result, item)
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].ServiceName() < result[j].ServiceName()
+	})
+
 	return result
 }
 
-// GetByName 根据名称获取服务
-func (s *ServiceContainer) GetByName(name string) (common.BaseService, error) {
+// GetByType 按接口类型获取（返回单例）
+func (s *ServiceContainer) GetByType(ifaceType reflect.Type) common.BaseService {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if ins, exists := s.items[name]; exists {
-		return ins, nil
+	impl, exists := s.items[ifaceType]
+	if !exists {
+		return nil
 	}
-	return nil, &InstanceNotFoundError{Name: name, Layer: "Service"}
-}
-
-// GetByType 根据类型获取服务
-// 返回所有实现了该类型的服务列表
-// 支持：
-// 1. 接口类型匹配
-// 2. 具体类型指针匹配（如 *SessionService）
-func (s *ServiceContainer) GetByType(typ reflect.Type) ([]common.BaseService, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var result []common.BaseService
-	for _, item := range s.items {
-		itemType := reflect.TypeOf(item)
-
-		// 标准类型匹配（接口类型）
-		if typeMatches(itemType, typ) {
-			result = append(result, item)
-			continue
-		}
-
-		// 如果存储的是接口值，检查其底层实际值的类型
-		// 这支持匹配具体类型指针，如 *SessionService
-		if itemType.Kind() == reflect.Interface {
-			itemValue := reflect.ValueOf(item)
-			if !itemValue.IsNil() {
-				// 获取接口中存储的实际值的类型
-				actualType := itemValue.Elem().Type()
-				// 尝试匹配实际类型（具体类型）
-				if typeMatches(actualType, typ) {
-					result = append(result, item)
-					continue
-				}
-				// 尝试匹配实际类型的指针类型
-				actualPtrType := reflect.PtrTo(actualType)
-				if typeMatches(actualPtrType, typ) {
-					result = append(result, item)
-					continue
-				}
-			}
-		}
-	}
-	return result, nil
+	return impl
 }
 
 // Count 返回已注册的服务数量
@@ -264,108 +213,52 @@ type serviceDependencyResolver struct {
 
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
-	// 1. 尝试从 ConfigContainer 获取 BaseConfigProvider
 	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
 	if fieldType.Implements(baseConfigType) {
-		items, err := r.container.configContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.configContainer.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Config",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.ConfigProviderName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
-	// 2. 尝试从 ManagerContainer 获取 BaseManager
 	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
 	if fieldType.Implements(baseManagerType) {
-		items, err := r.container.managerContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.managerContainer.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Manager",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.ManagerName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
-	// 3. 尝试从 RepositoryContainer 获取 BaseRepository
 	baseRepositoryType := reflect.TypeOf((*common.BaseRepository)(nil)).Elem()
 	if fieldType.Implements(baseRepositoryType) {
-		items, err := r.container.repositoryContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.repositoryContainer.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Repository",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.RepositoryName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
-	// 4. 尝试从当前 ServiceContainer 获取 BaseService（同层依赖）
 	baseServiceType := reflect.TypeOf((*common.BaseService)(nil)).Elem()
 	if fieldType.Implements(baseServiceType) {
-		items, err := r.container.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
+		impl := r.container.GetByType(fieldType)
+		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Service",
 			}
 		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.ServiceName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+		return impl, nil
 	}
 
 	return nil, &DependencyNotFoundError{

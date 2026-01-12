@@ -2,7 +2,6 @@
 package controllers
 
 import (
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 	"strconv"
@@ -12,7 +11,7 @@ import (
 
 // DeleteMessageController 删除留言控制器
 type DeleteMessageController struct {
-	MessageService *services.MessageService `inject:""`
+	MessageService services.IMessageService `inject:""`
 }
 
 // NewDeleteMessageController 创建控制器实例
@@ -49,4 +48,4 @@ func (c *DeleteMessageController) Handle(ctx *gin.Context) {
 	ctx.JSON(200, dtos.SuccessWithMessage("删除成功"))
 }
 
-var _ common.BaseController = (*DeleteMessageController)(nil)
+var _ IDeleteMessageController = (*DeleteMessageController)(nil)
