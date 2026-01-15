@@ -6,6 +6,7 @@
 //   - 依赖注入：通过 inject 标签自动注入依赖，支持接口类型匹配
 //   - 同层依赖：Manager 和 Service 层支持同层依赖，自动拓扑排序确定注入顺序
 //   - 按类型注册：使用接口类型作为索引，每个接口类型只能注册一个实现
+//   - 泛型 API：使用泛型简化注册代码，避免反射代码
 //   - 错误检测：自动检测循环依赖、依赖缺失、接口未实现等错误
 //   - 并发安全：容器内部使用 RWMutex 保护，支持多线程并发读取
 //
@@ -19,12 +20,12 @@
 //	serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
 //	controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
 //
-//	// 2. 注册实例（按接口类型注册）
-//	var appConfig *AppConfig = &AppConfig{}
-//	configContainer.RegisterByType(reflect.TypeOf((*BaseConfigProvider)(nil)).Elem(), appConfig)
+//	// 2. 注册实例（推荐使用泛型 API）
+//	configProvider := config.NewConfigProvider("yaml", "config.yaml")
+//	container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
 //
-//	var dbManager *DatabaseManager = &DatabaseManager{}
-//	managerContainer.RegisterByType(reflect.TypeOf((*DatabaseManager)(nil)).Elem(), dbManager)
+//	dbManager := databasemgr.NewDatabaseManager()
+//	container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbManager)
 //
 //	// 3. 执行依赖注入（按层次从下到上）
 //	managerContainer.InjectAll()
@@ -33,7 +34,7 @@
 //	controllerContainer.InjectAll()
 //
 //	// 4. 获取实例使用
-//	userService, err := serviceContainer.GetByType(reflect.TypeOf((*UserService)(nil)).Elem())
+//	userService := serviceContainer.GetByType(reflect.TypeOf((*UserService)(nil)).Elem())
 //
 // 依赖声明：
 //
@@ -55,10 +56,11 @@
 //
 // 注册规则：
 //
-//  1. 按接口类型注册：使用 RegisterByType(ifaceType, impl) 注册实例
-//  2. 接口唯一性：每个接口类型只能注册一个实现
-//  3. 实现校验：注册时会检查实现是否真正实现了接口
-//  4. 并发安全：RegisterByType 使用写锁，GetByType 使用读锁
+//  1. 推荐使用泛型 API：RegisterConfig[T](container, impl)、RegisterManager[T](container, impl) 等
+//  2. 底层使用反射：RegisterByType(ifaceType, impl) 也可以使用，但不推荐
+//  3. 接口唯一性：每个接口类型只能注册一个实现
+//  4. 实现校验：注册时会检查实现是否真正实现了接口
+//  5. 并发安全：注册方法使用写锁，获取方法使用读锁
 //
 // 容器层次：
 //

@@ -16,13 +16,13 @@ import (
 // Engine 服务引擎
 type Engine struct {
 	// 容器
-	config     *container.ConfigContainer
-	entity     *container.EntityContainer
-	manager    *container.ManagerContainer
-	repository *container.RepositoryContainer
-	service    *container.ServiceContainer
-	controller *container.ControllerContainer
-	middleware *container.MiddlewareContainer
+	Config     *container.ConfigContainer
+	Entity     *container.EntityContainer
+	Manager    *container.ManagerContainer
+	Repository *container.RepositoryContainer
+	Service    *container.ServiceContainer
+	Controller *container.ControllerContainer
+	Middleware *container.MiddlewareContainer
 
 	// HTTP 服务器
 	httpServer *http.Server
@@ -37,65 +37,34 @@ type Engine struct {
 	cancel  context.CancelFunc
 	started bool
 	mu      sync.RWMutex
-
-	// 初始化错误（用于延迟报告）
-	initErrors []error
 }
 
 // NewEngine 创建服务引擎
-func NewEngine(opts ...EngineOption) (*Engine, error) {
-	// 创建上下文
+func NewEngine(
+	config *container.ConfigContainer,
+	entity *container.EntityContainer,
+	manager *container.ManagerContainer,
+	repository *container.RepositoryContainer,
+	service *container.ServiceContainer,
+	controller *container.ControllerContainer,
+	middleware *container.MiddlewareContainer,
+) *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
+	defaultConfig := DefaultServerConfig()
 
-	// 创建引擎
-	engine := &Engine{
-		serverConfig:    DefaultServerConfig(),
-		shutdownTimeout: DefaultServerConfig().ShutdownTimeout,
+	return &Engine{
+		Config:          config,
+		Entity:          entity,
+		Manager:         manager,
+		Repository:      repository,
+		Service:         service,
+		Controller:      controller,
+		Middleware:      middleware,
+		serverConfig:    defaultConfig,
+		shutdownTimeout: defaultConfig.ShutdownTimeout,
 		ctx:             ctx,
 		cancel:          cancel,
-		initErrors:      make([]error, 0),
 	}
-
-	// 创建容器（两步初始化以避免依赖问题）
-	engine.config = container.NewConfigContainer()
-	engine.entity = container.NewEntityContainer()
-	engine.manager = container.NewManagerContainer(engine.config)
-
-	// 继续初始化其他容器（依赖于已初始化的容器）
-	engine.repository = container.NewRepositoryContainer(
-		engine.config,
-		engine.manager,
-		engine.entity,
-	)
-	engine.service = container.NewServiceContainer(
-		engine.config,
-		engine.manager,
-		engine.repository,
-	)
-	engine.controller = container.NewControllerContainer(
-		engine.config,
-		engine.manager,
-		engine.service,
-	)
-	engine.middleware = container.NewMiddlewareContainer(
-		engine.config,
-		engine.manager,
-		engine.service,
-	)
-
-	// 应用选项
-	for _, opt := range opts {
-		if opt != nil {
-			opt(engine)
-		}
-	}
-
-	// 检查初始化错误
-	if len(engine.initErrors) > 0 {
-		return nil, fmt.Errorf("engine initialization failed: %v", engine.initErrors)
-	}
-
-	return engine, nil
 }
 
 // Initialize 初始化引擎（实现 LiteServer 接口）
@@ -162,32 +131,32 @@ func (e *Engine) autoInject() error {
 	// 按依赖顺序自动注入
 	// 1. Config 层（无依赖）- 已经在 NewEngine 中完成
 	// 2. Entity 层（无依赖）
-	if err := e.entity.InjectAll(); err != nil {
+	if err := e.Entity.InjectAll(); err != nil {
 		return fmt.Errorf("entity inject failed: %w", err)
 	}
 
 	// 3. Manager 层（依赖 Config + 同层）
-	if err := e.manager.InjectAll(); err != nil {
+	if err := e.Manager.InjectAll(); err != nil {
 		return fmt.Errorf("manager inject failed: %w", err)
 	}
 
 	// 4. Repository 层（依赖 Config + Manager + Entity）
-	if err := e.repository.InjectAll(); err != nil {
+	if err := e.Repository.InjectAll(); err != nil {
 		return fmt.Errorf("repository inject failed: %w", err)
 	}
 
 	// 5. Service 层（依赖 Config + Manager + Repository + 同层）
-	if err := e.service.InjectAll(); err != nil {
+	if err := e.Service.InjectAll(); err != nil {
 		return fmt.Errorf("service inject failed: %w", err)
 	}
 
 	// 6. Controller 层（依赖 Config + Manager + Service）
-	if err := e.controller.InjectAll(); err != nil {
+	if err := e.Controller.InjectAll(); err != nil {
 		return fmt.Errorf("controller inject failed: %w", err)
 	}
 
 	// 7. Middleware 层（依赖 Config + Manager + Service）
-	if err := e.middleware.InjectAll(); err != nil {
+	if err := e.Middleware.InjectAll(); err != nil {
 		return fmt.Errorf("middleware inject failed: %w", err)
 	}
 
@@ -265,7 +234,7 @@ func (e *Engine) GetGinEngine() *gin.Engine {
 
 // GetConfig 获取配置
 func (e *Engine) GetConfig() common.BaseConfigProvider {
-	configs := e.config.GetAll()
+	configs := e.Config.GetAll()
 	if len(configs) == 0 {
 		return nil
 	}
@@ -276,7 +245,7 @@ func (e *Engine) GetConfig() common.BaseConfigProvider {
 // 如果有 LoggerManager，返回其默认 logger；否则返回 nil
 func (e *Engine) GetLogger() interface{} {
 	// 尝试获取 LoggerManager
-	mgrs := e.manager.GetAll()
+	mgrs := e.Manager.GetAll()
 	for _, mgr := range mgrs {
 		// 通过类型断言检查是否为 LoggerManager
 		if loggerMgr, ok := mgr.(interface{ Logger(name string) interface{} }); ok {
@@ -288,19 +257,13 @@ func (e *Engine) GetLogger() interface{} {
 
 // Health 健康检查
 func (e *Engine) Health() error {
-	managers := e.manager.GetAll()
+	managers := e.Manager.GetAll()
 	for _, mgr := range managers {
 		if err := mgr.Health(); err != nil {
 			return fmt.Errorf("manager %s health check failed: %w", mgr.ManagerName(), err)
 		}
 	}
 	return nil
-}
-
-// NewEngineWithConfig 使用配置提供者创建引擎
-func NewEngineWithConfig(cfgProvider common.BaseConfigProvider, opts ...EngineOption) (*Engine, error) {
-	allOpts := append([]EngineOption{WithConfig(cfgProvider)}, opts...)
-	return NewEngine(allOpts...)
 }
 
 // SetMode 设置 Gin 运行模式

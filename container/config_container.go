@@ -22,6 +22,12 @@ func NewConfigContainer() *ConfigContainer {
 	}
 }
 
+// RegisterConfig 泛型注册函数，按接口类型注册
+func RegisterConfig[T common.BaseConfigProvider](c *ConfigContainer, impl T) error {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	return c.RegisterByType(ifaceType, impl)
+}
+
 // RegisterByType 按接口类型注册
 func (c *ConfigContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseConfigProvider) error {
 	implType := reflect.TypeOf(impl)

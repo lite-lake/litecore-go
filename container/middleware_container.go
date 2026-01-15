@@ -37,6 +37,12 @@ func NewMiddlewareContainer(
 	}
 }
 
+// RegisterMiddleware 泛型注册函数，按接口类型注册
+func RegisterMiddleware[T common.BaseMiddleware](m *MiddlewareContainer, impl T) error {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	return m.RegisterByType(ifaceType, impl)
+}
+
 // RegisterByType 按接口类型注册
 func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseMiddleware) error {
 	implType := reflect.TypeOf(impl)

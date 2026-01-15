@@ -9,7 +9,7 @@ import (
 
 // startManagers 启动所有管理器
 func (e *Engine) startManagers() error {
-	managers := e.manager.GetAll()
+	managers := e.Manager.GetAll()
 	for _, mgr := range managers {
 		if err := mgr.OnStart(); err != nil {
 			return fmt.Errorf("failed to start manager %s: %w", mgr.ManagerName(), err)
@@ -20,7 +20,7 @@ func (e *Engine) startManagers() error {
 
 // startRepositories 启动所有仓储
 func (e *Engine) startRepositories() error {
-	repositories := e.repository.GetAll()
+	repositories := e.Repository.GetAll()
 	for _, repo := range repositories {
 		if err := repo.OnStart(); err != nil {
 			return fmt.Errorf("failed to start repository %s: %w", repo.RepositoryName(), err)
@@ -31,7 +31,7 @@ func (e *Engine) startRepositories() error {
 
 // startServices 启动所有服务
 func (e *Engine) startServices() error {
-	services := e.service.GetAll()
+	services := e.Service.GetAll()
 	for _, svc := range services {
 		if err := svc.OnStart(); err != nil {
 			return fmt.Errorf("failed to start service %s: %w", svc.ServiceName(), err)
@@ -42,7 +42,7 @@ func (e *Engine) startServices() error {
 
 // stopManagers 停止所有管理器
 func (e *Engine) stopManagers() error {
-	managers := e.manager.GetAll()
+	managers := e.Manager.GetAll()
 	for i := len(managers) - 1; i >= 0; i-- {
 		if err := managers[i].OnStop(); err != nil {
 			fmt.Printf("warning: failed to stop manager %s: %v\n", managers[i].ManagerName(), err)
@@ -53,7 +53,7 @@ func (e *Engine) stopManagers() error {
 
 // stopServices 停止所有服务
 func (e *Engine) stopServices() error {
-	services := e.service.GetAll()
+	services := e.Service.GetAll()
 	for i := len(services) - 1; i >= 0; i-- {
 		if err := services[i].OnStop(); err != nil {
 			fmt.Printf("warning: failed to stop service %s: %v\n", services[i].ServiceName(), err)
@@ -64,7 +64,7 @@ func (e *Engine) stopServices() error {
 
 // stopRepositories 停止所有仓储
 func (e *Engine) stopRepositories() error {
-	repositories := e.repository.GetAll()
+	repositories := e.Repository.GetAll()
 	for i := len(repositories) - 1; i >= 0; i-- {
 		if err := repositories[i].OnStop(); err != nil {
 			fmt.Printf("warning: failed to stop repository %s: %v\n", repositories[i].RepositoryName(), err)
@@ -110,20 +110,20 @@ func (e *Engine) Restart() error {
 
 // GetManagers 获取所有管理器
 func (e *Engine) GetManagers() []common.BaseManager {
-	return e.manager.GetAll()
+	return e.Manager.GetAll()
 }
 
 // GetServices 获取所有服务
 func (e *Engine) GetServices() []common.BaseService {
-	return e.service.GetAll()
+	return e.Service.GetAll()
 }
 
 // GetControllers 获取所有控制器
 func (e *Engine) GetControllers() []common.BaseController {
-	return e.controller.GetAll()
+	return e.Controller.GetAll()
 }
 
 // GetMiddlewares 获取所有中间件
 func (e *Engine) GetMiddlewares() []common.BaseMiddleware {
-	return e.middleware.GetAll()
+	return e.Middleware.GetAll()
 }

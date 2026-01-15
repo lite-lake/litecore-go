@@ -37,6 +37,12 @@ func NewControllerContainer(
 	}
 }
 
+// RegisterController 泛型注册函数，按接口类型注册
+func RegisterController[T common.BaseController](c *ControllerContainer, impl T) error {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	return c.RegisterByType(ifaceType, impl)
+}
+
 // RegisterByType 按接口类型注册
 func (c *ControllerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseController) error {
 	implType := reflect.TypeOf(impl)

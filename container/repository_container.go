@@ -37,6 +37,12 @@ func NewRepositoryContainer(
 	}
 }
 
+// RegisterRepository 泛型注册函数，按接口类型注册
+func RegisterRepository[T common.BaseRepository](r *RepositoryContainer, impl T) error {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	return r.RegisterByType(ifaceType, impl)
+}
+
 // RegisterByType 按接口类型注册
 func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseRepository) error {
 	implType := reflect.TypeOf(impl)

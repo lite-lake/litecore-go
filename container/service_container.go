@@ -38,6 +38,12 @@ func NewServiceContainer(
 	}
 }
 
+// RegisterService 泛型注册函数，按接口类型注册
+func RegisterService[T common.BaseService](s *ServiceContainer, impl T) error {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	return s.RegisterByType(ifaceType, impl)
+}
+
 // RegisterByType 按接口类型注册
 func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseService) error {
 	implType := reflect.TypeOf(impl)

@@ -28,6 +28,12 @@ func NewManagerContainer(config *ConfigContainer) *ManagerContainer {
 	}
 }
 
+// RegisterManager 泛型注册函数，按接口类型注册
+func RegisterManager[T common.BaseManager](m *ManagerContainer, impl T) error {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	return m.RegisterByType(ifaceType, impl)
+}
+
 // RegisterByType 按接口类型注册
 func (m *ManagerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseManager) error {
 	implType := reflect.TypeOf(impl)
