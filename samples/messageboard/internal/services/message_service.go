@@ -11,35 +11,40 @@ import (
 	"com.litelake.litecore/samples/messageboard/internal/repositories"
 )
 
-// MessageService 留言业务服务
-type MessageService struct {
+// IMessageService 留言服务接口
+type IMessageService interface {
+	common.BaseService
+	CreateMessage(nickname, content string) (*entities.Message, error)
+	GetApprovedMessages() ([]*entities.Message, error)
+	GetAllMessages() ([]*entities.Message, error)
+	UpdateMessageStatus(id uint, status string) error
+	DeleteMessage(id uint) error
+	GetStatistics() (map[string]int64, error)
+}
+
+type messageService struct {
 	Config     common.BaseConfigProvider       `inject:""`
 	Repository repositories.IMessageRepository `inject:""`
 }
 
-// NewMessageService 创建留言服务实例
-func NewMessageService() *MessageService {
-	return &MessageService{}
+// NewMessageService 创建留言服务
+func NewMessageService() IMessageService {
+	return &messageService{}
 }
 
-// ServiceName 实现 BaseService 接口
-func (s *MessageService) ServiceName() string {
+func (s *messageService) ServiceName() string {
 	return "MessageService"
 }
 
-// OnStart 实现 BaseService 接口
-func (s *MessageService) OnStart() error {
+func (s *messageService) OnStart() error {
 	return nil
 }
 
-// OnStop 实现 BaseService 接口
-func (s *MessageService) OnStop() error {
+func (s *messageService) OnStop() error {
 	return nil
 }
 
-// CreateMessage 创建留言
-func (s *MessageService) CreateMessage(nickname, content string) (*entities.Message, error) {
-	// 验证输入
+func (s *messageService) CreateMessage(nickname, content string) (*entities.Message, error) {
 	if len(nickname) < 2 || len(nickname) > 20 {
 		return nil, errors.New("昵称长度必须在 2-20 个字符之间")
 	}
@@ -47,16 +52,14 @@ func (s *MessageService) CreateMessage(nickname, content string) (*entities.Mess
 		return nil, errors.New("留言内容长度必须在 5-500 个字符之间")
 	}
 
-	// 创建留言实体
 	message := &entities.Message{
 		Nickname:  nickname,
 		Content:   content,
-		Status:    "pending", // 默认待审核
+		Status:    "pending",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	// 保存到数据库
 	if err := s.Repository.Create(message); err != nil {
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
@@ -64,8 +67,7 @@ func (s *MessageService) CreateMessage(nickname, content string) (*entities.Mess
 	return message, nil
 }
 
-// GetApprovedMessages 获取已审核通过的留言列表
-func (s *MessageService) GetApprovedMessages() ([]*entities.Message, error) {
+func (s *messageService) GetApprovedMessages() ([]*entities.Message, error) {
 	messages, err := s.Repository.GetApprovedMessages()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get approved messages: %w", err)
@@ -73,8 +75,7 @@ func (s *MessageService) GetApprovedMessages() ([]*entities.Message, error) {
 	return messages, nil
 }
 
-// GetAllMessages 获取所有留言（管理端）
-func (s *MessageService) GetAllMessages() ([]*entities.Message, error) {
+func (s *messageService) GetAllMessages() ([]*entities.Message, error) {
 	messages, err := s.Repository.GetAllMessages()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all messages: %w", err)
@@ -82,14 +83,11 @@ func (s *MessageService) GetAllMessages() ([]*entities.Message, error) {
 	return messages, nil
 }
 
-// UpdateMessageStatus 更新留言状态
-func (s *MessageService) UpdateMessageStatus(id uint, status string) error {
-	// 验证状态值
+func (s *messageService) UpdateMessageStatus(id uint, status string) error {
 	if status != "pending" && status != "approved" && status != "rejected" {
 		return errors.New("invalid status value")
 	}
 
-	// 检查留言是否存在
 	message, err := s.Repository.GetByID(id)
 	if err != nil {
 		return fmt.Errorf("message not found: %w", err)
@@ -98,7 +96,6 @@ func (s *MessageService) UpdateMessageStatus(id uint, status string) error {
 		return errors.New("message not found")
 	}
 
-	// 更新状态
 	if err := s.Repository.UpdateStatus(id, status); err != nil {
 		return fmt.Errorf("failed to update message status: %w", err)
 	}
@@ -106,9 +103,7 @@ func (s *MessageService) UpdateMessageStatus(id uint, status string) error {
 	return nil
 }
 
-// DeleteMessage 删除留言
-func (s *MessageService) DeleteMessage(id uint) error {
-	// 检查留言是否存在
+func (s *messageService) DeleteMessage(id uint) error {
 	message, err := s.Repository.GetByID(id)
 	if err != nil {
 		return fmt.Errorf("message not found: %w", err)
@@ -117,7 +112,6 @@ func (s *MessageService) DeleteMessage(id uint) error {
 		return errors.New("message not found")
 	}
 
-	// 删除留言
 	if err := s.Repository.Delete(id); err != nil {
 		return fmt.Errorf("failed to delete message: %w", err)
 	}
@@ -125,8 +119,7 @@ func (s *MessageService) DeleteMessage(id uint) error {
 	return nil
 }
 
-// GetStatistics 获取留言统计信息
-func (s *MessageService) GetStatistics() (map[string]int64, error) {
+func (s *messageService) GetStatistics() (map[string]int64, error) {
 	pendingCount, err := s.Repository.CountByStatus("pending")
 	if err != nil {
 		return nil, err
@@ -150,4 +143,4 @@ func (s *MessageService) GetStatistics() (map[string]int64, error) {
 	}, nil
 }
 
-var _ IMessageService = (*MessageService)(nil)
+var _ IMessageService = (*messageService)(nil)
