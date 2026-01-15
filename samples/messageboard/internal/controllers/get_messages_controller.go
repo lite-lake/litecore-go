@@ -2,42 +2,42 @@
 package controllers
 
 import (
+	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetMessagesController 获取已审核留言列表控制器
+// IGetMessagesController 获取留言控制器接口
+type IGetMessagesController interface {
+	common.BaseController
+}
+
 type GetMessagesController struct {
 	MessageService services.IMessageService `inject:""`
 }
 
 // NewGetMessagesController 创建控制器实例
-func NewGetMessagesController() *GetMessagesController {
+func NewGetMessagesController() IGetMessagesController {
 	return &GetMessagesController{}
 }
 
-// ControllerName 实现 BaseController 接口
 func (c *GetMessagesController) ControllerName() string {
 	return "GetMessagesController"
 }
 
-// GetRouter 实现 BaseController 接口
 func (c *GetMessagesController) GetRouter() string {
 	return "/api/messages [GET]"
 }
 
-// Handle 实现 BaseController 接口
 func (c *GetMessagesController) Handle(ctx *gin.Context) {
-	// 获取已审核通过的留言
 	messages, err := c.MessageService.GetApprovedMessages()
 	if err != nil {
 		ctx.JSON(500, dtos.ErrInternalServer)
 		return
 	}
 
-	// 转换为响应格式
 	responseList := make([]dtos.MessageResponse, 0, len(messages))
 	for _, msg := range messages {
 		responseList = append(responseList, dtos.ToMessageResponse(
@@ -49,7 +49,6 @@ func (c *GetMessagesController) Handle(ctx *gin.Context) {
 		))
 	}
 
-	// 返回响应（用户端不返回 status 字段）
 	for i := range responseList {
 		responseList[i].Status = ""
 	}

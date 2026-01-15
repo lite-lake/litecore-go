@@ -2,6 +2,7 @@
 package controllers
 
 import (
+	"com.litelake.litecore/common"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
 	"com.litelake.litecore/samples/messageboard/internal/services"
 	"strconv"
@@ -9,29 +10,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// DeleteMessageController 删除留言控制器
+// IDeleteMessageController 删除留言控制器接口
+type IDeleteMessageController interface {
+	common.BaseController
+}
+
 type DeleteMessageController struct {
 	MessageService services.IMessageService `inject:""`
 }
 
 // NewDeleteMessageController 创建控制器实例
-func NewDeleteMessageController() *DeleteMessageController {
+func NewDeleteMessageController() IDeleteMessageController {
 	return &DeleteMessageController{}
 }
 
-// ControllerName 实现 BaseController 接口
 func (c *DeleteMessageController) ControllerName() string {
 	return "DeleteMessageController"
 }
 
-// GetRouter 实现 BaseController 接口
 func (c *DeleteMessageController) GetRouter() string {
 	return "/api/admin/messages/:id/delete [POST]"
 }
 
-// Handle 实现 BaseController 接口
 func (c *DeleteMessageController) Handle(ctx *gin.Context) {
-	// 获取留言 ID
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -39,7 +40,6 @@ func (c *DeleteMessageController) Handle(ctx *gin.Context) {
 		return
 	}
 
-	// 删除留言
 	if err := c.MessageService.DeleteMessage(uint(id)); err != nil {
 		ctx.JSON(400, dtos.ErrorResponse(400, err.Error()))
 		return
