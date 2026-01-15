@@ -8,7 +8,7 @@ import (
 
 // registerControllers 注册所有控制器
 func (e *Engine) registerControllers() {
-	controllers := e.controller.GetAll()
+	controllers := e.Controller.GetAll()
 
 	for _, ctrl := range controllers {
 		route, method := parseRouter(ctrl.GetRouter())

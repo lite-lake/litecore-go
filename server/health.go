@@ -31,7 +31,7 @@ func (e *Engine) registerHealthRoute() {
 
 // healthHandler 健康检查处理器
 func (e *Engine) healthHandler(c *gin.Context) {
-	managers := e.manager.GetAll()
+	managers := e.Manager.GetAll()
 	managerStatus := make(map[string]string)
 
 	allHealthy := true
@@ -74,7 +74,7 @@ func (e *Engine) livenessHandler(c *gin.Context) {
 // readinessHandler 就绪检查处理器
 // 用于判断服务是否准备好接收流量
 func (e *Engine) readinessHandler(c *gin.Context) {
-	managers := e.manager.GetAll()
+	managers := e.Manager.GetAll()
 
 	// 检查所有管理器是否就绪
 	allReady := true
@@ -107,7 +107,7 @@ type DetailedHealthResponse struct {
 
 // DetailedHealthHandler 详细健康检查处理器
 func (e *Engine) DetailedHealthHandler(c *gin.Context) {
-	managers := e.manager.GetAll()
+	managers := e.Manager.GetAll()
 	managerStatus := make([]ManagerHealthStatus, 0, len(managers))
 
 	allHealthy := true

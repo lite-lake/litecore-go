@@ -150,9 +150,57 @@ func HashGeneric[T HashAlgorithm](data string, algorithm T) []byte {
 
 ### DI Pattern
 ```go
-type EngineOption func(*Engine)
-func WithPort(port int) EngineOption { return func(e *Engine) { e.serverConfig.Port = port } }
-engine, _ := NewEngine(WithPort(8080))
+// 创建容器
+configContainer := container.NewConfigContainer()
+entityContainer := container.NewEntityContainer()
+managerContainer := container.NewManagerContainer(configContainer)
+repositoryContainer := container.NewRepositoryContainer(configContainer, managerContainer, entityContainer)
+serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
+controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
+middlewareContainer := container.NewMiddlewareContainer(configContainer, managerContainer, serviceContainer)
+
+// 注册配置
+configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
+container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
+
+// 注册管理器
+dbMgr := databasemgr.NewDatabaseManager()
+container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbMgr)
+
+// 注册实体
+entityContainer.Register(&entity.User{})
+
+// 注册仓储
+userRepo := repository.NewUserRepository()
+container.RegisterRepository[repository.IUserRepository](repositoryContainer, userRepo)
+
+// 注册服务
+userService := service.NewUserService()
+container.RegisterService[service.IUserService](serviceContainer, userService)
+
+// 注册控制器
+userController := controller.NewUserController()
+container.RegisterController[controller.IUserController](controllerContainer, userController)
+
+// 注册中间件
+authMiddleware := middleware.NewAuthMiddleware()
+container.RegisterMiddleware[middleware.IAuthMiddleware](middlewareContainer, authMiddleware)
+
+// 创建引擎，传入容器
+engine := server.NewEngine(
+    configContainer,
+    entityContainer,
+    managerContainer,
+    repositoryContainer,
+    serviceContainer,
+    controllerContainer,
+    middlewareContainer,
+)
+
+// 启动引擎
+if err := engine.Run(); err != nil {
+    panic(err)
+}
 ```
 
 ## When Completing Tasks

@@ -21,6 +21,11 @@ func NewEntityContainer() *EntityContainer {
 	}
 }
 
+// RegisterEntity 泛型注册函数，注册实体实例
+func RegisterEntity[T common.BaseEntity](e *EntityContainer, impl T) error {
+	return e.Register(impl)
+}
+
 // Register 注册实体实例
 func (e *EntityContainer) Register(ins common.BaseEntity) error {
 	if ins == nil {
