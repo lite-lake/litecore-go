@@ -30,7 +30,7 @@ func (e *Engine) registerMiddlewares() error {
 	}
 
 	// 4. 注册业务中间件（全局）
-	middlewares := e.containers.middleware.GetAll()
+	middlewares := e.middleware.GetAll()
 
 	// 按顺序排序
 	sortedMiddlewares := sortMiddlewares(middlewares)
@@ -100,7 +100,7 @@ func sortMiddlewares(middlewares []common.BaseMiddleware) []common.BaseMiddlewar
 
 // getTelemetryManager 获取遥测管理器
 func (e *Engine) getTelemetryManager() common.BaseManager {
-	managers := e.containers.manager.GetAll()
+	managers := e.manager.GetAll()
 	for _, mgr := range managers {
 		if mgr.ManagerName() == "TelemetryManager" {
 			return mgr

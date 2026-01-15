@@ -4,13 +4,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-
-	"com.litelake.litecore/common"
 )
 
 // registerControllers 注册所有控制器
 func (e *Engine) registerControllers() {
-	controllers := e.containers.controller.GetAll()
+	controllers := e.controller.GetAll()
 
 	for _, ctrl := range controllers {
 		route, method := parseRouter(ctrl.GetRouter())
@@ -122,28 +120,4 @@ type RouteInfo struct {
 	Method  string
 	Path    string
 	Handler string
-}
-
-// RegisterControllerHandler 注册单个控制器处理器
-func (e *Engine) RegisterControllerHandler(ctrl common.BaseController) {
-	route, method := parseRouter(ctrl.GetRouter())
-
-	switch method {
-	case "GET":
-		e.ginEngine.GET(route, ctrl.Handle)
-	case "POST":
-		e.ginEngine.POST(route, ctrl.Handle)
-	case "PUT":
-		e.ginEngine.PUT(route, ctrl.Handle)
-	case "DELETE":
-		e.ginEngine.DELETE(route, ctrl.Handle)
-	case "PATCH":
-		e.ginEngine.PATCH(route, ctrl.Handle)
-	case "HEAD":
-		e.ginEngine.HEAD(route, ctrl.Handle)
-	case "OPTIONS":
-		e.ginEngine.OPTIONS(route, ctrl.Handle)
-	default:
-		e.ginEngine.GET(route, ctrl.Handle)
-	}
 }
