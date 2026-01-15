@@ -1,6 +1,9 @@
 package server
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
@@ -41,19 +44,5 @@ func DefaultServerConfig() *ServerConfig {
 
 // Address 返回服务器监听地址
 func (c *ServerConfig) Address() string {
-	return c.Host + ":" + toString(c.Port)
-}
-
-func toString(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(buf[i:])
+	return c.Host + ":" + strconv.Itoa(c.Port)
 }

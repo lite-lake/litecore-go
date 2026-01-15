@@ -57,12 +57,12 @@ func (e *Engine) GetMetrics() map[string]interface{} {
 	metrics := make(map[string]interface{})
 
 	// 添加容器统计信息
-	metrics["managers"] = e.containers.manager.Count()
-	metrics["entities"] = e.containers.entity.Count()
-	metrics["repositories"] = e.containers.repository.Count()
-	metrics["services"] = e.containers.service.Count()
-	metrics["controllers"] = e.containers.controller.Count()
-	metrics["middlewares"] = e.containers.middleware.Count()
+	metrics["managers"] = e.manager.Count()
+	metrics["entities"] = e.entity.Count()
+	metrics["repositories"] = e.repository.Count()
+	metrics["services"] = e.service.Count()
+	metrics["controllers"] = e.controller.Count()
+	metrics["middlewares"] = e.middleware.Count()
 
 	return metrics
 }

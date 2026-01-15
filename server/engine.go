@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -16,8 +15,14 @@ import (
 
 // Engine 服务引擎
 type Engine struct {
-	// 容器集合
-	containers *containers
+	// 容器
+	config     *container.ConfigContainer
+	entity     *container.EntityContainer
+	manager    *container.ManagerContainer
+	repository *container.RepositoryContainer
+	service    *container.ServiceContainer
+	controller *container.ControllerContainer
+	middleware *container.MiddlewareContainer
 
 	// HTTP 服务器
 	httpServer *http.Server
@@ -37,17 +42,6 @@ type Engine struct {
 	initErrors []error
 }
 
-// containers 容器集合
-type containers struct {
-	config     *container.ConfigContainer
-	entity     *container.EntityContainer
-	manager    *container.ManagerContainer
-	repository *container.RepositoryContainer
-	service    *container.ServiceContainer
-	controller *container.ControllerContainer
-	middleware *container.MiddlewareContainer
-}
-
 // NewEngine 创建服务引擎
 func NewEngine(opts ...EngineOption) (*Engine, error) {
 	// 创建上下文
@@ -63,35 +57,30 @@ func NewEngine(opts ...EngineOption) (*Engine, error) {
 	}
 
 	// 创建容器（两步初始化以避免依赖问题）
-	configContainer := container.NewConfigContainer()
-	entityContainer := container.NewEntityContainer()
-
-	engine.containers = &containers{
-		config:  configContainer,
-		entity:  entityContainer,
-		manager: container.NewManagerContainer(configContainer),
-	}
+	engine.config = container.NewConfigContainer()
+	engine.entity = container.NewEntityContainer()
+	engine.manager = container.NewManagerContainer(engine.config)
 
 	// 继续初始化其他容器（依赖于已初始化的容器）
-	engine.containers.repository = container.NewRepositoryContainer(
-		engine.containers.config,
-		engine.containers.manager,
-		engine.containers.entity,
+	engine.repository = container.NewRepositoryContainer(
+		engine.config,
+		engine.manager,
+		engine.entity,
 	)
-	engine.containers.service = container.NewServiceContainer(
-		engine.containers.config,
-		engine.containers.manager,
-		engine.containers.repository,
+	engine.service = container.NewServiceContainer(
+		engine.config,
+		engine.manager,
+		engine.repository,
 	)
-	engine.containers.controller = container.NewControllerContainer(
-		engine.containers.config,
-		engine.containers.manager,
-		engine.containers.service,
+	engine.controller = container.NewControllerContainer(
+		engine.config,
+		engine.manager,
+		engine.service,
 	)
-	engine.containers.middleware = container.NewMiddlewareContainer(
-		engine.containers.config,
-		engine.containers.manager,
-		engine.containers.service,
+	engine.middleware = container.NewMiddlewareContainer(
+		engine.config,
+		engine.manager,
+		engine.service,
 	)
 
 	// 应用选项
@@ -173,32 +162,32 @@ func (e *Engine) autoInject() error {
 	// 按依赖顺序自动注入
 	// 1. Config 层（无依赖）- 已经在 NewEngine 中完成
 	// 2. Entity 层（无依赖）
-	if err := e.containers.entity.InjectAll(); err != nil {
+	if err := e.entity.InjectAll(); err != nil {
 		return fmt.Errorf("entity inject failed: %w", err)
 	}
 
 	// 3. Manager 层（依赖 Config + 同层）
-	if err := e.containers.manager.InjectAll(); err != nil {
+	if err := e.manager.InjectAll(); err != nil {
 		return fmt.Errorf("manager inject failed: %w", err)
 	}
 
 	// 4. Repository 层（依赖 Config + Manager + Entity）
-	if err := e.containers.repository.InjectAll(); err != nil {
+	if err := e.repository.InjectAll(); err != nil {
 		return fmt.Errorf("repository inject failed: %w", err)
 	}
 
 	// 5. Service 层（依赖 Config + Manager + Repository + 同层）
-	if err := e.containers.service.InjectAll(); err != nil {
+	if err := e.service.InjectAll(); err != nil {
 		return fmt.Errorf("service inject failed: %w", err)
 	}
 
 	// 6. Controller 层（依赖 Config + Manager + Service）
-	if err := e.containers.controller.InjectAll(); err != nil {
+	if err := e.controller.InjectAll(); err != nil {
 		return fmt.Errorf("controller inject failed: %w", err)
 	}
 
 	// 7. Middleware 层（依赖 Config + Manager + Service）
-	if err := e.containers.middleware.InjectAll(); err != nil {
+	if err := e.middleware.InjectAll(); err != nil {
 		return fmt.Errorf("middleware inject failed: %w", err)
 	}
 
@@ -264,7 +253,7 @@ func (e *Engine) Run() error {
 	}
 
 	// 等待关闭信号
-	e.waitForShutdown()
+	e.WaitForShutdown()
 
 	return nil
 }
@@ -276,7 +265,7 @@ func (e *Engine) GetGinEngine() *gin.Engine {
 
 // GetConfig 获取配置
 func (e *Engine) GetConfig() common.BaseConfigProvider {
-	configs := e.containers.config.GetAll()
+	configs := e.config.GetAll()
 	if len(configs) == 0 {
 		return nil
 	}
@@ -287,7 +276,7 @@ func (e *Engine) GetConfig() common.BaseConfigProvider {
 // 如果有 LoggerManager，返回其默认 logger；否则返回 nil
 func (e *Engine) GetLogger() interface{} {
 	// 尝试获取 LoggerManager
-	mgrs := e.containers.manager.GetAll()
+	mgrs := e.manager.GetAll()
 	for _, mgr := range mgrs {
 		// 通过类型断言检查是否为 LoggerManager
 		if loggerMgr, ok := mgr.(interface{ Logger(name string) interface{} }); ok {
@@ -299,23 +288,13 @@ func (e *Engine) GetLogger() interface{} {
 
 // Health 健康检查
 func (e *Engine) Health() error {
-	managers := e.containers.manager.GetAll()
+	managers := e.manager.GetAll()
 	for _, mgr := range managers {
 		if err := mgr.Health(); err != nil {
 			return fmt.Errorf("manager %s health check failed: %w", mgr.ManagerName(), err)
 		}
 	}
 	return nil
-}
-
-// findListener 查找可用的监听端口
-func (e *Engine) findListener() (net.Listener, error) {
-	addr := e.serverConfig.Address()
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen on %s: %w", addr, err)
-	}
-	return listener, nil
 }
 
 // NewEngineWithConfig 使用配置提供者创建引擎

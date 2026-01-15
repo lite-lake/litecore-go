@@ -35,7 +35,7 @@ func WithConfigFile(path string) EngineOption {
 			return
 		}
 
-		if err := e.containers.config.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), provider); err != nil {
+		if err := e.config.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), provider); err != nil {
 			e.initErrors = append(e.initErrors, fmt.Errorf("failed to register config: %w", err))
 		}
 	}
@@ -44,7 +44,7 @@ func WithConfigFile(path string) EngineOption {
 // WithConfig 直接传入配置对象
 func WithConfig(cfg common.BaseConfigProvider) EngineOption {
 	return func(e *Engine) {
-		if err := e.containers.config.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), cfg); err != nil {
+		if err := e.config.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), cfg); err != nil {
 			e.initErrors = append(e.initErrors, fmt.Errorf("failed to register config: %w", err))
 		}
 	}
@@ -86,7 +86,7 @@ func RegisterManagers(pairs ...*RegisterPair) EngineOption {
 				continue
 			}
 			if baseMgr, ok := pair.impl.(common.BaseManager); ok {
-				if err := e.containers.manager.RegisterByType(pair.ifaceType, baseMgr); err != nil {
+				if err := e.manager.RegisterByType(pair.ifaceType, baseMgr); err != nil {
 					e.initErrors = append(e.initErrors, fmt.Errorf("failed to register manager: %w", err))
 				}
 			} else {
@@ -101,7 +101,7 @@ func RegisterEntities(entities ...interface{}) EngineOption {
 	return func(e *Engine) {
 		for _, ent := range entities {
 			if baseEnt, ok := ent.(common.BaseEntity); ok {
-				if err := e.containers.entity.Register(baseEnt); err != nil {
+				if err := e.entity.Register(baseEnt); err != nil {
 					e.initErrors = append(e.initErrors, fmt.Errorf("failed to register entity: %w", err))
 				}
 			} else {
@@ -119,7 +119,7 @@ func RegisterRepositories(pairs ...*RegisterPair) EngineOption {
 				continue
 			}
 			if baseRepo, ok := pair.impl.(common.BaseRepository); ok {
-				if err := e.containers.repository.RegisterByType(pair.ifaceType, baseRepo); err != nil {
+				if err := e.repository.RegisterByType(pair.ifaceType, baseRepo); err != nil {
 					e.initErrors = append(e.initErrors, fmt.Errorf("failed to register repository: %w", err))
 				}
 			} else {
@@ -137,7 +137,7 @@ func RegisterServices(pairs ...*RegisterPair) EngineOption {
 				continue
 			}
 			if baseSvc, ok := pair.impl.(common.BaseService); ok {
-				if err := e.containers.service.RegisterByType(pair.ifaceType, baseSvc); err != nil {
+				if err := e.service.RegisterByType(pair.ifaceType, baseSvc); err != nil {
 					e.initErrors = append(e.initErrors, fmt.Errorf("failed to register service: %w", err))
 				}
 			} else {
@@ -155,7 +155,7 @@ func RegisterControllers(pairs ...*RegisterPair) EngineOption {
 				continue
 			}
 			if baseCtrl, ok := pair.impl.(common.BaseController); ok {
-				if err := e.containers.controller.RegisterByType(pair.ifaceType, baseCtrl); err != nil {
+				if err := e.controller.RegisterByType(pair.ifaceType, baseCtrl); err != nil {
 					e.initErrors = append(e.initErrors, fmt.Errorf("failed to register controller: %w", err))
 				}
 			} else {
@@ -173,7 +173,7 @@ func RegisterMiddlewares(pairs ...*RegisterPair) EngineOption {
 				continue
 			}
 			if baseMw, ok := pair.impl.(common.BaseMiddleware); ok {
-				if err := e.containers.middleware.RegisterByType(pair.ifaceType, baseMw); err != nil {
+				if err := e.middleware.RegisterByType(pair.ifaceType, baseMw); err != nil {
 					e.initErrors = append(e.initErrors, fmt.Errorf("failed to register middleware: %w", err))
 				}
 			} else {

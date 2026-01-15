@@ -3,9 +3,6 @@ package main
 
 import (
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	messageboardapp "com.litelake.litecore/samples/messageboard/internal/application"
 	"com.litelake.litecore/server"
@@ -39,16 +36,9 @@ func main() {
 		log.Fatalf("Failed to start engine: %v", err)
 	}
 
-	// 等待中断信号
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
+	// 等待关闭信号
+	engine.WaitForShutdown()
 
-	// 优雅关闭
-	if err := engine.Stop(); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
-	}
 	log.Println("Server exited")
 }
 

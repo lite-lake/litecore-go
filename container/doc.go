@@ -55,10 +55,10 @@
 //
 // 注册规则：
 //
-//	1. 按接口类型注册：使用 RegisterByType(ifaceType, impl) 注册实例
-//	2. 接口唯一性：每个接口类型只能注册一个实现
-//	3. 实现校验：注册时会检查实现是否真正实现了接口
-//	4. 并发安全：RegisterByType 使用写锁，GetByType 使用读锁
+//  1. 按接口类型注册：使用 RegisterByType(ifaceType, impl) 注册实例
+//  2. 接口唯一性：每个接口类型只能注册一个实现
+//  3. 实现校验：注册时会检查实现是否真正实现了接口
+//  4. 并发安全：RegisterByType 使用写锁，GetByType 使用读锁
 //
 // 容器层次：
 //
