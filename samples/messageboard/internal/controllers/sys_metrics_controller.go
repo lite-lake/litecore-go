@@ -12,26 +12,26 @@ type ISysMetricsController interface {
 	common.BaseController
 }
 
-type SysMetricsController struct {
+type sysMetricsControllerImpl struct {
 	componentController componentControllers.IMetricsController
 }
 
 func NewSysMetricsController() ISysMetricsController {
-	return &SysMetricsController{
+	return &sysMetricsControllerImpl{
 		componentController: componentControllers.NewMetricsController(),
 	}
 }
 
-func (c *SysMetricsController) ControllerName() string {
-	return "SysMetricsController"
+func (c *sysMetricsControllerImpl) ControllerName() string {
+	return "sysMetricsControllerImpl"
 }
 
-func (c *SysMetricsController) GetRouter() string {
+func (c *sysMetricsControllerImpl) GetRouter() string {
 	return c.componentController.GetRouter()
 }
 
-func (c *SysMetricsController) Handle(ctx *gin.Context) {
+func (c *sysMetricsControllerImpl) Handle(ctx *gin.Context) {
 	c.componentController.Handle(ctx)
 }
 
-var _ common.BaseController = (*SysMetricsController)(nil)
+var _ ISysMetricsController = (*sysMetricsControllerImpl)(nil)

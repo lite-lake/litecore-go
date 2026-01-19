@@ -12,26 +12,26 @@ type IResStaticController interface {
 	common.BaseController
 }
 
-type ResStaticController struct {
+type resStaticControllerImpl struct {
 	componentController *componentControllers.ResourceStaticController
 }
 
 func NewResStaticController() IResStaticController {
-	return &ResStaticController{
+	return &resStaticControllerImpl{
 		componentController: componentControllers.NewResourceStaticController("/static", "./static"),
 	}
 }
 
-func (c *ResStaticController) ControllerName() string {
-	return "ResStaticController"
+func (c *resStaticControllerImpl) ControllerName() string {
+	return "resStaticControllerImpl"
 }
 
-func (c *ResStaticController) GetRouter() string {
+func (c *resStaticControllerImpl) GetRouter() string {
 	return c.componentController.GetRouter()
 }
 
-func (c *ResStaticController) Handle(ctx *gin.Context) {
+func (c *resStaticControllerImpl) Handle(ctx *gin.Context) {
 	c.componentController.Handle(ctx)
 }
 
-var _ IResStaticController = (*ResStaticController)(nil)
+var _ IResStaticController = (*resStaticControllerImpl)(nil)

@@ -9,29 +9,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IMessageAllController 获取所有留言控制器接口
-type IMessageAllController interface {
+// IMsgAllController 获取所有留言控制器接口
+type IMsgAllController interface {
 	common.BaseController
 }
 
-type MessageAllController struct {
+type msgAllControllerImpl struct {
 	MessageService services.IMessageService `inject:""`
 }
 
-// NewMessageAllController 创建控制器实例
-func NewMessageAllController() IMessageAllController {
-	return &MessageAllController{}
+// NewMsgAllController 创建控制器实例
+func NewMsgAllController() IMsgAllController {
+	return &msgAllControllerImpl{}
 }
 
-func (c *MessageAllController) ControllerName() string {
-	return "MessageAllController"
+func (c *msgAllControllerImpl) ControllerName() string {
+	return "msgAllControllerImpl"
 }
 
-func (c *MessageAllController) GetRouter() string {
+func (c *msgAllControllerImpl) GetRouter() string {
 	return "/api/admin/messages [GET]"
 }
 
-func (c *MessageAllController) Handle(ctx *gin.Context) {
+func (c *msgAllControllerImpl) Handle(ctx *gin.Context) {
 	messages, err := c.MessageService.GetAllMessages()
 	if err != nil {
 		ctx.JSON(500, dtos.ErrInternalServer)
@@ -52,4 +52,4 @@ func (c *MessageAllController) Handle(ctx *gin.Context) {
 	ctx.JSON(200, dtos.SuccessWithData(responseList))
 }
 
-var _ IMessageAllController = (*MessageAllController)(nil)
+var _ IMsgAllController = (*msgAllControllerImpl)(nil)

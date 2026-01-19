@@ -12,26 +12,26 @@ type IPageHomeController interface {
 	common.BaseController
 }
 
-type PageHomeController struct {
+type pageHomeControllerImpl struct {
 	HTMLTemplateService services.IHTMLTemplateService `inject:""`
 }
 
 func NewPageHomeController() IPageHomeController {
-	return &PageHomeController{}
+	return &pageHomeControllerImpl{}
 }
 
-func (c *PageHomeController) ControllerName() string {
-	return "PageHomeController"
+func (c *pageHomeControllerImpl) ControllerName() string {
+	return "pageHomeControllerImpl"
 }
 
-func (c *PageHomeController) GetRouter() string {
+func (c *pageHomeControllerImpl) GetRouter() string {
 	return "/ [GET]"
 }
 
-func (c *PageHomeController) Handle(ctx *gin.Context) {
+func (c *pageHomeControllerImpl) Handle(ctx *gin.Context) {
 	c.HTMLTemplateService.Render(ctx, "index.html", gin.H{
 		"title": "留言板",
 	})
 }
 
-var _ IPageHomeController = (*PageHomeController)(nil)
+var _ IPageHomeController = (*pageHomeControllerImpl)(nil)

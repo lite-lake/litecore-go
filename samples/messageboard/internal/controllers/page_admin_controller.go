@@ -12,26 +12,26 @@ type IPageAdminController interface {
 	common.BaseController
 }
 
-type PageAdminController struct {
+type pageAdminControllerImpl struct {
 	HTMLTemplateService services.IHTMLTemplateService `inject:""`
 }
 
 func NewPageAdminController() IPageAdminController {
-	return &PageAdminController{}
+	return &pageAdminControllerImpl{}
 }
 
-func (c *PageAdminController) ControllerName() string {
-	return "PageAdminController"
+func (c *pageAdminControllerImpl) ControllerName() string {
+	return "pageAdminControllerImpl"
 }
 
-func (c *PageAdminController) GetRouter() string {
+func (c *pageAdminControllerImpl) GetRouter() string {
 	return "/admin [GET]"
 }
 
-func (c *PageAdminController) Handle(ctx *gin.Context) {
+func (c *pageAdminControllerImpl) Handle(ctx *gin.Context) {
 	c.HTMLTemplateService.Render(ctx, "admin.html", gin.H{
 		"title": "留言管理",
 	})
 }
 
-var _ IPageAdminController = (*PageAdminController)(nil)
+var _ IPageAdminController = (*pageAdminControllerImpl)(nil)

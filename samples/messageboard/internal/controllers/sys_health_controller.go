@@ -12,26 +12,26 @@ type ISysHealthController interface {
 	common.BaseController
 }
 
-type SysHealthController struct {
+type sysHealthControllerImpl struct {
 	componentController componentControllers.IHealthController
 }
 
 func NewSysHealthController() ISysHealthController {
-	return &SysHealthController{
+	return &sysHealthControllerImpl{
 		componentController: componentControllers.NewHealthController(),
 	}
 }
 
-func (c *SysHealthController) ControllerName() string {
-	return "SysHealthController"
+func (c *sysHealthControllerImpl) ControllerName() string {
+	return "sysHealthControllerImpl"
 }
 
-func (c *SysHealthController) GetRouter() string {
+func (c *sysHealthControllerImpl) GetRouter() string {
 	return c.componentController.GetRouter()
 }
 
-func (c *SysHealthController) Handle(ctx *gin.Context) {
+func (c *sysHealthControllerImpl) Handle(ctx *gin.Context) {
 	c.componentController.Handle(ctx)
 }
 
-var _ common.BaseController = (*SysHealthController)(nil)
+var _ ISysHealthController = (*sysHealthControllerImpl)(nil)
