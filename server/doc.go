@@ -22,30 +22,30 @@
 //
 //	// 注册配置
 //	configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
-//	configContainer.RegisterByType(reflect.TypeOf((*config.BaseConfigProvider)(nil)).Elem(), configProvider)
+//	container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
 //
 //	// 注册管理器
 //	dbMgr := databasemgr.NewDatabaseManager()
-//	managerContainer.RegisterByType(reflect.TypeOf((*databasemgr.DatabaseManager)(nil)).Elem(), dbMgr)
+//	container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbMgr)
 //
 //	// 注册实体
 //	entityContainer.Register(&entity.User{})
 //
 //	// 注册仓储
 //	userRepo := repository.NewUserRepository()
-//	repositoryContainer.RegisterByType(reflect.TypeOf((*repository.IUserRepository)(nil)).Elem(), userRepo)
+//	container.RegisterRepository[repository.IUserRepository](repositoryContainer, userRepo)
 //
 //	// 注册服务
 //	userService := service.NewUserService()
-//	serviceContainer.RegisterByType(reflect.TypeOf((*service.IUserService)(nil)).Elem(), userService)
+//	container.RegisterService[service.IUserService](serviceContainer, userService)
 //
 //	// 注册控制器
 //	userController := controller.NewUserController()
-//	controllerContainer.RegisterByType(reflect.TypeOf((*controller.IUserController)(nil)).Elem(), userController)
+//	container.RegisterController[controller.IUserController](controllerContainer, userController)
 //
 //	// 注册中间件
 //	authMiddleware := middleware.NewAuthMiddleware()
-//	middlewareContainer.RegisterByType(reflect.TypeOf((*middleware.IAuthMiddleware)(nil)).Elem(), authMiddleware)
+//	container.RegisterMiddleware[middleware.IAuthMiddleware](middlewareContainer, authMiddleware)
 //
 //	// 创建引擎，传入容器
 //	engine := server.NewEngine(
@@ -63,27 +63,19 @@
 //	    panic(err)
 //	}
 //
-// # 自定义配置
+// # 服务器配置
 //
-//	serverConfig := &server.ServerConfig{
-//	    Host:            "0.0.0.0",
-//	    Port:            9090,
-//	    Mode:            "debug",
-//	    EnableMetrics:   true,
-//	    EnableHealth:    true,
-//	    EnablePprof:     true,
-//	    ShutdownTimeout: 60 * time.Second,
-//	}
-//	engine := server.NewEngineWithConfig(
-//	    serverConfig,
-//	    configContainer,
-//	    entityContainer,
-//	    managerContainer,
-//	    repositoryContainer,
-//	    serviceContainer,
-//	    controllerContainer,
-//	    middlewareContainer,
-//	)
+// Engine 使用内部默认配置 DefaultServerConfig，支持以下配置项：
+//
+//	Host/Port           - HTTP 监听地址和端口
+//	Mode                - Gin 运行模式（debug/release/test）
+//	EnableMetrics       - 是否启用 Prometheus 指标
+//	EnableHealth        - 是否启用健康检查端点
+//	EnablePprof         - 是否启用 pprof 性能分析
+//	ReadTimeout         - HTTP 读取超时
+//	WriteTimeout        - HTTP 写入超时
+//	IdleTimeout         - HTTP 空闲超时
+//	ShutdownTimeout     - 优雅关闭超时
 //
 // # 自定义路由扩展
 //

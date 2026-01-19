@@ -9,6 +9,7 @@
 - **依赖注入** - 通过 inject 标签自动注入依赖，支持接口类型匹配
 - **同层依赖** - Manager 和 Service 层支持同层依赖，自动拓扑排序确定注入顺序
 - **按类型注册** - 使用接口类型作为索引，每个接口类型只能注册一个实现
+- **泛型 API** - 提供泛型辅助函数简化注册代码，避免手动反射操作
 - **错误检测** - 自动检测循环依赖、依赖缺失、接口未实现等错误
 - **并发安全** - 容器内部使用 RWMutex 保护，支持多线程并发读取
 
@@ -22,7 +23,9 @@ import (
     "reflect"
 
     "com.litelake.litecore/common"
+    "com.litelake.litecore/config"
     "com.litelake.litecore/container"
+    "com.litelake.litecore/manager/databasemgr"
 )
 
 func main() {
@@ -34,24 +37,24 @@ func main() {
     serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
     controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
 
-    // 2. 注册实例（按接口类型注册）
-    appConfig := &AppConfig{}
-    configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), appConfig)
+    // 2. 注册实例（推荐使用泛型 API）
+    configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
+    container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
 
-    dbManager := &DatabaseManager{}
-    managerContainer.RegisterByType(reflect.TypeOf((*DatabaseManager)(nil)).Elem(), dbManager)
+    dbManager := databasemgr.NewDatabaseManager()
+    container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbManager)
 
     userEntity := &User{}
-    entityContainer.RegisterByType(reflect.TypeOf((*User)(nil)).Elem(), userEntity)
+    container.RegisterEntity[User](entityContainer, userEntity)
 
     userRepo := &UserRepositoryImpl{}
-    repositoryContainer.RegisterByType(reflect.TypeOf((*UserRepository)(nil)).Elem(), userRepo)
+    container.RegisterRepository[UserRepository](repositoryContainer, userRepo)
 
     userService := &UserServiceImpl{}
-    serviceContainer.RegisterByType(reflect.TypeOf((*UserService)(nil)).Elem(), userService)
+    container.RegisterService[UserService](serviceContainer, userService)
 
     userController := &UserControllerImpl{}
-    controllerContainer.RegisterByType(reflect.TypeOf((*UserController)(nil)).Elem(), userController)
+    container.RegisterController[UserController](controllerContainer, userController)
 
     // 3. 执行依赖注入（按层次从下到上）
     if err := managerContainer.InjectAll(); err != nil {
@@ -108,12 +111,46 @@ func main() {
 
 ## 注册实例
 
-### 按接口类型注册
+### 泛型 API 注册（推荐）
 
-容器使用接口类型作为索引，每个接口类型只能注册一个实现：
+使用泛型辅助函数注册，类型安全且代码简洁：
 
 ```go
-// 使用 RegisterByType 注册
+// Config 层
+configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
+container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
+
+// Manager 层
+dbManager := databasemgr.NewDatabaseManager()
+container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbManager)
+
+// Entity 层
+userEntity := &User{}
+container.RegisterEntity[User](entityContainer, userEntity)
+
+// Repository 层
+userRepo := &UserRepositoryImpl{}
+container.RegisterRepository[UserRepository](repositoryContainer, userRepo)
+
+// Service 层
+userService := &UserServiceImpl{}
+container.RegisterService[UserService](serviceContainer, userService)
+
+// Controller 层
+userController := &UserControllerImpl{}
+container.RegisterController[UserController](controllerContainer, userController)
+
+// Middleware 层
+authMiddleware := &AuthMiddlewareImpl{}
+container.RegisterMiddleware[AuthMiddleware](middlewareContainer, authMiddleware)
+```
+
+### 反射 API 注册（不推荐）
+
+也可以使用底层反射 API，但不推荐，代码更冗长且容易出错：
+
+```go
+// 使用 RegisterByType 注册（不推荐）
 var userService UserService = &UserServiceImpl{}
 serviceContainer.RegisterByType(
     reflect.TypeOf((*UserService)(nil)).Elem(),
@@ -123,23 +160,18 @@ serviceContainer.RegisterByType(
 
 ### 注册规则
 
-1. **接口唯一性**：每个接口类型只能注册一个实现
-2. **实现校验**：注册时会检查实现是否真正实现了接口
-3. **并发安全**：RegisterByType 使用写锁，GetByType 使用读锁
+1. **推荐使用泛型 API**：`RegisterConfig[T]`、`RegisterManager[T]` 等，类型安全且简洁
+2. **接口唯一性**：每个接口类型只能注册一个实现
+3. **实现校验**：注册时会检查实现是否真正实现了接口
+4. **并发安全**：注册方法使用写锁，获取方法使用读锁
 
 ```go
 // 错误：重复注册相同接口
-err := serviceContainer.RegisterByType(
-    reflect.TypeOf((*UserService)(nil)).Elem(),
-    &UserServiceImpl{},
-)
+err := container.RegisterService[UserService](serviceContainer, &UserServiceImpl{})
 // 第二次注册会返回 InterfaceAlreadyRegisteredError
 
 // 错误：实现未实现接口
-err := serviceContainer.RegisterByType(
-    reflect.TypeOf((*UserService)(nil)).Elem(),
-    &InvalidServiceImpl{}, // 未实现 UserService
-)
+err := container.RegisterService[UserService](serviceContainer, &InvalidServiceImpl{})
 // 会返回 ImplementationDoesNotImplementInterfaceError
 ```
 
@@ -220,9 +252,9 @@ type PaymentServiceImpl struct {
 
 ```go
 // 注册顺序不限
-serviceContainer.RegisterByType(reflect.TypeOf((*UserService)(nil)).Elem(), &UserServiceImpl{})
-serviceContainer.RegisterByType(reflect.TypeOf((*OrderService)(nil)).Elem(), &OrderServiceImpl{})
-serviceContainer.RegisterByType(reflect.TypeOf((*PaymentService)(nil)).Elem(), &PaymentServiceImpl{})
+container.RegisterService[UserService](serviceContainer, &UserServiceImpl{})
+container.RegisterService[OrderService](serviceContainer, &OrderServiceImpl{})
+container.RegisterService[PaymentService](serviceContainer, &PaymentServiceImpl{})
 
 // InjectAll 自动处理依赖顺序
 // 内部执行流程：
@@ -314,6 +346,31 @@ if err := serviceContainer.InjectAll(); err != nil {
 ```
 
 ## API
+
+### 泛型辅助函数（推荐）
+
+```go
+// Config 层
+func RegisterConfig[T common.BaseConfigProvider](c *ConfigContainer, impl T) error
+
+// Manager 层
+func RegisterManager[T common.BaseManager](m *ManagerContainer, impl T) error
+
+// Entity 层
+func RegisterEntity[T common.BaseEntity](e *EntityContainer, impl T) error
+
+// Repository 层
+func RegisterRepository[T common.BaseRepository](r *RepositoryContainer, impl T) error
+
+// Service 层
+func RegisterService[T common.BaseService](s *ServiceContainer, impl T) error
+
+// Controller 层
+func RegisterController[T common.BaseController](c *ControllerContainer, impl T) error
+
+// Middleware 层
+func RegisterMiddleware[T common.BaseMiddleware](m *MiddlewareContainer, impl T) error
+```
 
 ### ConfigContainer
 
@@ -478,7 +535,7 @@ RegisterByType 使用写锁（Lock），GetByType/GetAll 使用读锁（RLock）
 
 ## 性能考虑
 
-1. **反射开销**：InjectAll 使用反射解析字段，仅在启动时执行一次，可接受
+1. **反射开销**：InjectAll 使用反射解析字段，仅在启动时执行一次，可接受；泛型 API 在编译时确定类型，无运行时反射开销
 2. **拓扑排序复杂度**：O(V + E)，V 为实例数量，E 为依赖边数
 3. **并发读取**：注入完成后使用 RWMutex 保护，读取性能高
 4. **按类型索引**：使用 map[reflect.Type] 作为索引，查找复杂度 O(1)
