@@ -4,10 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// BaseMiddleware 基础中间件接口
+// IBaseMiddleware 基础中间件接口
 // 所有 Middleware 类必须继承此接口并实现相关方法
 // 用于定义基础中间件的规范，包括名称、执行顺序和包装函数。
-type BaseMiddleware interface {
+type IBaseMiddleware interface {
 	// MiddlewareName 返回中间件的名称
 	MiddlewareName() string
 	// Order 返回中间件的执行顺序

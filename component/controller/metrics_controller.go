@@ -10,12 +10,12 @@ import (
 
 // IMetricsController 指标控制器接口
 type IMetricsController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type MetricsController struct {
-	ManagerContainer common.BaseManager `inject:""`
-	ServiceContainer common.BaseService `inject:""`
+	ManagerContainer common.IBaseManager `inject:""`
+	ServiceContainer common.IBaseService `inject:""`
 }
 
 func NewMetricsController() IMetricsController {
@@ -38,16 +38,16 @@ func (c *MetricsController) Handle(ctx *gin.Context) {
 	}
 
 	if c.ManagerContainer != nil {
-		managers := []common.BaseManager{c.ManagerContainer}
+		managers := []common.IBaseManager{c.ManagerContainer}
 		metrics["managers"] = len(managers)
 	}
 
 	if c.ServiceContainer != nil {
-		services := []common.BaseService{c.ServiceContainer}
+		services := []common.IBaseService{c.ServiceContainer}
 		metrics["services"] = len(services)
 	}
 
 	ctx.JSON(http.StatusOK, metrics)
 }
 
-var _ common.BaseController = (*MetricsController)(nil)
+var _ common.IBaseController = (*MetricsController)(nil)

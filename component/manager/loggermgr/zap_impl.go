@@ -19,13 +19,13 @@ import (
 type zapLoggerManagerImpl struct {
 	*loggerManagerBaseImpl
 	config       *LoggerConfig
-	telemetryMgr telemetrymgr.TelemetryManager
+	telemetryMgr telemetrymgr.ITelemetryManager
 	mu           sync.RWMutex
 	loggers      map[string]*zapLoggerImpl
 }
 
 // NewLoggerManagerZapImpl 创建 Zap 日志管理器实现
-func NewLoggerManagerZapImpl(cfg *LoggerConfig) (LoggerManager, error) {
+func NewLoggerManagerZapImpl(cfg *LoggerConfig) (ILoggerManager, error) {
 	if cfg.Driver != "zap" {
 		return nil, fmt.Errorf("invalid driver for zap manager: %s", cfg.Driver)
 	}
@@ -45,7 +45,7 @@ func NewLoggerManagerZapImpl(cfg *LoggerConfig) (LoggerManager, error) {
 }
 
 // setTelemetryMgr 设置 TelemetryManager（依赖注入）
-func (m *zapLoggerManagerImpl) setTelemetryMgr(telemetryMgr telemetrymgr.TelemetryManager) {
+func (m *zapLoggerManagerImpl) setTelemetryMgr(telemetryMgr telemetrymgr.ITelemetryManager) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.telemetryMgr = telemetryMgr
@@ -124,7 +124,7 @@ type zapLoggerImpl struct {
 }
 
 // newZapLogger 创建基于 zap 的日志输出器
-func newZapLogger(name string, cfg *LoggerConfig, telemetryMgr telemetrymgr.TelemetryManager) (*zapLoggerImpl, error) {
+func newZapLogger(name string, cfg *LoggerConfig, telemetryMgr telemetrymgr.ITelemetryManager) (*zapLoggerImpl, error) {
 	// 验证配置
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid logger config: %w", err)
@@ -553,14 +553,14 @@ func (w *fileWriter) GetLogger() *zap.Logger {
 // otelCore 是自定义的 zapcore.Core，用于将日志输出到 OpenTelemetry
 type otelCore struct {
 	level           zapcore.Level
-	telemetryMgr    telemetrymgr.TelemetryManager
+	telemetryMgr    telemetrymgr.ITelemetryManager
 	telemetryLogger log.Logger
 	fields          []zapcore.Field
 	mu              sync.RWMutex
 }
 
 // newOTELCore 创建 OTEL 核心
-func newOTELCore(level zapcore.Level, telemetryMgr telemetrymgr.TelemetryManager) *otelCore {
+func newOTELCore(level zapcore.Level, telemetryMgr telemetrymgr.ITelemetryManager) *otelCore {
 	var telemetryLogger log.Logger
 	if telemetryMgr != nil {
 		telemetryLogger = telemetryMgr.Logger("loggermgr")

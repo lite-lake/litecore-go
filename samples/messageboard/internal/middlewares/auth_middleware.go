@@ -11,7 +11,7 @@ import (
 
 // IAuthMiddleware 认证中间件接口
 type IAuthMiddleware interface {
-	common.BaseMiddleware
+	common.IBaseMiddleware
 }
 
 type authMiddleware struct {
@@ -45,8 +45,8 @@ func (m *authMiddleware) Wrapper() gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(401, gin.H{
-				"code":    401,
+			c.JSON(common.HTTPStatusUnauthorized, gin.H{
+				"code":    common.HTTPStatusUnauthorized,
 				"message": "未提供认证令牌",
 			})
 			c.Abort()
@@ -55,8 +55,8 @@ func (m *authMiddleware) Wrapper() gin.HandlerFunc {
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(401, gin.H{
-				"code":    401,
+			c.JSON(common.HTTPStatusUnauthorized, gin.H{
+				"code":    common.HTTPStatusUnauthorized,
 				"message": "认证令牌格式错误",
 			})
 			c.Abort()
@@ -67,8 +67,8 @@ func (m *authMiddleware) Wrapper() gin.HandlerFunc {
 
 		session, err := m.AuthService.ValidateToken(token)
 		if err != nil {
-			c.JSON(401, gin.H{
-				"code":    401,
+			c.JSON(common.HTTPStatusUnauthorized, gin.H{
+				"code":    common.HTTPStatusUnauthorized,
 				"message": "认证令牌无效或已过期",
 			})
 			c.Abort()

@@ -22,8 +22,8 @@ import (
 
 // databaseManagerBaseImpl 数据库管理器基础实现
 type databaseManagerBaseImpl struct {
-	loggerMgr    loggermgr.LoggerManager       `inject:""`
-	telemetryMgr telemetrymgr.TelemetryManager `inject:""`
+	loggerMgr    loggermgr.ILoggerManager       `inject:""`
+	telemetryMgr telemetrymgr.ITelemetryManager `inject:""`
 	logger       loggermgr.Logger
 	tracer       trace.Tracer
 	meter        metric.Meter
@@ -47,8 +47,8 @@ type databaseManagerBaseImpl struct {
 	mu     sync.RWMutex
 }
 
-// newDatabaseManagerBaseImpl 创建基础实现
-func newDatabaseManagerBaseImpl(name, driver string, db *gorm.DB) *databaseManagerBaseImpl {
+// newIDatabaseManagerBaseImpl 创建基础实现
+func newIDatabaseManagerBaseImpl(name, driver string, db *gorm.DB) *databaseManagerBaseImpl {
 	sqlDB, _ := db.DB()
 	return &databaseManagerBaseImpl{
 		name:                name,

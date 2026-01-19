@@ -287,10 +287,10 @@ func (e *testError) Error() string {
 
 // TestNewCacheManagerBaseImpl 测试基础实现创建
 func TestNewCacheManagerBaseImpl(t *testing.T) {
-	base := newCacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl()
 
 	if base == nil {
-		t.Fatal("newCacheManagerBaseImpl() returned nil")
+		t.Fatal("newICacheManagerBaseImpl() returned nil")
 	}
 
 	if base.loggerMgr != nil {
@@ -314,9 +314,9 @@ func TestNewCacheManagerBaseImpl(t *testing.T) {
 	}
 }
 
-// TestCacheManagerBaseImpl_InitObservability 测试初始化可观测性
-func TestCacheManagerBaseImpl_InitObservability(t *testing.T) {
-	base := newCacheManagerBaseImpl()
+// TestICacheManagerBaseImpl_InitObservability 测试初始化可观测性
+func TestICacheManagerBaseImpl_InitObservability(t *testing.T) {
+	base := newICacheManagerBaseImpl()
 
 	// 调用初始化（没有依赖注入的情况下）
 	base.initObservability()
@@ -349,7 +349,7 @@ func TestCacheManagerBaseImpl_InitObservability(t *testing.T) {
 
 // TestRecordOperation 测试记录操作
 func TestRecordOperation(t *testing.T) {
-	base := newCacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl()
 
 	tests := []struct {
 		name      string
@@ -406,7 +406,7 @@ func TestRecordOperation(t *testing.T) {
 
 // TestRecordOperationWithNilContext 测试使用 nil 上下文记录操作
 func TestRecordOperationWithNilContext(t *testing.T) {
-	base := newCacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl()
 
 	err := base.recordOperation(nil, "memory", "get", "key", func() error {
 		return nil
@@ -420,7 +420,7 @@ func TestRecordOperationWithNilContext(t *testing.T) {
 
 // TestRecordCacheHit 测试记录缓存命中
 func TestRecordCacheHit(t *testing.T) {
-	base := newCacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl()
 	base.initObservability()
 
 	ctx := context.Background()
@@ -434,9 +434,9 @@ func TestRecordCacheHit(t *testing.T) {
 	// 这些调用不应该 panic
 }
 
-// TestCacheManagerBaseImplConcurrent 测试并发安全性
-func TestCacheManagerBaseImplConcurrent(t *testing.T) {
-	base := newCacheManagerBaseImpl()
+// TestICacheManagerBaseImplConcurrent 测试并发安全性
+func TestICacheManagerBaseImplConcurrent(t *testing.T) {
+	base := newICacheManagerBaseImpl()
 	base.initObservability()
 
 	ctx := context.Background()

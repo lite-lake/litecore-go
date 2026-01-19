@@ -73,8 +73,8 @@ func TestBuild_SQLite(t *testing.T) {
 		t.Errorf("ManagerName() = %v, want 'databaseManagerSqliteImpl'", mgr.ManagerName())
 	}
 
-	// 验证实现了 common.BaseManager 接口
-	var _ common.BaseManager = mgr
+	// 验证实现了 common.IBaseManager 接口
+	var _ common.IBaseManager = mgr
 
 	// 清理
 	_ = mgr.Close()
@@ -139,8 +139,8 @@ func TestBuild_ImplementsManagerInterface(t *testing.T) {
 		t.Fatal("Build() returned nil")
 	}
 
-	// 验证返回值实现了 common.BaseManager 接口
-	var _ common.BaseManager = mgr
+	// 验证返回值实现了 common.IBaseManager 接口
+	var _ common.IBaseManager = mgr
 
 	// 测试接口方法
 	_ = mgr.ManagerName()
@@ -149,7 +149,7 @@ func TestBuild_ImplementsManagerInterface(t *testing.T) {
 	_ = mgr.OnStop()
 
 	// 清理
-	if dbMgr, ok := mgr.(DatabaseManager); ok {
+	if dbMgr, ok := mgr.(IDatabaseManager); ok {
 		_ = dbMgr.Close()
 	}
 }
@@ -164,7 +164,7 @@ func BenchmarkBuild(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		mgr, _ := Build("sqlite", cfg)
 		if mgr != nil {
-			if dbMgr, ok := mgr.(DatabaseManager); ok {
+			if dbMgr, ok := mgr.(IDatabaseManager); ok {
 				_ = dbMgr.Close()
 			}
 		}

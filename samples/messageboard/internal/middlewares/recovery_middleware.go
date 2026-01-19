@@ -10,11 +10,11 @@ import (
 
 // IRecoveryMiddleware panic 恢复中间件接口
 type IRecoveryMiddleware interface {
-	common.BaseMiddleware
+	common.IBaseMiddleware
 }
 
 type recoveryMiddleware struct {
-	inner common.BaseMiddleware
+	inner common.IBaseMiddleware
 	order int
 }
 

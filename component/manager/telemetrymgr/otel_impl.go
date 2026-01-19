@@ -32,7 +32,7 @@ type telemetryManagerOtelImpl struct {
 }
 
 // NewTelemetryManagerOtelImpl 创建 OTEL 观测管理器实现
-func NewTelemetryManagerOtelImpl(cfg *TelemetryConfig) (TelemetryManager, error) {
+func NewTelemetryManagerOtelImpl(cfg *TelemetryConfig) (ITelemetryManager, error) {
 	if cfg.Driver != "otel" {
 		return nil, fmt.Errorf("invalid driver for otel manager: %s", cfg.Driver)
 	}
@@ -311,5 +311,5 @@ func (m *telemetryManagerOtelImpl) Close() error {
 	return m.Shutdown(ctx)
 }
 
-// 确保实现 TelemetryManager 接口
-var _ TelemetryManager = (*telemetryManagerOtelImpl)(nil)
+// 确保实现 ITelemetryManager 接口
+var _ ITelemetryManager = (*telemetryManagerOtelImpl)(nil)

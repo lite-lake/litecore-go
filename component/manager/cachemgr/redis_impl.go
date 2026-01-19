@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -18,7 +19,7 @@ type cacheManagerRedisImpl struct {
 }
 
 // NewCacheManagerRedisImpl 创建 Redis 实现
-func NewCacheManagerRedisImpl(cfg *RedisConfig) (CacheManager, error) {
+func NewCacheManagerRedisImpl(cfg *RedisConfig) (ICacheManager, error) {
 	// 创建 Redis 客户端
 	client := redis.NewClient(&redis.Options{
 		Addr:            fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -39,7 +40,7 @@ func NewCacheManagerRedisImpl(cfg *RedisConfig) (CacheManager, error) {
 	}
 
 	impl := &cacheManagerRedisImpl{
-		cacheManagerBaseImpl: newCacheManagerBaseImpl(),
+		cacheManagerBaseImpl: newICacheManagerBaseImpl(),
 		client:               client,
 		name:                 "cacheManagerRedisImpl",
 	}
@@ -92,7 +93,7 @@ func (r *cacheManagerRedisImpl) Get(ctx context.Context, key string, dest any) e
 		}
 
 		// 反序列化
-		getErr = deserialize(data, dest)
+		getErr = deserializeWithPool(data, dest)
 		if getErr != nil {
 			return fmt.Errorf("failed to deserialize value: %w", getErr)
 		}
@@ -116,7 +117,7 @@ func (r *cacheManagerRedisImpl) Set(ctx context.Context, key string, value any, 
 		}
 
 		// 序列化
-		data, err := serialize(value)
+		data, err := serializeWithPool(value)
 		if err != nil {
 			return fmt.Errorf("failed to serialize value: %w", err)
 		}
@@ -140,7 +141,7 @@ func (r *cacheManagerRedisImpl) SetNX(ctx context.Context, key string, value any
 		}
 
 		// 序列化
-		data, err := serialize(value)
+		data, err := serializeWithPool(value)
 		if err != nil {
 			return fmt.Errorf("failed to serialize value: %w", err)
 		}
@@ -277,7 +278,7 @@ func (r *cacheManagerRedisImpl) GetMultiple(ctx context.Context, keys []string) 
 				// 反序列化
 				if data, ok := value.([]byte); ok {
 					var dest any
-					if err := deserialize(data, &dest); err == nil {
+					if err := deserializeWithPool(data, &dest); err == nil {
 						result[key] = dest
 					} else {
 						result[key] = value
@@ -409,7 +410,7 @@ func (r *cacheManagerRedisImpl) Close() error {
 	return nil
 }
 
-// 序列化函数
+// serialize 使用Gob编码序列化数据
 func serialize(value any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -419,7 +420,7 @@ func serialize(value any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// 反序列化函数
+// deserialize 使用Gob解码反序列化数据
 func deserialize(data []byte, dest any) error {
 	buf := bytes.NewReader(data)
 	dec := gob.NewDecoder(buf)
@@ -429,5 +430,35 @@ func deserialize(data []byte, dest any) error {
 	return nil
 }
 
-// 确保 cacheManagerRedisImpl 实现 CacheManager 接口
-var _ CacheManager = (*cacheManagerRedisImpl)(nil)
+// serializeWithPool 使用sync.Pool优化的序列化函数，减少内存分配
+func serializeWithPool(value any) ([]byte, error) {
+	buf := gobPool.Get().(*bytes.Buffer)
+	defer gobPool.Put(buf)
+	buf.Reset()
+
+	enc := gob.NewEncoder(buf)
+	if err := enc.Encode(value); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// deserializeWithPool 使用sync.Pool优化的反序列化函数，减少内存分配
+func deserializeWithPool(data []byte, dest any) error {
+	buf := gobPool.Get().(*bytes.Buffer)
+	defer gobPool.Put(buf)
+	buf.Reset()
+
+	dec := gob.NewDecoder(buf)
+	return dec.Decode(dest)
+}
+
+// gobPool用于重用Gob编码和解码的缓冲区，减少内存分配
+var gobPool = sync.Pool{
+	New: func() interface{} {
+		return &bytes.Buffer{}
+	},
+}
+
+// 确保 cacheManagerRedisImpl 实现 ICacheManager 接口
+var _ ICacheManager = (*cacheManagerRedisImpl)(nil)

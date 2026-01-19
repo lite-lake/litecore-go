@@ -11,9 +11,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// TelemetryManager 观测管理器接口
+// ITelemetryManager 观测管理器接口
 // 统一提供 Traces、Metrics、Logs 三大观测能力
-type TelemetryManager interface {
+type ITelemetryManager interface {
 	// ========== 生命周期管理（符合 BaseManager 接口） ==========
 	// ManagerName 返回管理器名称
 	ManagerName() string

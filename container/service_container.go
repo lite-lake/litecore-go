@@ -17,7 +17,7 @@ import (
 // 4. 注入其他 BaseService（支持同层依赖，按拓扑顺序注入）
 type ServiceContainer struct {
 	mu                  sync.RWMutex
-	items               map[reflect.Type]common.BaseService
+	items               map[reflect.Type]common.IBaseService
 	configContainer     *ConfigContainer
 	managerContainer    *ManagerContainer
 	repositoryContainer *RepositoryContainer
@@ -31,7 +31,7 @@ func NewServiceContainer(
 	repository *RepositoryContainer,
 ) *ServiceContainer {
 	return &ServiceContainer{
-		items:               make(map[reflect.Type]common.BaseService),
+		items:               make(map[reflect.Type]common.IBaseService),
 		configContainer:     config,
 		managerContainer:    manager,
 		repositoryContainer: repository,
@@ -39,13 +39,13 @@ func NewServiceContainer(
 }
 
 // RegisterService 泛型注册函数，按接口类型注册
-func RegisterService[T common.BaseService](s *ServiceContainer, impl T) error {
+func RegisterService[T common.IBaseService](s *ServiceContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return s.RegisterByType(ifaceType, impl)
 }
 
 // RegisterByType 按接口类型注册
-func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseService) error {
+func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseService) error {
 	implType := reflect.TypeOf(impl)
 
 	if impl == nil {
@@ -172,16 +172,16 @@ func (s *ServiceContainer) getSameLayerDependencies(instance interface{}) ([]ref
 
 // isBaseServiceType 判断类型是否为 BaseService 或其子接口
 func (s *ServiceContainer) isBaseServiceType(typ reflect.Type) bool {
-	baseServiceType := reflect.TypeOf((*common.BaseService)(nil)).Elem()
+	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	return typ.Implements(baseServiceType)
 }
 
 // GetAll 获取所有已注册的服务
-func (s *ServiceContainer) GetAll() []common.BaseService {
+func (s *ServiceContainer) GetAll() []common.IBaseService {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	result := make([]common.BaseService, 0, len(s.items))
+	result := make([]common.IBaseService, 0, len(s.items))
 	for _, item := range s.items {
 		result = append(result, item)
 	}
@@ -194,7 +194,7 @@ func (s *ServiceContainer) GetAll() []common.BaseService {
 }
 
 // GetByType 按接口类型获取（返回单例）
-func (s *ServiceContainer) GetByType(ifaceType reflect.Type) common.BaseService {
+func (s *ServiceContainer) GetByType(ifaceType reflect.Type) common.IBaseService {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -219,7 +219,7 @@ type serviceDependencyResolver struct {
 
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
+	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType.Implements(baseConfigType) {
 		impl := r.container.configContainer.GetByType(fieldType)
 		if impl == nil {
@@ -231,7 +231,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 		return impl, nil
 	}
 
-	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
+	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType.Implements(baseManagerType) {
 		impl := r.container.managerContainer.GetByType(fieldType)
 		if impl == nil {
@@ -243,7 +243,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 		return impl, nil
 	}
 
-	baseRepositoryType := reflect.TypeOf((*common.BaseRepository)(nil)).Elem()
+	baseRepositoryType := reflect.TypeOf((*common.IBaseRepository)(nil)).Elem()
 	if fieldType == baseRepositoryType || fieldType.Implements(baseRepositoryType) {
 		impl := r.container.repositoryContainer.GetByType(fieldType)
 		if impl == nil {
@@ -255,7 +255,7 @@ func (r *serviceDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 		return impl, nil
 	}
 
-	baseServiceType := reflect.TypeOf((*common.BaseService)(nil)).Elem()
+	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	if fieldType == baseServiceType || fieldType.Implements(baseServiceType) {
 		impl := r.container.GetByType(fieldType)
 		if impl == nil {

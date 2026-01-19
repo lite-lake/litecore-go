@@ -9,11 +9,11 @@ import (
 // TelemetryMiddleware 遥测中间件
 type TelemetryMiddleware struct {
 	order   int
-	manager common.BaseManager
+	manager common.IBaseManager
 }
 
 // NewTelemetryMiddleware 创建遥测中间件
-func NewTelemetryMiddleware(manager common.BaseManager) common.BaseMiddleware {
+func NewTelemetryMiddleware(manager common.IBaseManager) common.IBaseMiddleware {
 	return &TelemetryMiddleware{order: 50, manager: manager}
 }
 

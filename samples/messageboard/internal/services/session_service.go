@@ -16,14 +16,14 @@ import (
 
 // ISessionService 会话服务接口
 type ISessionService interface {
-	common.BaseService
+	common.IBaseService
 	CreateSession() (string, error)
 	ValidateSession(token string) (*dtos.AdminSession, error)
 	DeleteSession(token string) error
 }
 
 type sessionService struct {
-	Config   common.BaseConfigProvider `inject:""`
+	Config   common.IBaseConfigProvider `inject:""`
 	CacheMgr infras.CacheManager       `inject:""`
 	timeout  time.Duration
 }

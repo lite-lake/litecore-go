@@ -11,23 +11,23 @@ import (
 // Entity 层无依赖，InjectAll 为空操作
 type EntityContainer struct {
 	mu    sync.RWMutex
-	items map[string]common.BaseEntity
+	items map[string]common.IBaseEntity
 }
 
 // NewEntityContainer 创建新的实体容器
 func NewEntityContainer() *EntityContainer {
 	return &EntityContainer{
-		items: make(map[string]common.BaseEntity),
+		items: make(map[string]common.IBaseEntity),
 	}
 }
 
 // RegisterEntity 泛型注册函数，注册实体实例
-func RegisterEntity[T common.BaseEntity](e *EntityContainer, impl T) error {
+func RegisterEntity[T common.IBaseEntity](e *EntityContainer, impl T) error {
 	return e.Register(impl)
 }
 
 // Register 注册实体实例
-func (e *EntityContainer) Register(ins common.BaseEntity) error {
+func (e *EntityContainer) Register(ins common.IBaseEntity) error {
 	if ins == nil {
 		return &DuplicateRegistrationError{Name: "nil"}
 	}
@@ -57,11 +57,11 @@ func (e *EntityContainer) InjectAll() error {
 }
 
 // GetAll 获取所有已注册的实体
-func (e *EntityContainer) GetAll() []common.BaseEntity {
+func (e *EntityContainer) GetAll() []common.IBaseEntity {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	result := make([]common.BaseEntity, 0, len(e.items))
+	result := make([]common.IBaseEntity, 0, len(e.items))
 	for _, item := range e.items {
 		result = append(result, item)
 	}
@@ -69,7 +69,7 @@ func (e *EntityContainer) GetAll() []common.BaseEntity {
 }
 
 // GetByName 根据名称获取实体
-func (e *EntityContainer) GetByName(name string) (common.BaseEntity, error) {
+func (e *EntityContainer) GetByName(name string) (common.IBaseEntity, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
@@ -81,11 +81,11 @@ func (e *EntityContainer) GetByName(name string) (common.BaseEntity, error) {
 
 // GetByType 根据类型获取实体
 // 返回所有实现了该类型的实体列表
-func (e *EntityContainer) GetByType(typ reflect.Type) ([]common.BaseEntity, error) {
+func (e *EntityContainer) GetByType(typ reflect.Type) ([]common.IBaseEntity, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	var result []common.BaseEntity
+	var result []common.IBaseEntity
 	for _, item := range e.items {
 		itemType := reflect.TypeOf(item)
 

@@ -14,12 +14,12 @@ import (
 //   - sqlite: 传递给 parseSQLiteConfig 的 map[string]any
 //   - none: 忽略
 //
-// 返回 DatabaseManager 接口实例和可能的错误
+// 返回 IDatabaseManager 接口实例和可能的错误
 // 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
 func Build(
 	driverType string,
 	driverConfig map[string]any,
-) (DatabaseManager, error) {
+) (IDatabaseManager, error) {
 	switch driverType {
 	case "mysql":
 		mysqlConfig, err := parseMySQLConfig(driverConfig)
@@ -77,9 +77,9 @@ func Build(
 //   - database.postgresql_config: PostgreSQL 驱动配置（当 driver=postgresql 时使用）
 //   - database.sqlite_config: SQLite 驱动配置（当 driver=sqlite 时使用）
 //
-// 返回 DatabaseManager 接口实例和可能的错误
+// 返回 IDatabaseManager 接口实例和可能的错误
 // 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
-func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (DatabaseManager, error) {
+func BuildWithConfigProvider(configProvider common.IBaseConfigProvider) (IDatabaseManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}

@@ -48,4 +48,4 @@ func (m *Message) IsRejected() bool {
 	return m.Status == "rejected"
 }
 
-var _ common.BaseEntity = (*Message)(nil)
+var _ common.IBaseEntity = (*Message)(nil)

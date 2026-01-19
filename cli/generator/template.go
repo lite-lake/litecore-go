@@ -38,7 +38,7 @@ func InitConfigContainer() (*container.ConfigContainer, error) {
 		return nil, err
 	}
 
-	container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
+	container.RegisterConfig[common.IBaseConfigProvider](configContainer, configProvider)
 
 	return configContainer, nil
 }
@@ -64,7 +64,7 @@ func InitEntityContainer() *container.EntityContainer {
 	entityContainer := container.NewEntityContainer()
 
 	{{- range .Components}}
-	container.RegisterEntity[common.BaseEntity](entityContainer, &{{.PackageAlias}}.{{.TypeName}}{})
+	container.RegisterEntity[common.IBaseEntity](entityContainer, &{{.PackageAlias}}.{{.TypeName}}{})
 	{{- end}}
 
 	return entityContainer
@@ -92,7 +92,7 @@ import (
 func InitManagerContainer(configContainer *container.ConfigContainer) (*container.ManagerContainer, error) {
 	managerContainer := container.NewManagerContainer(configContainer)
 
-	configProvider := configContainer.GetByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem())
+	configProvider := configContainer.GetByType(reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem())
 	_ = configProvider
 
 	{{- range .Components}}

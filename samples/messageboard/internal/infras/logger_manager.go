@@ -5,21 +5,21 @@ import (
 	"com.litelake.litecore/component/manager/loggermgr"
 )
 
-// LoggerManager 日志管理器接口
-type LoggerManager interface {
-	loggermgr.LoggerManager
+// ILoggerManager 日志管理器接口
+type ILoggerManager interface {
+	loggermgr.ILoggerManager
 }
 
 // loggerManagerImpl 日志管理器实现
 type loggerManagerImpl struct {
-	loggermgr.LoggerManager
+	loggermgr.ILoggerManager
 }
 
 // NewLoggerManager 创建日志管理器
-func NewLoggerManager(configProvider common.BaseConfigProvider) (LoggerManager, error) {
+func NewLoggerManager(configProvider common.IBaseConfigProvider) (ILoggerManager, error) {
 	mgr, err := loggermgr.BuildWithConfigProvider(configProvider)
 	if err != nil {
 		return nil, err
 	}
-	return &loggerManagerImpl{LoggerManager: mgr}, nil
+	return &loggerManagerImpl{mgr}, nil
 }

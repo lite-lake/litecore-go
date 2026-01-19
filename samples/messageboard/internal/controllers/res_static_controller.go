@@ -9,7 +9,7 @@ import (
 
 // IResStaticController 静态文件控制器接口
 type IResStaticController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type resStaticControllerImpl struct {

@@ -11,11 +11,11 @@ import (
 
 // ITelemetryMiddleware 遥测中间件接口
 type ITelemetryMiddleware interface {
-	common.BaseMiddleware
+	common.IBaseMiddleware
 }
 
 type telemetryMiddleware struct {
-	inner            common.BaseMiddleware
+	inner            common.IBaseMiddleware
 	order            int
 	TelemetryManager infras.TelemetryManager `inject:""`
 }

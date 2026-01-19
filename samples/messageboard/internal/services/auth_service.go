@@ -11,7 +11,7 @@ import (
 
 // IAuthService 认证服务接口
 type IAuthService interface {
-	common.BaseService
+	common.IBaseService
 	VerifyPassword(password string) bool
 	Login(password string) (string, error)
 	Logout(token string) error
@@ -19,7 +19,7 @@ type IAuthService interface {
 }
 
 type authService struct {
-	Config         common.BaseConfigProvider `inject:""`
+	Config         common.IBaseConfigProvider `inject:""`
 	SessionService ISessionService           `inject:""`
 }
 

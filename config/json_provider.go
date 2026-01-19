@@ -12,7 +12,7 @@ type JsonConfigProvider struct {
 	base *BaseConfigProvider
 }
 
-func NewJsonConfigProvider(filePath string) (common.BaseConfigProvider, error) {
+func NewJsonConfigProvider(filePath string) (common.IBaseConfigProvider, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read json file: %w", err)

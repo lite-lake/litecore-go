@@ -12,7 +12,7 @@ type CorsMiddleware struct {
 }
 
 // NewCorsMiddleware 创建 CORS 中间件
-func NewCorsMiddleware() common.BaseMiddleware {
+func NewCorsMiddleware() common.IBaseMiddleware {
 	return &CorsMiddleware{order: 30}
 }
 

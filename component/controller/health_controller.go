@@ -18,11 +18,11 @@ type HealthResponse struct {
 
 // IHealthController 健康检查控制器接口
 type IHealthController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type HealthController struct {
-	ManagerContainer common.BaseManager `inject:""`
+	ManagerContainer common.IBaseManager `inject:""`
 }
 
 func NewHealthController() IHealthController {
@@ -42,7 +42,7 @@ func (c *HealthController) Handle(ctx *gin.Context) {
 	allHealthy := true
 
 	if c.ManagerContainer != nil {
-		for _, mgr := range []common.BaseManager{c.ManagerContainer} {
+		for _, mgr := range []common.IBaseManager{c.ManagerContainer} {
 			if err := mgr.Health(); err != nil {
 				managerStatus[mgr.ManagerName()] = "unhealthy: " + err.Error()
 				allHealthy = false
@@ -70,4 +70,4 @@ func (c *HealthController) Handle(ctx *gin.Context) {
 	}
 }
 
-var _ common.BaseController = (*HealthController)(nil)
+var _ common.IBaseController = (*HealthController)(nil)

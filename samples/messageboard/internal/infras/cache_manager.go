@@ -5,21 +5,21 @@ import (
 	"com.litelake.litecore/component/manager/cachemgr"
 )
 
-// CacheManager 缓存管理器接口
-type CacheManager interface {
-	cachemgr.CacheManager
+// ICacheManager 缓存管理器接口
+type ICacheManager interface {
+	cachemgr.ICacheManager
 }
 
 // cacheManagerImpl 缓存管理器实现
 type cacheManagerImpl struct {
-	cachemgr.CacheManager
+	cachemgr.ICacheManager
 }
 
 // NewCacheManager 创建缓存管理器
-func NewCacheManager(configProvider common.BaseConfigProvider) (CacheManager, error) {
+func NewCacheManager(configProvider common.IBaseConfigProvider) (ICacheManager, error) {
 	mgr, err := cachemgr.BuildWithConfigProvider(configProvider)
 	if err != nil {
 		return nil, err
 	}
-	return &cacheManagerImpl{CacheManager: mgr}, nil
+	return &cacheManagerImpl{mgr}, nil
 }

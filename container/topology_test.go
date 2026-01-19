@@ -16,7 +16,7 @@ func TestCircularDependencyDetection(t *testing.T) {
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}
-	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), config)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem(), config)
 	if err != nil {
 		t.Fatalf("Register config failed: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestTopologicalSort(t *testing.T) {
 func TestNilRegistration(t *testing.T) {
 	configContainer := NewConfigContainer()
 
-	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), nil)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem(), nil)
 	if err == nil {
 		t.Fatal("Expected error when registering nil")
 	}

@@ -10,7 +10,7 @@ import (
 
 // IPprofBlockController pprof 阻塞 profile 控制器
 type IPprofBlockController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofBlockController struct{}
@@ -31,4 +31,4 @@ func (c *PprofBlockController) Handle(ctx *gin.Context) {
 	pprof.Handler("block").ServeHTTP(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofBlockController)(nil)
+var _ common.IBaseController = (*PprofBlockController)(nil)

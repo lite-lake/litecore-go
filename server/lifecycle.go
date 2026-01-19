@@ -98,6 +98,6 @@ func (e *Engine) Stop() error {
 }
 
 // getServices 获取所有服务
-func (e *Engine) getServices() []common.BaseService {
+func (e *Engine) getServices() []common.IBaseService {
 	return e.Service.GetAll()
 }

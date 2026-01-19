@@ -13,12 +13,12 @@ import (
 //   - memory: 传递给 parseMemoryConfig 的 map[string]any
 //   - none: 忽略
 //
-// 返回 CacheManager 接口实例和可能的错误
+// 返回 ICacheManager 接口实例和可能的错误
 // 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
 func Build(
 	driverType string,
 	driverConfig map[string]any,
-) (CacheManager, error) {
+) (ICacheManager, error) {
 	switch driverType {
 	case "redis":
 		redisConfig, err := parseRedisConfig(driverConfig)
@@ -63,9 +63,9 @@ func Build(
 //   - cache.redis_config: Redis 驱动配置（当 driver=redis 时使用）
 //   - cache.memory_config: Memory 驱动配置（当 driver=memory 时使用）
 //
-// 返回 CacheManager 接口实例和可能的错误
+// 返回 ICacheManager 接口实例和可能的错误
 // 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
-func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (CacheManager, error) {
+func BuildWithConfigProvider(configProvider common.IBaseConfigProvider) (ICacheManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}

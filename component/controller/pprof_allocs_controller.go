@@ -10,7 +10,7 @@ import (
 
 // IPprofAllocsController pprof 内存分配控制器
 type IPprofAllocsController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofAllocsController struct{}
@@ -31,4 +31,4 @@ func (c *PprofAllocsController) Handle(ctx *gin.Context) {
 	pprof.Handler("allocs").ServeHTTP(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofAllocsController)(nil)
+var _ common.IBaseController = (*PprofAllocsController)(nil)

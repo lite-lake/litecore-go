@@ -45,7 +45,7 @@ type noneLoggerManagerImpl struct {
 }
 
 // NewLoggerManagerNoneImpl 创建空日志管理器实现
-func NewLoggerManagerNoneImpl() LoggerManager {
+func NewLoggerManagerNoneImpl() ILoggerManager {
 	return &noneLoggerManagerImpl{
 		loggerManagerBaseImpl: newLoggerManagerBaseImpl("none-logger"),
 	}

@@ -13,7 +13,7 @@ type HTMLTemplateConfig struct {
 
 // IHTMLTemplateService HTML模板服务接口
 type IHTMLTemplateService interface {
-	common.BaseService
+	common.IBaseService
 	// Render 渲染HTML模板
 	Render(ctx *gin.Context, name string, data interface{})
 }

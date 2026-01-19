@@ -8,7 +8,7 @@ import (
 )
 
 // setupMemoryManager 创建一个内存缓存管理器用于测试
-func setupMemoryManager(t *testing.T) CacheManager {
+func setupMemoryManager(t *testing.T) ICacheManager {
 	return NewCacheManagerMemoryImpl(10*time.Minute, 5*time.Minute)
 }
 

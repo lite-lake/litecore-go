@@ -47,4 +47,4 @@ func (c *ResourceStaticController) GetConfig() *ResourceStaticConfig {
 	return c.config
 }
 
-var _ common.BaseController = (*ResourceStaticController)(nil)
+var _ common.IBaseController = (*ResourceStaticController)(nil)

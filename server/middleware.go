@@ -18,8 +18,8 @@ func (e *Engine) registerMiddlewares() error {
 }
 
 // sortMiddlewares 按 Order 排序中间件
-func sortMiddlewares(middlewares []common.BaseMiddleware) []common.BaseMiddleware {
-	sorted := make([]common.BaseMiddleware, len(middlewares))
+func sortMiddlewares(middlewares []common.IBaseMiddleware) []common.IBaseMiddleware {
+	sorted := make([]common.IBaseMiddleware, len(middlewares))
 	copy(sorted, middlewares)
 
 	n := len(sorted)

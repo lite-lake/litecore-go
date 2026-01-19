@@ -47,13 +47,13 @@ func TestBuild(t *testing.T) {
 		driverConfig map[string]any
 		wantErr      bool
 		errString    string
-		validate     func(*testing.T, LoggerManager)
+		validate     func(*testing.T, ILoggerManager)
 	}{
 		{
 			name:       "Valid none driver",
 			driverType: "none",
 			wantErr:    false,
-			validate: func(t *testing.T, mgr LoggerManager) {
+			validate: func(t *testing.T, mgr ILoggerManager) {
 				if mgr.ManagerName() != "none-logger" {
 					t.Errorf("Expected manager name 'none-logger', got '%s'", mgr.ManagerName())
 				}
@@ -71,7 +71,7 @@ func TestBuild(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			validate: func(t *testing.T, mgr LoggerManager) {
+			validate: func(t *testing.T, mgr ILoggerManager) {
 				if mgr.ManagerName() != "zap-logger" {
 					t.Errorf("Expected manager name 'zap-logger', got '%s'", mgr.ManagerName())
 				}
@@ -91,7 +91,7 @@ func TestBuild(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			validate: func(t *testing.T, mgr LoggerManager) {
+			validate: func(t *testing.T, mgr ILoggerManager) {
 				if mgr.ManagerName() != "zap-logger" {
 					t.Errorf("Expected manager name 'zap-logger', got '%s'", mgr.ManagerName())
 				}
@@ -231,7 +231,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 		setupConfig func() *mockConfigProvider
 		wantErr     bool
 		errString   string
-		validate    func(*testing.T, LoggerManager)
+		validate    func(*testing.T, ILoggerManager)
 	}{
 		{
 			name: "Valid none driver",
@@ -241,7 +241,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				})
 			},
 			wantErr: false,
-			validate: func(t *testing.T, mgr LoggerManager) {
+			validate: func(t *testing.T, mgr ILoggerManager) {
 				if mgr.ManagerName() != "none-logger" {
 					t.Errorf("Expected manager name 'none-logger', got '%s'", mgr.ManagerName())
 				}
@@ -261,7 +261,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				})
 			},
 			wantErr: false,
-			validate: func(t *testing.T, mgr LoggerManager) {
+			validate: func(t *testing.T, mgr ILoggerManager) {
 				if mgr.ManagerName() != "zap-logger" {
 					t.Errorf("Expected manager name 'zap-logger', got '%s'", mgr.ManagerName())
 				}
@@ -398,7 +398,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 
 // TestBuildWithConfigProviderNilConfig 测试配置提供者为 nil 的情况
 func TestBuildWithConfigProviderNilConfig(t *testing.T) {
-	var provider common.BaseConfigProvider = nil
+	var provider common.IBaseConfigProvider = nil
 	_, err := BuildWithConfigProvider(provider)
 	if err == nil {
 		t.Error("Expected error when provider is nil")

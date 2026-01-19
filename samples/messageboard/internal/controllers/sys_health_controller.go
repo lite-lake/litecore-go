@@ -9,7 +9,7 @@ import (
 
 // ISysHealthController 健康检查控制器接口
 type ISysHealthController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type sysHealthControllerImpl struct {

@@ -4,7 +4,7 @@ import (
 	"com.litelake.litecore/component/manager/databasemgr"
 )
 
-// Example_databasemgr_withFactory 演示如何使用工厂模式创建 DatabaseManager
+// Example_databasemgr_withFactory 演示如何使用工厂模式创建 IDatabaseManager
 func Example_databasemgr_withFactory() {
 	// 方式1: 直接使用 Build 函数
 	cfg := map[string]any{
@@ -21,7 +21,7 @@ func Example_databasemgr_withFactory() {
 	_ = dbMgr
 }
 
-// Example_databasemgr_withConfigProvider 演示如何使用 ConfigProvider 创建 DatabaseManager
+// Example_databasemgr_withConfigProvider 演示如何使用 ConfigProvider 创建 IDatabaseManager
 func Example_databasemgr_withConfigProvider() {
 	// 方式2: 使用 ConfigProvider（推荐用于依赖注入场景）
 	// provider := config.NewYamlConfigProvider("config.yaml")
@@ -72,7 +72,7 @@ func Example_databasemgr_configuration() {
 // Example_databasemgr_basicOperations 演示基本的数据库操作
 func Example_databasemgr_basicOperations() {
 	// 假设已经创建了 dbMgr
-	var dbMgr databasemgr.DatabaseManager
+	var dbMgr databasemgr.IDatabaseManager
 
 	// 1. 简单查询
 	// type User struct {
@@ -106,7 +106,7 @@ func Example_databasemgr_basicOperations() {
 // Example_databasemgr_advancedOperations 演示高级数据库操作
 func Example_databasemgr_advancedOperations() {
 	// 假设已经创建了 dbMgr
-	var dbMgr databasemgr.DatabaseManager
+	var dbMgr databasemgr.IDatabaseManager
 
 	// 1. 自动迁移
 	// err := dbMgr.AutoMigrate(&User{}, &Product{}, &Order{})

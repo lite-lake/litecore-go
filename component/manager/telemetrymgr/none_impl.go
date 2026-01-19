@@ -21,7 +21,7 @@ type telemetryManagerNoneImpl struct {
 }
 
 // NewTelemetryManagerNoneImpl 创建空观测管理器实现
-func NewTelemetryManagerNoneImpl() TelemetryManager {
+func NewTelemetryManagerNoneImpl() ITelemetryManager {
 	return &telemetryManagerNoneImpl{
 		telemetryManagerBaseImpl: newTelemetryManagerBaseImpl("none-telemetry"),
 		tracerProvider:           sdktrace.NewTracerProvider(),
@@ -74,5 +74,5 @@ func (m *telemetryManagerNoneImpl) Close() error {
 	return nil
 }
 
-// 确保实现 TelemetryManager 接口
-var _ TelemetryManager = (*telemetryManagerNoneImpl)(nil)
+// 确保实现 ITelemetryManager 接口
+var _ ITelemetryManager = (*telemetryManagerNoneImpl)(nil)

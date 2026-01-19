@@ -10,7 +10,7 @@ import (
 
 // IPprofThreadcreateController pprof 线程创建控制器
 type IPprofThreadcreateController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofThreadcreateController struct{}
@@ -31,4 +31,4 @@ func (c *PprofThreadcreateController) Handle(ctx *gin.Context) {
 	pprof.Handler("threadcreate").ServeHTTP(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofThreadcreateController)(nil)
+var _ common.IBaseController = (*PprofThreadcreateController)(nil)

@@ -9,7 +9,7 @@ import (
 
 // ISysMetricsController 指标控制器接口
 type ISysMetricsController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type sysMetricsControllerImpl struct {

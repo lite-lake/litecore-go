@@ -19,8 +19,8 @@ func TestNewTelemetryManagerNoneImpl(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_ManagerName 测试管理器名称
-func TestTelemetryManagerNoneImpl_ManagerName(t *testing.T) {
+// TestITelemetryManagerNoneImpl_ManagerName 测试管理器名称
+func TestITelemetryManagerNoneImpl_ManagerName(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	name := mgr.ManagerName()
@@ -31,8 +31,8 @@ func TestTelemetryManagerNoneImpl_ManagerName(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_Health 测试健康检查
-func TestTelemetryManagerNoneImpl_Health(t *testing.T) {
+// TestITelemetryManagerNoneImpl_Health 测试健康检查
+func TestITelemetryManagerNoneImpl_Health(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	err := mgr.Health()
@@ -41,8 +41,8 @@ func TestTelemetryManagerNoneImpl_Health(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_Lifecycle 测试生命周期方法
-func TestTelemetryManagerNoneImpl_Lifecycle(t *testing.T) {
+// TestITelemetryManagerNoneImpl_Lifecycle 测试生命周期方法
+func TestITelemetryManagerNoneImpl_Lifecycle(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	// 测试 OnStart
@@ -62,8 +62,8 @@ func TestTelemetryManagerNoneImpl_Lifecycle(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_Tracer 测试 Tracer 方法
-func TestTelemetryManagerNoneImpl_Tracer(t *testing.T) {
+// TestITelemetryManagerNoneImpl_Tracer 测试 Tracer 方法
+func TestITelemetryManagerNoneImpl_Tracer(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	tracer := mgr.Tracer("test-tracer")
@@ -81,8 +81,8 @@ func TestTelemetryManagerNoneImpl_Tracer(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_TracerProvider 测试 TracerProvider 方法
-func TestTelemetryManagerNoneImpl_TracerProvider(t *testing.T) {
+// TestITelemetryManagerNoneImpl_TracerProvider 测试 TracerProvider 方法
+func TestITelemetryManagerNoneImpl_TracerProvider(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	provider := mgr.TracerProvider()
@@ -97,8 +97,8 @@ func TestTelemetryManagerNoneImpl_TracerProvider(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_Meter 测试 Meter 方法
-func TestTelemetryManagerNoneImpl_Meter(t *testing.T) {
+// TestITelemetryManagerNoneImpl_Meter 测试 Meter 方法
+func TestITelemetryManagerNoneImpl_Meter(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	meter := mgr.Meter("test-meter")
@@ -116,8 +116,8 @@ func TestTelemetryManagerNoneImpl_Meter(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_MeterProvider 测试 MeterProvider 方法
-func TestTelemetryManagerNoneImpl_MeterProvider(t *testing.T) {
+// TestITelemetryManagerNoneImpl_MeterProvider 测试 MeterProvider 方法
+func TestITelemetryManagerNoneImpl_MeterProvider(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	provider := mgr.MeterProvider()
@@ -132,8 +132,8 @@ func TestTelemetryManagerNoneImpl_MeterProvider(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_Logger 测试 Logger 方法
-func TestTelemetryManagerNoneImpl_Logger(t *testing.T) {
+// TestITelemetryManagerNoneImpl_Logger 测试 Logger 方法
+func TestITelemetryManagerNoneImpl_Logger(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	logger := mgr.Logger("test-logger")
@@ -151,8 +151,8 @@ func TestTelemetryManagerNoneImpl_Logger(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_LoggerProvider 测试 LoggerProvider 方法
-func TestTelemetryManagerNoneImpl_LoggerProvider(t *testing.T) {
+// TestITelemetryManagerNoneImpl_LoggerProvider 测试 LoggerProvider 方法
+func TestITelemetryManagerNoneImpl_LoggerProvider(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	provider := mgr.LoggerProvider()
@@ -167,8 +167,8 @@ func TestTelemetryManagerNoneImpl_LoggerProvider(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_ShutdownWithNilContext 测试使用 nil context shutdown
-func TestTelemetryManagerNoneImpl_ShutdownWithNilContext(t *testing.T) {
+// TestITelemetryManagerNoneImpl_ShutdownWithNilContext 测试使用 nil context shutdown
+func TestITelemetryManagerNoneImpl_ShutdownWithNilContext(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	// 空实现应该能够处理 nil context（虽然不推荐）
@@ -178,8 +178,8 @@ func TestTelemetryManagerNoneImpl_ShutdownWithNilContext(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_ShutdownMultipleTimes 测试多次关闭
-func TestTelemetryManagerNoneImpl_ShutdownMultipleTimes(t *testing.T) {
+// TestITelemetryManagerNoneImpl_ShutdownMultipleTimes 测试多次关闭
+func TestITelemetryManagerNoneImpl_ShutdownMultipleTimes(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	ctx := context.Background()
@@ -192,12 +192,12 @@ func TestTelemetryManagerNoneImpl_ShutdownMultipleTimes(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_InterfaceCompliance 测试接口符合性
-func TestTelemetryManagerNoneImpl_InterfaceCompliance(t *testing.T) {
+// TestITelemetryManagerNoneImpl_InterfaceCompliance 测试接口符合性
+func TestITelemetryManagerNoneImpl_InterfaceCompliance(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
-	// 验证 TelemetryManager 接口的所有方法都能正常调用
-	var _ TelemetryManager = mgr
+	// 验证 ITelemetryManager 接口的所有方法都能正常调用
+	var _ ITelemetryManager = mgr
 
 	// 调用所有接口方法确保没有 panic
 	_ = mgr.ManagerName()
@@ -218,8 +218,8 @@ func TestTelemetryManagerNoneImpl_InterfaceCompliance(t *testing.T) {
 	_ = mgr.Shutdown(ctx)
 }
 
-// TestTelemetryManagerNoneImpl_NoOpBehavior 测试空操作行为
-func TestTelemetryManagerNoneImpl_NoOpBehavior(t *testing.T) {
+// TestITelemetryManagerNoneImpl_NoOpBehavior 测试空操作行为
+func TestITelemetryManagerNoneImpl_NoOpBehavior(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	t.Run("tracer returns no-op tracer", func(t *testing.T) {
@@ -258,8 +258,8 @@ func TestTelemetryManagerNoneImpl_NoOpBehavior(t *testing.T) {
 	})
 }
 
-// TestTelemetryManagerNoneImpl_ConcurrentAccess 测试并发访问
-func TestTelemetryManagerNoneImpl_ConcurrentAccess(t *testing.T) {
+// TestITelemetryManagerNoneImpl_ConcurrentAccess 测试并发访问
+func TestITelemetryManagerNoneImpl_ConcurrentAccess(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	done := make(chan bool)
@@ -303,8 +303,8 @@ func TestTelemetryManagerNoneImpl_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_ProvidersConsistency 测试 Provider 一致性
-func TestTelemetryManagerNoneImpl_ProvidersConsistency(t *testing.T) {
+// TestITelemetryManagerNoneImpl_ProvidersConsistency 测试 Provider 一致性
+func TestITelemetryManagerNoneImpl_ProvidersConsistency(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	// 多次获取相同的 provider 应该返回相同的实例
@@ -330,8 +330,8 @@ func TestTelemetryManagerNoneImpl_ProvidersConsistency(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerNoneImpl_ProviderTypes 测试 Provider 类型
-func TestTelemetryManagerNoneImpl_ProviderTypes(t *testing.T) {
+// TestITelemetryManagerNoneImpl_ProviderTypes 测试 Provider 类型
+func TestITelemetryManagerNoneImpl_ProviderTypes(t *testing.T) {
 	mgr := NewTelemetryManagerNoneImpl()
 
 	// 验证返回的 provider 是正确的具体类型

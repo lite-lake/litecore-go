@@ -12,7 +12,7 @@ type RecoveryMiddleware struct {
 }
 
 // NewRecoveryMiddleware 创建 panic 恢复中间件
-func NewRecoveryMiddleware() common.BaseMiddleware {
+func NewRecoveryMiddleware() common.IBaseMiddleware {
 	return &RecoveryMiddleware{order: 10}
 }
 

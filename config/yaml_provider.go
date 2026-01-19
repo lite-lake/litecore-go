@@ -13,7 +13,7 @@ type YamlConfigProvider struct {
 	base *BaseConfigProvider
 }
 
-func NewYamlConfigProvider(filePath string) (common.BaseConfigProvider, error) {
+func NewYamlConfigProvider(filePath string) (common.IBaseConfigProvider, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read yaml file: %w", err)

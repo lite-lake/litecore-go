@@ -59,4 +59,4 @@ func (c *ResourceHTMLController) GetConfig() *ResourceHTMLConfig {
 	return c.config
 }
 
-var _ common.BaseController = (*ResourceHTMLController)(nil)
+var _ common.IBaseController = (*ResourceHTMLController)(nil)

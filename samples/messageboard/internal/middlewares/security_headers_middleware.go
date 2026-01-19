@@ -10,11 +10,11 @@ import (
 
 // ISecurityHeadersMiddleware 安全头中间件接口
 type ISecurityHeadersMiddleware interface {
-	common.BaseMiddleware
+	common.IBaseMiddleware
 }
 
 type securityHeadersMiddleware struct {
-	inner common.BaseMiddleware
+	inner common.IBaseMiddleware
 	order int
 }
 

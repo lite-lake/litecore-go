@@ -10,11 +10,11 @@ import (
 
 // ICorsMiddleware CORS 跨域中间件接口
 type ICorsMiddleware interface {
-	common.BaseMiddleware
+	common.IBaseMiddleware
 }
 
 type corsMiddleware struct {
-	inner common.BaseMiddleware
+	inner common.IBaseMiddleware
 	order int
 }
 

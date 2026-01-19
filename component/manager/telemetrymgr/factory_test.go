@@ -48,13 +48,13 @@ func TestBuild(t *testing.T) {
 		driverConfig map[string]any
 		wantErr      bool
 		errMsg       string
-		verify       func(*testing.T, TelemetryManager)
+		verify       func(*testing.T, ITelemetryManager)
 	}{
 		{
 			name:       "none driver",
 			driverType: "none",
 			wantErr:    false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				if mgr.ManagerName() != "none-telemetry" {
 					t.Errorf("expected manager name 'none-telemetry', got '%s'", mgr.ManagerName())
 				}
@@ -67,7 +67,7 @@ func TestBuild(t *testing.T) {
 				"endpoint": "should-be-ignored",
 			},
 			wantErr: false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				if mgr.ManagerName() != "none-telemetry" {
 					t.Errorf("expected manager name 'none-telemetry', got '%s'", mgr.ManagerName())
 				}
@@ -80,7 +80,7 @@ func TestBuild(t *testing.T) {
 				"endpoint": "localhost:4317",
 			},
 			wantErr: false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				if mgr.ManagerName() != "otel-telemetry" {
 					t.Errorf("expected manager name 'otel-telemetry', got '%s'", mgr.ManagerName())
 				}
@@ -115,7 +115,7 @@ func TestBuild(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				if mgr.ManagerName() != "otel-telemetry" {
 					t.Errorf("expected manager name 'otel-telemetry', got '%s'", mgr.ManagerName())
 				}
@@ -131,7 +131,7 @@ func TestBuild(t *testing.T) {
 			driverType:   "otel",
 			driverConfig: map[string]any{},
 			wantErr:      false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				// 默认 endpoint 应该被使用
 				if mgr == nil {
 					t.Error("expected non-nil manager")
@@ -160,7 +160,7 @@ func TestBuild(t *testing.T) {
 				"endpoint": 123, // 无效类型，会被忽略，使用默认值
 			},
 			wantErr: false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				if mgr == nil {
 					t.Error("expected non-nil manager")
 				}
@@ -227,7 +227,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 		configProvider *mockConfigProvider
 		wantErr        bool
 		errMsg         string
-		verify         func(*testing.T, TelemetryManager)
+		verify         func(*testing.T, ITelemetryManager)
 	}{
 		{
 			name: "none driver from config provider",
@@ -235,7 +235,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"telemetry.driver": "none",
 			}),
 			wantErr: false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				if mgr.ManagerName() != "none-telemetry" {
 					t.Errorf("expected manager name 'none-telemetry', got '%s'", mgr.ManagerName())
 				}
@@ -251,7 +251,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				},
 			}),
 			wantErr: false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				if mgr.ManagerName() != "otel-telemetry" {
 					t.Errorf("expected manager name 'otel-telemetry', got '%s'", mgr.ManagerName())
 				}
@@ -311,7 +311,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				},
 			}),
 			wantErr: false,
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				if mgr.ManagerName() != "otel-telemetry" {
 					t.Errorf("expected manager name 'otel-telemetry', got '%s'", mgr.ManagerName())
 				}
@@ -321,7 +321,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var provider common.BaseConfigProvider
+			var provider common.IBaseConfigProvider
 			if tt.configProvider == nil {
 				provider = nil // 确保是接口类型的 nil
 			} else {

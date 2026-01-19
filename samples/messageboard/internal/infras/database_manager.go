@@ -7,18 +7,18 @@ import (
 	"com.litelake.litecore/component/manager/databasemgr"
 )
 
-// DatabaseManager 数据库管理器接口
-type DatabaseManager interface {
-	databasemgr.DatabaseManager
+// IDatabaseManager 数据库管理器接口
+type IDatabaseManager interface {
+	databasemgr.IDatabaseManager
 }
 
 // databaseManagerImpl 数据库管理器实现
 type databaseManagerImpl struct {
-	databasemgr.DatabaseManager
+	databasemgr.IDatabaseManager
 }
 
 // NewDatabaseManager 创建数据库管理器
-func NewDatabaseManager(configProvider common.BaseConfigProvider) (DatabaseManager, error) {
+func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseManager, error) {
 	fmt.Println("[DEBUG] NewDatabaseManager called")
 	mgr, err := databasemgr.BuildWithConfigProvider(configProvider)
 	if err != nil {
@@ -26,5 +26,5 @@ func NewDatabaseManager(configProvider common.BaseConfigProvider) (DatabaseManag
 		return nil, err
 	}
 	fmt.Printf("[DEBUG] NewDatabaseManager success: type=%T\n", mgr)
-	return &databaseManagerImpl{DatabaseManager: mgr}, nil
+	return &databaseManagerImpl{mgr}, nil
 }

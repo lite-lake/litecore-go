@@ -16,7 +16,7 @@ import (
 // 3. 注入 BaseEntity（从 EntityContainer 获取）
 type RepositoryContainer struct {
 	mu               sync.RWMutex
-	items            map[reflect.Type]common.BaseRepository
+	items            map[reflect.Type]common.IBaseRepository
 	configContainer  *ConfigContainer
 	managerContainer *ManagerContainer
 	entityContainer  *EntityContainer
@@ -30,7 +30,7 @@ func NewRepositoryContainer(
 	entity *EntityContainer,
 ) *RepositoryContainer {
 	return &RepositoryContainer{
-		items:            make(map[reflect.Type]common.BaseRepository),
+		items:            make(map[reflect.Type]common.IBaseRepository),
 		configContainer:  config,
 		managerContainer: manager,
 		entityContainer:  entity,
@@ -38,13 +38,13 @@ func NewRepositoryContainer(
 }
 
 // RegisterRepository 泛型注册函数，按接口类型注册
-func RegisterRepository[T common.BaseRepository](r *RepositoryContainer, impl T) error {
+func RegisterRepository[T common.IBaseRepository](r *RepositoryContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return r.RegisterByType(ifaceType, impl)
 }
 
 // RegisterByType 按接口类型注册
-func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseRepository) error {
+func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseRepository) error {
 	implType := reflect.TypeOf(impl)
 
 	if impl == nil {
@@ -97,11 +97,11 @@ func (r *RepositoryContainer) InjectAll() error {
 }
 
 // GetAll 获取所有已注册的存储库
-func (r *RepositoryContainer) GetAll() []common.BaseRepository {
+func (r *RepositoryContainer) GetAll() []common.IBaseRepository {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	result := make([]common.BaseRepository, 0, len(r.items))
+	result := make([]common.IBaseRepository, 0, len(r.items))
 	for _, item := range r.items {
 		result = append(result, item)
 	}
@@ -114,7 +114,7 @@ func (r *RepositoryContainer) GetAll() []common.BaseRepository {
 }
 
 // GetByType 按接口类型获取（返回单例）
-func (r *RepositoryContainer) GetByType(ifaceType reflect.Type) common.BaseRepository {
+func (r *RepositoryContainer) GetByType(ifaceType reflect.Type) common.IBaseRepository {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -139,7 +139,7 @@ type repositoryDependencyResolver struct {
 
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
+	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType.Implements(baseConfigType) {
 		impl := r.container.configContainer.GetByType(fieldType)
 		if impl == nil {
@@ -151,7 +151,7 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return impl, nil
 	}
 
-	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
+	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType.Implements(baseManagerType) {
 		impl := r.container.managerContainer.GetByType(fieldType)
 		if impl == nil {
@@ -163,7 +163,7 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return impl, nil
 	}
 
-	baseEntityType := reflect.TypeOf((*common.BaseEntity)(nil)).Elem()
+	baseEntityType := reflect.TypeOf((*common.IBaseEntity)(nil)).Elem()
 	if fieldType == baseEntityType || fieldType.Implements(baseEntityType) {
 		items, err := r.container.entityContainer.GetByType(fieldType)
 		if err != nil {
