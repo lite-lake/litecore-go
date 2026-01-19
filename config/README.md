@@ -53,12 +53,8 @@ func main() {
 }
 ```
 
-## 配置示例
-
-### YAML 配置文件
-
+**配置文件示例（config.yaml）：**
 ```yaml
-# config.yaml
 app:
   name: "我的应用"
   version: "1.0.0"
@@ -86,38 +82,6 @@ servers:
 features:
   caching: true
   logging: false
-```
-
-### JSON 配置文件
-
-```json
-{
-  "app": {
-    "name": "我的应用",
-    "version": "1.0.0"
-  },
-  "database": {
-    "host": "localhost",
-    "port": 3306,
-    "credentials": {
-      "username": "admin",
-      "password": "secret"
-    }
-  },
-  "server": {
-    "host": "0.0.0.0",
-    "port": 8080,
-    "timeout": 30
-  },
-  "servers": [
-    {"host": "server1.example.com", "port": 8001, "ssl": true},
-    {"host": "server2.example.com", "port": 8002, "ssl": true}
-  ],
-  "features": {
-    "caching": true,
-    "logging": false
-  }
-}
 ```
 
 ## 路径语法

@@ -1,4 +1,4 @@
-package util
+package request
 
 import (
 	"github.com/gin-gonic/gin"
@@ -30,7 +30,7 @@ func GetDefaultValidator() ValidatorInterface {
 //
 // 使用示例：
 //
-//	req, err := util.BindRequest[dtos.ArticleCreateRequest](ctx)
+//	req, err := request.BindRequest[dtos.ArticleCreateRequest](ctx)
 //	if err != nil {
 //	    ctx.Error(apperrors.BadRequest("invalid request").Wrap(err))
 //	    return
