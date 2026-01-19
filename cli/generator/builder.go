@@ -69,10 +69,13 @@ func (b *Builder) Generate(info *analyzer.ProjectInfo) error {
 
 // generateConfigContainer 生成配置容器代码
 func (b *Builder) generateConfigContainer(info *analyzer.ProjectInfo) error {
+	components := b.convertComponents(info.Layers[analyzer.LayerConfig])
+
 	data := &TemplateData{
 		PackageName: b.packageName,
 		ConfigPath:  b.configPath,
 		Imports:     b.collectImports(info, analyzer.LayerConfig),
+		Components:  components,
 	}
 
 	code, err := GenerateConfigContainer(data)
@@ -216,7 +219,10 @@ func (b *Builder) convertComponents(components []*analyzer.ComponentInfo) []Comp
 		}
 
 		packageAlias := b.getPackageAlias(comp.PackagePath)
-		interfaceType := packageAlias + "." + comp.InterfaceName
+		interfaceType := comp.InterfaceType
+		if !strings.Contains(interfaceType, ".") {
+			interfaceType = packageAlias + "." + comp.InterfaceName
+		}
 
 		result = append(result, ComponentTemplateData{
 			TypeName:      typeName,
@@ -258,6 +264,22 @@ func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Laye
 		if comp.PackagePath != "" && comp.PackagePath != b.moduleName {
 			alias := b.getPackageAlias(comp.PackagePath)
 			importMap[alias] = comp.PackagePath
+		}
+
+		if strings.Contains(comp.InterfaceType, ".") {
+			parts := strings.Split(comp.InterfaceType, ".")
+			if len(parts) > 1 {
+				pkg := parts[0]
+				if pkg != b.moduleName && pkg != "" && pkg != "common" && pkg != "config" {
+					fullPkg := "com.litelake.litecore/manager/" + pkg
+					if pkg == "telemetrymgr" {
+						fullPkg = "com.litelake.litecore/manager/telemetrymgr"
+					}
+					if _, exists := importMap[pkg]; !exists {
+						importMap[pkg] = fullPkg
+					}
+				}
+			}
 		}
 	}
 

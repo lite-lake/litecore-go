@@ -6,6 +6,11 @@ import (
 
 	"com.litelake.litecore/common"
 	"com.litelake.litecore/container"
+	cachemgr "com.litelake.litecore/manager/cachemgr"
+	databasemgr "com.litelake.litecore/manager/databasemgr"
+	infras "com.litelake.litecore/samples/messageboard/internal/infras"
+	loggermgr "com.litelake.litecore/manager/loggermgr"
+	telemetrymgr "com.litelake.litecore/manager/telemetrymgr"
 )
 
 // InitManagerContainer 初始化管理器容器
@@ -14,6 +19,26 @@ func InitManagerContainer(configContainer *container.ConfigContainer) (*containe
 
 	configProvider := configContainer.GetByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem())
 	_ = configProvider
+	managerCacheManager, err := infras.NewCacheManager(configProvider)
+	if err != nil {
+		return nil, err
+	}
+	container.RegisterManager[cachemgr.CacheManager](managerContainer, managerCacheManager)
+	managerDatabaseManager, err := infras.NewDatabaseManager(configProvider)
+	if err != nil {
+		return nil, err
+	}
+	container.RegisterManager[databasemgr.DatabaseManager](managerContainer, managerDatabaseManager)
+	managerLoggerManager, err := infras.NewLoggerManager(configProvider)
+	if err != nil {
+		return nil, err
+	}
+	container.RegisterManager[loggermgr.LoggerManager](managerContainer, managerLoggerManager)
+	managerTelemetryManager, err := infras.NewTelemetryManager(configProvider)
+	if err != nil {
+		return nil, err
+	}
+	container.RegisterManager[telemetrymgr.TelemetryManager](managerContainer, managerTelemetryManager)
 
 	return managerContainer, nil
 }

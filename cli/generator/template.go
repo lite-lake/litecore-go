@@ -11,10 +11,17 @@ package {{.PackageName}}
 
 import (
 	"com.litelake.litecore/common"
-	"com.litelake.litecore/config"
 	"com.litelake.litecore/container"
-	{{- range .Imports}}
-	"{{.}}"
+	{{- if .Components}}
+	{{- else}}
+	"com.litelake.litecore/config"
+	{{- end}}
+	{{- range $alias, $path := .Imports}}
+	{{- if $alias}}
+	{{ $alias }} "{{$path}}"
+	{{- else}}
+	"{{$path}}"
+	{{- end}}
 	{{- end}}
 )
 
@@ -22,7 +29,11 @@ import (
 func InitConfigContainer() (*container.ConfigContainer, error) {
 	configContainer := container.NewConfigContainer()
 
+	{{- if .Components}}
+	configProvider, err := {{(index .Components 0).PackageAlias}}.{{(index .Components 0).FactoryFunc}}()
+	{{- else}}
 	configProvider, err := config.NewConfigProvider("yaml", "{{.ConfigPath}}")
+	{{- end}}
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +96,11 @@ func InitManagerContainer(configContainer *container.ConfigContainer) (*containe
 	_ = configProvider
 
 	{{- range .Components}}
-	manager, err := {{.PackageAlias}}.{{.FactoryFunc}}(configProvider)
+	manager{{.TypeName}}, err := {{.PackageAlias}}.{{.FactoryFunc}}(configProvider)
 	if err != nil {
 		return nil, err
 	}
-	container.RegisterManager[common.BaseManager](managerContainer, manager)
+	container.RegisterManager[{{.InterfaceType}}](managerContainer, manager{{.TypeName}})
 	{{- end}}
 
 	return managerContainer, nil

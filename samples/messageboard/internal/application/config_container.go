@@ -3,15 +3,14 @@ package application
 
 import (
 	"com.litelake.litecore/common"
-	"com.litelake.litecore/config"
 	"com.litelake.litecore/container"
+	infras "com.litelake.litecore/samples/messageboard/internal/infras"
 )
 
 // InitConfigContainer 初始化配置容器
 func InitConfigContainer() (*container.ConfigContainer, error) {
 	configContainer := container.NewConfigContainer()
-
-	configProvider, err := config.NewConfigProvider("yaml", "configs/config.yaml")
+	configProvider, err := infras.NewConfigProvider()
 	if err != nil {
 		return nil, err
 	}
