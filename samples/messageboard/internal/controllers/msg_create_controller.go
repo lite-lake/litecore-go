@@ -9,29 +9,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IMessageCreateController 创建留言控制器接口
-type IMessageCreateController interface {
+// IMsgCreateController 创建留言控制器接口
+type IMsgCreateController interface {
 	common.BaseController
 }
 
-type MessageCreateController struct {
+type msgCreateControllerImpl struct {
 	MessageService services.IMessageService `inject:""`
 }
 
-// NewMessageCreateController 创建控制器实例
-func NewMessageCreateController() IMessageCreateController {
-	return &MessageCreateController{}
+// NewMsgCreateController 创建控制器实例
+func NewMsgCreateController() IMsgCreateController {
+	return &msgCreateControllerImpl{}
 }
 
-func (c *MessageCreateController) ControllerName() string {
-	return "MessageCreateController"
+func (c *msgCreateControllerImpl) ControllerName() string {
+	return "msgCreateControllerImpl"
 }
 
-func (c *MessageCreateController) GetRouter() string {
+func (c *msgCreateControllerImpl) GetRouter() string {
 	return "/api/messages [POST]"
 }
 
-func (c *MessageCreateController) Handle(ctx *gin.Context) {
+func (c *msgCreateControllerImpl) Handle(ctx *gin.Context) {
 	var req dtos.CreateMessageRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(400, dtos.ErrorResponse(400, err.Error()))
@@ -49,4 +49,4 @@ func (c *MessageCreateController) Handle(ctx *gin.Context) {
 	}))
 }
 
-var _ IMessageCreateController = (*MessageCreateController)(nil)
+var _ IMsgCreateController = (*msgCreateControllerImpl)(nil)

@@ -9,29 +9,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IMessageListController 获取留言控制器接口
-type IMessageListController interface {
+// IMsgListController 获取留言控制器接口
+type IMsgListController interface {
 	common.BaseController
 }
 
-type MessageListController struct {
+type msgListControllerImpl struct {
 	MessageService services.IMessageService `inject:""`
 }
 
-// NewMessageListController 创建控制器实例
-func NewMessageListController() IMessageListController {
-	return &MessageListController{}
+// NewMsgListController 创建控制器实例
+func NewMsgListController() IMsgListController {
+	return &msgListControllerImpl{}
 }
 
-func (c *MessageListController) ControllerName() string {
-	return "MessageListController"
+func (c *msgListControllerImpl) ControllerName() string {
+	return "msgListControllerImpl"
 }
 
-func (c *MessageListController) GetRouter() string {
+func (c *msgListControllerImpl) GetRouter() string {
 	return "/api/messages [GET]"
 }
 
-func (c *MessageListController) Handle(ctx *gin.Context) {
+func (c *msgListControllerImpl) Handle(ctx *gin.Context) {
 	messages, err := c.MessageService.GetApprovedMessages()
 	if err != nil {
 		ctx.JSON(500, dtos.ErrInternalServer)
@@ -56,4 +56,4 @@ func (c *MessageListController) Handle(ctx *gin.Context) {
 	ctx.JSON(200, dtos.SuccessWithData(responseList))
 }
 
-var _ IMessageListController = (*MessageListController)(nil)
+var _ IMsgListController = (*msgListControllerImpl)(nil)

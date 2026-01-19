@@ -14,24 +14,24 @@ type IAdminAuthController interface {
 	common.BaseController
 }
 
-type AdminAuthController struct {
+type adminAuthControllerImpl struct {
 	AuthService services.IAuthService `inject:""`
 }
 
 // NewAdminAuthController 创建控制器实例
 func NewAdminAuthController() IAdminAuthController {
-	return &AdminAuthController{}
+	return &adminAuthControllerImpl{}
 }
 
-func (c *AdminAuthController) ControllerName() string {
-	return "AdminAuthController"
+func (c *adminAuthControllerImpl) ControllerName() string {
+	return "adminAuthControllerImpl"
 }
 
-func (c *AdminAuthController) GetRouter() string {
+func (c *adminAuthControllerImpl) GetRouter() string {
 	return "/api/admin/login [POST]"
 }
 
-func (c *AdminAuthController) Handle(ctx *gin.Context) {
+func (c *adminAuthControllerImpl) Handle(ctx *gin.Context) {
 	var req dtos.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(400, dtos.ErrBadRequest)
@@ -49,4 +49,4 @@ func (c *AdminAuthController) Handle(ctx *gin.Context) {
 	}))
 }
 
-var _ IAdminAuthController = (*AdminAuthController)(nil)
+var _ IAdminAuthController = (*adminAuthControllerImpl)(nil)
