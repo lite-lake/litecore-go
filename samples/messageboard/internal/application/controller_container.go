@@ -13,17 +13,17 @@ func InitControllerContainer(
 	serviceContainer *container.ServiceContainer,
 ) *container.ControllerContainer {
 	controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
-	container.RegisterController[controllers.IAdminLoginController](controllerContainer, controllers.NewAdminLoginController())
-	container.RegisterController[controllers.IAdminPageController](controllerContainer, controllers.NewAdminPageController())
-	container.RegisterController[controllers.ICreateMessageController](controllerContainer, controllers.NewCreateMessageController())
-	container.RegisterController[controllers.IDeleteMessageController](controllerContainer, controllers.NewDeleteMessageController())
-	container.RegisterController[controllers.IGetAllMessagesController](controllerContainer, controllers.NewGetAllMessagesController())
-	container.RegisterController[controllers.IGetMessagesController](controllerContainer, controllers.NewGetMessagesController())
-	container.RegisterController[controllers.IHealthController](controllerContainer, controllers.NewHealthController())
-	container.RegisterController[controllers.IHomePageController](controllerContainer, controllers.NewHomePageController())
-	container.RegisterController[controllers.IMetricsController](controllerContainer, controllers.NewMetricsController())
-	container.RegisterController[controllers.IResourceStaticController](controllerContainer, controllers.NewResourceStaticController())
-	container.RegisterController[controllers.IUpdateStatusController](controllerContainer, controllers.NewUpdateStatusController())
+	container.RegisterController[controllers.IAdminAuthController](controllerContainer, controllers.NewAdminAuthController())
+	container.RegisterController[controllers.IPageAdminController](controllerContainer, controllers.NewPageAdminController())
+	container.RegisterController[controllers.IMessageCreateController](controllerContainer, controllers.NewMessageCreateController())
+	container.RegisterController[controllers.IMessageDeleteController](controllerContainer, controllers.NewMessageDeleteController())
+	container.RegisterController[controllers.IMessageAllController](controllerContainer, controllers.NewMessageAllController())
+	container.RegisterController[controllers.IMessageListController](controllerContainer, controllers.NewMessageListController())
+	container.RegisterController[controllers.ISysHealthController](controllerContainer, controllers.NewSysHealthController())
+	container.RegisterController[controllers.IPageHomeController](controllerContainer, controllers.NewPageHomeController())
+	container.RegisterController[controllers.ISysMetricsController](controllerContainer, controllers.NewSysMetricsController())
+	container.RegisterController[controllers.IResStaticController](controllerContainer, controllers.NewResStaticController())
+	container.RegisterController[controllers.IMessageStatusController](controllerContainer, controllers.NewMessageStatusController())
 
 	return controllerContainer
 }

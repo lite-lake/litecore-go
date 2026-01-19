@@ -10,29 +10,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IUpdateStatusController 更新留言状态控制器接口
-type IUpdateStatusController interface {
+// IMessageStatusController 更新留言状态控制器接口
+type IMessageStatusController interface {
 	common.BaseController
 }
 
-type UpdateStatusController struct {
+type MessageStatusController struct {
 	MessageService services.IMessageService `inject:""`
 }
 
-// NewUpdateStatusController 创建控制器实例
-func NewUpdateStatusController() IUpdateStatusController {
-	return &UpdateStatusController{}
+// NewMessageStatusController 创建控制器实例
+func NewMessageStatusController() IMessageStatusController {
+	return &MessageStatusController{}
 }
 
-func (c *UpdateStatusController) ControllerName() string {
-	return "UpdateStatusController"
+func (c *MessageStatusController) ControllerName() string {
+	return "MessageStatusController"
 }
 
-func (c *UpdateStatusController) GetRouter() string {
+func (c *MessageStatusController) GetRouter() string {
 	return "/api/admin/messages/:id/status [POST]"
 }
 
-func (c *UpdateStatusController) Handle(ctx *gin.Context) {
+func (c *MessageStatusController) Handle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -54,4 +54,4 @@ func (c *UpdateStatusController) Handle(ctx *gin.Context) {
 	ctx.JSON(200, dtos.SuccessWithMessage("状态更新成功"))
 }
 
-var _ IUpdateStatusController = (*UpdateStatusController)(nil)
+var _ IMessageStatusController = (*MessageStatusController)(nil)
