@@ -37,6 +37,10 @@ func (p *Parser) Parse(moduleName string) (*analyzer.ProjectInfo, error) {
 		return nil, fmt.Errorf("parse entities failed: %w", err)
 	}
 
+	if err := p.parseInfras(); err != nil {
+		return nil, fmt.Errorf("parse infras failed: %w", err)
+	}
+
 	if err := p.parseRepositories(); err != nil {
 		return nil, fmt.Errorf("parse repositories failed: %w", err)
 	}
@@ -379,6 +383,82 @@ func (p *Parser) parseMiddlewareFile(filename string) error {
 	for _, comp := range componentMap {
 		p.info.Layers[analyzer.LayerMiddleware] = append(p.info.Layers[analyzer.LayerMiddleware], comp)
 	}
+
+	return nil
+}
+
+// parseInfras 解析基础设施层（managers和config）
+func (p *Parser) parseInfras() error {
+	dir := filepath.Join(p.projectPath, "internal", "infras")
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil
+	}
+
+	files, err := p.findGoFiles(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if err := p.parseInfrasFile(file); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// parseInfrasFile 解析基础设施文件
+func (p *Parser) parseInfrasFile(filename string) error {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	pkgName := node.Name.Name
+	packagePath := p.getPackagePath(filename)
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		if fn, ok := n.(*ast.FuncDecl); ok {
+			if !strings.HasPrefix(fn.Name.Name, "New") || fn.Type.Results == nil {
+				return true
+			}
+
+			if len(fn.Type.Results.List) == 0 {
+				return true
+			}
+
+			typeName := strings.TrimPrefix(fn.Name.Name, "New")
+			layer := analyzer.LayerManager
+			if strings.Contains(filename, "configproviders") || strings.Contains(filename, "config_provider") || strings.Contains(fn.Name.Name, "ConfigProvider") {
+				layer = analyzer.LayerConfig
+			}
+
+			interfaceType := pkgName + "." + typeName
+			if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 {
+				if selectorExpr, ok := fn.Type.Results.List[0].Type.(*ast.SelectorExpr); ok {
+					if xIdent, ok := selectorExpr.X.(*ast.Ident); ok {
+						interfaceType = xIdent.Name + "." + selectorExpr.Sel.Name
+					}
+				} else if ident, ok := fn.Type.Results.List[0].Type.(*ast.Ident); ok {
+					interfaceType = ident.Name
+				}
+			}
+
+			comp := &analyzer.ComponentInfo{
+				InterfaceName: typeName,
+				InterfaceType: interfaceType,
+				PackagePath:   packagePath,
+				FileName:      filename,
+				FactoryFunc:   fn.Name.Name,
+				Layer:         layer,
+			}
+
+			p.info.Layers[layer] = append(p.info.Layers[layer], comp)
+		}
+		return true
+	})
 
 	return nil
 }

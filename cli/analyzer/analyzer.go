@@ -95,9 +95,35 @@ func (a *Analyzer) analyzeFile(file *ast.File, filename string, fset *token.File
 		switch node := n.(type) {
 		case *ast.GenDecl:
 			a.analyzeGenDecl(node, filename, layer, file.Name.Name, fset)
+		case *ast.FuncDecl:
+			a.analyzeFuncDecl(node, filename, layer, file.Name.Name)
 		}
 		return true
 	})
+}
+
+// analyzeFuncDecl 分析函数声明（用于infras包中的工厂函数）
+func (a *Analyzer) analyzeFuncDecl(fn *ast.FuncDecl, filename string, layer Layer, pkgName string) {
+	if !strings.HasPrefix(fn.Name.Name, "New") || fn.Type.Results == nil {
+		return
+	}
+
+	if len(fn.Type.Results.List) == 0 {
+		return
+	}
+
+	typeName := strings.TrimPrefix(fn.Name.Name, "New")
+
+	info := &ComponentInfo{
+		InterfaceName: typeName,
+		InterfaceType: pkgName + "." + typeName,
+		PackagePath:   a.getPackagePath(filename),
+		FileName:      filename,
+		FactoryFunc:   fn.Name.Name,
+		Layer:         layer,
+	}
+
+	a.info.Layers[layer] = append(a.info.Layers[layer], info)
 }
 
 // detectLayer 检测代码层
@@ -120,7 +146,13 @@ func (a *Analyzer) detectLayer(filename, packageName string) Layer {
 		if strings.Contains(part, "middlewares") {
 			return LayerMiddleware
 		}
-		if strings.Contains(part, "managers") && !strings.Contains(part, "manager") {
+		if strings.Contains(part, "infras") {
+			if strings.Contains(part, "configproviders") || strings.Contains(filename, "config_provider") {
+				return LayerConfig
+			}
+			if strings.Contains(part, "managers") {
+				return LayerManager
+			}
 			return LayerManager
 		}
 	}

@@ -44,14 +44,20 @@ func (s *Scanner) Scan() (*analyzer.ProjectInfo, error) {
 
 // scanConfig 扫描配置层
 func (s *Scanner) scanConfig() {
-	configDir := filepath.Join(s.projectPath, "configs")
-	if _, err := os.Stat(configDir); os.IsNotExist(err) {
-		return
+	configDirs := []string{
+		filepath.Join(s.projectPath, "configs"),
+		filepath.Join(s.projectPath, "internal", "infras", "configproviders"),
 	}
 
-	configFiles := s.findGoFiles(configDir)
-	for _, file := range configFiles {
-		s.analyzeConfigFile(file)
+	for _, configDir := range configDirs {
+		if _, err := os.Stat(configDir); os.IsNotExist(err) {
+			continue
+		}
+
+		configFiles := s.findGoFiles(configDir)
+		for _, file := range configFiles {
+			s.analyzeConfigFile(file)
+		}
 	}
 }
 
@@ -83,14 +89,20 @@ func (s *Scanner) analyzeConfigFile(filename string) {
 
 // scanManagers 扫描管理器层
 func (s *Scanner) scanManagers() {
-	managerDir := filepath.Join(s.projectPath, "manager")
-	if _, err := os.Stat(managerDir); os.IsNotExist(err) {
-		return
+	managerDirs := []string{
+		filepath.Join(s.projectPath, "manager"),
+		filepath.Join(s.projectPath, "internal", "infras", "managers"),
 	}
 
-	managerFiles := s.findGoFiles(managerDir)
-	for _, file := range managerFiles {
-		s.analyzeManagerFile(file)
+	for _, managerDir := range managerDirs {
+		if _, err := os.Stat(managerDir); os.IsNotExist(err) {
+			continue
+		}
+
+		managerFiles := s.findGoFiles(managerDir)
+		for _, file := range managerFiles {
+			s.analyzeManagerFile(file)
+		}
 	}
 }
 
