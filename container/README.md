@@ -4,14 +4,12 @@
 
 ## 特性
 
-- **分层架构** - 定义 Config/Entity/Manager/Repository/Service/Controller/Middleware 七层容器
-- **单向依赖** - 上层可依赖下层，下层不能依赖上层，禁止跨层访问
-- **依赖注入** - 通过 inject 标签自动注入依赖，支持接口类型匹配
+- **分层架构** - 定义 Config/Entity/Manager/Repository/Service/Controller/Middleware 七层容器，严格单向依赖
+- **依赖注入** - 通过 inject 标签自动注入依赖，支持接口类型匹配和可选依赖
 - **同层依赖** - Manager 和 Service 层支持同层依赖，自动拓扑排序确定注入顺序
-- **按类型注册** - 使用接口类型作为索引，每个接口类型只能注册一个实现
-- **泛型 API** - 提供泛型辅助函数简化注册代码，避免手动反射操作
+- **类型安全** - 使用泛型 API 注册，编译时类型检查，接口实现校验
 - **错误检测** - 自动检测循环依赖、依赖缺失、接口未实现等错误
-- **并发安全** - 容器内部使用 RWMutex 保护，支持多线程并发读取
+- **并发安全** - 使用 RWMutex 保护容器内部状态，支持多线程并发读取
 
 ## 快速开始
 
@@ -35,9 +33,8 @@ func main() {
     entityContainer := container.NewEntityContainer()
     repositoryContainer := container.NewRepositoryContainer(configContainer, managerContainer, entityContainer)
     serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
-    controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
 
-    // 2. 注册实例（推荐使用泛型 API）
+    // 2. 注册实例（使用泛型 API）
     configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
     container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
 
@@ -53,9 +50,6 @@ func main() {
     userService := &UserServiceImpl{}
     container.RegisterService[UserService](serviceContainer, userService)
 
-    userController := &UserControllerImpl{}
-    container.RegisterController[UserController](controllerContainer, userController)
-
     // 3. 执行依赖注入（按层次从下到上）
     if err := managerContainer.InjectAll(); err != nil {
         log.Fatalf("Manager injection failed: %v", err)
@@ -65,9 +59,6 @@ func main() {
     }
     if err := serviceContainer.InjectAll(); err != nil {
         log.Fatalf("Service injection failed: %v", err)
-    }
-    if err := controllerContainer.InjectAll(); err != nil {
-        log.Fatalf("Controller injection failed: %v", err)
     }
 
     // 4. 获取实例使用
@@ -145,25 +136,11 @@ authMiddleware := &AuthMiddlewareImpl{}
 container.RegisterMiddleware[AuthMiddleware](middlewareContainer, authMiddleware)
 ```
 
-### 反射 API 注册（不推荐）
-
-也可以使用底层反射 API，但不推荐，代码更冗长且容易出错：
-
-```go
-// 使用 RegisterByType 注册（不推荐）
-var userService UserService = &UserServiceImpl{}
-serviceContainer.RegisterByType(
-    reflect.TypeOf((*UserService)(nil)).Elem(),
-    userService,
-)
-```
-
 ### 注册规则
 
-1. **推荐使用泛型 API**：`RegisterConfig[T]`、`RegisterManager[T]` 等，类型安全且简洁
-2. **接口唯一性**：每个接口类型只能注册一个实现
-3. **实现校验**：注册时会检查实现是否真正实现了接口
-4. **并发安全**：注册方法使用写锁，获取方法使用读锁
+1. **接口唯一性**：每个接口类型只能注册一个实现
+2. **实现校验**：注册时会检查实现是否真正实现了接口
+3. **并发安全**：注册方法使用写锁，获取方法使用读锁
 
 ```go
 // 错误：重复注册相同接口
@@ -183,11 +160,11 @@ err := container.RegisterService[UserService](serviceContainer, &InvalidServiceI
 
 ```go
 type UserServiceImpl struct {
-    Config     common.BaseConfigProvider `inject:""`
-    DBManager  DatabaseManager           `inject:""`
-    UserRepo   UserRepository            `inject:""`
-    OrderSvc   OrderService              `inject:""`  // 同层依赖
-    CacheMgr   CacheManager              `inject:"optional"` // 可选依赖
+    Config    common.BaseConfigProvider `inject:""`
+    DBManager DatabaseManager           `inject:""`
+    UserRepo  UserRepository            `inject:""`
+    OrderSvc  OrderService              `inject:""`  // 同层依赖
+    CacheMgr  CacheManager              `inject:"optional"` // 可选依赖
 }
 
 func (s *UserServiceImpl) ServiceName() string {
@@ -204,8 +181,8 @@ func (s *UserServiceImpl) ServiceName() string {
 
 ```go
 type UserServiceImpl struct {
-    Config    common.BaseConfigProvider `inject:""`
-    CacheMgr  CacheManager              `inject:"optional"` // 可选依赖
+    Config   common.BaseConfigProvider `inject:""`
+    CacheMgr CacheManager              `inject:"optional"` // 可选依赖
 }
 ```
 
@@ -472,13 +449,13 @@ func (m *MiddlewareContainer) Count() int
 ```go
 // 推荐：声明为接口类型
 type UserServiceImpl struct {
-    OrderSvc   OrderService    `inject:""`
-    UserRepo   UserRepository  `inject:""`
+    OrderSvc OrderService   `inject:""`
+    UserRepo UserRepository `inject:""`
 }
 
 // 避免：声明为具体实现类型
 type UserServiceImpl struct {
-    OrderSvc   *OrderServiceImpl `inject:""`
+    OrderSvc *OrderServiceImpl `inject:""`
 }
 ```
 
@@ -497,7 +474,7 @@ UserService → OrderService → UserService (循环!)
 ```go
 // 推荐：依赖聚焦
 type UserServiceImpl struct {
-    UserRepo   UserRepository  `inject:""`
+    UserRepo UserRepository `inject:""`
 }
 
 // 避免：依赖过多
@@ -519,8 +496,8 @@ type UserServiceImpl struct {
 
 ```go
 type UserServiceImpl struct {
-    Config    common.BaseConfigProvider `inject:""`
-    CacheMgr  CacheManager              `inject:"optional"` // 可选依赖
+    Config   common.BaseConfigProvider `inject:""`
+    CacheMgr CacheManager              `inject:"optional"` // 可选依赖
 }
 ```
 
@@ -535,7 +512,7 @@ RegisterByType 使用写锁（Lock），GetByType/GetAll 使用读锁（RLock）
 
 ## 性能考虑
 
-1. **反射开销**：InjectAll 使用反射解析字段，仅在启动时执行一次，可接受；泛型 API 在编译时确定类型，无运行时反射开销
-2. **拓扑排序复杂度**：O(V + E)，V 为实例数量，E 为依赖边数
+1. **反射开销**：InjectAll 使用反射解析字段，仅在启动时执行一次；注册时使用反射校验接口实现
+2. **拓扑排序**：复杂度 O(V + E)，V 为实例数量，E 为依赖边数
 3. **并发读取**：注入完成后使用 RWMutex 保护，读取性能高
-4. **按类型索引**：使用 map[reflect.Type] 作为索引，查找复杂度 O(1)
+4. **类型索引**：使用 map[reflect.Type] 作为索引，查找复杂度 O(1)
