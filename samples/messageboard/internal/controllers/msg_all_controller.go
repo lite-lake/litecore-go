@@ -11,7 +11,7 @@ import (
 
 // IMsgAllController 获取所有留言控制器接口
 type IMsgAllController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type msgAllControllerImpl struct {
@@ -34,7 +34,7 @@ func (c *msgAllControllerImpl) GetRouter() string {
 func (c *msgAllControllerImpl) Handle(ctx *gin.Context) {
 	messages, err := c.MessageService.GetAllMessages()
 	if err != nil {
-		ctx.JSON(500, dtos.ErrInternalServer)
+		ctx.JSON(common.HTTPStatusInternalServerError, dtos.ErrInternalServer)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (c *msgAllControllerImpl) Handle(ctx *gin.Context) {
 		))
 	}
 
-	ctx.JSON(200, dtos.SuccessWithData(responseList))
+	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithData(responseList))
 }
 
 var _ IMsgAllController = (*msgAllControllerImpl)(nil)

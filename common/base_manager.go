@@ -1,7 +1,7 @@
 package common
 
-// BaseManager 管理器基础接口定义
-type BaseManager interface {
+// IBaseManager 管理器基础接口定义
+type IBaseManager interface {
 	// ManagerName 返回管理器名称
 	ManagerName() string
 	// Health 检查管理器健康状态

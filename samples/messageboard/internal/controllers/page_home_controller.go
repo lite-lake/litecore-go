@@ -9,7 +9,7 @@ import (
 
 // IPageHomeController 首页控制器接口
 type IPageHomeController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type pageHomeControllerImpl struct {

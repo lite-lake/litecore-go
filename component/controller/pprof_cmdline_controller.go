@@ -10,7 +10,7 @@ import (
 
 // IPprofCmdlineController pprof 命令行参数控制器
 type IPprofCmdlineController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofCmdlineController struct{}
@@ -31,4 +31,4 @@ func (c *PprofCmdlineController) Handle(ctx *gin.Context) {
 	pprof.Cmdline(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofCmdlineController)(nil)
+var _ common.IBaseController = (*PprofCmdlineController)(nil)

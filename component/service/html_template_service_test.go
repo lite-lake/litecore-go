@@ -70,4 +70,4 @@ func TestHTMLTemplateService_OnStop(t *testing.T) {
 }
 
 var _ IHTMLTemplateService = (*HTMLTemplateService)(nil)
-var _ common.BaseService = (*HTMLTemplateService)(nil)
+var _ common.IBaseService = (*HTMLTemplateService)(nil)

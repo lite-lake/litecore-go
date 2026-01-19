@@ -102,8 +102,8 @@ func TestNewTelemetryManagerOtelImpl(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_ManagerName 测试管理器名称
-func TestTelemetryManagerOtelImpl_ManagerName(t *testing.T) {
+// TestITelemetryManagerOtelImpl_ManagerName 测试管理器名称
+func TestITelemetryManagerOtelImpl_ManagerName(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -128,8 +128,8 @@ func TestTelemetryManagerOtelImpl_ManagerName(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_Health 测试健康检查
-func TestTelemetryManagerOtelImpl_Health(t *testing.T) {
+// TestITelemetryManagerOtelImpl_Health 测试健康检查
+func TestITelemetryManagerOtelImpl_Health(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -152,8 +152,8 @@ func TestTelemetryManagerOtelImpl_Health(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_Lifecycle 测试生命周期方法
-func TestTelemetryManagerOtelImpl_Lifecycle(t *testing.T) {
+// TestITelemetryManagerOtelImpl_Lifecycle 测试生命周期方法
+func TestITelemetryManagerOtelImpl_Lifecycle(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -185,8 +185,8 @@ func TestTelemetryManagerOtelImpl_Lifecycle(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_Providers 测试 Provider 方法
-func TestTelemetryManagerOtelImpl_Providers(t *testing.T) {
+// TestITelemetryManagerOtelImpl_Providers 测试 Provider 方法
+func TestITelemetryManagerOtelImpl_Providers(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -225,8 +225,8 @@ func TestTelemetryManagerOtelImpl_Providers(t *testing.T) {
 	})
 }
 
-// TestTelemetryManagerOtelImpl_Tracer 测试 Tracer 方法
-func TestTelemetryManagerOtelImpl_Tracer(t *testing.T) {
+// TestITelemetryManagerOtelImpl_Tracer 测试 Tracer 方法
+func TestITelemetryManagerOtelImpl_Tracer(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -258,8 +258,8 @@ func TestTelemetryManagerOtelImpl_Tracer(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_Meter 测试 Meter 方法
-func TestTelemetryManagerOtelImpl_Meter(t *testing.T) {
+// TestITelemetryManagerOtelImpl_Meter 测试 Meter 方法
+func TestITelemetryManagerOtelImpl_Meter(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -291,8 +291,8 @@ func TestTelemetryManagerOtelImpl_Meter(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_Logger 测试 Logger 方法
-func TestTelemetryManagerOtelImpl_Logger(t *testing.T) {
+// TestITelemetryManagerOtelImpl_Logger 测试 Logger 方法
+func TestITelemetryManagerOtelImpl_Logger(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -324,8 +324,8 @@ func TestTelemetryManagerOtelImpl_Logger(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_Shutdown 测试 Shutdown 方法
-func TestTelemetryManagerOtelImpl_Shutdown(t *testing.T) {
+// TestITelemetryManagerOtelImpl_Shutdown 测试 Shutdown 方法
+func TestITelemetryManagerOtelImpl_Shutdown(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -354,12 +354,12 @@ func TestTelemetryManagerOtelImpl_Shutdown(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_ResourceAttributes 测试资源属性
-func TestTelemetryManagerOtelImpl_ResourceAttributes(t *testing.T) {
+// TestITelemetryManagerOtelImpl_ResourceAttributes 测试资源属性
+func TestITelemetryManagerOtelImpl_ResourceAttributes(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *TelemetryConfig
-		verify func(*testing.T, TelemetryManager)
+		verify func(*testing.T, ITelemetryManager)
 	}{
 		{
 			name: "with resource attributes",
@@ -377,7 +377,7 @@ func TestTelemetryManagerOtelImpl_ResourceAttributes(t *testing.T) {
 					Logs:    &FeatureConfig{Enabled: false},
 				},
 			},
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				// 验证管理器正常创建并工作
 				if err := mgr.Health(); err != nil {
 					t.Errorf("health check failed: %v", err)
@@ -395,7 +395,7 @@ func TestTelemetryManagerOtelImpl_ResourceAttributes(t *testing.T) {
 					Logs:     &FeatureConfig{Enabled: false},
 				},
 			},
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				// 验证管理器正常创建并工作
 				if err := mgr.Health(); err != nil {
 					t.Errorf("health check failed: %v", err)
@@ -419,12 +419,12 @@ func TestTelemetryManagerOtelImpl_ResourceAttributes(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_Features 测试特性启用/禁用
-func TestTelemetryManagerOtelImpl_Features(t *testing.T) {
+// TestITelemetryManagerOtelImpl_Features 测试特性启用/禁用
+func TestITelemetryManagerOtelImpl_Features(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *TelemetryConfig
-		verify func(*testing.T, TelemetryManager)
+		verify func(*testing.T, ITelemetryManager)
 	}{
 		{
 			name: "traces enabled",
@@ -437,7 +437,7 @@ func TestTelemetryManagerOtelImpl_Features(t *testing.T) {
 					Logs:     &FeatureConfig{Enabled: false},
 				},
 			},
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				// 验证 tracer 可以正常工作
 				tracer := mgr.Tracer("test")
 				if tracer == nil {
@@ -456,7 +456,7 @@ func TestTelemetryManagerOtelImpl_Features(t *testing.T) {
 					Logs:     &FeatureConfig{Enabled: true},
 				},
 			},
-			verify: func(t *testing.T, mgr TelemetryManager) {
+			verify: func(t *testing.T, mgr ITelemetryManager) {
 				// 验证所有 provider 都可用
 				if mgr.TracerProvider() == nil {
 					t.Error("expected non-nil TracerProvider")
@@ -486,8 +486,8 @@ func TestTelemetryManagerOtelImpl_Features(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_NilFeatureConfig 测试 nil 特性配置
-func TestTelemetryManagerOtelImpl_NilFeatureConfig(t *testing.T) {
+// TestITelemetryManagerOtelImpl_NilFeatureConfig 测试 nil 特性配置
+func TestITelemetryManagerOtelImpl_NilFeatureConfig(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -509,8 +509,8 @@ func TestTelemetryManagerOtelImpl_NilFeatureConfig(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_ConcurrentAccess 测试并发访问
-func TestTelemetryManagerOtelImpl_ConcurrentAccess(t *testing.T) {
+// TestITelemetryManagerOtelImpl_ConcurrentAccess 测试并发访问
+func TestITelemetryManagerOtelImpl_ConcurrentAccess(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -586,8 +586,8 @@ func TestTelemetryManagerOtelImpl_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-// TestTelemetryManagerOtelImpl_InterfaceCompliance 测试接口符合性
-func TestTelemetryManagerOtelImpl_InterfaceCompliance(t *testing.T) {
+// TestITelemetryManagerOtelImpl_InterfaceCompliance 测试接口符合性
+func TestITelemetryManagerOtelImpl_InterfaceCompliance(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{
@@ -604,8 +604,8 @@ func TestTelemetryManagerOtelImpl_InterfaceCompliance(t *testing.T) {
 	}
 	defer mgr.Shutdown(context.Background())
 
-	// 验证 TelemetryManager 接口的所有方法都能正常调用
-	var _ TelemetryManager = mgr
+	// 验证 ITelemetryManager 接口的所有方法都能正常调用
+	var _ ITelemetryManager = mgr
 
 	// 调用所有接口方法确保没有 panic
 	_ = mgr.ManagerName()
@@ -626,8 +626,8 @@ func TestTelemetryManagerOtelImpl_InterfaceCompliance(t *testing.T) {
 	_ = mgr.Shutdown(ctx)
 }
 
-// TestTelemetryManagerOtelImpl_TracerOperation 测试 Tracer 操作
-func TestTelemetryManagerOtelImpl_TracerOperation(t *testing.T) {
+// TestITelemetryManagerOtelImpl_TracerOperation 测试 Tracer 操作
+func TestITelemetryManagerOtelImpl_TracerOperation(t *testing.T) {
 	config := &TelemetryConfig{
 		Driver: "otel",
 		OtelConfig: &OtelConfig{

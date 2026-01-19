@@ -10,7 +10,7 @@ import (
 
 // IPprofMutexController pprof 互斥锁控制器
 type IPprofMutexController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofMutexController struct{}
@@ -31,4 +31,4 @@ func (c *PprofMutexController) Handle(ctx *gin.Context) {
 	pprof.Handler("mutex").ServeHTTP(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofMutexController)(nil)
+var _ common.IBaseController = (*PprofMutexController)(nil)

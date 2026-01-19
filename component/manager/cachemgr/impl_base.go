@@ -16,8 +16,8 @@ import (
 
 // cacheManagerBaseImpl 提供可观测性和工具函数
 type cacheManagerBaseImpl struct {
-	loggerMgr         loggermgr.LoggerManager       `inject:""`
-	telemetryMgr      telemetrymgr.TelemetryManager `inject:""`
+	loggerMgr         loggermgr.ILoggerManager       `inject:""`
+	telemetryMgr      telemetrymgr.ITelemetryManager `inject:""`
 	logger            loggermgr.Logger
 	tracer            trace.Tracer
 	meter             metric.Meter
@@ -26,8 +26,8 @@ type cacheManagerBaseImpl struct {
 	operationDuration metric.Float64Histogram
 }
 
-// newCacheManagerBaseImpl 创建基类
-func newCacheManagerBaseImpl() *cacheManagerBaseImpl {
+// newICacheManagerBaseImpl 创建基类
+func newICacheManagerBaseImpl() *cacheManagerBaseImpl {
 	return &cacheManagerBaseImpl{}
 }
 

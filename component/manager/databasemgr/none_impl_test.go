@@ -225,8 +225,8 @@ func TestNoneImpl_Raw(t *testing.T) {
 func TestNoneImpl_InterfaceCompliance(t *testing.T) {
 	mgr := NewDatabaseManagerNoneImpl()
 
-	// 验证实现了 DatabaseManager 接口
-	var _ DatabaseManager = mgr
+	// 验证实现了 IDatabaseManager 接口
+	var _ IDatabaseManager = mgr
 
 	// 验证所有方法都可以调用（不应该 panic）
 	_ = mgr.ManagerName()

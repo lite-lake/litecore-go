@@ -17,7 +17,7 @@ type databaseManagerMysqlImpl struct {
 }
 
 // NewDatabaseManagerMySQLImpl 创建 MySQL 数据库管理器
-func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (DatabaseManager, error) {
+func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (IDatabaseManager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("mysql config is required")
 	}
@@ -56,7 +56,7 @@ func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (DatabaseManager, error) {
 	}
 
 	// 创建基础实现
-	baseImpl := newDatabaseManagerBaseImpl("databaseManagerMysqlImpl", "mysql", db)
+	baseImpl := newIDatabaseManagerBaseImpl("databaseManagerMysqlImpl", "mysql", db)
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{

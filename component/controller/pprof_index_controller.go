@@ -10,7 +10,7 @@ import (
 
 // IPprofIndexController pprof 首页控制器
 type IPprofIndexController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofIndexController struct{}
@@ -31,4 +31,4 @@ func (c *PprofIndexController) Handle(ctx *gin.Context) {
 	pprof.Index(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofIndexController)(nil)
+var _ common.IBaseController = (*PprofIndexController)(nil)

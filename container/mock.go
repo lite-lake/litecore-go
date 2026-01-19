@@ -7,22 +7,22 @@ import (
 
 // IMockService Mock 服务接口
 type IMockService interface {
-	common.BaseService
+	common.IBaseService
 }
 
 // IMockRepository Mock 仓储接口
 type IMockRepository interface {
-	common.BaseRepository
+	common.IBaseRepository
 }
 
 // IMockController Mock 控制器接口
 type IMockController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 // IMockMiddleware Mock 中间件接口
 type IMockMiddleware interface {
-	common.BaseMiddleware
+	common.IBaseMiddleware
 }
 
 // MockConfigProvider Mock 配置提供者
@@ -45,7 +45,7 @@ func (m *MockConfigProvider) Has(key string) bool {
 // MockManager Mock 管理器
 type MockManager struct {
 	name   string
-	Config common.BaseConfigProvider `inject:""`
+	Config common.IBaseConfigProvider `inject:""`
 }
 
 func (m *MockManager) ManagerName() string {
@@ -85,9 +85,9 @@ func (m *MockEntity) GetId() string {
 // MockRepository Mock 存储库
 type MockRepository struct {
 	name    string
-	Config  common.BaseConfigProvider `inject:""`
-	Manager common.BaseManager        `inject:""`
-	Entity  common.BaseEntity         `inject:""`
+	Config  common.IBaseConfigProvider `inject:""`
+	Manager common.IBaseManager        `inject:""`
+	Entity  common.IBaseEntity         `inject:""`
 }
 
 func (m *MockRepository) RepositoryName() string {
@@ -107,8 +107,8 @@ var _ IMockRepository = (*MockRepository)(nil)
 // MockService Mock 服务
 type MockService struct {
 	name   string
-	Config common.BaseConfigProvider `inject:""`
-	Repo   common.BaseRepository     `inject:""`
+	Config common.IBaseConfigProvider `inject:""`
+	Repo   common.IBaseRepository     `inject:""`
 }
 
 func (m *MockService) ServiceName() string {
@@ -128,7 +128,7 @@ var _ IMockService = (*MockService)(nil)
 // MockController Mock 控制器
 type MockController struct {
 	name    string
-	Service common.BaseService `inject:""`
+	Service common.IBaseService `inject:""`
 }
 
 func (m *MockController) ControllerName() string {
@@ -148,7 +148,7 @@ var _ IMockController = (*MockController)(nil)
 // MockMiddleware Mock 中间件
 type MockMiddleware struct {
 	name    string
-	Service common.BaseService `inject:""`
+	Service common.IBaseService `inject:""`
 }
 
 func (m *MockMiddleware) MiddlewareName() string {

@@ -11,7 +11,7 @@ import (
 
 // IMsgListController 获取留言控制器接口
 type IMsgListController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type msgListControllerImpl struct {
@@ -34,7 +34,7 @@ func (c *msgListControllerImpl) GetRouter() string {
 func (c *msgListControllerImpl) Handle(ctx *gin.Context) {
 	messages, err := c.MessageService.GetApprovedMessages()
 	if err != nil {
-		ctx.JSON(500, dtos.ErrInternalServer)
+		ctx.JSON(common.HTTPStatusInternalServerError, dtos.ErrInternalServer)
 		return
 	}
 
@@ -53,7 +53,7 @@ func (c *msgListControllerImpl) Handle(ctx *gin.Context) {
 		responseList[i].Status = ""
 	}
 
-	ctx.JSON(200, dtos.SuccessWithData(responseList))
+	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithData(responseList))
 }
 
 var _ IMsgListController = (*msgListControllerImpl)(nil)

@@ -17,7 +17,7 @@ import (
 func Build(
 	driverType string,
 	driverConfig map[string]any,
-) (LoggerManager, error) {
+) (ILoggerManager, error) {
 	// 标准化驱动类型（大小写不敏感，去除空格）
 	driverType = strings.ToLower(strings.TrimSpace(driverType))
 
@@ -61,7 +61,7 @@ func Build(
 //   - logger.zap_config: Zap 驱动配置（当 driver=zap 时使用）
 //
 // 返回 LoggerManager 接口实例和可能的错误
-func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (LoggerManager, error) {
+func BuildWithConfigProvider(configProvider common.IBaseConfigProvider) (ILoggerManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}

@@ -16,7 +16,7 @@ import (
 // 3. 注入 BaseService（从 ServiceContainer 获取）
 type MiddlewareContainer struct {
 	mu               sync.RWMutex
-	items            map[reflect.Type]common.BaseMiddleware
+	items            map[reflect.Type]common.IBaseMiddleware
 	configContainer  *ConfigContainer
 	managerContainer *ManagerContainer
 	serviceContainer *ServiceContainer
@@ -30,7 +30,7 @@ func NewMiddlewareContainer(
 	service *ServiceContainer,
 ) *MiddlewareContainer {
 	return &MiddlewareContainer{
-		items:            make(map[reflect.Type]common.BaseMiddleware),
+		items:            make(map[reflect.Type]common.IBaseMiddleware),
 		configContainer:  config,
 		managerContainer: manager,
 		serviceContainer: service,
@@ -38,13 +38,13 @@ func NewMiddlewareContainer(
 }
 
 // RegisterMiddleware 泛型注册函数，按接口类型注册
-func RegisterMiddleware[T common.BaseMiddleware](m *MiddlewareContainer, impl T) error {
+func RegisterMiddleware[T common.IBaseMiddleware](m *MiddlewareContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return m.RegisterByType(ifaceType, impl)
 }
 
 // RegisterByType 按接口类型注册
-func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseMiddleware) error {
+func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseMiddleware) error {
 	implType := reflect.TypeOf(impl)
 
 	if impl == nil {
@@ -97,11 +97,11 @@ func (m *MiddlewareContainer) InjectAll() error {
 }
 
 // GetAll 获取所有已注册的中间件
-func (m *MiddlewareContainer) GetAll() []common.BaseMiddleware {
+func (m *MiddlewareContainer) GetAll() []common.IBaseMiddleware {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	result := make([]common.BaseMiddleware, 0, len(m.items))
+	result := make([]common.IBaseMiddleware, 0, len(m.items))
 	for _, item := range m.items {
 		result = append(result, item)
 	}
@@ -114,7 +114,7 @@ func (m *MiddlewareContainer) GetAll() []common.BaseMiddleware {
 }
 
 // GetByType 按接口类型获取（返回单例）
-func (m *MiddlewareContainer) GetByType(ifaceType reflect.Type) common.BaseMiddleware {
+func (m *MiddlewareContainer) GetByType(ifaceType reflect.Type) common.IBaseMiddleware {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -139,7 +139,7 @@ type middlewareDependencyResolver struct {
 
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
+	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
 		impl := r.container.configContainer.GetByType(fieldType)
 		if impl == nil {
@@ -151,7 +151,7 @@ func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return impl, nil
 	}
 
-	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
+	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
 		impl := r.container.managerContainer.GetByType(fieldType)
 		if impl == nil {
@@ -163,7 +163,7 @@ func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return impl, nil
 	}
 
-	baseServiceType := reflect.TypeOf((*common.BaseService)(nil)).Elem()
+	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	if fieldType == baseServiceType || fieldType.Implements(baseServiceType) {
 		impl := r.container.serviceContainer.GetByType(fieldType)
 		if impl == nil {

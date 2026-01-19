@@ -10,7 +10,7 @@ import (
 
 // IPprofSymbolController pprof 符号表控制器
 type IPprofSymbolController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofSymbolController struct{}
@@ -31,4 +31,4 @@ func (c *PprofSymbolController) Handle(ctx *gin.Context) {
 	pprof.Symbol(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofSymbolController)(nil)
+var _ common.IBaseController = (*PprofSymbolController)(nil)

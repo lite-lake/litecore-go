@@ -10,7 +10,7 @@ import (
 // InitEntityContainer 初始化实体容器
 func InitEntityContainer() *container.EntityContainer {
 	entityContainer := container.NewEntityContainer()
-	container.RegisterEntity[common.BaseEntity](entityContainer, &entities.Message{})
+	container.RegisterEntity[common.IBaseEntity](entityContainer, &entities.Message{})
 
 	return entityContainer
 }

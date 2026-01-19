@@ -9,7 +9,7 @@ import (
 
 // IPageAdminController 管理页面控制器接口
 type IPageAdminController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type pageAdminControllerImpl struct {

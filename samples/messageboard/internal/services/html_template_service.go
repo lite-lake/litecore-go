@@ -10,7 +10,7 @@ import (
 
 // IHTMLTemplateService HTML模板服务接口
 type IHTMLTemplateService interface {
-	common.BaseService
+	common.IBaseService
 	Render(ctx *gin.Context, name string, data interface{})
 }
 

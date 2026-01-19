@@ -13,7 +13,7 @@ import (
 
 // IMessageService 留言服务接口
 type IMessageService interface {
-	common.BaseService
+	common.IBaseService
 	CreateMessage(nickname, content string) (*entities.Message, error)
 	GetApprovedMessages() ([]*entities.Message, error)
 	GetAllMessages() ([]*entities.Message, error)
@@ -23,7 +23,7 @@ type IMessageService interface {
 }
 
 type messageService struct {
-	Config     common.BaseConfigProvider       `inject:""`
+	Config     common.IBaseConfigProvider       `inject:""`
 	Repository repositories.IMessageRepository `inject:""`
 }
 

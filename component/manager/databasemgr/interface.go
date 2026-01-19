@@ -6,8 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// DatabaseManager 数据库管理器接口（完全基于 GORM）
-type DatabaseManager interface {
+// IDatabaseManager 数据库管理器接口（完全基于 GORM）
+type IDatabaseManager interface {
 	// ========== 生命周期管理 ==========
 	// ManagerName 返回管理器名称
 	ManagerName() string

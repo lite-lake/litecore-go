@@ -201,7 +201,7 @@ port: 8080`
 			}
 
 			// Verify it implements BaseConfigProvider interface
-			var _ common.BaseConfigProvider = provider
+			var _ common.IBaseConfigProvider = provider
 
 			// Test Get method
 			name, err := provider.Get("name")

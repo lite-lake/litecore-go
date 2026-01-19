@@ -6,6 +6,6 @@ import (
 )
 
 // NewConfigProvider 创建配置提供者
-func NewConfigProvider() (common.BaseConfigProvider, error) {
+func NewConfigProvider() (common.IBaseConfigProvider, error) {
 	return config.NewConfigProvider("yaml", "configs/config.yaml")
 }

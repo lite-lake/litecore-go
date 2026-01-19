@@ -45,13 +45,13 @@ func TestBuild(t *testing.T) {
 		driverType   string
 		driverConfig map[string]any
 		wantErr      bool
-		checkManager func(t *testing.T, mgr CacheManager)
+		checkManager func(t *testing.T, mgr ICacheManager)
 	}{
 		{
 			name:       "none driver",
 			driverType: "none",
 			wantErr:    false,
-			checkManager: func(t *testing.T, mgr CacheManager) {
+			checkManager: func(t *testing.T, mgr ICacheManager) {
 				if mgr == nil {
 					t.Error("expected manager to be created, got nil")
 				}
@@ -67,7 +67,7 @@ func TestBuild(t *testing.T) {
 				"max_age": "1h",
 			},
 			wantErr: false,
-			checkManager: func(t *testing.T, mgr CacheManager) {
+			checkManager: func(t *testing.T, mgr ICacheManager) {
 				if mgr == nil {
 					t.Error("expected manager to be created, got nil")
 				}
@@ -81,7 +81,7 @@ func TestBuild(t *testing.T) {
 			driverType:   "memory",
 			driverConfig: map[string]any{},
 			wantErr:      false,
-			checkManager: func(t *testing.T, mgr CacheManager) {
+			checkManager: func(t *testing.T, mgr ICacheManager) {
 				if mgr == nil {
 					t.Error("expected manager to be created, got nil")
 				}
@@ -135,7 +135,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 		name           string
 		configProvider *MockConfigProvider
 		wantErr        bool
-		checkManager   func(t *testing.T, mgr CacheManager)
+		checkManager   func(t *testing.T, mgr ICacheManager)
 	}{
 		{
 			name: "none driver",
@@ -145,7 +145,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			checkManager: func(t *testing.T, mgr CacheManager) {
+			checkManager: func(t *testing.T, mgr ICacheManager) {
 				if mgr.ManagerName() != "cacheManagerNoneImpl" {
 					t.Errorf("expected 'cacheManagerNoneImpl', got '%s'", mgr.ManagerName())
 				}
@@ -163,7 +163,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			checkManager: func(t *testing.T, mgr CacheManager) {
+			checkManager: func(t *testing.T, mgr ICacheManager) {
 				if mgr.ManagerName() != "cacheManagerMemoryImpl" {
 					t.Errorf("expected 'cacheManagerMemoryImpl', got '%s'", mgr.ManagerName())
 				}
@@ -178,7 +178,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			checkManager: func(t *testing.T, mgr CacheManager) {
+			checkManager: func(t *testing.T, mgr ICacheManager) {
 				if mgr == nil {
 					t.Error("expected manager to be created")
 				}

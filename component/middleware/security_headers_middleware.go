@@ -12,7 +12,7 @@ type SecurityHeadersMiddleware struct {
 }
 
 // NewSecurityHeadersMiddleware 创建安全头中间件
-func NewSecurityHeadersMiddleware() common.BaseMiddleware {
+func NewSecurityHeadersMiddleware() common.IBaseMiddleware {
 	return &SecurityHeadersMiddleware{order: 40}
 }
 

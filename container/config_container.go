@@ -12,24 +12,24 @@ import (
 // Config 层无依赖，InjectAll 为空操作
 type ConfigContainer struct {
 	mu    sync.RWMutex
-	items map[reflect.Type]common.BaseConfigProvider
+	items map[reflect.Type]common.IBaseConfigProvider
 }
 
 // NewConfigContainer 创建新的配置容器
 func NewConfigContainer() *ConfigContainer {
 	return &ConfigContainer{
-		items: make(map[reflect.Type]common.BaseConfigProvider),
+		items: make(map[reflect.Type]common.IBaseConfigProvider),
 	}
 }
 
 // RegisterConfig 泛型注册函数，按接口类型注册
-func RegisterConfig[T common.BaseConfigProvider](c *ConfigContainer, impl T) error {
+func RegisterConfig[T common.IBaseConfigProvider](c *ConfigContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return c.RegisterByType(ifaceType, impl)
 }
 
 // RegisterByType 按接口类型注册
-func (c *ConfigContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseConfigProvider) error {
+func (c *ConfigContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseConfigProvider) error {
 	implType := reflect.TypeOf(impl)
 
 	if impl == nil {
@@ -77,11 +77,11 @@ func (c *ConfigContainer) InjectAll() error {
 }
 
 // GetAll 获取所有已注册的配置提供者
-func (c *ConfigContainer) GetAll() []common.BaseConfigProvider {
+func (c *ConfigContainer) GetAll() []common.IBaseConfigProvider {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	result := make([]common.BaseConfigProvider, 0, len(c.items))
+	result := make([]common.IBaseConfigProvider, 0, len(c.items))
 	for _, item := range c.items {
 		result = append(result, item)
 	}
@@ -94,7 +94,7 @@ func (c *ConfigContainer) GetAll() []common.BaseConfigProvider {
 }
 
 // GetByType 按接口类型获取（返回单例）
-func (c *ConfigContainer) GetByType(ifaceType reflect.Type) common.BaseConfigProvider {
+func (c *ConfigContainer) GetByType(ifaceType reflect.Type) common.IBaseConfigProvider {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

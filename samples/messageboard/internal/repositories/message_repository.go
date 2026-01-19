@@ -9,7 +9,7 @@ import (
 
 // IMessageRepository 留言仓储接口
 type IMessageRepository interface {
-	common.BaseRepository
+	common.IBaseRepository
 	Create(message *entities.Message) error
 	GetByID(id uint) (*entities.Message, error)
 	GetApprovedMessages() ([]*entities.Message, error)
@@ -20,7 +20,7 @@ type IMessageRepository interface {
 }
 
 type messageRepository struct {
-	Config  common.BaseConfigProvider `inject:""`
+	Config  common.IBaseConfigProvider `inject:""`
 	Manager infras.DatabaseManager    `inject:""`
 }
 

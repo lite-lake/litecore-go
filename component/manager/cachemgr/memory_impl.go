@@ -19,9 +19,9 @@ type cacheManagerMemoryImpl struct {
 }
 
 // NewCacheManagerMemoryImpl 创建内存缓存实现
-func NewCacheManagerMemoryImpl(defaultExpiration, cleanupInterval time.Duration) CacheManager {
+func NewCacheManagerMemoryImpl(defaultExpiration, cleanupInterval time.Duration) ICacheManager {
 	impl := &cacheManagerMemoryImpl{
-		cacheManagerBaseImpl: newCacheManagerBaseImpl(),
+		cacheManagerBaseImpl: newICacheManagerBaseImpl(),
 		cache:                cache.New(defaultExpiration, cleanupInterval),
 		name:                 "cacheManagerMemoryImpl",
 	}
@@ -424,5 +424,5 @@ func (m *cacheManagerMemoryImpl) ItemCount() int {
 	return m.cache.ItemCount()
 }
 
-// 确保 cacheManagerMemoryImpl 实现 CacheManager 接口
-var _ CacheManager = (*cacheManagerMemoryImpl)(nil)
+// 确保 cacheManagerMemoryImpl 实现 ICacheManager 接口
+var _ ICacheManager = (*cacheManagerMemoryImpl)(nil)

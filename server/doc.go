@@ -42,8 +42,8 @@
 // 各层组件通过 inject:"" 标签声明依赖：
 //
 //	type UserServiceImpl struct {
-//	    Config    common.BaseConfigProvider  `inject:""`
-//	    DBManager databasemgr.DatabaseManager `inject:""`
+//	    Config    common.IBaseConfigProvider  `inject:""`
+//	    DBManager databasemgr.IDatabaseManager `inject:""`
 //	    UserRepo  repository.IUserRepository `inject:""`
 //	}
 //

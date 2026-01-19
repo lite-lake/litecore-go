@@ -12,7 +12,7 @@ import (
 
 // IMsgStatusController 更新留言状态控制器接口
 type IMsgStatusController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type msgStatusControllerImpl struct {
@@ -36,22 +36,22 @@ func (c *msgStatusControllerImpl) Handle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		ctx.JSON(400, dtos.ErrorResponse(400, "无效的留言 ID"))
+		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, "无效的留言 ID"))
 		return
 	}
 
 	var req dtos.UpdateStatusRequest
 	if err := ctx.ShouldBind(&req); err != nil {
-		ctx.JSON(400, dtos.ErrorResponse(400, err.Error()))
+		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
 	}
 
 	if err := c.MessageService.UpdateMessageStatus(uint(id), req.Status); err != nil {
-		ctx.JSON(400, dtos.ErrorResponse(400, err.Error()))
+		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
 	}
 
-	ctx.JSON(200, dtos.SuccessWithMessage("状态更新成功"))
+	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithMessage("状态更新成功"))
 }
 
 var _ IMsgStatusController = (*msgStatusControllerImpl)(nil)

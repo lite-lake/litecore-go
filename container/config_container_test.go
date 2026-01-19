@@ -13,7 +13,7 @@ func TestConfigContainer(t *testing.T) {
 
 	// 测试注册
 	config := &MockConfigProvider{name: "test-config"}
-	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
+	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	err := container.RegisterByType(baseConfigType, config)
 	if err != nil {
 		t.Fatalf("Register failed: %v", err)

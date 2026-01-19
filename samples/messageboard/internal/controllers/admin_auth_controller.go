@@ -11,7 +11,7 @@ import (
 
 // IAdminAuthController 管理员登录控制器接口
 type IAdminAuthController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type adminAuthControllerImpl struct {
@@ -34,17 +34,17 @@ func (c *adminAuthControllerImpl) GetRouter() string {
 func (c *adminAuthControllerImpl) Handle(ctx *gin.Context) {
 	var req dtos.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(400, dtos.ErrBadRequest)
+		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrBadRequest)
 		return
 	}
 
 	token, err := c.AuthService.Login(req.Password)
 	if err != nil {
-		ctx.JSON(401, dtos.ErrorResponse(401, "管理员密码错误"))
+		ctx.JSON(common.HTTPStatusUnauthorized, dtos.ErrorResponse(common.HTTPStatusUnauthorized, "管理员密码错误"))
 		return
 	}
 
-	ctx.JSON(200, dtos.SuccessWithData(dtos.LoginResponse{
+	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithData(dtos.LoginResponse{
 		Token: token,
 	}))
 }

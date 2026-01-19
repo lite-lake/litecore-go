@@ -13,9 +13,9 @@ type cacheManagerNoneImpl struct {
 }
 
 // NewCacheManagerNoneImpl 创建空缓存实现
-func NewCacheManagerNoneImpl() CacheManager {
+func NewCacheManagerNoneImpl() ICacheManager {
 	impl := &cacheManagerNoneImpl{
-		cacheManagerBaseImpl: newCacheManagerBaseImpl(),
+		cacheManagerBaseImpl: newICacheManagerBaseImpl(),
 		name:                 "cacheManagerNoneImpl",
 	}
 	impl.initObservability()
@@ -186,5 +186,5 @@ func (n *cacheManagerNoneImpl) Close() error {
 	return nil
 }
 
-// 确保 cacheManagerNoneImpl 实现 CacheManager 接口
-var _ CacheManager = (*cacheManagerNoneImpl)(nil)
+// 确保 cacheManagerNoneImpl 实现 ICacheManager 接口
+var _ ICacheManager = (*cacheManagerNoneImpl)(nil)

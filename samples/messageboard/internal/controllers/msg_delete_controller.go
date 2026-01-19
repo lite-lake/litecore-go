@@ -12,7 +12,7 @@ import (
 
 // IMsgDeleteController 删除留言控制器接口
 type IMsgDeleteController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type msgDeleteControllerImpl struct {
@@ -36,16 +36,16 @@ func (c *msgDeleteControllerImpl) Handle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		ctx.JSON(400, dtos.ErrorResponse(400, "无效的留言 ID"))
+		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, "无效的留言 ID"))
 		return
 	}
 
 	if err := c.MessageService.DeleteMessage(uint(id)); err != nil {
-		ctx.JSON(400, dtos.ErrorResponse(400, err.Error()))
+		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
 	}
 
-	ctx.JSON(200, dtos.SuccessWithMessage("删除成功"))
+	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithMessage("删除成功"))
 }
 
 var _ IMsgDeleteController = (*msgDeleteControllerImpl)(nil)

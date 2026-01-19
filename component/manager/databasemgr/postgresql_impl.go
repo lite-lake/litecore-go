@@ -17,7 +17,7 @@ type databaseManagerPostgresqlImpl struct {
 }
 
 // NewDatabaseManagerPostgreSQLImpl 创建 PostgreSQL 数据库管理器
-func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (DatabaseManager, error) {
+func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (IDatabaseManager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("postgresql config is required")
 	}
@@ -56,7 +56,7 @@ func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (DatabaseManager, e
 	}
 
 	// 创建基础实现
-	baseImpl := newDatabaseManagerBaseImpl("databaseManagerPostgresqlImpl", "postgresql", db)
+	baseImpl := newIDatabaseManagerBaseImpl("databaseManagerPostgresqlImpl", "postgresql", db)
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{

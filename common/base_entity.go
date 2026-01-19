@@ -1,9 +1,9 @@
 package common
 
-// BaseEntity 实体基类接口
+// IBaseEntity 实体基类接口
 // 所有 Entity 类必须继承此接口并实现 EntityName 和 GetId 方法
 // 系统通过此接口判断是否符合标准实体定义
-type BaseEntity interface {
+type IBaseEntity interface {
 	// EntityName 返回当前实体实现的类名
 	// 用于标识和调试实体实例
 	EntityName() string

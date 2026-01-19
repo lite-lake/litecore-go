@@ -15,7 +15,7 @@ import (
 // 2. 注入其他 BaseManager（支持同层依赖，按拓扑顺序注入）
 type ManagerContainer struct {
 	mu              sync.RWMutex
-	items           map[reflect.Type]common.BaseManager
+	items           map[reflect.Type]common.IBaseManager
 	configContainer *ConfigContainer
 	injected        bool
 }
@@ -23,19 +23,19 @@ type ManagerContainer struct {
 // NewManagerContainer 创建新的管理器容器
 func NewManagerContainer(config *ConfigContainer) *ManagerContainer {
 	return &ManagerContainer{
-		items:           make(map[reflect.Type]common.BaseManager),
+		items:           make(map[reflect.Type]common.IBaseManager),
 		configContainer: config,
 	}
 }
 
 // RegisterManager 泛型注册函数，按接口类型注册
-func RegisterManager[T common.BaseManager](m *ManagerContainer, impl T) error {
+func RegisterManager[T common.IBaseManager](m *ManagerContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return m.RegisterByType(ifaceType, impl)
 }
 
 // RegisterByType 按接口类型注册
-func (m *ManagerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseManager) error {
+func (m *ManagerContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseManager) error {
 	implType := reflect.TypeOf(impl)
 
 	if impl == nil {
@@ -162,16 +162,16 @@ func (m *ManagerContainer) getSameLayerDependencies(instance interface{}) ([]ref
 
 // isBaseManagerType 判断类型是否为 BaseManager 或其子接口
 func (m *ManagerContainer) isBaseManagerType(typ reflect.Type) bool {
-	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
+	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	return typ.Implements(baseManagerType)
 }
 
 // GetAll 获取所有已注册的管理器
-func (m *ManagerContainer) GetAll() []common.BaseManager {
+func (m *ManagerContainer) GetAll() []common.IBaseManager {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	result := make([]common.BaseManager, 0, len(m.items))
+	result := make([]common.IBaseManager, 0, len(m.items))
 	for _, item := range m.items {
 		result = append(result, item)
 	}
@@ -184,7 +184,7 @@ func (m *ManagerContainer) GetAll() []common.BaseManager {
 }
 
 // GetByType 按接口类型获取（返回单例）
-func (m *ManagerContainer) GetByType(ifaceType reflect.Type) common.BaseManager {
+func (m *ManagerContainer) GetByType(ifaceType reflect.Type) common.IBaseManager {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -209,7 +209,7 @@ type managerDependencyResolver struct {
 
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
+	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
 		impl := r.container.configContainer.GetByType(fieldType)
 		if impl == nil {
@@ -221,7 +221,7 @@ func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 		return impl, nil
 	}
 
-	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
+	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
 		impl := r.container.GetByType(fieldType)
 		if impl == nil {

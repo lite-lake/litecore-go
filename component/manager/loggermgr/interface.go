@@ -28,8 +28,8 @@ type Logger interface {
 	SetLevel(level LogLevel)
 }
 
-// LoggerManager 日志管理器接口
-type LoggerManager interface {
+// ILoggerManager 日志管理器接口
+type ILoggerManager interface {
 	// ========== 生命周期管理（符合 BaseManager 接口） ==========
 	// ManagerName 返回管理器名称
 	ManagerName() string

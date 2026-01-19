@@ -10,7 +10,7 @@ import (
 
 // IPprofHeapController pprof 堆内存控制器
 type IPprofHeapController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofHeapController struct{}
@@ -31,4 +31,4 @@ func (c *PprofHeapController) Handle(ctx *gin.Context) {
 	pprof.Handler("heap").ServeHTTP(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofHeapController)(nil)
+var _ common.IBaseController = (*PprofHeapController)(nil)

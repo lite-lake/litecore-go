@@ -10,11 +10,11 @@ import (
 
 // IRequestLoggerMiddleware 请求日志中间件接口
 type IRequestLoggerMiddleware interface {
-	common.BaseMiddleware
+	common.IBaseMiddleware
 }
 
 type requestLoggerMiddleware struct {
-	inner common.BaseMiddleware
+	inner common.IBaseMiddleware
 	order int
 }
 

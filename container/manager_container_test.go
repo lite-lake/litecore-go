@@ -14,14 +14,14 @@ func TestManagerContainer(t *testing.T) {
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}
-	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), config)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem(), config)
 	if err != nil {
 		t.Fatalf("Register config failed: %v", err)
 	}
 
 	// 注册管理器（依赖配置）
 	manager := &MockManager{name: "db-manager"}
-	err = managerContainer.RegisterByType(reflect.TypeOf((*common.BaseManager)(nil)).Elem(), manager)
+	err = managerContainer.RegisterByType(reflect.TypeOf((*common.IBaseManager)(nil)).Elem(), manager)
 	if err != nil {
 		t.Fatalf("Register manager failed: %v", err)
 	}

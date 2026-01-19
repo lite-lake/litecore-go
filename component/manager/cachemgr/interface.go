@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// CacheManager 缓存管理器接口
+// ICacheManager 缓存管理器接口
 // 提供统一的缓存操作接口，支持多种缓存驱动
-type CacheManager interface {
+type ICacheManager interface {
 	// ManagerName 返回管理器名称
 	ManagerName() string
 

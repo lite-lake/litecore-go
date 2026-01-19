@@ -18,14 +18,14 @@ func TestMiddlewareContainer(t *testing.T) {
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}
-	err := configContainer.RegisterByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem(), config)
+	err := configContainer.RegisterByType(reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem(), config)
 	if err != nil {
 		t.Fatalf("Register config failed: %v", err)
 	}
 
 	// 注册管理器
 	manager := &MockManager{name: "db-manager"}
-	err = managerContainer.RegisterByType(reflect.TypeOf((*common.BaseManager)(nil)).Elem(), manager)
+	err = managerContainer.RegisterByType(reflect.TypeOf((*common.IBaseManager)(nil)).Elem(), manager)
 	if err != nil {
 		t.Fatalf("Register manager failed: %v", err)
 	}
@@ -39,14 +39,14 @@ func TestMiddlewareContainer(t *testing.T) {
 
 	// 注册存储库
 	repo := &MockRepository{name: "user-repo"}
-	err = repositoryContainer.RegisterByType(reflect.TypeOf((*common.BaseRepository)(nil)).Elem(), repo)
+	err = repositoryContainer.RegisterByType(reflect.TypeOf((*common.IBaseRepository)(nil)).Elem(), repo)
 	if err != nil {
 		t.Fatalf("Register repository failed: %v", err)
 	}
 
 	// 注册服务
 	service := &MockService{name: "user-service"}
-	err = serviceContainer.RegisterByType(reflect.TypeOf((*common.BaseService)(nil)).Elem(), service)
+	err = serviceContainer.RegisterByType(reflect.TypeOf((*common.IBaseService)(nil)).Elem(), service)
 	if err != nil {
 		t.Fatalf("Register service failed: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestMiddlewareContainer(t *testing.T) {
 
 	// 注册中间件
 	middleware := &MockMiddleware{name: "auth-middleware"}
-	err = middlewareContainer.RegisterByType(reflect.TypeOf((*common.BaseMiddleware)(nil)).Elem(), middleware)
+	err = middlewareContainer.RegisterByType(reflect.TypeOf((*common.IBaseMiddleware)(nil)).Elem(), middleware)
 	if err != nil {
 		t.Fatalf("Register middleware failed: %v", err)
 	}

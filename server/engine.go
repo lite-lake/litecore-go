@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"com.litelake.litecore/common"
 	"com.litelake.litecore/container"
 )
 
@@ -95,7 +96,7 @@ func (e *Engine) Initialize() error {
 	// 添加 NoRoute 处理器用于调试
 	e.ginEngine.NoRoute(func(c *gin.Context) {
 		fmt.Printf("[NoRoute] Path: %s, Method: %s\n", c.Request.URL.Path, c.Request.Method)
-		c.JSON(404, gin.H{"error": "route not found", "path": c.Request.URL.Path, "method": c.Request.Method})
+		c.JSON(common.HTTPStatusNotFound, gin.H{"error": "route not found", "path": c.Request.URL.Path, "method": c.Request.Method})
 	})
 
 	// 注册控制器路由
@@ -190,8 +191,12 @@ func (e *Engine) Start() error {
 	fmt.Println("[DEBUG] All services started successfully")
 
 	// 4. 启动 HTTP 服务器
+	errChan := make(chan error, 1)
 	go func() {
+		fmt.Println("[DEBUG] HTTP server listening on", e.httpServer.Addr)
 		if err := e.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("[ERROR] HTTP server error: %v\n", err)
+			errChan <- fmt.Errorf("HTTP server error: %w", err)
 			e.cancel()
 		}
 	}()

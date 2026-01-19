@@ -7,7 +7,7 @@ import (
 )
 
 // setupNoneManager 创建一个 None 缓存管理器用于测试
-func setupNoneManager(t *testing.T) CacheManager {
+func setupNoneManager(t *testing.T) ICacheManager {
 	return NewCacheManagerNoneImpl()
 }
 

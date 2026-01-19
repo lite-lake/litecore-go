@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -36,6 +37,15 @@ const (
 	ES384 JWTAlgorithm = "ES384"
 	// ES512 ECDSA使用P-521和SHA-512
 	ES512 JWTAlgorithm = "ES512"
+)
+
+var (
+	// claimsMapPool 重用标准Claims的map对象，减少内存分配
+	claimsMapPool = sync.Pool{
+		New: func() interface{} {
+			return make(map[string]interface{}, 7)
+		},
+	}
 )
 
 // ILiteUtilJWTClaims JWT声明接口
@@ -511,6 +521,7 @@ func (j *jwtEngine) base64URLDecode(data string) ([]byte, error) {
 // encodeClaims 编码Claims
 func (j *jwtEngine) encodeClaims(claims ILiteUtilJWTClaims) (string, error) {
 	var claimsMap map[string]interface{}
+	var isFromPool bool
 
 	// 根据Claims类型处理
 	switch c := claims.(type) {
@@ -518,10 +529,11 @@ func (j *jwtEngine) encodeClaims(claims ILiteUtilJWTClaims) (string, error) {
 		claimsMap = c
 	case *StandardClaims:
 		claimsMap = j.standardClaimsToMap(*c)
+		isFromPool = true
 	default:
 		// 其他类型转换为MapClaims
 		customClaims := claims.GetCustomClaims()
-		claimsMap = make(map[string]interface{})
+		claimsMap = make(map[string]interface{}, len(customClaims)+7)
 		for k, v := range customClaims {
 			claimsMap[k] = v
 		}
@@ -553,10 +565,20 @@ func (j *jwtEngine) encodeClaims(claims ILiteUtilJWTClaims) (string, error) {
 
 	claimsBytes, err := json.Marshal(claimsMap)
 	if err != nil {
+		if isFromPool {
+			claimsMapPool.Put(claimsMap)
+		}
 		return "", err
 	}
 
-	return j.base64URLEncode(claimsBytes), nil
+	result := j.base64URLEncode(claimsBytes)
+
+	// 回收pool中的对象
+	if isFromPool {
+		claimsMapPool.Put(claimsMap)
+	}
+
+	return result, nil
 }
 
 // decodeClaims 解码Claims
@@ -576,7 +598,11 @@ func (j *jwtEngine) decodeClaims(encodedClaims string) (MapClaims, error) {
 
 // standardClaimsToMap StandardClaims转换为map
 func (j *jwtEngine) standardClaimsToMap(claims StandardClaims) map[string]interface{} {
-	result := make(map[string]interface{})
+	result := claimsMapPool.Get().(map[string]interface{})
+
+	for k := range result {
+		delete(result, k)
+	}
 
 	if claims.Audience != nil {
 		if len(claims.Audience) == 1 {

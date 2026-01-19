@@ -13,7 +13,7 @@ import (
 func InitManagerContainer(configContainer *container.ConfigContainer) (*container.ManagerContainer, error) {
 	managerContainer := container.NewManagerContainer(configContainer)
 
-	configProvider := configContainer.GetByType(reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem())
+	configProvider := configContainer.GetByType(reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem())
 	_ = configProvider
 	managerCacheManager, err := infras.NewCacheManager(configProvider)
 	if err != nil {

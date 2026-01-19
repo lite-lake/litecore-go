@@ -19,10 +19,10 @@
 //
 //	// 2. 注册实例（使用泛型 API）
 //	configProvider := config.NewConfigProvider("yaml", "config.yaml")
-//	container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
+//	container.RegisterConfig[common.IBaseConfigProvider](configContainer, configProvider)
 //
 //	dbManager := databasemgr.NewDatabaseManager()
-//	container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbManager)
+//	container.RegisterManager[databasemgr.IDatabaseManager](managerContainer, dbManager)
 //
 //	userService := &UserServiceImpl{}
 //	container.RegisterService[UserService](serviceContainer, userService)
@@ -36,7 +36,7 @@
 //
 //	// 在结构体中使用 inject 标签声明依赖
 //	type UserServiceImpl struct {
-//		Config    common.BaseConfigProvider `inject:""`
+//		Config    common.IBaseConfigProvider `inject:""`
 //		DBManager DatabaseManager           `inject:""`
 //		UserRepo  UserRepository            `inject:""`
 //		OrderSvc  OrderService              `inject:""`   // 同层依赖

@@ -10,7 +10,7 @@ import (
 
 // IPprofTraceController pprof goroutine trace 控制器
 type IPprofTraceController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofTraceController struct{}
@@ -31,4 +31,4 @@ func (c *PprofTraceController) Handle(ctx *gin.Context) {
 	pprof.Trace(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofTraceController)(nil)
+var _ common.IBaseController = (*PprofTraceController)(nil)

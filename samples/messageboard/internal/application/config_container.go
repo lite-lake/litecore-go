@@ -15,7 +15,7 @@ func InitConfigContainer() (*container.ConfigContainer, error) {
 		return nil, err
 	}
 
-	container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
+	container.RegisterConfig[common.IBaseConfigProvider](configContainer, configProvider)
 
 	return configContainer, nil
 }

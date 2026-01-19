@@ -17,7 +17,7 @@ type databaseManagerSqliteImpl struct {
 }
 
 // NewDatabaseManagerSQLiteImpl 创建 SQLite 数据库管理器
-func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (DatabaseManager, error) {
+func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (IDatabaseManager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("sqlite config is required")
 	}
@@ -56,7 +56,7 @@ func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (DatabaseManager, error) {
 	}
 
 	// 创建基础实现
-	baseImpl := newDatabaseManagerBaseImpl("databaseManagerSqliteImpl", "sqlite", db)
+	baseImpl := newIDatabaseManagerBaseImpl("databaseManagerSqliteImpl", "sqlite", db)
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{

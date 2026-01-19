@@ -10,7 +10,7 @@ import (
 
 // IPprofGoroutineController pprof goroutine 控制器
 type IPprofGoroutineController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofGoroutineController struct{}
@@ -31,4 +31,4 @@ func (c *PprofGoroutineController) Handle(ctx *gin.Context) {
 	pprof.Handler("goroutine").ServeHTTP(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofGoroutineController)(nil)
+var _ common.IBaseController = (*PprofGoroutineController)(nil)

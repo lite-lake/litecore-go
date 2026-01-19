@@ -16,7 +16,7 @@ import (
 // 3. 注入 BaseService（从 ServiceContainer 获取）
 type ControllerContainer struct {
 	mu               sync.RWMutex
-	items            map[reflect.Type]common.BaseController
+	items            map[reflect.Type]common.IBaseController
 	configContainer  *ConfigContainer
 	managerContainer *ManagerContainer
 	serviceContainer *ServiceContainer
@@ -30,7 +30,7 @@ func NewControllerContainer(
 	service *ServiceContainer,
 ) *ControllerContainer {
 	return &ControllerContainer{
-		items:            make(map[reflect.Type]common.BaseController),
+		items:            make(map[reflect.Type]common.IBaseController),
 		configContainer:  config,
 		managerContainer: manager,
 		serviceContainer: service,
@@ -38,13 +38,13 @@ func NewControllerContainer(
 }
 
 // RegisterController 泛型注册函数，按接口类型注册
-func RegisterController[T common.BaseController](c *ControllerContainer, impl T) error {
+func RegisterController[T common.IBaseController](c *ControllerContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return c.RegisterByType(ifaceType, impl)
 }
 
 // RegisterByType 按接口类型注册
-func (c *ControllerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseController) error {
+func (c *ControllerContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseController) error {
 	implType := reflect.TypeOf(impl)
 
 	if impl == nil {
@@ -97,11 +97,11 @@ func (c *ControllerContainer) InjectAll() error {
 }
 
 // GetAll 获取所有已注册的控制器
-func (c *ControllerContainer) GetAll() []common.BaseController {
+func (c *ControllerContainer) GetAll() []common.IBaseController {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	result := make([]common.BaseController, 0, len(c.items))
+	result := make([]common.IBaseController, 0, len(c.items))
 	for _, item := range c.items {
 		result = append(result, item)
 	}
@@ -114,7 +114,7 @@ func (c *ControllerContainer) GetAll() []common.BaseController {
 }
 
 // GetByType 按接口类型获取（返回单例）
-func (c *ControllerContainer) GetByType(ifaceType reflect.Type) common.BaseController {
+func (c *ControllerContainer) GetByType(ifaceType reflect.Type) common.IBaseController {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -139,7 +139,7 @@ type controllerDependencyResolver struct {
 
 // ResolveDependency 解析字段类型对应的依赖实例
 func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*common.BaseConfigProvider)(nil)).Elem()
+	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
 		impl := r.container.configContainer.GetByType(fieldType)
 		if impl == nil {
@@ -151,7 +151,7 @@ func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return impl, nil
 	}
 
-	baseManagerType := reflect.TypeOf((*common.BaseManager)(nil)).Elem()
+	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
 		impl := r.container.managerContainer.GetByType(fieldType)
 		if impl == nil {
@@ -163,7 +163,7 @@ func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return impl, nil
 	}
 
-	baseServiceType := reflect.TypeOf((*common.BaseService)(nil)).Elem()
+	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	if fieldType == baseServiceType || fieldType.Implements(baseServiceType) {
 		impl := r.container.serviceContainer.GetByType(fieldType)
 		if impl == nil {

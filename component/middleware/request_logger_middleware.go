@@ -16,7 +16,7 @@ type RequestLoggerMiddleware struct {
 }
 
 // NewRequestLoggerMiddleware 创建请求日志中间件
-func NewRequestLoggerMiddleware() common.BaseMiddleware {
+func NewRequestLoggerMiddleware() common.IBaseMiddleware {
 	return &RequestLoggerMiddleware{order: 20}
 }
 

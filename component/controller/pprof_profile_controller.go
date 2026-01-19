@@ -10,7 +10,7 @@ import (
 
 // IPprofProfileController pprof CPU profile 控制器
 type IPprofProfileController interface {
-	common.BaseController
+	common.IBaseController
 }
 
 type PprofProfileController struct{}
@@ -31,4 +31,4 @@ func (c *PprofProfileController) Handle(ctx *gin.Context) {
 	pprof.Profile(wrapResponseWriter(ctx.Writer), ctx.Request)
 }
 
-var _ common.BaseController = (*PprofProfileController)(nil)
+var _ common.IBaseController = (*PprofProfileController)(nil)
