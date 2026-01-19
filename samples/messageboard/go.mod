@@ -2,7 +2,7 @@ module com.litelake.litecore/samples/messageboard
 
 go 1.25.3
 
-replace com.litelake.litecore => D:\Projects\lite-lake\litecore-go
+replace com.litelake.litecore => ../../
 
 require (
 	com.litelake.litecore v0.0.0-00010101000000-000000000000
