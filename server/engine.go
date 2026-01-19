@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,6 +72,7 @@ func NewEngine(
 // - 创建 Gin 引擎
 // - 注册全局中间件
 // - 注册系统路由
+// - 注册控制器路由
 func (e *Engine) Initialize() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -96,6 +98,11 @@ func (e *Engine) Initialize() error {
 		fmt.Printf("[NoRoute] Path: %s, Method: %s\n", c.Request.URL.Path, c.Request.Method)
 		c.JSON(404, gin.H{"error": "route not found", "path": c.Request.URL.Path, "method": c.Request.Method})
 	})
+
+	// 注册控制器路由
+	if err := e.registerControllers(); err != nil {
+		return fmt.Errorf("register controllers failed: %w", err)
+	}
 
 	// 创建 HTTP 服务器
 	e.httpServer = &http.Server{
@@ -260,4 +267,46 @@ func (e *Engine) IsStarted() bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.started
+}
+
+// registerControllers 注册所有控制器路由
+func (e *Engine) registerControllers() error {
+	controllers := e.Controller.GetAll()
+	for _, ctrl := range controllers {
+		route := ctrl.GetRouter()
+		if route == "" {
+			continue
+		}
+
+		method, path, err := parseRoute(route)
+		if err != nil {
+			fmt.Printf("[WARNING] Controller %s has invalid route format: %v\n", ctrl.ControllerName(), err)
+			continue
+		}
+
+		handler := ctrl.Handle
+		e.RegisterRoute(method, path, handler)
+		fmt.Printf("[DEBUG] Registered controller: %s -> %s %s\n", ctrl.ControllerName(), method, path)
+	}
+
+	return nil
+}
+
+// parseRoute 解析路由字符串
+// 支持格式: "/path [METHOD]" (OpenAPI 风格)
+// 返回: method (大写), path, error
+func parseRoute(route string) (string, string, error) {
+	for i := len(route) - 1; i >= 0; i-- {
+		if route[i] == '[' {
+			if i+1 < len(route) && route[len(route)-1] == ']' {
+				method := route[i+1 : len(route)-1]
+				path := route[:i]
+				if path == "" {
+					return "", "", fmt.Errorf("path cannot be empty")
+				}
+				return strings.ToUpper(strings.TrimSpace(method)), strings.TrimSpace(path), nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("invalid route format, expected 'path [METHOD]'")
 }
