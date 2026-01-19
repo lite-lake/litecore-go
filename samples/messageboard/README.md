@@ -45,12 +45,21 @@ go run cmd/main.go
 ```
 samples/messageboard/
 ├── cmd/
+│   ├── generate/               # 代码生成入口
+│   │   └── main.go
 │   └── main.go                 # 应用入口
 ├── configs/
 │   └── config.yaml             # 配置文件
 ├── internal/
-│   ├── application/            # 应用容器
-│   │   └── container.go
+│   ├── application/            # 应用容器（CLI工具自动生成）
+│   │   ├── config_container.go
+│   │   ├── entity_container.go
+│   │   ├── manager_container.go
+│   │   ├── repository_container.go
+│   │   ├── service_container.go
+│   │   ├── controller_container.go
+│   │   ├── middleware_container.go
+│   │   └── engine.go
 │   ├── controllers/            # 控制器层
 │   ├── middlewares/            # 中间件层
 │   ├── dtos/                   # 数据传输对象
@@ -111,13 +120,24 @@ logger:
 
 ## 开发指南
 
+### 代码生成
+
+项目使用 LiteCore CLI 工具自动生成容器初始化代码：
+
+```bash
+# 重新生成容器代码（添加新组件后执行）
+go run ./cmd/generate
+```
+
+生成的容器代码位于 `internal/application/`，包括各层容器的初始化文件和引擎创建函数。
+
 ### 添加新功能
 
 1. **添加实体**: 在 `internal/entities/` 创建实体类
 2. **添加仓储**: 在 `internal/repositories/` 创建仓储类
 3. **添加服务**: 在 `internal/services/` 创建服务类
 4. **添加控制器**: 在 `internal/controllers/` 创建控制器类
-5. **注册组件**: 在 `internal/application/container.go` 中注册
+5. **生成容器**: 运行 `go run ./cmd/generate` 重新生成容器代码
 
 ### 依赖注入
 
@@ -130,6 +150,8 @@ type MyService struct {
     Repository *repositories.MyRepository `inject:""`
 }
 ```
+
+详细的 CLI 工具使用说明请参考 `cli/README.md`
 
 ## 许可证
 
