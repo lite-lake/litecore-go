@@ -8,10 +8,37 @@
 - **自动注入** - 按依赖顺序自动处理组件注入（Entity → Manager → Repository → Service → Controller/Middleware）
 - **生命周期管理** - 统一管理各层组件的启动和停止，支持健康检查
 - **中间件集成** - 自动排序并注册全局中间件到 Gin 引擎
-- **路由管理** - 自动注册控制器路由，支持自定义路由扩展
+- **路由管理** - 自动注册控制器路由，通过 BaseController 统一管理
 - **优雅关闭** - 支持信号处理，超时控制的安全关闭机制
 
 ## 快速开始
+
+### 方式一：使用 CLI 生成的应用引擎（推荐）
+
+```go
+package main
+
+import (
+    "log"
+
+    "com.litelake.litecore/samples/messageboard/internal/application"
+)
+
+func main() {
+    // 创建应用引擎（由 CLI 工具自动生成）
+    engine, err := application.NewEngine()
+    if err != nil {
+        log.Fatalf("Failed to create engine: %v", err)
+    }
+
+    // 一键启动
+    if err := engine.Run(); err != nil {
+        log.Fatalf("Engine run failed: %v", err)
+    }
+}
+```
+
+### 方式二：手动创建引擎
 
 ```go
 package main
@@ -64,7 +91,17 @@ func main() {
 
 ### 创建引擎
 
-使用 `NewEngine` 创建服务引擎，需要传入所有容器实例：
+使用 CLI 生成的 `NewEngine()` 创建服务引擎（推荐）：
+
+```go
+// 由 CLI 工具自动生成
+engine, err := application.NewEngine()
+if err != nil {
+    log.Fatalf("Failed to create engine: %v", err)
+}
+```
+
+或手动创建（传入所有容器实例）：
 
 ```go
 engine := server.NewEngine(
@@ -87,21 +124,21 @@ engine := server.NewEngine(
 ```go
 // Run() = Initialize() + Start() + WaitForShutdown()
 if err := engine.Run(); err != nil {
-    panic(err)
+    log.Fatalf("Engine run failed: %v", err)
 }
 ```
 
-**方式二：分步启动**
+**方式二：分步启动（需要自定义初始化时）**
 
 ```go
 // 1. 初始化（依赖注入、创建 Gin 引擎、注册中间件和路由）
 if err := engine.Initialize(); err != nil {
-    panic(err)
+    log.Fatalf("Failed to initialize engine: %v", err)
 }
 
 // 2. 启动服务（启动各层组件和 HTTP 服务器）
 if err := engine.Start(); err != nil {
-    panic(err)
+    log.Fatalf("Failed to start engine: %v", err)
 }
 
 // 3. 等待关闭信号
@@ -128,16 +165,6 @@ Engine 按以下顺序管理组件生命周期：
 // 手动停止
 if err := engine.Stop(); err != nil {
     log.Printf("Stop error: %v", err)
-}
-
-// 重启
-if err := engine.Restart(); err != nil {
-    log.Printf("Restart error: %v", err)
-}
-
-// 健康检查
-if err := engine.Health(); err != nil {
-    log.Printf("Health check failed: %v", err)
 }
 ```
 
@@ -185,50 +212,53 @@ func (m *AuthMiddleware) Wrapper() gin.HandlerFunc {
 
 ### 路由管理
 
-**自动注册控制器路由**
+**通过控制器定义路由**
 
-控制器通过 `GetRouter()` 方法定义路由，格式为：`/path [METHOD]`
+所有路由都必须通过控制器（Controller）的 `GetRouter()` 方法定义，格式为：`/path [METHOD]`
 
 ```go
+type UserController struct {
+    Config    common.BaseConfigProvider  `inject:""`
+    UserService service.IUserService `inject:""`
+}
+
 func (ctrl *UserController) GetRouter() string {
     return "/users [GET]"
 }
+
+func (ctrl *UserController) Handle(c *gin.Context) {
+    users, err := ctrl.UserService.List()
+    if err != nil {
+        c.JSON(500, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(200, users)
+}
 ```
 
-**自定义路由扩展**
-
-初始化后获取 Gin 引擎进行扩展：
+来自 messageboard 的实际控制器示例：
 
 ```go
-if err := engine.Initialize(); err != nil {
-    panic(err)
+type MessageListController struct {
+    Config  config.BaseConfigProvider `inject:""`
+    MsgSvc  service.IMessageService   `inject:""`
 }
 
-r := engine.GetGinEngine()
-r.GET("/health", func(c *gin.Context) {
-    c.JSON(200, gin.H{"status": "ok"})
-})
-
-// 注册路由组
-api := r.Group("/api/v1")
-{
-    api.GET("/users", listUsers)
-    api.POST("/users", createUser)
+func (ctrl *MessageListController) GetRouter() string {
+    return "/api/messages [GET]"
 }
 
-if err := engine.Run(); err != nil {
-    panic(err)
+func (ctrl *MessageListController) Handle(c *gin.Context) {
+    messages, err := ctrl.MsgSvc.List()
+    if err != nil {
+        c.JSON(500, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(200, gin.H{"data": messages})
 }
 ```
 
-**获取路由信息**
 
-```go
-routes := engine.GetRouteInfo()
-for _, route := range routes {
-    fmt.Printf("%-6s %s\n", route.Method, route.Path)
-}
-```
 
 ## API
 
@@ -257,68 +287,14 @@ func NewEngine(
 | `Initialize() error` | 初始化引擎（依赖注入、创建 Gin 引擎、注册中间件和路由） |
 | `Start() error` | 启动引擎（启动各层组件和 HTTP 服务器） |
 | `Stop() error` | 停止引擎（优雅关闭） |
-| `Restart() error` | 重启引擎 |
 | `Run() error` | 一键启动（Initialize + Start + WaitForShutdown） |
 | `WaitForShutdown()` | 等待关闭信号 |
-
-#### 配置方法
-
-| 方法 | 说明 |
-|------|------|
-| `SetMode(mode string)` | 设置 Gin 运行模式（debug/release/test） |
-| `IsStarted() bool` | 检查引擎是否已启动 |
-
-#### 获取组件
-
-| 方法 | 返回值 | 说明 |
-|------|--------|------|
-| `GetGinEngine()` | `*gin.Engine` | 获取 Gin 引擎用于自定义扩展 |
-| `GetConfig()` | `common.BaseConfigProvider` | 获取配置提供者 |
-| `GetLogger()` | `interface{}` | 获取日志记录器（如果有 LoggerManager） |
-| `GetManagers()` | `[]common.BaseManager` | 获取所有管理器 |
-| `GetServices()` | `[]common.BaseService` | 获取所有服务 |
-| `GetControllers()` | `[]common.BaseController` | 获取所有控制器 |
-| `GetMiddlewares()` | `[]common.BaseMiddleware` | 获取所有中间件 |
-
-#### 路由方法
-
-| 方法 | 说明 |
-|------|------|
-| `RegisterRoute(method, path string, handler gin.HandlerFunc)` | 注册自定义路由 |
-| `RegisterGroup(groupPath string, handlers ...gin.HandlerFunc)` | 注册路由组 |
-| `GetRouteInfo()` | 获取所有已注册的路由信息 |
-
-#### 健康检查
-
-| 方法 | 说明 |
-|------|------|
-| `Health() error` | 检查所有 Manager 的健康状态 |
-
-### ServerConfig
-
-服务器配置结构。
-
-```go
-type ServerConfig struct {
-    Host            string        // 监听地址，默认 0.0.0.0
-    Port            int           // 监听端口，默认 8080
-    Mode            string        // 运行模式：debug/release/test，默认 release
-    ReadTimeout     time.Duration // 读取超时，默认 10s
-    WriteTimeout    time.Duration // 写入超时，默认 10s
-    IdleTimeout     time.Duration // 空闲超时，默认 60s
-    EnableRecovery  bool          // 是否启用 panic 恢复，默认 true
-    ShutdownTimeout time.Duration // 关闭超时，默认 30s
-}
-
-func DefaultServerConfig() *ServerConfig
-func (c *ServerConfig) Address() string
-```
 
 ## 最佳实践
 
 ### 1. 容器注册顺序
 
-按照依赖顺序创建和注册容器：
+使用 CLI 工具生成时，容器注册顺序已自动处理。手动创建时，请按照依赖顺序创建和注册容器：
 
 ```go
 // 1. 创建容器（按依赖顺序）
@@ -340,6 +316,48 @@ middlewareContainer := container.NewMiddlewareContainer(configContainer, manager
 // Middleware 层
 ```
 
+推荐使用 CLI 工具生成容器初始化代码：
+
+```go
+// 由 CLI 工具自动生成 application/engine.go
+func NewEngine() (*server.Engine, error) {
+    configContainer, err := InitConfigContainer()
+    if err != nil {
+        return nil, err
+    }
+
+    entityContainer := InitEntityContainer()
+    managerContainer, err := InitManagerContainer(configContainer)
+    if err != nil {
+        return nil, err
+    }
+
+    repositoryContainer := InitRepositoryContainer(configContainer, managerContainer, entityContainer)
+    serviceContainer := InitServiceContainer(configContainer, managerContainer, repositoryContainer)
+    controllerContainer := InitControllerContainer(configContainer, managerContainer, serviceContainer)
+    middlewareContainer := InitMiddlewareContainer(configContainer, managerContainer, serviceContainer)
+
+    // 自动注入依赖
+    if err := managerContainer.InjectAll(); err != nil {
+        return nil, err
+    }
+    if err := repositoryContainer.InjectAll(); err != nil {
+        return nil, err
+    }
+    if err := serviceContainer.InjectAll(); err != nil {
+        return nil, err
+    }
+    if err := controllerContainer.InjectAll(); err != nil {
+        return nil, err
+    }
+    if err := middlewareContainer.InjectAll(); err != nil {
+        return nil, err
+    }
+
+    return server.NewEngine(configContainer, entityContainer, managerContainer, repositoryContainer, serviceContainer, controllerContainer, middlewareContainer), nil
+}
+```
+
 ### 2. 中间件排序
 
 为中间件设置合理的 Order 值，控制执行顺序：
@@ -349,9 +367,45 @@ const (
     OrderRecovery    = 10  // panic 恢复
     OrderLogger      = 20  // 日志记录
     OrderCors        = 30  // 跨域处理
-    OrderAuth        = 100 // 认证
+    OrderTelemetry   = 40  // 遥测监控
+    OrderSecurity    = 50  // 安全头
     OrderRateLimit   = 90  // 限流
+    OrderAuth        = 100 // 认证
 )
+```
+
+来自 messageboard 的实际中间件示例：
+
+```go
+// Recovery 中间件
+func (m *RecoveryMiddleware) Order() int {
+    return 10
+}
+
+// 请求日志中间件
+func (m *RequestLoggerMiddleware) Order() int {
+    return 20
+}
+
+// CORS 中间件
+func (m *CorsMiddleware) Order() int {
+    return 30
+}
+
+// 遥测中间件
+func (m *TelemetryMiddleware) Order() int {
+    return 40
+}
+
+// 安全头中间件
+func (m *SecurityHeadersMiddleware) Order() int {
+    return 50
+}
+
+// 认证中间件
+func (m *AuthMiddleware) Order() int {
+    return 100
+}
 ```
 
 ### 3. 路由命名规范
@@ -360,16 +414,56 @@ const (
 
 ```go
 // 正确
-"/users [GET]"
-"/users/:id [GET]"
-"/users [POST]"
-"/users/:id [PUT]"
-"/users/:id [DELETE]"
+"/messages [GET]"
+"/messages/:id [GET]"
+"/messages [POST]"
+"/messages/:id [PUT]"
+"/messages/:id [DELETE]"
 
 // 错误（会被忽略）
 ""                // 空字符串
-"users"           // 缺少方法
-"/users[GET]"      // 缺少空格
+"messages"        // 缺少方法
+"/messages[GET]"  // 缺少空格
+```
+
+来自 messageboard 的实际控制器路由示例：
+
+```go
+// 页面控制器
+func (ctrl *PageHomeController) GetRouter() string {
+    return "/ [GET]"
+}
+
+func (ctrl *PageAdminController) GetRouter() string {
+    return "/admin [GET]"
+}
+
+// API 控制器
+func (ctrl *MessageListController) GetRouter() string {
+    return "/api/messages [GET]"
+}
+
+func (ctrl *MessageCreateController) GetRouter() string {
+    return "/api/messages [POST]"
+}
+
+func (ctrl *MessageDeleteController) GetRouter() string {
+    return "/api/messages/:id [DELETE]"
+}
+
+// 静态资源控制器
+func (ctrl *ResStaticController) GetRouter() string {
+    return "/static/*filepath [GET]"
+}
+
+// 系统健康检查控制器
+func (ctrl *SysHealthController) GetRouter() string {
+    return "/health [GET]"
+}
+
+func (ctrl *SysMetricsController) GetRouter() string {
+    return "/metrics [GET]"
+}
 ```
 
 ### 4. 错误处理
@@ -379,6 +473,27 @@ const (
 ```go
 if err := engine.Run(); err != nil {
     log.Fatalf("Engine run failed: %v", err)
+}
+```
+
+来自 messageboard 的实际错误处理示例：
+
+```go
+func main() {
+    engine, err := application.NewEngine()
+    if err != nil {
+        log.Fatalf("Failed to create engine: %v", err)
+    }
+
+    if err := engine.Initialize(); err != nil {
+        log.Fatalf("Failed to initialize engine: %v", err)
+    }
+
+    if err := engine.Start(); err != nil {
+        log.Fatalf("Failed to start engine: %v", err)
+    }
+
+    engine.WaitForShutdown()
 }
 ```
 
@@ -403,5 +518,41 @@ Engine 自动处理以下信号，触发优雅关闭：
 1. **依赖注入**：确保组件使用 `inject:""` 标签声明依赖
 2. **线程安全**：Engine 使用读写锁保护内部状态，外部访问需加锁
 3. **重入保护**：Start 方法已实现重入保护，重复调用返回错误
-4. **自定义路由**：必须在 Initialize 后、Run 前调用 GetGinEngine 进行扩展
+4. **路由定义**：所有路由必须通过 BaseController 的 `GetRouter()` 方法定义
 5. **中间件顺序**：中间件按 Order 升序排序，越小的值越先执行
+
+来自 messageboard 的实际注意事项示例：
+
+**依赖注入声明**
+
+```go
+type MessageServiceImpl struct {
+    Config   config.BaseConfigProvider   `inject:""`
+    DBMgr    databasemgr.DatabaseManager `inject:""`
+    Messages repository.IMessageRepository `inject:""`
+}
+
+type AuthServiceImpl struct {
+    Config  config.BaseConfigProvider `inject:""`
+    DBMgr   databasemgr.DatabaseManager `inject:""`
+    Sessions repository.ISessionRepository `inject:""`
+}
+```
+
+**路由定义规范**
+
+所有路由都应通过控制器定义：
+
+```go
+type HealthCheckController struct {
+    Config  config.BaseConfigProvider `inject:""`
+}
+
+func (ctrl *HealthCheckController) GetRouter() string {
+    return "/health [GET]"
+}
+
+func (ctrl *HealthCheckController) Handle(c *gin.Context) {
+    c.JSON(200, gin.H{"status": "ok"})
+}
+```
