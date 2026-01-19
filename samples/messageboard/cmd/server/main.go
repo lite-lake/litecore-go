@@ -16,13 +16,13 @@ func main() {
 		log.Fatalf("Failed to create engine: %v", err)
 	}
 
-	// 初始化 HTML 模板
-	initializeHTMLTemplates(engine)
-
 	// 初始化引擎（注册路由、依赖注入等）
 	if err := engine.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize engine: %v", err)
 	}
+
+	// 初始化 HTML 模板服务
+	initializeHTMLTemplateService(engine)
 
 	// 调试：打印所有路由
 	ginEngine := engine.GetGinEngine()
@@ -42,15 +42,15 @@ func main() {
 	log.Println("Server exited")
 }
 
-// initializeHTMLTemplates 初始化 HTML 模板
-func initializeHTMLTemplates(engine *server.Engine) {
-	controllers := engine.GetControllers()
-	for _, ctrl := range controllers {
-		if templateCtrl, ok := ctrl.(interface {
-			InitializeTemplates(*gin.Engine)
+// initializeHTMLTemplateService 初始化 HTML 模板服务
+func initializeHTMLTemplateService(engine *server.Engine) {
+	services := engine.GetServices()
+	for _, svc := range services {
+		if templateSvc, ok := svc.(interface {
+			SetGinEngine(*gin.Engine)
 		}); ok {
-			templateCtrl.InitializeTemplates(engine.GetGinEngine())
-			log.Printf("[DEBUG] HTML templates initialized for %s", ctrl.ControllerName())
+			templateSvc.SetGinEngine(engine.GetGinEngine())
+			log.Printf("[DEBUG] HTML templates initialized for %s", svc.ServiceName())
 		}
 	}
 }

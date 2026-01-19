@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"com.litelake.litecore/common"
-	componentControllers "com.litelake.litecore/component/controller"
+	"com.litelake.litecore/samples/messageboard/internal/services"
 )
 
 // IAdminPageController 管理页面控制器接口
@@ -13,7 +13,7 @@ type IAdminPageController interface {
 }
 
 type AdminPageController struct {
-	TemplateController componentControllers.HTMLTemplateController `inject:""`
+	HTMLTemplateService services.IHTMLTemplateService `inject:""`
 }
 
 func NewAdminPageController() IAdminPageController {
@@ -29,7 +29,7 @@ func (c *AdminPageController) GetRouter() string {
 }
 
 func (c *AdminPageController) Handle(ctx *gin.Context) {
-	c.TemplateController.Render(ctx, "admin.html", gin.H{
+	c.HTMLTemplateService.Render(ctx, "admin.html", gin.H{
 		"title": "留言管理",
 	})
 }

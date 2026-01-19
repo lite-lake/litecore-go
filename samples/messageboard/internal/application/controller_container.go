@@ -19,7 +19,6 @@ func InitControllerContainer(
 	container.RegisterController[controllers.IDeleteMessageController](controllerContainer, controllers.NewDeleteMessageController())
 	container.RegisterController[controllers.IGetAllMessagesController](controllerContainer, controllers.NewGetAllMessagesController())
 	container.RegisterController[controllers.IGetMessagesController](controllerContainer, controllers.NewGetMessagesController())
-	container.RegisterController[controllers.IHTMLTemplateController](controllerContainer, controllers.NewHTMLTemplateController())
 	container.RegisterController[controllers.IHealthController](controllerContainer, controllers.NewHealthController())
 	container.RegisterController[controllers.IHealthzController](controllerContainer, controllers.NewHealthzController())
 	container.RegisterController[controllers.IHomePageController](controllerContainer, controllers.NewHomePageController())
