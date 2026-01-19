@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"com.litelake.litecore/common"
-	componentControllers "com.litelake.litecore/component/controller"
+	"com.litelake.litecore/samples/messageboard/internal/services"
 )
 
 // IHomePageController 首页控制器接口
@@ -13,7 +13,7 @@ type IHomePageController interface {
 }
 
 type HomePageController struct {
-	TemplateController componentControllers.HTMLTemplateController `inject:""`
+	HTMLTemplateService services.IHTMLTemplateService `inject:""`
 }
 
 func NewHomePageController() IHomePageController {
@@ -29,7 +29,7 @@ func (c *HomePageController) GetRouter() string {
 }
 
 func (c *HomePageController) Handle(ctx *gin.Context) {
-	c.TemplateController.Render(ctx, "index.html", gin.H{
+	c.HTMLTemplateService.Render(ctx, "index.html", gin.H{
 		"title": "留言板",
 	})
 }

@@ -14,6 +14,7 @@ func InitServiceContainer(
 ) *container.ServiceContainer {
 	serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
 	container.RegisterService[services.IAuthService](serviceContainer, services.NewAuthService())
+	container.RegisterService[services.IHTMLTemplateService](serviceContainer, services.NewHTMLTemplateService())
 	container.RegisterService[services.IMessageService](serviceContainer, services.NewMessageService())
 	container.RegisterService[services.ISessionService](serviceContainer, services.NewSessionService())
 
