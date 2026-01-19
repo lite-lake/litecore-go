@@ -16,9 +16,6 @@ type ServerConfig struct {
 	IdleTimeout  time.Duration // 空闲超时，默认 60s
 
 	// 特性开关
-	EnableMetrics  bool // 是否启用 Prometheus 指标，默认 true
-	EnableHealth   bool // 是否启用健康检查，默认 true
-	EnablePprof    bool // 是否启用 pprof，默认 false
 	EnableRecovery bool // 是否启用 panic 恢复，默认 true
 
 	// 优雅关闭
@@ -34,9 +31,6 @@ func DefaultServerConfig() *ServerConfig {
 		ReadTimeout:     10 * time.Second,
 		WriteTimeout:    10 * time.Second,
 		IdleTimeout:     60 * time.Second,
-		EnableMetrics:   true,
-		EnableHealth:    true,
-		EnablePprof:     false,
 		EnableRecovery:  true,
 		ShutdownTimeout: 30 * time.Second,
 	}

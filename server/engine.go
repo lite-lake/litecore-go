@@ -70,7 +70,6 @@ func NewEngine(
 // Initialize 初始化引擎（实现 LiteServer 接口）
 // - 创建 Gin 引擎
 // - 注册全局中间件
-// - 注册业务中间件和控制器
 // - 注册系统路由
 func (e *Engine) Initialize() error {
 	e.mu.Lock()
@@ -92,27 +91,11 @@ func (e *Engine) Initialize() error {
 		return fmt.Errorf("register middlewares failed: %w", err)
 	}
 
-	// 注册控制器
-	e.registerControllers()
-
 	// 添加 NoRoute 处理器用于调试
 	e.ginEngine.NoRoute(func(c *gin.Context) {
 		fmt.Printf("[NoRoute] Path: %s, Method: %s\n", c.Request.URL.Path, c.Request.Method)
 		c.JSON(404, gin.H{"error": "route not found", "path": c.Request.URL.Path, "method": c.Request.Method})
 	})
-
-	// 注册系统路由
-	if e.serverConfig.EnableHealth {
-		e.registerHealthRoute()
-	}
-
-	if e.serverConfig.EnableMetrics {
-		e.registerMetricsRoute()
-	}
-
-	if e.serverConfig.EnablePprof {
-		e.registerPprofRoutes()
-	}
 
 	// 创建 HTTP 服务器
 	e.httpServer = &http.Server{
