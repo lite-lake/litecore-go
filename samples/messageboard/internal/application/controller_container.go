@@ -14,15 +14,19 @@ func InitControllerContainer(
 ) *container.ControllerContainer {
 	controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
 	container.RegisterController[controllers.IAdminLoginController](controllerContainer, controllers.NewAdminLoginController())
+	container.RegisterController[controllers.IAdminPageController](controllerContainer, controllers.NewAdminPageController())
 	container.RegisterController[controllers.ICreateMessageController](controllerContainer, controllers.NewCreateMessageController())
 	container.RegisterController[controllers.IDeleteMessageController](controllerContainer, controllers.NewDeleteMessageController())
 	container.RegisterController[controllers.IGetAllMessagesController](controllerContainer, controllers.NewGetAllMessagesController())
 	container.RegisterController[controllers.IGetMessagesController](controllerContainer, controllers.NewGetMessagesController())
+	container.RegisterController[controllers.IHTMLTemplateController](controllerContainer, controllers.NewHTMLTemplateController())
 	container.RegisterController[controllers.IHealthController](controllerContainer, controllers.NewHealthController())
 	container.RegisterController[controllers.IHealthzController](controllerContainer, controllers.NewHealthzController())
+	container.RegisterController[controllers.IHomePageController](controllerContainer, controllers.NewHomePageController())
 	container.RegisterController[controllers.ILivenessController](controllerContainer, controllers.NewLivenessController())
 	container.RegisterController[controllers.IMetricsController](controllerContainer, controllers.NewMetricsController())
 	container.RegisterController[controllers.IReadinessController](controllerContainer, controllers.NewReadinessController())
+	container.RegisterController[controllers.IStaticFileController](controllerContainer, controllers.NewStaticFileController())
 	container.RegisterController[controllers.IUpdateStatusController](controllerContainer, controllers.NewUpdateStatusController())
 
 	return controllerContainer
