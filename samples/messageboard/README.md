@@ -28,7 +28,7 @@
 
 ```bash
 cd samples/messageboard
-go run cmd/main.go
+go run cmd/server/main.go
 ```
 
 ### 2. 访问应用
@@ -47,7 +47,8 @@ samples/messageboard/
 ├── cmd/
 │   ├── generate/               # 代码生成入口
 │   │   └── main.go
-│   └── main.go                 # 应用入口
+│   └── server/                 # 应用入口
+│       └── main.go
 ├── configs/
 │   └── config.yaml             # 配置文件
 ├── internal/
