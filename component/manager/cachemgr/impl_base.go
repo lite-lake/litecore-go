@@ -10,8 +10,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
-	"com.litelake.litecore/manager/loggermgr"
-	"com.litelake.litecore/manager/telemetrymgr"
+	"com.litelake.litecore/component/manager/loggermgr"
+	"com.litelake.litecore/component/manager/telemetrymgr"
 )
 
 // cacheManagerBaseImpl 提供可观测性和工具函数

@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 
-	"com.litelake.litecore/manager/telemetrymgr"
+	"com.litelake.litecore/component/manager/telemetrymgr"
 )
 
 // zapLoggerManagerImpl Zap 日志管理器实现

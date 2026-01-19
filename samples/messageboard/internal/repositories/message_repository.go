@@ -3,8 +3,8 @@ package repositories
 
 import (
 	"com.litelake.litecore/common"
-	"com.litelake.litecore/manager/databasemgr"
 	"com.litelake.litecore/samples/messageboard/internal/entities"
+	infras "com.litelake.litecore/samples/messageboard/internal/infras"
 )
 
 // IMessageRepository 留言仓储接口
@@ -20,8 +20,8 @@ type IMessageRepository interface {
 }
 
 type messageRepository struct {
-	Config  common.BaseConfigProvider   `inject:""`
-	Manager databasemgr.DatabaseManager `inject:""`
+	Config  common.BaseConfigProvider `inject:""`
+	Manager infras.DatabaseManager    `inject:""`
 }
 
 // NewMessageRepository 创建留言仓储

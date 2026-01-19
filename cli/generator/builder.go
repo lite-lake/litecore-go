@@ -271,9 +271,9 @@ func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Laye
 			if len(parts) > 1 {
 				pkg := parts[0]
 				if pkg != b.moduleName && pkg != "" && pkg != "common" && pkg != "config" {
-					fullPkg := "com.litelake.litecore/manager/" + pkg
+					fullPkg := "com.litelake.litecore/component/manager/" + pkg
 					if pkg == "telemetrymgr" {
-						fullPkg = "com.litelake.litecore/manager/telemetrymgr"
+						fullPkg = "com.litelake.litecore/component/manager/telemetrymgr"
 					}
 					if _, exists := importMap[pkg]; !exists {
 						importMap[pkg] = fullPkg
