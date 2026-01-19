@@ -4,9 +4,8 @@
 //
 // 容器管理 - 业务系统创建 Container 并注册组件，然后传给 Server
 // 自动依赖注入 - Engine 自动处理注入顺序和依赖关系
-// 生命周期管理 - 自动管理 Manager 的启动和停止
-// HTTP 服务集成 - 自动注册 Controller 和 Middleware 到 Gin 引擎
-// 健康检查 - 提供统一的健康检查端点
+// 生命周期管理 - 自动管理 Manager、Repository、Service 的启动和停止
+// 中间件集成 - 自动注册 Middleware 到 Gin 引擎
 // 优雅关闭 - 支持信号处理和优雅关闭
 //
 // # 基本使用
@@ -39,7 +38,7 @@
 //	userService := service.NewUserService()
 //	container.RegisterService[service.IUserService](serviceContainer, userService)
 //
-//	// 注册控制器
+//	// 注册控制器（可选组件）
 //	userController := controller.NewUserController()
 //	container.RegisterController[controller.IUserController](controllerContainer, userController)
 //
@@ -69,9 +68,7 @@
 //
 //	Host/Port           - HTTP 监听地址和端口
 //	Mode                - Gin 运行模式（debug/release/test）
-//	EnableMetrics       - 是否启用 Prometheus 指标
-//	EnableHealth        - 是否启用健康检查端点
-//	EnablePprof         - 是否启用 pprof 性能分析
+//	EnableRecovery      - 是否启用 panic 恢复
 //	ReadTimeout         - HTTP 读取超时
 //	WriteTimeout        - HTTP 写入超时
 //	IdleTimeout         - HTTP 空闲超时
@@ -92,13 +89,4 @@
 //	if err := engine.Run(); err != nil {
 //	    panic(err)
 //	}
-//
-// # 系统路由
-//
-//	GET /health        - 健康检查
-//	GET /healthz       - 健康检查（Kubernetes 标准）
-//	GET /live          - 存活检查
-//	GET /ready         - 就绪检查
-//	GET /metrics       - Prometheus 指标
-//	GET /debug/pprof/* - 性能分析（可选启用）
 package server
