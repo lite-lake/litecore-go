@@ -57,7 +57,7 @@ import (
 - **Private structs**: `jwtEngine`, `hashEngine` (lowercase)
 - **Public structs**: `StandardClaims`, `ServerConfig` (PascalCase)
 - **Functions**: PascalCase exported, camelCase private
-- **Enums**: `iota` with comments
+- **Enums**: `iota` with Chinese comments
 
 ```go
 const (
@@ -69,8 +69,8 @@ const (
 ```
 
 ### Comments (Chinese)
-- Use Chinese for all user-facing docs and comments
-- Exported functions must have comments
+- Use Chinese for all comments (inline and doc)
+- Exported functions must have godoc comments
 
 ```go
 // GenerateHS256Token 使用HMAC SHA-256算法生成JWT
@@ -89,7 +89,7 @@ if err != nil {
 
 ### Structs/Interfaces
 - Interface first, then implementation
-- Singleton default instances
+- Singleton default instances with `var JWT = defaultJWT`
 - `inject:""` tags for DI
 
 ```go
@@ -106,8 +106,9 @@ type UserServiceImpl struct {
 
 ### Testing
 - Table-driven tests with `t.Run()` subtests
-- Helpers at top, benchmarks with `Benchmark` prefix
-- Use `testify/assert` or stdlib
+- Test names in Chinese
+- Helper functions at top of file
+- Benchmarks with `b.ResetTimer()`
 
 ```go
 func TestGenerateHS256Token(t *testing.T) {
@@ -116,18 +117,27 @@ func TestGenerateHS256Token(t *testing.T) {
 		claims  ILiteUtilJWTClaims
 		wantErr bool
 	}{
-		{"valid StandardClaims", &StandardClaims{}, false},
+		{"有效StandardClaims", &StandardClaims{}, false},
+		{"空字符串", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) { ... })
+	}
+}
+
+func BenchmarkMD5(b *testing.B) {
+	data := strings.Repeat("a", 1000)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Hash.MD5(data)
 	}
 }
 ```
 
 ### Formatting
 - Use tabs (Go standard)
-- `gofmt` to format
-- Max line: 120 chars (soft)
+- Max line: 120 chars (soft limit)
+- Run `go fmt ./...` after changes
 
 ### Generics
 ```go
@@ -150,7 +160,7 @@ func HashGeneric[T HashAlgorithm](data string, algorithm T) []byte {
 
 ### DI Pattern
 ```go
-// 创建容器
+// Create containers (in dependency order)
 configContainer := container.NewConfigContainer()
 entityContainer := container.NewEntityContainer()
 managerContainer := container.NewManagerContainer(configContainer)
@@ -159,48 +169,24 @@ serviceContainer := container.NewServiceContainer(configContainer, managerContai
 controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
 middlewareContainer := container.NewMiddlewareContainer(configContainer, managerContainer, serviceContainer)
 
-// 注册配置
+// Register using generic API
 configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
 container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
 
-// 注册管理器
 dbMgr := databasemgr.NewDatabaseManager()
 container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbMgr)
 
-// 注册实体
-entityContainer.Register(&entity.User{})
+// Register entities, repositories, services, controllers, middleware...
 
-// 注册仓储
-userRepo := repository.NewUserRepository()
-container.RegisterRepository[repository.IUserRepository](repositoryContainer, userRepo)
+// Inject dependencies
+managerContainer.InjectAll()
+repositoryContainer.InjectAll()
+serviceContainer.InjectAll()
+controllerContainer.InjectAll()
 
-// 注册服务
-userService := service.NewUserService()
-container.RegisterService[service.IUserService](serviceContainer, userService)
-
-// 注册控制器
-userController := controller.NewUserController()
-container.RegisterController[controller.IUserController](controllerContainer, userController)
-
-// 注册中间件
-authMiddleware := middleware.NewAuthMiddleware()
-container.RegisterMiddleware[middleware.IAuthMiddleware](middlewareContainer, authMiddleware)
-
-// 创建引擎，传入容器
-engine := server.NewEngine(
-    configContainer,
-    entityContainer,
-    managerContainer,
-    repositoryContainer,
-    serviceContainer,
-    controllerContainer,
-    middlewareContainer,
-)
-
-// 启动引擎
-if err := engine.Run(); err != nil {
-    panic(err)
-}
+// Create engine
+engine := server.NewEngine(configContainer, entityContainer, managerContainer, repositoryContainer, serviceContainer, controllerContainer, middlewareContainer)
+engine.Run()
 ```
 
 ## When Completing Tasks
