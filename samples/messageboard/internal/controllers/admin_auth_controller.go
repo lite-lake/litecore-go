@@ -9,29 +9,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IAdminLoginController 管理员登录控制器接口
-type IAdminLoginController interface {
+// IAdminAuthController 管理员登录控制器接口
+type IAdminAuthController interface {
 	common.BaseController
 }
 
-type AdminLoginController struct {
+type AdminAuthController struct {
 	AuthService services.IAuthService `inject:""`
 }
 
-// NewAdminLoginController 创建控制器实例
-func NewAdminLoginController() IAdminLoginController {
-	return &AdminLoginController{}
+// NewAdminAuthController 创建控制器实例
+func NewAdminAuthController() IAdminAuthController {
+	return &AdminAuthController{}
 }
 
-func (c *AdminLoginController) ControllerName() string {
-	return "AdminLoginController"
+func (c *AdminAuthController) ControllerName() string {
+	return "AdminAuthController"
 }
 
-func (c *AdminLoginController) GetRouter() string {
+func (c *AdminAuthController) GetRouter() string {
 	return "/api/admin/login [POST]"
 }
 
-func (c *AdminLoginController) Handle(ctx *gin.Context) {
+func (c *AdminAuthController) Handle(ctx *gin.Context) {
 	var req dtos.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(400, dtos.ErrBadRequest)
@@ -49,4 +49,4 @@ func (c *AdminLoginController) Handle(ctx *gin.Context) {
 	}))
 }
 
-var _ IAdminLoginController = (*AdminLoginController)(nil)
+var _ IAdminAuthController = (*AdminAuthController)(nil)

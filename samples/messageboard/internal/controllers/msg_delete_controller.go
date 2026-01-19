@@ -10,29 +10,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IDeleteMessageController 删除留言控制器接口
-type IDeleteMessageController interface {
+// IMessageDeleteController 删除留言控制器接口
+type IMessageDeleteController interface {
 	common.BaseController
 }
 
-type DeleteMessageController struct {
+type MessageDeleteController struct {
 	MessageService services.IMessageService `inject:""`
 }
 
-// NewDeleteMessageController 创建控制器实例
-func NewDeleteMessageController() IDeleteMessageController {
-	return &DeleteMessageController{}
+// NewMessageDeleteController 创建控制器实例
+func NewMessageDeleteController() IMessageDeleteController {
+	return &MessageDeleteController{}
 }
 
-func (c *DeleteMessageController) ControllerName() string {
-	return "DeleteMessageController"
+func (c *MessageDeleteController) ControllerName() string {
+	return "MessageDeleteController"
 }
 
-func (c *DeleteMessageController) GetRouter() string {
+func (c *MessageDeleteController) GetRouter() string {
 	return "/api/admin/messages/:id/delete [POST]"
 }
 
-func (c *DeleteMessageController) Handle(ctx *gin.Context) {
+func (c *MessageDeleteController) Handle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -48,4 +48,4 @@ func (c *DeleteMessageController) Handle(ctx *gin.Context) {
 	ctx.JSON(200, dtos.SuccessWithMessage("删除成功"))
 }
 
-var _ IDeleteMessageController = (*DeleteMessageController)(nil)
+var _ IMessageDeleteController = (*MessageDeleteController)(nil)

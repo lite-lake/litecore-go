@@ -9,30 +9,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IGetAllMessagesController 获取所有留言控制器接口
-type IGetAllMessagesController interface {
+// IMessageListController 获取留言控制器接口
+type IMessageListController interface {
 	common.BaseController
 }
 
-type GetAllMessagesController struct {
+type MessageListController struct {
 	MessageService services.IMessageService `inject:""`
 }
 
-// NewGetAllMessagesController 创建控制器实例
-func NewGetAllMessagesController() IGetAllMessagesController {
-	return &GetAllMessagesController{}
+// NewMessageListController 创建控制器实例
+func NewMessageListController() IMessageListController {
+	return &MessageListController{}
 }
 
-func (c *GetAllMessagesController) ControllerName() string {
-	return "GetAllMessagesController"
+func (c *MessageListController) ControllerName() string {
+	return "MessageListController"
 }
 
-func (c *GetAllMessagesController) GetRouter() string {
-	return "/api/admin/messages [GET]"
+func (c *MessageListController) GetRouter() string {
+	return "/api/messages [GET]"
 }
 
-func (c *GetAllMessagesController) Handle(ctx *gin.Context) {
-	messages, err := c.MessageService.GetAllMessages()
+func (c *MessageListController) Handle(ctx *gin.Context) {
+	messages, err := c.MessageService.GetApprovedMessages()
 	if err != nil {
 		ctx.JSON(500, dtos.ErrInternalServer)
 		return
@@ -49,7 +49,11 @@ func (c *GetAllMessagesController) Handle(ctx *gin.Context) {
 		))
 	}
 
+	for i := range responseList {
+		responseList[i].Status = ""
+	}
+
 	ctx.JSON(200, dtos.SuccessWithData(responseList))
 }
 
-var _ IGetAllMessagesController = (*GetAllMessagesController)(nil)
+var _ IMessageListController = (*MessageListController)(nil)
