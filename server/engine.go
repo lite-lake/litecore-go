@@ -10,7 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
 	"com.litelake.litecore/container"
 )
 
@@ -30,7 +29,7 @@ type Engine struct {
 	ginEngine  *gin.Engine
 
 	// 配置
-	serverConfig    *ServerConfig
+	serverConfig    *serverConfig
 	shutdownTimeout time.Duration
 
 	// 生命周期管理
@@ -51,7 +50,7 @@ func NewEngine(
 	middleware *container.MiddlewareContainer,
 ) *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
-	defaultConfig := DefaultServerConfig()
+	defaultConfig := defaultServerConfig()
 
 	return &Engine{
 		Config:          config,
@@ -68,7 +67,7 @@ func NewEngine(
 	}
 }
 
-// Initialize 初始化引擎（实现 LiteServer 接口）
+// Initialize 初始化引擎（实现 liteServer 接口）
 // - 创建 Gin 引擎
 // - 注册全局中间件
 // - 注册系统路由
@@ -103,6 +102,9 @@ func (e *Engine) Initialize() error {
 	if err := e.registerControllers(); err != nil {
 		return fmt.Errorf("register controllers failed: %w", err)
 	}
+
+	// 初始化需要 Gin 引擎的服务（如 HTML 模板服务）
+	e.initializeGinEngineServices()
 
 	// 创建 HTTP 服务器
 	e.httpServer = &http.Server{
@@ -153,7 +155,7 @@ func (e *Engine) autoInject() error {
 	return nil
 }
 
-// Start 启动引擎（实现 LiteServer 接口）
+// Start 启动引擎（实现 liteServer 接口）
 // - 启动所有 Manager
 // - 启动所有 Repository
 // - 启动所有 Service
@@ -217,56 +219,9 @@ func (e *Engine) Run() error {
 	return nil
 }
 
-// GetGinEngine 获取 Gin 引擎（用于自定义扩展）
-func (e *Engine) GetGinEngine() *gin.Engine {
+// getGinEngine 获取 Gin 引擎
+func (e *Engine) getGinEngine() *gin.Engine {
 	return e.ginEngine
-}
-
-// GetConfig 获取配置
-func (e *Engine) GetConfig() common.BaseConfigProvider {
-	configs := e.Config.GetAll()
-	if len(configs) == 0 {
-		return nil
-	}
-	return configs[0]
-}
-
-// GetLogger 获取日志记录器
-// 如果有 LoggerManager，返回其默认 logger；否则返回 nil
-func (e *Engine) GetLogger() interface{} {
-	// 尝试获取 LoggerManager
-	mgrs := e.Manager.GetAll()
-	for _, mgr := range mgrs {
-		// 通过类型断言检查是否为 LoggerManager
-		if loggerMgr, ok := mgr.(interface{ Logger(name string) interface{} }); ok {
-			return loggerMgr.Logger("server")
-		}
-	}
-	return nil
-}
-
-// Health 健康检查
-func (e *Engine) Health() error {
-	managers := e.Manager.GetAll()
-	for _, mgr := range managers {
-		if err := mgr.Health(); err != nil {
-			return fmt.Errorf("manager %s health check failed: %w", mgr.ManagerName(), err)
-		}
-	}
-	return nil
-}
-
-// SetMode 设置 Gin 运行模式
-func (e *Engine) SetMode(mode string) {
-	e.serverConfig.Mode = mode
-	gin.SetMode(mode)
-}
-
-// IsStarted 检查引擎是否已启动
-func (e *Engine) IsStarted() bool {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	return e.started
 }
 
 // registerControllers 注册所有控制器路由
@@ -285,7 +240,7 @@ func (e *Engine) registerControllers() error {
 		}
 
 		handler := ctrl.Handle
-		e.RegisterRoute(method, path, handler)
+		e.registerRoute(method, path, handler)
 		fmt.Printf("[DEBUG] Registered controller: %s -> %s %s\n", ctrl.ControllerName(), method, path)
 	}
 
@@ -309,4 +264,14 @@ func parseRoute(route string) (string, string, error) {
 		}
 	}
 	return "", "", fmt.Errorf("invalid route format, expected 'path [METHOD]'")
+}
+
+// initializeGinEngineServices 初始化需要 Gin 引擎的服务
+func (e *Engine) initializeGinEngineServices() {
+	services := e.Service.GetAll()
+	for _, svc := range services {
+		if ginEngineSetter, ok := svc.(interface{ SetGinEngine(*gin.Engine) }); ok {
+			ginEngineSetter.SetGinEngine(e.ginEngine)
+		}
+	}
 }

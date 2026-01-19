@@ -97,33 +97,7 @@ func (e *Engine) Stop() error {
 	return nil
 }
 
-// Restart 重启引擎
-func (e *Engine) Restart() error {
-	if err := e.Stop(); err != nil {
-		return fmt.Errorf("stop failed: %w", err)
-	}
-	if err := e.Start(); err != nil {
-		return fmt.Errorf("start failed: %w", err)
-	}
-	return nil
-}
-
-// GetManagers 获取所有管理器
-func (e *Engine) GetManagers() []common.BaseManager {
-	return e.Manager.GetAll()
-}
-
-// GetServices 获取所有服务
-func (e *Engine) GetServices() []common.BaseService {
+// getServices 获取所有服务
+func (e *Engine) getServices() []common.BaseService {
 	return e.Service.GetAll()
-}
-
-// GetControllers 获取所有控制器
-func (e *Engine) GetControllers() []common.BaseController {
-	return e.Controller.GetAll()
-}
-
-// GetMiddlewares 获取所有中间件
-func (e *Engine) GetMiddlewares() []common.BaseMiddleware {
-	return e.Middleware.GetAll()
 }
