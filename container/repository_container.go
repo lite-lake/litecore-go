@@ -86,7 +86,7 @@ func (r *RepositoryContainer) InjectAll() error {
 	}
 
 	for ifaceType, repo := range r.items {
-		resolver := &repositoryDependencyResolver{container: r}
+		resolver := NewGenericDependencyResolver(r.configContainer, r.managerContainer, r.entityContainer, r)
 		if err := injectDependencies(repo, resolver); err != nil {
 			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
 		}
@@ -132,16 +132,11 @@ func (r *RepositoryContainer) Count() int {
 	return len(r.items)
 }
 
-// repositoryDependencyResolver 存储库依赖解析器
-type repositoryDependencyResolver struct {
-	container *RepositoryContainer
-}
-
-// ResolveDependency 解析字段类型对应的依赖实例
-func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
+// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+func (r *RepositoryContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
 	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType.Implements(baseConfigType) {
-		impl := r.container.configContainer.GetByType(fieldType)
+		impl := r.configContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -153,7 +148,7 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 
 	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType.Implements(baseManagerType) {
-		impl := r.container.managerContainer.GetByType(fieldType)
+		impl := r.managerContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -165,7 +160,7 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 
 	baseEntityType := reflect.TypeOf((*common.IBaseEntity)(nil)).Elem()
 	if fieldType == baseEntityType || fieldType.Implements(baseEntityType) {
-		items, err := r.container.entityContainer.GetByType(fieldType)
+		items, err := r.entityContainer.GetByType(fieldType)
 		if err != nil {
 			return nil, err
 		}
@@ -188,8 +183,5 @@ func (r *repositoryDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return items[0], nil
 	}
 
-	return nil, &DependencyNotFoundError{
-		FieldType:     fieldType,
-		ContainerType: "Unknown",
-	}
+	return nil, nil
 }

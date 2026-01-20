@@ -1,13 +1,14 @@
 package container
 
 import (
+	"container/list"
 	"fmt"
 	"reflect"
 )
 
-// InstanceIterator 实例迭代器接口
+// IInstanceIterator 实例迭代器接口
 // 用于泛型场景下的实例迭代
-type InstanceIterator interface {
+type IInstanceIterator interface {
 	// Range 遍历所有实例
 	Range(func(name string, instance interface{}) bool)
 }
@@ -36,25 +37,24 @@ func topologicalSort(graph map[string][]string) ([]string, error) {
 	}
 
 	// 找到所有入度为 0 的节点（无依赖）
-	var queue []string
+	queue := list.New()
 	for node, degree := range inDegree {
 		if degree == 0 {
-			queue = append(queue, node)
+			queue.PushBack(node)
 		}
 	}
 
 	var result []string
-	for len(queue) > 0 {
+	for queue.Len() > 0 {
 		// 取出一个节点
-		node := queue[0]
-		queue = queue[1:]
+		node := queue.Remove(queue.Front()).(string)
 		result = append(result, node)
 
 		// 减少邻接节点的入度
 		for _, neighbor := range adjList[node] {
 			inDegree[neighbor]--
 			if inDegree[neighbor] == 0 {
-				queue = append(queue, neighbor)
+				queue.PushBack(neighbor)
 			}
 		}
 	}
@@ -94,23 +94,22 @@ func topologicalSortByInterfaceType(graph map[reflect.Type][]reflect.Type) ([]re
 		}
 	}
 
-	var queue []reflect.Type
+	queue := list.New()
 	for node, degree := range inDegree {
 		if degree == 0 {
-			queue = append(queue, node)
+			queue.PushBack(node)
 		}
 	}
 
 	var result []reflect.Type
-	for len(queue) > 0 {
-		node := queue[0]
-		queue = queue[1:]
+	for queue.Len() > 0 {
+		node := queue.Remove(queue.Front()).(reflect.Type)
 		result = append(result, node)
 
 		for _, neighbor := range adjList[node] {
 			inDegree[neighbor]--
 			if inDegree[neighbor] == 0 {
-				queue = append(queue, neighbor)
+				queue.PushBack(neighbor)
 			}
 		}
 	}
@@ -150,7 +149,7 @@ func buildDependencyGraphFromMap(
 
 // buildDependencyGraphFromIterator 从迭代器构建依赖图
 func buildDependencyGraphFromIterator(
-	iterator InstanceIterator,
+	iterator IInstanceIterator,
 	getDependencies func(interface{}) ([]string, error),
 ) (map[string][]string, error) {
 	graph := make(map[string][]string)

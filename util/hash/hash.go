@@ -184,7 +184,8 @@ func HMACBytesHexGeneric[T HashAlgorithm](data []byte, key []byte, algorithm T, 
 }
 
 // HMACReaderHexGeneric 从io.Reader计算HMAC哈希值并返回指定格式的十六进制字符串
-func HMACReaderHexGeneric[T HashAlgorithm](r io.Reader, key []byte, algorithm T, format HashOutputFormat) (string, error) {
+func HMACReaderHexGeneric[T HashAlgorithm](r io.Reader, key []byte, algorithm T,
+	format HashOutputFormat) (string, error) {
 	hashBytes, err := HMACReaderGeneric(r, key, algorithm)
 	if err != nil {
 		return "", err

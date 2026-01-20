@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"reflect"
 	"strings"
 )
 
@@ -128,7 +127,9 @@ func (a *Analyzer) analyzeFuncDecl(fn *ast.FuncDecl, filename string, layer Laye
 
 // detectLayer 检测代码层
 func (a *Analyzer) detectLayer(filename, packageName string) Layer {
-	parts := strings.Split(filename, string("/"+"\\"))
+	parts := strings.FieldsFunc(filename, func(r rune) bool {
+		return r == '/' || r == '\\'
+	})
 
 	for _, part := range parts {
 		if strings.Contains(part, "entities") {
@@ -161,7 +162,8 @@ func (a *Analyzer) detectLayer(filename, packageName string) Layer {
 }
 
 // analyzeGenDecl 分析通用声明
-func (a *Analyzer) analyzeGenDecl(decl *ast.GenDecl, filename string, layer Layer, pkgName string, fset *token.FileSet) {
+func (a *Analyzer) analyzeGenDecl(decl *ast.GenDecl, filename string,
+	layer Layer, pkgName string, fset *token.FileSet) {
 	for _, spec := range decl.Specs {
 		if typeSpec, ok := spec.(*ast.TypeSpec); ok {
 			a.analyzeTypeSpec(typeSpec, filename, layer, pkgName)
@@ -248,10 +250,12 @@ func (a *Analyzer) getPackagePath(filename string) string {
 	relPath := strings.TrimPrefix(filename, a.projectPath)
 	relPath = strings.TrimPrefix(relPath, "/")
 	relPath = strings.TrimPrefix(relPath, "\\")
-	relPath = strings.TrimSuffix(relPath, "/"+reflect.ValueOf("").String())
-	relPath = strings.TrimSuffix(relPath, "\\"+reflect.ValueOf("").String())
+	relPath = strings.TrimSuffix(relPath, "/")
+	relPath = strings.TrimSuffix(relPath, "\\")
 
-	parts := strings.Split(relPath, string("/"+"\\"))
+	parts := strings.FieldsFunc(relPath, func(r rune) bool {
+		return r == '/' || r == '\\'
+	})
 
 	if len(parts) > 1 {
 		return a.moduleName + "/" + strings.Join(parts[:len(parts)-1], "/")

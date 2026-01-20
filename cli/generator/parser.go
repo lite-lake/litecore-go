@@ -431,7 +431,9 @@ func (p *Parser) parseInfrasFile(filename string) error {
 
 			typeName := strings.TrimPrefix(fn.Name.Name, "New")
 			layer := analyzer.LayerManager
-			if strings.Contains(filename, "configproviders") || strings.Contains(filename, "config_provider") || strings.Contains(fn.Name.Name, "ConfigProvider") {
+			if strings.Contains(filename, "configproviders") ||
+				strings.Contains(filename, "config_provider") ||
+				strings.Contains(fn.Name.Name, "ConfigProvider") {
 				layer = analyzer.LayerConfig
 			}
 

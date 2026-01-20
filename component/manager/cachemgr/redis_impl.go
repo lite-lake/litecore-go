@@ -128,7 +128,8 @@ func (r *cacheManagerRedisImpl) Set(ctx context.Context, key string, value any, 
 }
 
 // SetNX 仅当键不存在时才设置值
-func (r *cacheManagerRedisImpl) SetNX(ctx context.Context, key string, value any, expiration time.Duration) (bool, error) {
+func (r *cacheManagerRedisImpl) SetNX(ctx context.Context, key string, value any,
+	expiration time.Duration) (bool, error) {
 	var result bool
 	var resultErr error
 

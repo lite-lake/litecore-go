@@ -96,7 +96,11 @@ func (e *Engine) Initialize() error {
 	// 添加 NoRoute 处理器用于调试
 	e.ginEngine.NoRoute(func(c *gin.Context) {
 		fmt.Printf("[NoRoute] Path: %s, Method: %s\n", c.Request.URL.Path, c.Request.Method)
-		c.JSON(common.HTTPStatusNotFound, gin.H{"error": "route not found", "path": c.Request.URL.Path, "method": c.Request.Method})
+		c.JSON(common.HTTPStatusNotFound, gin.H{
+			"error":  "route not found",
+			"path":   c.Request.URL.Path,
+			"method": c.Request.Method,
+		})
 	})
 
 	// 注册控制器路由
@@ -261,10 +265,15 @@ func parseRoute(route string) (string, string, error) {
 			if i+1 < len(route) && route[len(route)-1] == ']' {
 				method := route[i+1 : len(route)-1]
 				path := route[:i]
+				path = strings.TrimSpace(path)
+				method = strings.TrimSpace(method)
 				if path == "" {
 					return "", "", fmt.Errorf("path cannot be empty")
 				}
-				return strings.ToUpper(strings.TrimSpace(method)), strings.TrimSpace(path), nil
+				if method == "" {
+					return "", "", fmt.Errorf("method cannot be empty")
+				}
+				return strings.ToUpper(method), path, nil
 			}
 		}
 	}

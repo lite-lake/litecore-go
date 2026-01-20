@@ -236,9 +236,15 @@ func TestHashEngine_SHA256String(t *testing.T) {
 
 func TestHashEngine_SHA512(t *testing.T) {
 	tests := []testCase{
-		{"空字符串", "", "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"},
-		{"简单字符串", "hello", "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043"},
-		{"中文字符串", "你好世界", "4b28a152c8e203ebb52e099301041e3cf704a56190d3097ec8b086a0f9bfb4b9d533ce71fc3bcf374359e506dc5f17322ec3911eac8dd8f5b35308d938ba0c26"},
+		{"空字符串", "",
+			"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce" +
+				"47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"},
+		{"简单字符串", "hello",
+			"9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca723" +
+				"23c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043"},
+		{"中文字符串", "你好世界",
+			"4b28a152c8e203ebb52e099301041e3cf704a56190d3097ec8b086a0f9bfb4b9" +
+				"d533ce71fc3bcf374359e506dc5f17322ec3911eac8dd8f5b35308d938ba0c26"},
 	}
 
 	for _, tt := range tests {
@@ -255,9 +261,15 @@ func TestHashEngine_SHA512(t *testing.T) {
 
 func TestHashEngine_SHA512String(t *testing.T) {
 	tests := []testCase{
-		{"空字符串", "", "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"},
-		{"简单字符串", "hello", "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043"},
-		{"数字字符串", "123456", "ba3253876aed6bc22d4a6ff53d8406c6ad864195ed144ab5c87621b6c233b548baeae6956df346ec8c17f5ea10f35ee3cbc514797ed7ddd3145464e2a0bab413"},
+		{"空字符串", "",
+			"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce" +
+				"47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"},
+		{"简单字符串", "hello",
+			"9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca723" +
+				"23c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043"},
+		{"数字字符串", "123456",
+			"ba3253876aed6bc22d4a6ff53d8406c6ad864195ed144ab5c87621b6c233b548ba" +
+				"eae6956df346ec8c17f5ea10f35ee3cbc514797ed7ddd3145464e2a0bab413"},
 	}
 
 	for _, tt := range tests {

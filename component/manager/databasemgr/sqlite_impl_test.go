@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/mattn/go-sqlite3"
 	"gorm.io/gorm"
 )
 
@@ -58,6 +59,11 @@ func TestNewDatabaseManagerSQLiteImpl(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// 需要实际连接的测试用例需要 CGO
+			if !tt.wantErr {
+				skipIfCGONotAvailable(t)
+			}
+
 			mgr, err := NewDatabaseManagerSQLiteImpl(tt.cfg)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewDatabaseManagerSQLiteImpl() error = %v, wantErr %v", err, tt.wantErr)
@@ -83,6 +89,8 @@ func TestNewDatabaseManagerSQLiteImpl(t *testing.T) {
 
 // TestSQLiteImpl_BasicOperations 测试基本操作
 func TestSQLiteImpl_BasicOperations(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := &SQLiteConfig{
 		DSN: ":memory:",
 	}
@@ -114,6 +122,8 @@ func TestSQLiteImpl_BasicOperations(t *testing.T) {
 
 // TestSQLiteImpl_GORMOperations 测试 GORM 操作
 func TestSQLiteImpl_GORMOperations(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := &SQLiteConfig{
 		DSN: ":memory:",
 	}
@@ -169,6 +179,8 @@ func TestSQLiteImpl_GORMOperations(t *testing.T) {
 
 // TestSQLiteImpl_CRUDOperations 测试 CRUD 操作
 func TestSQLiteImpl_CRUDOperations(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := &SQLiteConfig{
 		DSN: ":memory:",
 	}
@@ -241,6 +253,8 @@ func TestSQLiteImpl_CRUDOperations(t *testing.T) {
 
 // TestSQLiteImpl_Transaction 测试事务操作
 func TestSQLiteImpl_Transaction(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := &SQLiteConfig{
 		DSN: ":memory:",
 	}
@@ -270,10 +284,12 @@ func TestSQLiteImpl_Transaction(t *testing.T) {
 	t.Run("Transaction_Commit", func(t *testing.T) {
 		err := mgr.Transaction(func(tx *gorm.DB) error {
 			// Alice 转账 50 给 Bob
-			if err := tx.Model(&Account{}).Where("name = ?", "Alice").Update("balance", gorm.Expr("balance - ?", 50)).Error; err != nil {
+			if err := tx.Model(&Account{}).Where("name = ?", "Alice").
+				Update("balance", gorm.Expr("balance - ?", 50)).Error; err != nil {
 				return err
 			}
-			if err := tx.Model(&Account{}).Where("name = ?", "Bob").Update("balance", gorm.Expr("balance + ?", 50)).Error; err != nil {
+			if err := tx.Model(&Account{}).Where("name = ?", "Bob").
+				Update("balance", gorm.Expr("balance + ?", 50)).Error; err != nil {
 				return err
 			}
 			return nil
@@ -298,7 +314,8 @@ func TestSQLiteImpl_Transaction(t *testing.T) {
 	t.Run("Transaction_Rollback", func(t *testing.T) {
 		err := mgr.Transaction(func(tx *gorm.DB) error {
 			// 尝试转账，但返回错误触发回滚
-			if err := tx.Model(&Account{}).Where("name = ?", "Alice").Update("balance", gorm.Expr("balance - ?", 200)).Error; err != nil {
+			if err := tx.Model(&Account{}).Where("name = ?", "Alice").
+				Update("balance", gorm.Expr("balance - ?", 200)).Error; err != nil {
 				return err
 			}
 			return gorm.ErrInvalidTransaction // 触发回滚
@@ -343,6 +360,8 @@ func TestSQLiteImpl_Transaction(t *testing.T) {
 
 // TestSQLiteImpl_RawSQL 测试原生 SQL
 func TestSQLiteImpl_RawSQL(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := &SQLiteConfig{
 		DSN: ":memory:",
 	}
@@ -387,6 +406,8 @@ func TestSQLiteImpl_RawSQL(t *testing.T) {
 
 // TestSQLiteImpl_ConnectionManagement 测试连接管理
 func TestSQLiteImpl_ConnectionManagement(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := &SQLiteConfig{
 		DSN: ":memory:",
 		PoolConfig: &PoolConfig{
@@ -438,6 +459,8 @@ func TestSQLiteImpl_ConnectionManagement(t *testing.T) {
 
 // TestSQLiteImpl_Migrator 测试迁移器
 func TestSQLiteImpl_Migrator(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := &SQLiteConfig{
 		DSN: ":memory:",
 	}
@@ -478,6 +501,8 @@ func TestSQLiteImpl_Migrator(t *testing.T) {
 
 // TestSQLiteImpl_Concurrency 测试并发操作
 func TestSQLiteImpl_Concurrency(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := &SQLiteConfig{
 		DSN: ":memory:",
 	}

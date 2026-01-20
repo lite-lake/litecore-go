@@ -32,7 +32,7 @@ func (l *noneLoggerImpl) Fatal(msg string, args ...any) {
 }
 
 // With 返回自身
-func (l *noneLoggerImpl) With(args ...any) Logger {
+func (l *noneLoggerImpl) With(args ...any) ILogger {
 	return l
 }
 
@@ -52,7 +52,7 @@ func NewLoggerManagerNoneImpl() ILoggerManager {
 }
 
 // Logger 返回空日志输出器
-func (m *noneLoggerManagerImpl) Logger(name string) Logger {
+func (m *noneLoggerManagerImpl) Logger(name string) ILogger {
 	return newNoneLoggerImpl()
 }
 

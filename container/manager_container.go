@@ -95,7 +95,7 @@ func (m *ManagerContainer) InjectAll() error {
 		mgr := m.items[ifaceType]
 		m.mu.RUnlock()
 
-		resolver := &managerDependencyResolver{container: m}
+		resolver := NewGenericDependencyResolver(m.configContainer, m)
 		if err := injectDependencies(mgr, resolver); err != nil {
 			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
 		}
@@ -202,16 +202,11 @@ func (m *ManagerContainer) Count() int {
 	return len(m.items)
 }
 
-// managerDependencyResolver 管理器依赖解析器
-type managerDependencyResolver struct {
-	container *ManagerContainer
-}
-
-// ResolveDependency 解析字段类型对应的依赖实例
-func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
+// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+func (m *ManagerContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
 	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
-		impl := r.container.configContainer.GetByType(fieldType)
+		impl := m.configContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -223,7 +218,7 @@ func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 
 	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
-		impl := r.container.GetByType(fieldType)
+		impl := m.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -233,8 +228,5 @@ func (r *managerDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 		return impl, nil
 	}
 
-	return nil, &DependencyNotFoundError{
-		FieldType:     fieldType,
-		ContainerType: "Unknown",
-	}
+	return nil, nil
 }

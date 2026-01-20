@@ -58,7 +58,8 @@ func (n *cacheManagerNoneImpl) Set(ctx context.Context, key string, value any, e
 }
 
 // SetNX 仅当键不存在时才设置值（返回 false，表示未设置）
-func (n *cacheManagerNoneImpl) SetNX(ctx context.Context, key string, value any, expiration time.Duration) (bool, error) {
+func (n *cacheManagerNoneImpl) SetNX(ctx context.Context, key string, value any,
+	expiration time.Duration) (bool, error) {
 	var result bool
 
 	err := n.recordOperation(ctx, n.name, "setnx", key, func() error {

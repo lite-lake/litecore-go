@@ -157,9 +157,12 @@ func newJWTHeader(alg JWTAlgorithm, keyID ...string) jwtHeader {
 }
 
 // encodeHeader 编码JWT头部
-func (j *jwtEngine) encodeHeader(header jwtHeader) string {
-	headerBytes, _ := json.Marshal(header)
-	return j.base64URLEncode(headerBytes)
+func (j *jwtEngine) encodeHeader(header jwtHeader) (string, error) {
+	headerBytes, err := json.Marshal(header)
+	if err != nil {
+		return "", fmt.Errorf("encode header failed: %w", err)
+	}
+	return j.base64URLEncode(headerBytes), nil
 }
 
 // =========================================
@@ -337,7 +340,10 @@ func (j *jwtEngine) GenerateToken(claims ILiteUtilJWTClaims, algorithm JWTAlgori
 
 	// 创建头部
 	header := newJWTHeader(algorithm)
-	encodedHeader := j.encodeHeader(header)
+	encodedHeader, err := j.encodeHeader(header)
+	if err != nil {
+		return "", fmt.Errorf("encode header failed: %w", err)
+	}
 
 	// 编码Claims
 	encodedPayload, err := j.encodeClaims(claims)
@@ -395,7 +401,8 @@ func (j *jwtEngine) ParseToken(token string, algorithm JWTAlgorithm,
 
 	// 验证签名
 	message := encodedHeader + "." + encodedPayload
-	if err := j.verifySignature(message, encodedSignature, algorithm, secretKey, rsaPublicKey, ecdsaPublicKey); err != nil {
+	if err := j.verifySignature(message, encodedSignature, algorithm, secretKey,
+		rsaPublicKey, ecdsaPublicKey); err != nil {
 		return nil, fmt.Errorf("signature verification failed: %w", err)
 	}
 

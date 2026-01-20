@@ -431,7 +431,8 @@ func (t *timeEngine) StartOfMonth(tim stdtime.Time) stdtime.Time {
 // EndOfMonth 获取一个月的结束时间（最后一天 23:59:59.999999999）
 func (t *timeEngine) EndOfMonth(tim stdtime.Time) stdtime.Time {
 	startOfMonth := t.StartOfMonth(tim)
-	return t.AddDays(startOfMonth.AddDate(0, 1, 0), -1).Add(23*stdtime.Hour + 59*stdtime.Minute + 59*stdtime.Second + 999999999*stdtime.Nanosecond)
+	return t.AddDays(startOfMonth.AddDate(0, 1, 0), -1).
+		Add(23*stdtime.Hour + 59*stdtime.Minute + 59*stdtime.Second + 999999999*stdtime.Nanosecond)
 }
 
 // StartOfYear 获取一年的开始时间（1月1日 00:00:00）

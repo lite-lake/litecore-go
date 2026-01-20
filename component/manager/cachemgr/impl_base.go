@@ -18,7 +18,7 @@ import (
 type cacheManagerBaseImpl struct {
 	loggerMgr         loggermgr.ILoggerManager       `inject:""`
 	telemetryMgr      telemetrymgr.ITelemetryManager `inject:""`
-	logger            loggermgr.Logger
+	logger            loggermgr.ILogger
 	tracer            trace.Tracer
 	meter             metric.Meter
 	cacheHitCounter   metric.Int64Counter

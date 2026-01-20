@@ -38,13 +38,15 @@ type SQLiteConfig struct {
 
 // PostgreSQLConfig PostgreSQL 配置
 type PostgreSQLConfig struct {
-	DSN        string      `yaml:"dsn"`         // PostgreSQL DSN，如: host=localhost port=5432 user=postgres password=password dbname=lite_demo sslmode=disable
+	DSN string `yaml:"dsn"` // PostgreSQL DSN，如: host=localhost port=5432 user=postgres password=
+	// password dbname=lite_demo sslmode=disable
 	PoolConfig *PoolConfig `yaml:"pool_config"` // 连接池配置（可选）
 }
 
 // MySQLConfig MySQL 配置
 type MySQLConfig struct {
-	DSN        string      `yaml:"dsn"`         // MySQL DSN，如: root:password@tcp(localhost:3306)/lite_demo?charset=utf8mb4&parseTime=True&loc=Local
+	DSN string `yaml:"dsn"` // MySQL DSN，如: root:password@tcp(localhost:3306)/lite_demo?
+	// charset=utf8mb4&parseTime=True&loc=Local
 	PoolConfig *PoolConfig `yaml:"pool_config"` // 连接池配置（可选）
 }
 

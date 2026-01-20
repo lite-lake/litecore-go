@@ -12,7 +12,8 @@ import (
 func TestCircularDependencyDetection(t *testing.T) {
 	configContainer := NewConfigContainer()
 	managerContainer := NewManagerContainer(configContainer)
-	_ = NewServiceContainer(configContainer, managerContainer, NewRepositoryContainer(configContainer, managerContainer, NewEntityContainer()))
+	_ = NewServiceContainer(configContainer, managerContainer,
+		NewRepositoryContainer(configContainer, managerContainer, NewEntityContainer()))
 
 	// 注册配置
 	config := &MockConfigProvider{name: "app-config"}

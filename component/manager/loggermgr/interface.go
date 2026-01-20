@@ -4,8 +4,8 @@ import (
 	"context"
 )
 
-// Logger 日志接口
-type Logger interface {
+// ILogger 日志接口
+type ILogger interface {
 	// Debug 记录调试级别日志
 	Debug(msg string, args ...any)
 
@@ -22,7 +22,7 @@ type Logger interface {
 	Fatal(msg string, args ...any)
 
 	// With 返回一个带有额外字段的新 Logger
-	With(args ...any) Logger
+	With(args ...any) ILogger
 
 	// SetLevel 设置日志级别
 	SetLevel(level LogLevel)
@@ -45,7 +45,7 @@ type ILoggerManager interface {
 
 	// ========== 日志管理 ==========
 	// Logger 获取指定名称的 Logger 实例
-	Logger(name string) Logger
+	Logger(name string) ILogger
 
 	// SetGlobalLevel 设置全局日志级别
 	SetGlobalLevel(level LogLevel)

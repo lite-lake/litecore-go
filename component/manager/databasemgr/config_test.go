@@ -18,7 +18,8 @@ func TestDefaultConfig(t *testing.T) {
 	}
 
 	if cfg.ObservabilityConfig.SlowQueryThreshold != 1*time.Second {
-		t.Errorf("DefaultConfig().ObservabilityConfig.SlowQueryThreshold = %v, want 1s", cfg.ObservabilityConfig.SlowQueryThreshold)
+		t.Errorf("DefaultConfig().ObservabilityConfig.SlowQueryThreshold = %v, want 1s",
+			cfg.ObservabilityConfig.SlowQueryThreshold)
 	}
 
 	if cfg.ObservabilityConfig.LogSQL != false {

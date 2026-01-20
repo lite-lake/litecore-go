@@ -73,7 +73,8 @@ func (v *DefaultValidator) formatValidationError(err error) error {
 			case "email":
 				errMsgs = append(errMsgs, field+" must be a valid email")
 			case "complexPassword":
-				errMsgs = append(errMsgs, field+" must contain: at least 12 characters, uppercase, lowercase, number and special character")
+				errMsgs = append(errMsgs, field+
+					" must contain: at least 12 characters, uppercase, lowercase, number and special character")
 			default:
 				errMsgs = append(errMsgs, field+" validation failed on "+tag)
 			}

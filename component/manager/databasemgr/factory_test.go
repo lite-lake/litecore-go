@@ -1,11 +1,30 @@
 package databasemgr
 
 import (
+	"database/sql"
 	"errors"
+	_ "fmt"
+	"os"
 	"testing"
 
 	"com.litelake.litecore/common"
+	_ "github.com/mattn/go-sqlite3"
 )
+
+// skipIfCGONotAvailable 如果 CGO 不可用则跳过测试
+func skipIfCGONotAvailable(t *testing.T) {
+	// 尝试打开 SQLite 连接以检测 CGO 是否可用
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Skip("SQLite 驱动不可用，跳过 SQLite 测试")
+	}
+	defer db.Close()
+
+	// 验证连接确实可用
+	if err := db.Ping(); err != nil {
+		t.Skip("SQLite 驱动不可用，跳过 SQLite 测试")
+	}
+}
 
 // MockConfigProvider 用于测试的模拟配置提供者
 type MockConfigProvider struct {
@@ -56,6 +75,8 @@ func TestBuild_NoneDriver(t *testing.T) {
 
 // TestBuild_SQLite 测试 SQLite 驱动
 func TestBuild_SQLite(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := map[string]any{
 		"dsn": ":memory:",
 	}
@@ -82,6 +103,8 @@ func TestBuild_SQLite(t *testing.T) {
 
 // TestBuild_SQLite_WithPoolConfig 测试 SQLite 带连接池配置
 func TestBuild_SQLite_WithPoolConfig(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := map[string]any{
 		"dsn": ":memory:",
 		"pool_config": map[string]any{
@@ -126,6 +149,8 @@ func TestBuild_SQLite_MissingDSN(t *testing.T) {
 
 // TestBuild_ImplementsManagerInterface 测试实现了 Manager 接口
 func TestBuild_ImplementsManagerInterface(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	cfg := map[string]any{
 		"dsn": ":memory:",
 	}
@@ -156,6 +181,10 @@ func TestBuild_ImplementsManagerInterface(t *testing.T) {
 
 // BenchmarkBuild 基准测试 Build 方法
 func BenchmarkBuild(b *testing.B) {
+	if os.Getenv("CGO_ENABLED") == "0" {
+		b.Skip("CGO 不可用，跳过 SQLite 基准测试")
+	}
+
 	cfg := map[string]any{
 		"dsn": ":memory:",
 	}
@@ -195,6 +224,8 @@ func TestBuildWithConfigProvider_NoneDriver(t *testing.T) {
 
 // TestBuildWithConfigProvider_SQLite 测试使用 ConfigProvider 构建 SQLite
 func TestBuildWithConfigProvider_SQLite(t *testing.T) {
+	skipIfCGONotAvailable(t)
+
 	provider := &MockConfigProvider{
 		data: map[string]any{
 			"database.driver": "sqlite",
@@ -259,6 +290,10 @@ func TestBuildWithConfigProvider_MissingConfig(t *testing.T) {
 
 // BenchmarkBuildWithConfigProvider 基准测试 BuildWithConfigProvider 方法
 func BenchmarkBuildWithConfigProvider(b *testing.B) {
+	if os.Getenv("CGO_ENABLED") == "0" {
+		b.Skip("CGO 不可用，跳过 SQLite 基准测试")
+	}
+
 	provider := &MockConfigProvider{
 		data: map[string]any{
 			"database.driver": "sqlite",

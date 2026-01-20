@@ -5,6 +5,7 @@ package id
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"time"
 )
@@ -29,19 +30,19 @@ var (
 //   - 分布式安全：无需中央协调，各节点独立生成
 //
 // 适用场景：数据库主键、分布式追踪 ID、会话 ID 等
-func NewCUID2() string {
+func NewCUID2() (string, error) {
 	// 使用毫秒级时间戳作为前缀，保证时间排序特性
 	timestamp := time.Now().UnixMilli()
 
 	// 生成 16 字节加密级随机数，确保唯一性和不可预测性
 	randomBytes := make([]byte, 16)
 	if _, err := rand.Read(randomBytes); err != nil {
-		panic(err) // 随机数生成器故障属于系统级错误，应直接终止
+		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
 
 	// 编码生成 CUID2 字符串并截取标准长度
 	id := encodeCUID2(timestamp, randomBytes)
-	return id[:cuid2Length]
+	return id[:cuid2Length], nil
 }
 
 // encodeCUID2 将时间戳和随机字节编码为 CUID2 格式字符串

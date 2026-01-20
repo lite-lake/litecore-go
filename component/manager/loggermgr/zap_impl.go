@@ -52,7 +52,7 @@ func (m *zapLoggerManagerImpl) setTelemetryMgr(telemetryMgr telemetrymgr.ITeleme
 }
 
 // Logger 获取指定名称的 Logger 实例
-func (m *zapLoggerManagerImpl) Logger(name string) Logger {
+func (m *zapLoggerManagerImpl) Logger(name string) ILogger {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -248,7 +248,7 @@ func (l *zapLoggerImpl) Fatal(msg string, args ...any) {
 }
 
 // With 返回一个带有额外字段的新 Logger
-func (l *zapLoggerImpl) With(args ...any) Logger {
+func (l *zapLoggerImpl) With(args ...any) ILogger {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
