@@ -6,7 +6,7 @@ import (
 
 	"com.litelake.litecore/common"
 	componentMiddleware "com.litelake.litecore/component/middleware"
-	"com.litelake.litecore/samples/messageboard/internal/infras"
+	"com.litelake.litecore/samples/messageboard/internal/infras/managers"
 )
 
 // ITelemetryMiddleware 遥测中间件接口
@@ -17,7 +17,7 @@ type ITelemetryMiddleware interface {
 type telemetryMiddleware struct {
 	inner            common.IBaseMiddleware
 	order            int
-	TelemetryManager infras.TelemetryManager `inject:""`
+	TelemetryManager managers.ITelemetryManager `inject:""`
 }
 
 // NewTelemetryMiddleware 创建遥测中间件

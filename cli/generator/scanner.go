@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"com.litelake.litecore/cli/analyzer"
 )
@@ -42,6 +43,27 @@ func (s *Scanner) Scan() (*analyzer.ProjectInfo, error) {
 	return info, nil
 }
 
+type fileSet struct {
+	files map[string]bool
+	mu    sync.Mutex
+}
+
+func newFileSet() *fileSet {
+	return &fileSet{
+		files: make(map[string]bool),
+	}
+}
+
+func (fs *fileSet) add(file string) bool {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	if fs.files[file] {
+		return false
+	}
+	fs.files[file] = true
+	return true
+}
+
 // scanConfig 扫描配置层
 func (s *Scanner) scanConfig() {
 	configDirs := []string{
@@ -49,6 +71,7 @@ func (s *Scanner) scanConfig() {
 		filepath.Join(s.projectPath, "internal", "infras", "configproviders"),
 	}
 
+	seenFiles := newFileSet()
 	for _, configDir := range configDirs {
 		if _, err := os.Stat(configDir); os.IsNotExist(err) {
 			continue
@@ -56,7 +79,9 @@ func (s *Scanner) scanConfig() {
 
 		configFiles := s.findGoFiles(configDir)
 		for _, file := range configFiles {
-			s.analyzeConfigFile(file)
+			if seenFiles.add(file) {
+				s.analyzeConfigFile(file)
+			}
 		}
 	}
 }
@@ -72,7 +97,10 @@ func (s *Scanner) analyzeConfigFile(filename string) {
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		if fn, ok := n.(*ast.FuncDecl); ok {
-			if fn.Name.Name == "NewConfigProvider" || strings.HasPrefix(fn.Name.Name, "NewConfig") {
+			if strings.Contains(filename, "configproviders") ||
+				strings.Contains(filename, "config_provider") ||
+				strings.Contains(fn.Name.Name, "ConfigProvider") ||
+				fn.Name.Name == "NewConfigProvider" {
 				_ = &analyzer.ComponentInfo{
 					InterfaceName: fn.Name.Name,
 					InterfaceType: fn.Name.Name,
@@ -94,6 +122,7 @@ func (s *Scanner) scanManagers() {
 		filepath.Join(s.projectPath, "internal", "infras", "managers"),
 	}
 
+	seenFiles := newFileSet()
 	for _, managerDir := range managerDirs {
 		if _, err := os.Stat(managerDir); os.IsNotExist(err) {
 			continue
@@ -101,7 +130,9 @@ func (s *Scanner) scanManagers() {
 
 		managerFiles := s.findGoFiles(managerDir)
 		for _, file := range managerFiles {
-			s.analyzeManagerFile(file)
+			if seenFiles.add(file) {
+				s.analyzeManagerFile(file)
+			}
 		}
 	}
 }

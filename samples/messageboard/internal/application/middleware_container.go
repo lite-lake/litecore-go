@@ -13,18 +13,12 @@ func InitMiddlewareContainer(
 	serviceContainer *container.ServiceContainer,
 ) *container.MiddlewareContainer {
 	middlewareContainer := container.NewMiddlewareContainer(configContainer, managerContainer, serviceContainer)
-	container.RegisterMiddleware[middlewares.IAuthMiddleware](middlewareContainer,
-		middlewares.NewAuthMiddleware())
-	container.RegisterMiddleware[middlewares.ICorsMiddleware](middlewareContainer,
-		middlewares.NewCorsMiddleware())
-	container.RegisterMiddleware[middlewares.IRecoveryMiddleware](middlewareContainer,
-		middlewares.NewRecoveryMiddleware())
-	container.RegisterMiddleware[middlewares.IRequestLoggerMiddleware](middlewareContainer,
-		middlewares.NewRequestLoggerMiddleware())
-	container.RegisterMiddleware[middlewares.ISecurityHeadersMiddleware](middlewareContainer,
-		middlewares.NewSecurityHeadersMiddleware())
-	container.RegisterMiddleware[middlewares.ITelemetryMiddleware](middlewareContainer,
-		middlewares.NewTelemetryMiddleware())
+	container.RegisterMiddleware[middlewares.IAuthMiddleware](middlewareContainer, middlewares.NewAuthMiddleware())
+	container.RegisterMiddleware[middlewares.ICorsMiddleware](middlewareContainer, middlewares.NewCorsMiddleware())
+	container.RegisterMiddleware[middlewares.IRecoveryMiddleware](middlewareContainer, middlewares.NewRecoveryMiddleware())
+	container.RegisterMiddleware[middlewares.IRequestLoggerMiddleware](middlewareContainer, middlewares.NewRequestLoggerMiddleware())
+	container.RegisterMiddleware[middlewares.ISecurityHeadersMiddleware](middlewareContainer, middlewares.NewSecurityHeadersMiddleware())
+	container.RegisterMiddleware[middlewares.ITelemetryMiddleware](middlewareContainer, middlewares.NewTelemetryMiddleware())
 
 	return middlewareContainer
 }

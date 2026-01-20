@@ -112,10 +112,24 @@ func (a *Analyzer) analyzeFuncDecl(fn *ast.FuncDecl, filename string, layer Laye
 	}
 
 	typeName := strings.TrimPrefix(fn.Name.Name, "New")
+	interfaceName := typeName
+	interfaceType := pkgName + "." + typeName
+
+	if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 {
+		if selectorExpr, ok := fn.Type.Results.List[0].Type.(*ast.SelectorExpr); ok {
+			if xIdent, ok := selectorExpr.X.(*ast.Ident); ok {
+				interfaceType = xIdent.Name + "." + selectorExpr.Sel.Name
+				interfaceName = selectorExpr.Sel.Name
+			}
+		} else if ident, ok := fn.Type.Results.List[0].Type.(*ast.Ident); ok {
+			interfaceType = ident.Name
+			interfaceName = ident.Name
+		}
+	}
 
 	info := &ComponentInfo{
-		InterfaceName: typeName,
-		InterfaceType: pkgName + "." + typeName,
+		InterfaceName: interfaceName,
+		InterfaceType: interfaceType,
 		PackagePath:   a.getPackagePath(filename),
 		FileName:      filename,
 		FactoryFunc:   fn.Name.Name,
@@ -176,6 +190,20 @@ func (a *Analyzer) analyzeGenDecl(decl *ast.GenDecl, filename string,
 
 // analyzeTypeSpec 分析类型声明
 func (a *Analyzer) analyzeTypeSpec(typeSpec *ast.TypeSpec, filename string, layer Layer, pkgName string) {
+	if layer == LayerEntity {
+		if _, ok := typeSpec.Type.(*ast.StructType); ok {
+			info := &ComponentInfo{
+				InterfaceName: typeSpec.Name.Name,
+				InterfaceType: pkgName + "." + typeSpec.Name.Name,
+				PackagePath:   a.getPackagePath(filename),
+				FileName:      filename,
+				Layer:         layer,
+			}
+			a.info.Layers[layer] = append(a.info.Layers[layer], info)
+		}
+		return
+	}
+
 	_, ok := typeSpec.Type.(*ast.InterfaceType)
 	if !ok {
 		return

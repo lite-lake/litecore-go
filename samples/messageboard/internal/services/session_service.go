@@ -10,7 +10,7 @@ import (
 	"com.litelake.litecore/common"
 	"com.litelake.litecore/config"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
-	infras "com.litelake.litecore/samples/messageboard/internal/infras"
+	"com.litelake.litecore/samples/messageboard/internal/infras/managers"
 	"github.com/google/uuid"
 )
 
@@ -24,7 +24,7 @@ type ISessionService interface {
 
 type sessionService struct {
 	Config   common.IBaseConfigProvider `inject:""`
-	CacheMgr infras.CacheManager       `inject:""`
+	CacheMgr managers.ICacheManager     `inject:""`
 	timeout  time.Duration
 }
 

@@ -210,9 +210,20 @@ func (b *Builder) generateEngine(info *analyzer.ProjectInfo) error {
 
 // convertComponents 转换组件数据
 func (b *Builder) convertComponents(components []*analyzer.ComponentInfo) []ComponentTemplateData {
+	seen := make(map[string]bool)
 	var result []ComponentTemplateData
 
 	for _, comp := range components {
+		if comp.FactoryFunc == "" && comp.Layer != analyzer.LayerEntity {
+			continue
+		}
+
+		key := comp.InterfaceName + ":" + comp.FileName
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
 		typeName := strings.TrimPrefix(comp.InterfaceName, "I")
 		if typeName == "" {
 			typeName = comp.InterfaceName
@@ -231,6 +242,7 @@ func (b *Builder) convertComponents(components []*analyzer.ComponentInfo) []Comp
 			PackagePath:   comp.PackagePath,
 			PackageAlias:  packageAlias,
 			FactoryFunc:   comp.FactoryFunc,
+			Layer:         string(comp.Layer),
 		})
 	}
 

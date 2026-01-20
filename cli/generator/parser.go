@@ -389,19 +389,26 @@ func (p *Parser) parseMiddlewareFile(filename string) error {
 
 // parseInfras 解析基础设施层（managers和config）
 func (p *Parser) parseInfras() error {
-	dir := filepath.Join(p.projectPath, "internal", "infras")
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil
+	infrasDirs := []string{
+		filepath.Join(p.projectPath, "internal", "infras", "configproviders"),
+		filepath.Join(p.projectPath, "internal", "infras", "managers"),
+		filepath.Join(p.projectPath, "internal", "infras"),
 	}
 
-	files, err := p.findGoFiles(dir)
-	if err != nil {
-		return err
-	}
+	for _, dir := range infrasDirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		}
 
-	for _, file := range files {
-		if err := p.parseInfrasFile(file); err != nil {
+		files, err := p.findGoFiles(dir)
+		if err != nil {
 			return err
+		}
+
+		for _, file := range files {
+			if err := p.parseInfrasFile(file); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -437,19 +444,22 @@ func (p *Parser) parseInfrasFile(filename string) error {
 				layer = analyzer.LayerConfig
 			}
 
+			interfaceName := typeName
 			interfaceType := pkgName + "." + typeName
 			if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 {
 				if selectorExpr, ok := fn.Type.Results.List[0].Type.(*ast.SelectorExpr); ok {
 					if xIdent, ok := selectorExpr.X.(*ast.Ident); ok {
 						interfaceType = xIdent.Name + "." + selectorExpr.Sel.Name
+						interfaceName = selectorExpr.Sel.Name
 					}
 				} else if ident, ok := fn.Type.Results.List[0].Type.(*ast.Ident); ok {
 					interfaceType = ident.Name
+					interfaceName = ident.Name
 				}
 			}
 
 			comp := &analyzer.ComponentInfo{
-				InterfaceName: typeName,
+				InterfaceName: interfaceName,
 				InterfaceType: interfaceType,
 				PackagePath:   packagePath,
 				FileName:      filename,
