@@ -9,7 +9,10 @@ import (
 // TestNewCUID2_Basic 测试基本的 CUID2 生成功能
 func TestNewCUID2_Basic(t *testing.T) {
 	t.Run("生成单个ID", func(t *testing.T) {
-		id := NewCUID2()
+		id, err := NewCUID2()
+		if err != nil {
+			t.Fatalf("NewCUID2() 返回错误: %v", err)
+		}
 
 		// 检查长度
 		if len(id) != 25 {
@@ -25,7 +28,11 @@ func TestNewCUID2_Basic(t *testing.T) {
 	t.Run("生成多个ID", func(t *testing.T) {
 		ids := make([]string, 10)
 		for i := 0; i < 10; i++ {
-			ids[i] = NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
+			ids[i] = id
 		}
 
 		// 检查所有ID都有正确长度
@@ -45,7 +52,10 @@ func TestNewCUID2_Format(t *testing.T) {
 	// CUID2 应该只包含小写字母和数字
 	cuidRegex := regexp.MustCompile(`^[0-9a-z]{25}$`)
 
-	id := NewCUID2()
+	id, err := NewCUID2()
+	if err != nil {
+		t.Fatalf("NewCUID2() 返回错误: %v", err)
+	}
 
 	if !cuidRegex.MatchString(id) {
 		t.Errorf("NewCUID2() = %s, 格式不正确，应该只包含小写字母和数字", id)
@@ -53,7 +63,10 @@ func TestNewCUID2_Format(t *testing.T) {
 
 	// 生成更多ID验证格式一致性
 	for i := 0; i < 100; i++ {
-		id := NewCUID2()
+		id, err := NewCUID2()
+		if err != nil {
+			t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+		}
 		if !cuidRegex.MatchString(id) {
 			t.Errorf("NewCUID2() 第%d次生成 = %s, 格式不正确", i, id)
 		}
@@ -67,7 +80,10 @@ func TestNewCUID2_Uniqueness(t *testing.T) {
 		count := 1000
 
 		for i := 0; i < count; i++ {
-			id := NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
 			if ids[id] {
 				t.Errorf("生成重复ID: %s (第%d次)", id, i)
 			}
@@ -86,7 +102,10 @@ func TestNewCUID2_Uniqueness(t *testing.T) {
 		count := 10000
 
 		for i := 0; i < count; i++ {
-			id := NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
 			if ids[id] {
 				t.Errorf("生成重复ID: %s (第%d次)", id, i)
 				return
@@ -106,7 +125,11 @@ func TestNewCUID2_Uniqueness(t *testing.T) {
 func TestNewCUID2_Randomness(t *testing.T) {
 	ids := make([]string, 1000)
 	for i := 0; i < 1000; i++ {
-		ids[i] = NewCUID2()
+		id, err := NewCUID2()
+		if err != nil {
+			t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+		}
+		ids[i] = id
 	}
 
 	// 检查是否有重复
@@ -146,7 +169,11 @@ func TestNewCUID2_Concurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < idsPerGoroutine; j++ {
-				id := NewCUID2()
+				id, err := NewCUID2()
+				if err != nil {
+					t.Errorf("NewCUID2() 返回错误: %v", err)
+					return
+				}
 				ids <- id
 
 				// 检查重复
@@ -177,8 +204,14 @@ func TestNewCUID2_Concurrency(t *testing.T) {
 // TestNewCUID2_Consistency 测试一致性（相同的输入不一定产生相同的输出，因为是随机的）
 func TestNewCUID2_Consistency(t *testing.T) {
 	t.Run("不同ID应该不同", func(t *testing.T) {
-		id1 := NewCUID2()
-		id2 := NewCUID2()
+		id1, err := NewCUID2()
+		if err != nil {
+			t.Fatalf("NewCUID2() 第一次返回错误: %v", err)
+		}
+		id2, err := NewCUID2()
+		if err != nil {
+			t.Fatalf("NewCUID2() 第二次返回错误: %v", err)
+		}
 
 		if id1 == id2 {
 			t.Errorf("连续两次生成应该产生不同的ID，但得到: %s", id1)
@@ -188,7 +221,11 @@ func TestNewCUID2_Consistency(t *testing.T) {
 	t.Run("快速连续生成", func(t *testing.T) {
 		ids := make([]string, 100)
 		for i := 0; i < 100; i++ {
-			ids[i] = NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
+			ids[i] = id
 		}
 
 		// 检查是否有重复
@@ -208,7 +245,10 @@ func TestNewCUID2_CharacterSet(t *testing.T) {
 
 	t.Run("验证所有字符都在有效字符集中", func(t *testing.T) {
 		for i := 0; i < 1000; i++ {
-			id := NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
 
 			for j, char := range id {
 				found := false
@@ -227,7 +267,10 @@ func TestNewCUID2_CharacterSet(t *testing.T) {
 
 	t.Run("验证不包含大写字母", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			id := NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
 			for j, char := range id {
 				if char >= 'A' && char <= 'Z' {
 					t.Errorf("ID[%d][%d] = %c 包含大写字母，ID: %s", i, j, char, id)
@@ -239,7 +282,10 @@ func TestNewCUID2_CharacterSet(t *testing.T) {
 	t.Run("验证不包含特殊字符", func(t *testing.T) {
 		specialChars := "-_+!@#$%^&*()=[]{}|;:',.<>?/~` "
 		for i := 0; i < 100; i++ {
-			id := NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
 			for j, char := range id {
 				for _, special := range specialChars {
 					if char == special {
@@ -258,7 +304,10 @@ func TestNewCUID2_EdgeCases(t *testing.T) {
 		count := 50000
 
 		for i := 0; i < count; i++ {
-			id := NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
 			if ids[id] {
 				t.Errorf("在 %d 次生成中发现重复ID: %s", i+1, id)
 				return
@@ -271,7 +320,10 @@ func TestNewCUID2_EdgeCases(t *testing.T) {
 
 	t.Run("验证固定长度", func(t *testing.T) {
 		for i := 0; i < 10000; i++ {
-			id := NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
 			if len(id) != 25 {
 				t.Errorf("第 %d 次生成长度不正确: %d, ID: %s", i, len(id), id)
 				return
@@ -284,8 +336,14 @@ func TestNewCUID2_EdgeCases(t *testing.T) {
 func TestNewCUID2_Properties(t *testing.T) {
 	t.Run("排序性-时间戳在前", func(t *testing.T) {
 		// 快速连续生成两个ID，第一个应该"较小"（因为时间戳在前）
-		id1 := NewCUID2()
-		id2 := NewCUID2()
+		id1, err := NewCUID2()
+		if err != nil {
+			t.Fatalf("NewCUID2() 第一次返回错误: %v", err)
+		}
+		id2, err := NewCUID2()
+		if err != nil {
+			t.Fatalf("NewCUID2() 第二次返回错误: %v", err)
+		}
 
 		// 由于时间戳在前，通常后生成的ID应该更大（或相等）
 		// 但这取决于生成速度，所以这个测试只是验证它们不同
@@ -300,7 +358,11 @@ func TestNewCUID2_Properties(t *testing.T) {
 		prefixes := make(map[string]bool)
 
 		for i := 0; i < 100; i++ {
-			ids[i] = NewCUID2()
+			id, err := NewCUID2()
+			if err != nil {
+				t.Fatalf("NewCUID2() 第%d次返回错误: %v", i, err)
+			}
+			ids[i] = id
 			// 取前5个字符作为前缀
 			prefix := ids[i][:5]
 			prefixes[prefix] = true
@@ -345,6 +407,6 @@ func BenchmarkNewCUID2_Batch(b *testing.B) {
 
 // ExampleNewCUID2 示例代码
 func ExampleNewCUID2() {
-	id := NewCUID2()
+	id, _ := NewCUID2()
 	_ = id // 使用生成的ID
 }

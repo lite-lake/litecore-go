@@ -52,15 +52,18 @@ func TestDefaultZapConfig(t *testing.T) {
 
 	// 验证默认轮转值
 	if config.FileConfig.Rotation.MaxSize != DefaultMaxSize {
-		t.Errorf("DefaultZapConfig().FileConfig.Rotation.MaxSize = %v, want %v", config.FileConfig.Rotation.MaxSize, DefaultMaxSize)
+		t.Errorf("DefaultZapConfig().FileConfig.Rotation.MaxSize = %v, want %v",
+			config.FileConfig.Rotation.MaxSize, DefaultMaxSize)
 	}
 
 	if config.FileConfig.Rotation.MaxAge != DefaultMaxAge {
-		t.Errorf("DefaultZapConfig().FileConfig.Rotation.MaxAge = %v, want %v", config.FileConfig.Rotation.MaxAge, DefaultMaxAge)
+		t.Errorf("DefaultZapConfig().FileConfig.Rotation.MaxAge = %v, want %v",
+			config.FileConfig.Rotation.MaxAge, DefaultMaxAge)
 	}
 
 	if config.FileConfig.Rotation.MaxBackups != DefaultMaxBackups {
-		t.Errorf("DefaultZapConfig().FileConfig.Rotation.MaxBackups = %v, want %v", config.FileConfig.Rotation.MaxBackups, DefaultMaxBackups)
+		t.Errorf("DefaultZapConfig().FileConfig.Rotation.MaxBackups = %v, want %v",
+			config.FileConfig.Rotation.MaxBackups, DefaultMaxBackups)
 	}
 
 	if !config.FileConfig.Rotation.Compress {

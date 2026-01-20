@@ -86,7 +86,7 @@ func (m *MiddlewareContainer) InjectAll() error {
 	}
 
 	for ifaceType, mw := range m.items {
-		resolver := &middlewareDependencyResolver{container: m}
+		resolver := NewGenericDependencyResolver(m.configContainer, m.managerContainer, m.serviceContainer, m)
 		if err := injectDependencies(mw, resolver); err != nil {
 			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
 		}
@@ -132,16 +132,11 @@ func (m *MiddlewareContainer) Count() int {
 	return len(m.items)
 }
 
-// middlewareDependencyResolver 中间件依赖解析器
-type middlewareDependencyResolver struct {
-	container *MiddlewareContainer
-}
-
-// ResolveDependency 解析字段类型对应的依赖实例
-func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
+// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+func (m *MiddlewareContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
 	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
-		impl := r.container.configContainer.GetByType(fieldType)
+		impl := m.configContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -153,7 +148,7 @@ func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type)
 
 	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
-		impl := r.container.managerContainer.GetByType(fieldType)
+		impl := m.managerContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -165,7 +160,7 @@ func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type)
 
 	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	if fieldType == baseServiceType || fieldType.Implements(baseServiceType) {
-		impl := r.container.serviceContainer.GetByType(fieldType)
+		impl := m.serviceContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -175,8 +170,5 @@ func (r *middlewareDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return impl, nil
 	}
 
-	return nil, &DependencyNotFoundError{
-		FieldType:     fieldType,
-		ContainerType: "Unknown",
-	}
+	return nil, nil
 }

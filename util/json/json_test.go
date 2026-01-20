@@ -313,7 +313,11 @@ func TestJSONEngine_Escape(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := j.Escape(tt.input)
+			result, err := j.Escape(tt.input)
+			if err != nil {
+				t.Errorf("Escape() error = %v", err)
+				return
+			}
 			if result != tt.expected {
 				t.Errorf("Escape() = %v, want %v", result, tt.expected)
 			}
@@ -539,8 +543,9 @@ func TestJSONEngine_ToStruct(t *testing.T) {
 		check   func(*TestPerson) bool
 	}{
 		{
-			name:    "有效的结构体",
-			jsonStr: `{"name":"Alice","age":30,"email":"alice@example.com","tags":["dev","go"],"address":{"city":"Beijing","street":"Main St","country":"China"}}`,
+			name: "有效的结构体",
+			jsonStr: `{"name":"Alice","age":30,"email":"alice@example.com","tags":["dev","go"],` +
+				`"address":{"city":"Beijing","street":"Main St","country":"China"}}`,
 			wantErr: false,
 			check: func(p *TestPerson) bool {
 				return p.Name == "Alice" && p.Age == 30 && p.Email == "alice@example.com"

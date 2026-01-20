@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"com.litelake.litecore/common"
 )
@@ -41,36 +42,39 @@ func (e *Engine) startServices() error {
 }
 
 // stopManagers 停止所有管理器
-func (e *Engine) stopManagers() error {
+func (e *Engine) stopManagers() []error {
 	managers := e.Manager.GetAll()
+	var errors []error
 	for i := len(managers) - 1; i >= 0; i-- {
 		if err := managers[i].OnStop(); err != nil {
-			fmt.Printf("warning: failed to stop manager %s: %v\n", managers[i].ManagerName(), err)
+			errors = append(errors, fmt.Errorf("failed to stop manager %s: %w", managers[i].ManagerName(), err))
 		}
 	}
-	return nil
+	return errors
 }
 
 // stopServices 停止所有服务
-func (e *Engine) stopServices() error {
+func (e *Engine) stopServices() []error {
 	services := e.Service.GetAll()
+	var errors []error
 	for i := len(services) - 1; i >= 0; i-- {
 		if err := services[i].OnStop(); err != nil {
-			fmt.Printf("warning: failed to stop service %s: %v\n", services[i].ServiceName(), err)
+			errors = append(errors, fmt.Errorf("failed to stop service %s: %w", services[i].ServiceName(), err))
 		}
 	}
-	return nil
+	return errors
 }
 
 // stopRepositories 停止所有仓储
-func (e *Engine) stopRepositories() error {
+func (e *Engine) stopRepositories() []error {
 	repositories := e.Repository.GetAll()
+	var errors []error
 	for i := len(repositories) - 1; i >= 0; i-- {
 		if err := repositories[i].OnStop(); err != nil {
-			fmt.Printf("warning: failed to stop repository %s: %v\n", repositories[i].RepositoryName(), err)
+			errors = append(errors, fmt.Errorf("failed to stop repository %s: %w", repositories[i].RepositoryName(), err))
 		}
 	}
-	return nil
+	return errors
 }
 
 // Stop 停止引擎（实现 LiteServer 接口）
@@ -85,13 +89,28 @@ func (e *Engine) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), e.shutdownTimeout)
 	defer cancel()
 
-	if err := e.httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("HTTP server shutdown error: %w", err)
+	if e.httpServer != nil {
+		if err := e.httpServer.Shutdown(ctx); err != nil {
+			return fmt.Errorf("HTTP server shutdown error: %w", err)
+		}
 	}
 
-	e.stopServices()
-	e.stopRepositories()
-	e.stopManagers()
+	serviceErrors := e.stopServices()
+	repositoryErrors := e.stopRepositories()
+	managerErrors := e.stopManagers()
+
+	allErrors := make([]error, 0, len(serviceErrors)+len(repositoryErrors)+len(managerErrors))
+	allErrors = append(allErrors, serviceErrors...)
+	allErrors = append(allErrors, repositoryErrors...)
+	allErrors = append(allErrors, managerErrors...)
+
+	if len(allErrors) > 0 {
+		errorMessages := make([]string, len(allErrors))
+		for i, err := range allErrors {
+			errorMessages[i] = err.Error()
+		}
+		return fmt.Errorf("shutdown completed with %d error(s): %s", len(allErrors), strings.Join(errorMessages, "; "))
+	}
 
 	e.started = false
 	return nil

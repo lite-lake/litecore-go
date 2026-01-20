@@ -2,22 +2,33 @@ package middleware
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"com.litelake.litecore/common"
+	"com.litelake.litecore/component/manager/loggermgr"
 )
 
 // RequestLoggerMiddleware 请求日志中间件
 type RequestLoggerMiddleware struct {
-	order int
+	order     int
+	loggerMgr loggermgr.ILoggerManager `inject:""`
+	logger    loggermgr.ILogger
 }
 
 // NewRequestLoggerMiddleware 创建请求日志中间件
 func NewRequestLoggerMiddleware() common.IBaseMiddleware {
 	return &RequestLoggerMiddleware{order: 20}
+}
+
+// initLogger 初始化日志器（依赖注入后调用）
+func (m *RequestLoggerMiddleware) initLogger() {
+	if m.loggerMgr != nil {
+		m.logger = m.loggerMgr.Logger("request_logger_middleware")
+	}
 }
 
 // MiddlewareName 返回中间件名称
@@ -33,6 +44,7 @@ func (m *RequestLoggerMiddleware) Order() int {
 // Wrapper 返回 Gin 中间件函数
 func (m *RequestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		m.initLogger()
 		start := time.Now()
 
 		var bodyBytes []byte
@@ -48,15 +60,55 @@ func (m *RequestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 		clientIP := c.ClientIP()
 		method := c.Request.Method
 		path := c.Request.URL.Path
+		requestID := m.getRequestID(c)
 
 		if len(c.Errors) > 0 {
-			for _, e := range c.Errors {
-				println("[ERROR]", e.Error())
+			if m.logger != nil {
+				for _, e := range c.Errors {
+					m.logger.Error("请求处理错误",
+						"request_id", requestID,
+						"method", method,
+						"path", path,
+						"client_ip", clientIP,
+						"status", status,
+						"latency", latency,
+						"error", e.Error(),
+						"stack", e.Type,
+					)
+				}
+			} else {
+				for _, e := range c.Errors {
+					println("[ERROR]", e.Error())
+				}
 			}
 		} else {
-			println("[INFO]", clientIP, method, path, status, latency)
+			if m.logger != nil {
+				m.logger.Info("请求处理完成",
+					"request_id", requestID,
+					"method", method,
+					"path", path,
+					"client_ip", clientIP,
+					"status", status,
+					"latency", latency,
+				)
+			} else {
+				println("[INFO]", clientIP, method, path, status, latency)
+			}
 		}
 	}
+}
+
+// getRequestID 获取请求ID
+func (m *RequestLoggerMiddleware) getRequestID(c *gin.Context) string {
+	requestID := c.GetHeader("X-Request-Id")
+	if requestID == "" {
+		requestID = c.GetHeader("X-Request-ID")
+	}
+	if requestID == "" {
+		requestID = fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	c.Set("request_id", requestID)
+	return requestID
 }
 
 // OnStart 服务器启动时触发

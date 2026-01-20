@@ -120,7 +120,8 @@ func (m *cacheManagerMemoryImpl) Set(ctx context.Context, key string, value any,
 }
 
 // SetNX 仅当键不存在时才设置值
-func (m *cacheManagerMemoryImpl) SetNX(ctx context.Context, key string, value any, expiration time.Duration) (bool, error) {
+func (m *cacheManagerMemoryImpl) SetNX(ctx context.Context, key string, value any,
+	expiration time.Duration) (bool, error) {
 	var result bool
 
 	err := m.recordOperation(ctx, m.name, "setnx", key, func() error {
@@ -286,7 +287,8 @@ func (m *cacheManagerMemoryImpl) GetMultiple(ctx context.Context, keys []string)
 }
 
 // SetMultiple 批量设置
-func (m *cacheManagerMemoryImpl) SetMultiple(ctx context.Context, items map[string]any, expiration time.Duration) error {
+func (m *cacheManagerMemoryImpl) SetMultiple(ctx context.Context, items map[string]any,
+	expiration time.Duration) error {
 	key := "batch"
 	for k := range items {
 		key = k

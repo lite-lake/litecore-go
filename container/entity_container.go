@@ -119,3 +119,34 @@ func (e *EntityContainer) Count() int {
 	defer e.mu.RUnlock()
 	return len(e.items)
 }
+
+// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+// Entity返回列表，但依赖注入需要单个实例，所以返回第一个匹配项
+// 如果有多个匹配项，返回错误
+func (e *EntityContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
+	baseEntityType := reflect.TypeOf((*common.IBaseEntity)(nil)).Elem()
+	if fieldType == baseEntityType || fieldType.Implements(baseEntityType) {
+		items, err := e.GetByType(fieldType)
+		if err != nil {
+			return nil, err
+		}
+		if len(items) == 0 {
+			return nil, &DependencyNotFoundError{
+				FieldType:     fieldType,
+				ContainerType: "Entity",
+			}
+		}
+		if len(items) > 1 {
+			var names []string
+			for _, item := range items {
+				names = append(names, item.EntityName())
+			}
+			return nil, &AmbiguousMatchError{
+				FieldType:  fieldType,
+				Candidates: names,
+			}
+		}
+		return items[0], nil
+	}
+	return nil, nil
+}

@@ -24,7 +24,7 @@ import (
 type databaseManagerBaseImpl struct {
 	loggerMgr    loggermgr.ILoggerManager       `inject:""`
 	telemetryMgr telemetrymgr.ITelemetryManager `inject:""`
-	logger       loggermgr.Logger
+	logger       loggermgr.ILogger
 	tracer       trace.Tracer
 	meter        metric.Meter
 
@@ -157,7 +157,7 @@ func (b *databaseManagerBaseImpl) createQueryMetrics() {
 // ========== observabilityPlugin GORM 可观测性插件 ==========
 
 type observabilityPlugin struct {
-	logger             loggermgr.Logger
+	logger             loggermgr.ILogger
 	tracer             trace.Tracer
 	meter              metric.Meter
 	queryDuration      metric.Float64Histogram
@@ -182,7 +182,7 @@ func newObservabilityPlugin() *observabilityPlugin {
 
 // Setup 设置观测组件和指标
 func (p *observabilityPlugin) Setup(
-	logger loggermgr.Logger,
+	logger loggermgr.ILogger,
 	tracer trace.Tracer,
 	meter metric.Meter,
 	queryDuration metric.Float64Histogram,

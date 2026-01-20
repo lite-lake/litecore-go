@@ -1,6 +1,8 @@
 package request
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,7 +39,7 @@ func GetDefaultValidator() ValidatorInterface {
 //	}
 func BindRequest[T any](ctx *gin.Context) (*T, error) {
 	if defaultValidator == nil {
-		panic("validator not set, please call SetDefaultValidator first")
+		return nil, errors.New("validator not set, please call SetDefaultValidator first")
 	}
 	var req T
 	if err := defaultValidator.Validate(ctx, &req); err != nil {

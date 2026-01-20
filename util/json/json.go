@@ -15,7 +15,7 @@ type ILiteUtilJSON interface {
 	PrettyPrint(jsonStr string, indent string) (string, error)
 	PrettyPrintWithIndent(jsonStr string) (string, error)
 	Compact(jsonStr string) (string, error)
-	Escape(str string) string
+	Escape(str string) (string, error)
 	Unescape(str string) (string, error)
 
 	// 数据转换
@@ -114,9 +114,12 @@ func (j *jsonEngine) Compact(jsonStr string) (string, error) {
 }
 
 // Escape 转义 JSON 字符串中的特殊字符
-func (j *jsonEngine) Escape(str string) string {
-	result, _ := json.Marshal(str)
-	return string(result[1 : len(result)-1]) // 移除外层引号
+func (j *jsonEngine) Escape(str string) (string, error) {
+	result, err := json.Marshal(str)
+	if err != nil {
+		return "", fmt.Errorf("escape JSON failed: %w", err)
+	}
+	return string(result[1 : len(result)-1]), nil // 移除外层引号
 }
 
 // Unescape 反转义 JSON 字符串

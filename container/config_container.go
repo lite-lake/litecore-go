@@ -111,3 +111,19 @@ func (c *ConfigContainer) Count() int {
 	defer c.mu.RUnlock()
 	return len(c.items)
 }
+
+// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+func (c *ConfigContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
+	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
+	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
+		impl := c.GetByType(fieldType)
+		if impl == nil {
+			return nil, &DependencyNotFoundError{
+				FieldType:     fieldType,
+				ContainerType: "Config",
+			}
+		}
+		return impl, nil
+	}
+	return nil, nil
+}

@@ -36,7 +36,7 @@ func (c *ResourceHTMLController) GetRouter() string {
 }
 
 func (c *ResourceHTMLController) Handle(ctx *gin.Context) {
-	ctx.JSON(500, gin.H{"error": "ResourceHTMLController should not be registered as a route"})
+	ctx.JSON(common.HTTPStatusInternalServerError, gin.H{"error": "ResourceHTMLController should not be registered as a route"})
 }
 
 // LoadTemplates 加载HTML模板
@@ -48,10 +48,10 @@ func (c *ResourceHTMLController) LoadTemplates(engine *gin.Engine) {
 // Render 渲染HTML模板
 func (c *ResourceHTMLController) Render(ctx *gin.Context, name string, data interface{}) {
 	if c.ginEngine == nil {
-		ctx.JSON(500, gin.H{"error": "HTML templates not loaded"})
+		ctx.JSON(common.HTTPStatusInternalServerError, gin.H{"error": "HTML templates not loaded"})
 		return
 	}
-	ctx.HTML(200, name, data)
+	ctx.HTML(common.HTTPStatusOK, name, data)
 }
 
 // GetConfig 获取HTML模板配置

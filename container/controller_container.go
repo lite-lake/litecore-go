@@ -86,7 +86,7 @@ func (c *ControllerContainer) InjectAll() error {
 	}
 
 	for ifaceType, ctrl := range c.items {
-		resolver := &controllerDependencyResolver{container: c}
+		resolver := NewGenericDependencyResolver(c.configContainer, c.managerContainer, c.serviceContainer, c)
 		if err := injectDependencies(ctrl, resolver); err != nil {
 			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
 		}
@@ -132,16 +132,11 @@ func (c *ControllerContainer) Count() int {
 	return len(c.items)
 }
 
-// controllerDependencyResolver 控制器依赖解析器
-type controllerDependencyResolver struct {
-	container *ControllerContainer
-}
-
-// ResolveDependency 解析字段类型对应的依赖实例
-func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
+// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+func (c *ControllerContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
 	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
 	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
-		impl := r.container.configContainer.GetByType(fieldType)
+		impl := c.configContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -153,7 +148,7 @@ func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type)
 
 	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
-		impl := r.container.managerContainer.GetByType(fieldType)
+		impl := c.managerContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -165,7 +160,7 @@ func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type)
 
 	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	if fieldType == baseServiceType || fieldType.Implements(baseServiceType) {
-		impl := r.container.serviceContainer.GetByType(fieldType)
+		impl := c.serviceContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
@@ -175,8 +170,5 @@ func (r *controllerDependencyResolver) ResolveDependency(fieldType reflect.Type)
 		return impl, nil
 	}
 
-	return nil, &DependencyNotFoundError{
-		FieldType:     fieldType,
-		ContainerType: "Unknown",
-	}
+	return nil, nil
 }

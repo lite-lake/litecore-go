@@ -1199,12 +1199,14 @@ func TestSplitEx(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := String.SplitEx(tt.str, tt.sep, tt.removeEmptyString)
 			if len(result) != len(tt.expected) {
-				t.Errorf("SplitEx(%q, %q, %v) length = %d, want %d", tt.str, tt.sep, tt.removeEmptyString, len(result), len(tt.expected))
+				t.Errorf("SplitEx(%q, %q, %v) length = %d, want %d",
+					tt.str, tt.sep, tt.removeEmptyString, len(result), len(tt.expected))
 				return
 			}
 			for i := range result {
 				if result[i] != tt.expected[i] {
-					t.Errorf("SplitEx(%q, %q, %v)[%d] = %q, want %q", tt.str, tt.sep, tt.removeEmptyString, i, result[i], tt.expected[i])
+					t.Errorf("SplitEx(%q, %q, %v)[%d] = %q, want %q",
+						tt.str, tt.sep, tt.removeEmptyString, i, result[i], tt.expected[i])
 				}
 			}
 		})
@@ -1400,7 +1402,8 @@ func TestHideString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := String.HideString(tt.origin, tt.start, tt.end, tt.replaceChar)
 			if result != tt.expected {
-				t.Errorf("HideString(%q, %d, %d, %q) = %q, want %q", tt.origin, tt.start, tt.end, tt.replaceChar, result, tt.expected)
+				t.Errorf("HideString(%q, %d, %d, %q) = %q, want %q",
+					tt.origin, tt.start, tt.end, tt.replaceChar, result, tt.expected)
 			}
 		})
 	}
@@ -1440,7 +1443,8 @@ func TestTemplateReplace(t *testing.T) {
 		expected string
 	}{
 		{"基本替换", "Hello {{name}}", map[string]string{"name": "World"}, "Hello {World}"}, // Lancet使用单花括号
-		{"多个替换", "Hello {{name}}, you are {{age}} years old", map[string]string{"name": "John", "age": "30"}, "Hello {John}, you are {30} years old"},
+		{"多个替换", "Hello {{name}}, you are {{age}} years old",
+			map[string]string{"name": "John", "age": "30"}, "Hello {John}, you are {30} years old"},
 		{"无占位符", "Hello World", map[string]string{"name": "John"}, "Hello World"},
 		{"空数据", "Hello {{name}}", map[string]string{}, "Hello {name}"}, // Lancet空数据时保留占位符
 		{"空模板", "", map[string]string{"name": "John"}, ""},

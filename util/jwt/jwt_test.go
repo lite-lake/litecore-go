@@ -549,7 +549,8 @@ func TestJWTRoundTrip_HS256(t *testing.T) {
 	}
 	// JSON unmarshaling converts numbers to float64
 	if parsedClaims["custom_number"] != float64(12345) {
-		t.Errorf("custom_number mismatch: got %v (type %T), want 12345", parsedClaims["custom_number"], parsedClaims["custom_number"])
+		t.Errorf("custom_number mismatch: got %v (type %T), want 12345",
+			parsedClaims["custom_number"], parsedClaims["custom_number"])
 	}
 }
 

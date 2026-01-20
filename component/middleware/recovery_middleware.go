@@ -1,14 +1,20 @@
 package middleware
 
 import (
+	"fmt"
+	"runtime/debug"
+	"time"
+
 	"github.com/gin-gonic/gin"
 
 	"com.litelake.litecore/common"
+	"com.litelake.litecore/component/manager/loggermgr"
 )
 
 // RecoveryMiddleware panic 恢复中间件
 type RecoveryMiddleware struct {
-	order int
+	order         int
+	LoggerManager loggermgr.ILoggerManager `inject:""`
 }
 
 // NewRecoveryMiddleware 创建 panic 恢复中间件
@@ -28,7 +34,47 @@ func (m *RecoveryMiddleware) Order() int {
 
 // Wrapper 返回 Gin 中间件函数
 func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
-	return gin.Recovery()
+	return func(c *gin.Context) {
+		defer func() {
+			if err := recover(); err != nil {
+				stack := debug.Stack()
+
+				requestID := c.GetHeader("X-Request-ID")
+				if requestID == "" {
+					requestID = c.GetString("request_id")
+				}
+
+				clientIP := c.ClientIP()
+				method := c.Request.Method
+				path := c.Request.URL.Path
+				userAgent := c.Request.UserAgent()
+				query := c.Request.URL.RawQuery
+
+				if m.LoggerManager != nil {
+					logger := m.LoggerManager.Logger("recovery")
+					logger.Error(
+						"PANIC recovered",
+						"panic", fmt.Sprintf("%v", err),
+						"method", method,
+						"path", path,
+						"query", query,
+						"ip", clientIP,
+						"userAgent", userAgent,
+						"requestID", requestID,
+						"timestamp", time.Now().Format(time.RFC3339Nano),
+						"stack", string(stack),
+					)
+				}
+
+				c.JSON(common.HTTPStatusInternalServerError, gin.H{
+					"error": fmt.Sprintf("内部服务器错误"),
+					"code":  "INTERNAL_SERVER_ERROR",
+				})
+				c.Abort()
+			}
+		}()
+		c.Next()
+	}
 }
 
 // OnStart 服务器启动时触发

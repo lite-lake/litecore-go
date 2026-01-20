@@ -5,16 +5,24 @@ import (
 	"strings"
 )
 
-// DependencyResolver 依赖解析器接口
+// IDependencyResolver 依赖解析器接口
 // 各容器通过实现此接口提供自己的依赖解析逻辑
-type DependencyResolver interface {
+type IDependencyResolver interface {
 	// ResolveDependency 解析字段类型对应的依赖实例
 	ResolveDependency(fieldType reflect.Type) (interface{}, error)
 }
 
+// ContainerSource 容器依赖源接口
+// 容器实现此接口后，可以通过通用依赖解析器解析依赖
+type ContainerSource interface {
+	// GetDependency 根据类型获取依赖实例
+	// 返回nil表示类型不匹配，返回error表示类型匹配但查找失败
+	GetDependency(fieldType reflect.Type) (interface{}, error)
+}
+
 // injectDependencies 向实例注入依赖
 // 使用反射解析实例字段，根据 inject 标签查找并注入依赖
-func injectDependencies(instance interface{}, resolver DependencyResolver) error {
+func injectDependencies(instance interface{}, resolver IDependencyResolver) error {
 	val := reflect.ValueOf(instance)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -87,4 +95,36 @@ func toLowerCamelCase(s string) string {
 		return s
 	}
 	return strings.ToLower(s[:1]) + s[1:]
+}
+
+// GenericDependencyResolver 通用依赖解析器
+// 支持按优先级顺序从多个容器源解析依赖
+type GenericDependencyResolver struct {
+	sources []ContainerSource
+}
+
+// NewGenericDependencyResolver 创建通用依赖解析器
+func NewGenericDependencyResolver(sources ...ContainerSource) *GenericDependencyResolver {
+	return &GenericDependencyResolver{
+		sources: sources,
+	}
+}
+
+// ResolveDependency 解析字段类型对应的依赖实例
+// 按照sources的顺序依次尝试解析，找到第一个匹配的依赖
+func (r *GenericDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
+	for _, source := range r.sources {
+		dep, err := source.GetDependency(fieldType)
+		if dep != nil {
+			return dep, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, &DependencyNotFoundError{
+		FieldType:     fieldType,
+		ContainerType: "Unknown",
+	}
 }
