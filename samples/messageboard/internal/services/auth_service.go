@@ -7,6 +7,7 @@ import (
 	"com.litelake.litecore/common"
 	"com.litelake.litecore/config"
 	"com.litelake.litecore/samples/messageboard/internal/dtos"
+	"com.litelake.litecore/util/hash"
 )
 
 // IAuthService 认证服务接口
@@ -20,7 +21,7 @@ type IAuthService interface {
 
 type authService struct {
 	Config         common.IBaseConfigProvider `inject:""`
-	SessionService ISessionService           `inject:""`
+	SessionService ISessionService            `inject:""`
 }
 
 // NewAuthService 创建认证服务
@@ -45,7 +46,7 @@ func (s *authService) VerifyPassword(password string) bool {
 	if err != nil {
 		return false
 	}
-	return password == storedPassword
+	return hash.Hash.BcryptVerify(password, storedPassword)
 }
 
 func (s *authService) Login(password string) (string, error) {
