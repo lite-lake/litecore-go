@@ -3,6 +3,7 @@ package generator
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 // Config 生成器配置
@@ -13,8 +14,24 @@ type Config struct {
 	ConfigPath  string
 }
 
+// isValidPath 检查路径是否有效
+func isValidPath(path string) bool {
+	if path == "" {
+		return false
+	}
+	return !strings.ContainsAny(path, "\x00")
+}
+
 // Run 运行代码生成器
 func Run(cfg *Config) error {
+	if !isValidPath(cfg.ProjectPath) {
+		return fmt.Errorf("获取项目绝对路径失败: 路径包含无效字符")
+	}
+
+	if !isValidPath(cfg.OutputDir) {
+		return fmt.Errorf("获取输出目录绝对路径失败: 路径包含无效字符")
+	}
+
 	absProjectPath, err := filepath.Abs(cfg.ProjectPath)
 	if err != nil {
 		return fmt.Errorf("获取项目绝对路径失败: %w", err)
