@@ -108,12 +108,15 @@ func TestConvertComponents(t *testing.T) {
 			InterfaceType: "services.IUserService",
 			PackagePath:   "test.module/services",
 			FactoryFunc:   "NewUserService",
+			Layer:         analyzer.LayerService,
 		},
 		{
 			InterfaceName: "Message",
-			InterfaceType: "Message",
+			InterfaceType: "entities.Message",
 			PackagePath:   "test.module/entities",
 			FactoryFunc:   "",
+			Layer:         analyzer.LayerEntity,
+			FileName:      "message.go",
 		},
 	}
 
@@ -125,6 +128,7 @@ func TestConvertComponents(t *testing.T) {
 	assert.Equal(t, "services", result[0].PackageAlias)
 	assert.Equal(t, "Message", result[1].TypeName)
 	assert.Equal(t, "Message", result[1].InterfaceName)
+	assert.Equal(t, "entities", result[1].PackageAlias)
 }
 
 func TestGetPackageAlias(t *testing.T) {
