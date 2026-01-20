@@ -6,7 +6,7 @@ import (
 
 	"com.litelake.litecore/common"
 	"com.litelake.litecore/container"
-	infras "com.litelake.litecore/samples/messageboard/internal/infras"
+	managers "com.litelake.litecore/samples/messageboard/internal/infras/managers"
 )
 
 // InitManagerContainer 初始化管理器容器
@@ -15,26 +15,26 @@ func InitManagerContainer(configContainer *container.ConfigContainer) (*containe
 
 	configProvider := configContainer.GetByType(reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem())
 	_ = configProvider
-	managerCacheManager, err := infras.NewCacheManager(configProvider)
+	managerCacheManager, err := managers.NewCacheManager(configProvider)
 	if err != nil {
 		return nil, err
 	}
-	container.RegisterManager[infras.CacheManager](managerContainer, managerCacheManager)
-	managerDatabaseManager, err := infras.NewDatabaseManager(configProvider)
+	container.RegisterManager[managers.ICacheManager](managerContainer, managerCacheManager)
+	managerDatabaseManager, err := managers.NewDatabaseManager(configProvider)
 	if err != nil {
 		return nil, err
 	}
-	container.RegisterManager[infras.DatabaseManager](managerContainer, managerDatabaseManager)
-	managerLoggerManager, err := infras.NewLoggerManager(configProvider)
+	container.RegisterManager[managers.IDatabaseManager](managerContainer, managerDatabaseManager)
+	managerLoggerManager, err := managers.NewLoggerManager(configProvider)
 	if err != nil {
 		return nil, err
 	}
-	container.RegisterManager[infras.LoggerManager](managerContainer, managerLoggerManager)
-	managerTelemetryManager, err := infras.NewTelemetryManager(configProvider)
+	container.RegisterManager[managers.ILoggerManager](managerContainer, managerLoggerManager)
+	managerTelemetryManager, err := managers.NewTelemetryManager(configProvider)
 	if err != nil {
 		return nil, err
 	}
-	container.RegisterManager[infras.TelemetryManager](managerContainer, managerTelemetryManager)
+	container.RegisterManager[managers.ITelemetryManager](managerContainer, managerTelemetryManager)
 
 	return managerContainer, nil
 }

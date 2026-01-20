@@ -87,7 +87,15 @@ samples/messageboard/
 │   ├── dtos/                   # 数据传输对象
 │   ├── entities/               # 实体层
 │   ├── repositories/           # 仓储层
-│   └── services/               # 服务层
+│   ├── services/               # 服务层
+│   └── infras/                 # 基础设施层
+│       ├── configproviders/    # 配置提供者
+│       │   └── config_provider.go
+│       └── managers/           # 管理器封装
+│           ├── database_manager.go
+│           ├── cache_manager.go
+│           ├── logger_manager.go
+│           └── telemetry_manager.go
 ├── static/                     # 静态资源
 │   ├── css/
 │   └── js/

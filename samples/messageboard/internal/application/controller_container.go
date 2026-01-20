@@ -13,28 +13,17 @@ func InitControllerContainer(
 	serviceContainer *container.ServiceContainer,
 ) *container.ControllerContainer {
 	controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
-	container.RegisterController[controllers.IAdminAuthController](controllerContainer,
-		controllers.NewAdminAuthController())
-	container.RegisterController[controllers.IMsgAllController](controllerContainer,
-		controllers.NewMsgAllController())
-	container.RegisterController[controllers.IMsgCreateController](controllerContainer,
-		controllers.NewMsgCreateController())
-	container.RegisterController[controllers.IMsgDeleteController](controllerContainer,
-		controllers.NewMsgDeleteController())
-	container.RegisterController[controllers.IMsgListController](controllerContainer,
-		controllers.NewMsgListController())
-	container.RegisterController[controllers.IMsgStatusController](controllerContainer,
-		controllers.NewMsgStatusController())
-	container.RegisterController[controllers.IPageAdminController](controllerContainer,
-		controllers.NewPageAdminController())
-	container.RegisterController[controllers.IPageHomeController](controllerContainer,
-		controllers.NewPageHomeController())
-	container.RegisterController[controllers.IResStaticController](controllerContainer,
-		controllers.NewResStaticController())
-	container.RegisterController[controllers.ISysHealthController](controllerContainer,
-		controllers.NewSysHealthController())
-	container.RegisterController[controllers.ISysMetricsController](controllerContainer,
-		controllers.NewSysMetricsController())
+	container.RegisterController[controllers.IAdminAuthController](controllerContainer, controllers.NewAdminAuthController())
+	container.RegisterController[controllers.IMsgAllController](controllerContainer, controllers.NewMsgAllController())
+	container.RegisterController[controllers.IMsgCreateController](controllerContainer, controllers.NewMsgCreateController())
+	container.RegisterController[controllers.IMsgDeleteController](controllerContainer, controllers.NewMsgDeleteController())
+	container.RegisterController[controllers.IMsgListController](controllerContainer, controllers.NewMsgListController())
+	container.RegisterController[controllers.IMsgStatusController](controllerContainer, controllers.NewMsgStatusController())
+	container.RegisterController[controllers.IPageAdminController](controllerContainer, controllers.NewPageAdminController())
+	container.RegisterController[controllers.IPageHomeController](controllerContainer, controllers.NewPageHomeController())
+	container.RegisterController[controllers.IResStaticController](controllerContainer, controllers.NewResStaticController())
+	container.RegisterController[controllers.ISysHealthController](controllerContainer, controllers.NewSysHealthController())
+	container.RegisterController[controllers.ISysMetricsController](controllerContainer, controllers.NewSysMetricsController())
 
 	return controllerContainer
 }

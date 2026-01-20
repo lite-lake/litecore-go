@@ -323,6 +323,7 @@ type ComponentTemplateData struct {
 	PackagePath   string
 	PackageAlias  string
 	FactoryFunc   string
+	Layer         string
 }
 
 // GenerateConfigContainer 生成配置容器代码
