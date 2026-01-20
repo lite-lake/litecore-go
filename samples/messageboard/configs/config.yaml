@@ -5,7 +5,7 @@ app:
   name: "litecore-messageboard"
   version: "1.0.0"
   admin:
-    password: "admin123"        # 管理员密码
+    password: "$2a$10$OzRRxaA.5Njv.o0d6VuHdec2190L0zSD5OA11oUfEjJruMfXhYkVK"  # 管理员密码（bcrypt加密）
     session_timeout: 3600       # 会话超时时间（秒）
 
 # 服务器配置
