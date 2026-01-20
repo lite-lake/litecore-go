@@ -24,21 +24,40 @@
 
 ## 快速开始
 
-### 1. 运行应用
+### 1. 生成管理员密码（首次使用必需）
+
+出于安全考虑，管理员密码需要使用 bcrypt 加密后存储在配置文件中。
+
+运行密码生成工具：
+
+```bash
+cd samples/messageboard
+go run cmd/genpasswd/main.go
+```
+
+按照提示输入密码，工具会生成加密后的密码，例如：
+
+```
+加密后的密码: $2a$10$OzRRxaA.5Njv.o0d6VuHdec2190L0zSD5OA11oUfEjJruMfXhYkVK
+```
+
+将生成的加密密码复制到 `configs/config.yaml` 文件的 `app.admin.password` 字段。
+
+### 2. 运行应用
 
 ```bash
 cd samples/messageboard
 go run cmd/server/main.go
 ```
 
-### 2. 访问应用
+### 3. 访问应用
 
 - 用户首页: http://localhost:8080/
 - 管理页面: http://localhost:8080/admin.html
 
-### 3. 管理员登录
+### 4. 管理员登录
 
-- 默认密码: `admin123`
+使用你在步骤1中设置的明文密码登录。
 
 ## 项目结构
 
@@ -46,6 +65,8 @@ go run cmd/server/main.go
 samples/messageboard/
 ├── cmd/
 │   ├── generate/               # 代码生成入口
+│   │   └── main.go
+│   ├── genpasswd/              # 管理员密码生成工具
 │   │   └── main.go
 │   └── server/                 # 应用入口
 │       └── main.go
@@ -100,7 +121,7 @@ samples/messageboard/
 ```yaml
 app:
   admin:
-    password: "admin123"        # 管理员密码
+    password: "$2a$10$..."      # 管理员密码（使用 cmd/genpasswd 工具生成的 bcrypt 加密密码）
     session_timeout: 3600       # 会话超时（秒）
 
 server:
@@ -118,6 +139,22 @@ cache:
 logger:
   driver: "zap"
 ```
+
+## 安全性
+
+### 密码加密
+
+项目使用 bcrypt 算法加密管理员密码：
+- 加密成本因子: 10（默认）
+- 算法: bcrypt (基于 Blowfish)
+
+**重要**: 请勿将明文密码直接写入配置文件，必须使用 `cmd/genpasswd` 工具生成加密密码。
+
+### Session 管理
+
+- Session 存储在内存缓存中
+- 默认超时时间: 3600 秒（1小时）
+- 配置项: `app.admin.session_timeout`
 
 ## 开发指南
 
