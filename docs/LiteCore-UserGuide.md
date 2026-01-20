@@ -1,0 +1,1707 @@
+# LiteCore 使用指南
+
+## 目录
+
+- [1. 简介](#1-简介)
+- [2. 核心特性](#2-核心特性)
+- [3. 架构概述](#3-架构概述)
+- [4. 快速开始](#4-快速开始)
+- [5. 7 层架构详解](#5-7-层架构详解)
+  - [5.1 Config 层（配置层）](#51-config-层配置层)
+  - [5.2 Entity 层（实体层）](#52-entity-层实体层)
+  - [5.3 Manager 层（管理器层）](#53-manager-层管理器层)
+  - [5.4 Repository 层（仓储层）](#54-repository-层仓储层)
+  - [5.5 Service 层（服务层）](#55-service-层服务层)
+  - [5.6 Controller 层（控制器层）](#56-controller-层控制器层)
+  - [5.7 Middleware 层（中间件层）](#57-middleware-层中间件层)
+- [6. 代码生成器使用](#6-代码生成器使用)
+- [7. 依赖注入机制](#7-依赖注入机制)
+- [8. 配置管理](#8-配置管理)
+- [9. 实用工具（util 包）](#9-实用工具util-包)
+- [10. 最佳实践](#10-最佳实践)
+- [11. 常见问题](#11-常见问题)
+- [附录](#附录)
+
+---
+
+## 1. 简介
+
+LiteCore 是一个基于 Go 的轻量级企业级应用框架，旨在提供标准化、可扩展的微服务开发能力。框架采用 7 层分层架构，内置依赖注入容器、配置管理、数据库管理、缓存管理、日志管理等功能，帮助开发者快速构建业务系统。
+
+### 为什么要使用 LiteCore？
+
+- **标准化架构**：统一的 7 层架构规范，降低团队协作成本
+- **依赖注入**：自动化的依赖注入容器，简化组件管理
+- **开箱即用**：内置数据库、缓存、日志等基础组件
+- **代码生成**：自动生成容器代码，减少重复劳动
+- **可观测性**：内置日志、指标、链路追踪支持
+- **配置驱动**：通过配置文件管理应用行为，无需修改代码
+
+### 适用场景
+
+- Web 应用和 API 服务
+- 微服务架构
+- 企业级业务系统
+- 需要快速原型开发的项目
+
+---
+
+## 2. 核心特性
+
+### 2.1 框架核心功能
+
+| 功能 | 说明 | 实现方式 |
+|------|------|----------|
+| **7 层架构** | Config → Entity → Manager → Repository → Service → Controller/Middleware | 接口定义 + 依赖注入 |
+| **依赖注入** | 自动扫描、自动注入、生命周期管理 | reflect + inject 标签 |
+| **代码生成** | 自动生成容器代码和引擎代码 | CLI 工具 |
+| **配置管理** | 支持 YAML/JSON 配置文件 | config 包 |
+| **数据库管理** | 支持 MySQL/PostgreSQL/SQLite | GORM + Manager 封装 |
+| **缓存管理** | 支持 Redis/Memory 缓存 | cache 包 |
+| **日志管理** | 基于 Zap 的高性能日志 | logger 包 |
+| **遥测支持** | OpenTelemetry 集成 | telemetry 包 |
+
+### 2.2 实用工具（util 包）
+
+LiteCore 提供了一系列实用的工具包，帮助开发者处理常见的开发任务：
+
+| 工具包 | 功能 |
+|--------|------|
+| `util/jwt` | JWT 令牌生成、解析和验证 |
+| `util/hash` | 常见哈希算法（MD5、SHA1、SHA256） |
+| `util/crypt` | 密码加密、AES 加密 |
+| `util/id` | 唯一 ID 生成（雪花算法、UUID） |
+| `util/validator` | 数据验证工具 |
+| `util/string` | 字符串处理工具 |
+| `util/time` | 时间处理工具 |
+| `util/json` | JSON 处理工具 |
+| `util/rand` | 随机数生成工具 |
+
+---
+
+## 3. 架构概述
+
+### 3.1 7 层架构图
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    HTTP Request                         │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Middleware 层（中间件）                                │
+│  - Recovery - CORS - Auth - Logger - Telemetry        │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Controller 层（控制器）                                │
+│  - 请求参数验证                                          │
+│  - 调用 Service                                          │
+│  - 响应封装                                              │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Service 层（服务）                                      │
+│  - 业务逻辑                                              │
+│  - 数据验证                                              │
+│  - 事务管理                                              │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Repository 层（仓储）                                    │
+│  - 数据访问                                              │
+│  - ORM 操作                                              │
+│  - 数据库迁移                                            │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Manager 层（管理器）                                    │
+│  - DatabaseManager（数据库）                             │
+│  - CacheManager（缓存）                                  │
+│  - LoggerManager（日志）                                 │
+│  - TelemetryManager（遥测）                              │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Entity 层（实体）                                        │
+│  - 数据模型定义                                          │
+│  - 表结构定义                                            │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Config 层（配置）                                        │
+│  - 配置文件加载                                          │
+│  - 配置项访问                                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 3.2 依赖规则
+
+```
+Config 层（无依赖）
+    ↓
+Entity 层（无外部依赖）
+    ↓
+Manager 层（依赖 Config）
+    ↓
+Repository 层（依赖 Config、Manager、Entity）
+    ↓
+Service 层（依赖 Config、Manager、Repository、Service）
+    ↓
+Controller 层（依赖 Config、Manager、Service）
+Middleware 层（依赖 Config、Manager、Service）
+```
+
+**规则说明**：
+- 上层可以依赖下层
+- 下层不能依赖上层
+- 同层之间可以相互依赖（例如 Service 可以依赖另一个 Service）
+- Controller 不能直接依赖 Repository，必须通过 Service
+
+### 3.3 生命周期管理
+
+所有实现了生命周期接口的组件都会在以下时机被调用：
+
+| 方法 | 调用时机 | 用途 |
+|------|----------|------|
+| `OnStart()` | 服务器启动时 | 初始化资源（连接数据库、加载缓存等） |
+| `OnStop()` | 服务器停止时 | 清理资源（关闭连接、保存数据等） |
+| `Health()` | 健康检查时 | 检查组件健康状态（仅 Manager 层） |
+
+---
+
+## 4. 快速开始
+
+### 4.1 引用私有仓库的 LiteCore
+
+#### 方式一：配置 GOPRIVATE（推荐）
+
+适用于生产环境和团队协作：
+
+```bash
+# 1. 设置私有模块前缀
+export GOPRIVATE=com.litelake.litecore
+
+# 2. 在新项目中引用指定版本
+go mod init com.litelake.myapp
+go get com.litelake.litecore@v0.0.1
+
+# 3. 或使用最新版本
+go get com.litelake.litecore@latest
+```
+
+#### 方式二：使用 replace 指令
+
+适用于本地开发和调试：
+
+```bash
+# 1. 初始化项目
+go mod init com.litelake.myapp
+
+# 2. 在 go.mod 中添加 replace 指令
+# replace com.litelake.litecore => /Users/kentzhu/Projects/lite-lake/litecore-go
+
+# 3. 执行依赖整理
+go mod tidy
+
+# 4. 运行应用
+go run ./cmd/server
+```
+
+### 4.2 初始化项目
+
+```bash
+# 创建项目目录
+mkdir myapp && cd myapp
+
+# 初始化 Go 模块
+go mod init com.litelake.litecore/samples/myapp
+
+# 引用 LiteCore
+go get com.litelake.litecore@latest
+
+# 创建项目结构
+mkdir -p cmd/server cmd/generate configs data
+mkdir -p internal/{application,entities,repositories,services,controllers,middlewares,dtos,infras/{configproviders,managers}}
+
+# 创建配置文件
+touch configs/config.yaml
+```
+
+### 4.3 项目结构
+
+```
+myapp/
+├── cmd/
+│   ├── server/main.go          # 应用入口
+│   └── generate/main.go         # 代码生成器
+├── configs/config.yaml          # 配置文件
+├── internal/
+│   ├── application/             # 自动生成的容器（DO NOT EDIT）
+│   │   ├── config_container.go
+│   │   ├── entity_container.go
+│   │   ├── manager_container.go
+│   │   ├── repository_container.go
+│   │   ├── service_container.go
+│   │   ├── controller_container.go
+│   │   ├── middleware_container.go
+│   │   └── engine.go
+│   ├── entities/                # 实体层（无依赖）
+│   ├── repositories/            # 仓储层（依赖 Manager）
+│   ├── services/                # 服务层（依赖 Repository）
+│   ├── controllers/             # 控制器层（依赖 Service）
+│   ├── middlewares/             # 中间件层（依赖 Service）
+│   ├── dtos/                    # 数据传输对象
+│   └── infras/                  # 基础设施（Manager 封装）
+│       ├── configproviders/     # 配置提供者
+│       │   └── config_provider.go
+│       └── managers/            # 管理器封装
+│           ├── database_manager.go
+│           ├── cache_manager.go
+│           └── logger_manager.go
+└── go.mod
+```
+
+### 4.4 创建配置文件（configs/config.yaml）
+
+```yaml
+app:
+  name: "myapp"
+  version: "1.0.0"
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "debug"
+
+database:
+  driver: "sqlite"              # mysql, postgresql, sqlite, none
+  sqlite_config:
+    dsn: "./data/myapp.db"
+
+cache:
+  driver: "memory"              # redis, memory, none
+
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"
+```
+
+### 4.5 创建应用入口（cmd/server/main.go）
+
+```go
+package main
+
+import (
+    "log"
+
+    app "com.litelake.litecore/samples/myapp/internal/application"
+)
+
+func main() {
+    engine, err := app.NewEngine()
+    if err != nil {
+        log.Fatalf("Failed to create engine: %v", err)
+    }
+
+    if err := engine.Initialize(); err != nil {
+        log.Fatalf("Failed to initialize engine: %v", err)
+    }
+
+    if err := engine.Start(); err != nil {
+        log.Fatalf("Failed to start engine: %v", err)
+    }
+
+    engine.WaitForShutdown()
+}
+```
+
+### 4.6 配置代码生成器（cmd/generate/main.go）
+
+```go
+package main
+
+import (
+    "flag"
+    "fmt"
+    "os"
+
+    "com.litelake.litecore/cli/generator"
+)
+
+func main() {
+    cfg := generator.DefaultConfig()
+    cfg.OutputDir = "internal/application"
+    cfg.PackageName = "application"
+    cfg.ConfigPath = "configs/config.yaml"
+
+    if err := generator.Run(cfg); err != nil {
+        fmt.Fprintf(os.Stderr, "错误: %v\n", err)
+        os.Exit(1)
+    }
+}
+```
+
+### 4.7 初始化应用
+
+```bash
+# 首次生成容器代码
+go run ./cmd/generate
+
+# 运行应用
+go run ./cmd/server/main.go
+```
+
+---
+
+## 5. 7 层架构详解
+
+### 5.1 Config 层（配置层）
+
+Config 层负责配置文件的加载和配置项的访问。
+
+#### 5.1.1 创建配置提供者
+
+位置：`internal/infras/configproviders/config_provider.go`
+
+```go
+package configproviders
+
+import (
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/config"
+)
+
+func NewConfigProvider() (common.IBaseConfigProvider, error) {
+    return config.NewConfigProvider("yaml", "configs/config.yaml")
+}
+```
+
+#### 5.1.2 使用配置
+
+```go
+import "com.litelake.litecore/config"
+
+// 获取字符串配置
+appName, err := config.Get[string](configProvider, "app.name")
+
+// 获取整数配置
+port, err := config.Get[int](configProvider, "server.port")
+
+// 获取布尔配置
+enabled, err := config.Get[bool](configProvider, "logger.console_enabled")
+
+// 检查配置是否存在
+if configProvider.Has("database.mysql_config.dsn") {
+    // 处理配置
+}
+```
+
+#### 5.1.3 配置项路径语法
+
+配置项使用点分隔的路径语法：
+
+```yaml
+database:
+  driver: "mysql"
+  mysql_config:
+    dsn: "root:pass@tcp(localhost:3306)/db"
+    pool_config:
+      max_open_conns: 100
+```
+
+访问方式：
+```go
+config.Get[string](configProvider, "database.driver")
+config.Get[string](configProvider, "database.mysql_config.dsn")
+config.Get[int](configProvider, "database.mysql_config.pool_config.max_open_conns")
+```
+
+---
+
+### 5.2 Entity 层（实体层）
+
+Entity 层定义数据实体，映射到数据库表结构。实体层无外部依赖，只包含纯数据定义。
+
+#### 5.2.1 实体示例
+
+位置：`internal/entities/user_entity.go`
+
+```go
+package entities
+
+import (
+    "fmt"
+    "time"
+
+    "com.litelake.litecore/common"
+)
+
+type User struct {
+    ID        uint      `gorm:"primarykey" json:"id"`
+    Name      string    `gorm:"type:varchar(50);not null" json:"name"`
+    Email     string    `gorm:"type:varchar(100);uniqueIndex" json:"email"`
+    Age       int       `gorm:"not null" json:"age"`
+    Status    string    `gorm:"type:varchar(20);default:'active'" json:"status"`
+    CreatedAt time.Time `json:"created_at"`
+    UpdatedAt time.Time `json:"updated_at"`
+}
+
+// EntityName 返回实体名称
+func (u *User) EntityName() string {
+    return "User"
+}
+
+// TableName 返回数据库表名
+func (u *User) TableName() string {
+    return "users"
+}
+
+// GetId 返回实体的唯一标识
+func (u *User) GetId() string {
+    return fmt.Sprintf("%d", u.ID)
+}
+
+// IsActive 检查用户是否激活
+func (u *User) IsActive() bool {
+    return u.Status == "active"
+}
+
+var _ common.IBaseEntity = (*User)(nil)
+```
+
+#### 5.2.2 GORM 标签说明
+
+| 标签 | 说明 | 示例 |
+|------|------|------|
+| `primarykey` | 主键 | `gorm:"primarykey"` |
+| `type` | 字段类型 | `gorm:"type:varchar(50)"` |
+| `not null` | 非空约束 | `gorm:"not null"` |
+| `uniqueIndex` | 唯一索引 | `gorm:"uniqueIndex"` |
+| `index` | 普通索引 | `gorm:"index"` |
+| `default` | 默认值 | `gorm:"default:'active'"` |
+| `size` | 字段大小 | `gorm:"size:100"` |
+| `column` | 列名 | `gorm:"column:user_name"` |
+
+#### 5.2.3 实体设计规范
+
+- **纯数据模型**：实体只包含数据，不包含业务逻辑
+- **GORM 标签**：使用 GORM 标签定义表结构
+- **接口实现**：必须实现 `common.IBaseEntity` 接口
+- **辅助方法**：可以添加简单的辅助方法（如 `IsActive()`）
+- **无依赖**：实体层不依赖任何其他层
+
+---
+
+### 5.3 Manager 层（管理器层）
+
+Manager 层封装基础设施组件，提供数据库、缓存、日志、遥测等功能。
+
+#### 5.3.1 可用的 Manager
+
+LiteCore 提供以下 Manager 组件：
+
+| Manager | 功能 | 支持驱动 |
+|---------|------|----------|
+| `DatabaseManager` | 数据库管理 | MySQL, PostgreSQL, SQLite, None |
+| `CacheManager` | 缓存管理 | Redis, Memory, None |
+| `LoggerManager` | 日志管理 | Zap, None |
+| `TelemetryManager` | 遥测管理 | OpenTelemetry, None |
+
+#### 5.3.2 封装 Database Manager
+
+位置：`internal/infras/managers/database_manager.go`
+
+```go
+package managers
+
+import (
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/component/manager/databasemgr"
+)
+
+type IDatabaseManager interface {
+    databasemgr.IDatabaseManager
+}
+
+type databaseManagerImpl struct {
+    databasemgr.IDatabaseManager
+}
+
+func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseManager, error) {
+    mgr, err := databasemgr.BuildWithConfigProvider(configProvider)
+    if err != nil {
+        return nil, err
+    }
+    return &databaseManagerImpl{mgr}, nil
+}
+```
+
+#### 5.3.3 封装 Cache Manager
+
+位置：`internal/infras/managers/cache_manager.go`
+
+```go
+package managers
+
+import (
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/component/manager/cachemgr"
+)
+
+type ICacheManager interface {
+    cachemgr.ICacheManager
+}
+
+type cacheManagerImpl struct {
+    cachemgr.ICacheManager
+}
+
+func NewCacheManager(configProvider common.IBaseConfigProvider) (ICacheManager, error) {
+    mgr, err := cachemgr.BuildWithConfigProvider(configProvider)
+    if err != nil {
+        return nil, err
+    }
+    return &cacheManagerImpl{mgr}, nil
+}
+```
+
+#### 5.3.4 封装 Logger Manager
+
+位置：`internal/infras/managers/logger_manager.go`
+
+```go
+package managers
+
+import (
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/component/manager/loggermgr"
+)
+
+type ILoggerManager interface {
+    loggermgr.ILoggerManager
+}
+
+type loggerManagerImpl struct {
+    loggermgr.ILoggerManager
+}
+
+func NewLoggerManager(configProvider common.IBaseConfigProvider) (ILoggerManager, error) {
+    mgr, err := loggermgr.BuildWithConfigProvider(configProvider)
+    if err != nil {
+        return nil, err
+    }
+    return &loggerManagerImpl{mgr}, nil
+}
+```
+
+#### 5.3.5 使用 Database Manager
+
+```go
+// 获取 GORM DB 实例
+db := r.Manager.DB()
+
+// 创建记录
+user := &entities.User{Name: "Alice"}
+if err := db.Create(user).Error; err != nil {
+    return err
+}
+
+// 查询记录
+var result entities.User
+if err := db.First(&result, user.ID).Error; err != nil {
+    return err
+}
+
+// 更新记录
+if err := db.Model(&result).Update("Name", "Bob").Error; err != nil {
+    return err
+}
+
+// 删除记录
+if err := db.Delete(&result).Error; err != nil {
+    return err
+}
+
+// 自动迁移表结构
+if err := r.Manager.AutoMigrate(&entities.User{}); err != nil {
+    return err
+}
+```
+
+#### 5.3.6 使用 Cache Manager
+
+```go
+import "context"
+
+// 设置缓存
+ctx := context.Background()
+cacheKey := "user:1"
+if err := s.CacheMgr.Set(ctx, cacheKey, user, time.Hour); err != nil {
+    return err
+}
+
+// 获取缓存
+var cachedUser entities.User
+if err := s.CacheMgr.Get(ctx, cacheKey, &cachedUser); err == nil {
+    return &cachedUser, nil
+}
+
+// 删除缓存
+if err := s.CacheMgr.Delete(ctx, cacheKey); err != nil {
+    return err
+}
+```
+
+---
+
+### 5.4 Repository 层（仓储层）
+
+Repository 层负责数据访问，提供 CRUD 操作和数据库交互。
+
+#### 5.4.1 Repository 示例
+
+位置：`internal/repositories/user_repository.go`
+
+```go
+package repositories
+
+import (
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/samples/myapp/internal/entities"
+    "com.litelake.litecore/samples/myapp/internal/infras/managers"
+)
+
+type IUserRepository interface {
+    common.IBaseRepository
+    Create(user *entities.User) error
+    GetByID(id uint) (*entities.User, error)
+    GetByEmail(email string) (*entities.User, error)
+    Update(user *entities.User) error
+    Delete(id uint) error
+    List(offset, limit int) ([]*entities.User, int64, error)
+}
+
+type userRepository struct {
+    Config  common.IBaseConfigProvider     `inject:""`
+    Manager managers.IDatabaseManager      `inject:""`
+}
+
+func NewUserRepository() IUserRepository {
+    return &userRepository{}
+}
+
+func (r *userRepository) RepositoryName() string {
+    return "UserRepository"
+}
+
+func (r *userRepository) OnStart() error {
+    // 自动迁移表结构
+    return r.Manager.AutoMigrate(&entities.User{})
+}
+
+func (r *userRepository) OnStop() error {
+    return nil
+}
+
+func (r *userRepository) Create(user *entities.User) error {
+    return r.Manager.DB().Create(user).Error
+}
+
+func (r *userRepository) GetByID(id uint) (*entities.User, error) {
+    var user entities.User
+    err := r.Manager.DB().First(&user, id).Error
+    if err != nil {
+        return nil, err
+    }
+    return &user, nil
+}
+
+func (r *userRepository) GetByEmail(email string) (*entities.User, error) {
+    var user entities.User
+    err := r.Manager.DB().Where("email = ?", email).First(&user).Error
+    if err != nil {
+        return nil, err
+    }
+    return &user, nil
+}
+
+func (r *userRepository) Update(user *entities.User) error {
+    return r.Manager.DB().Save(user).Error
+}
+
+func (r *userRepository) Delete(id uint) error {
+    return r.Manager.DB().Delete(&entities.User{}, id).Error
+}
+
+func (r *userRepository) List(offset, limit int) ([]*entities.User, int64, error) {
+    var users []*entities.User
+    var total int64
+
+    db := r.Manager.DB().Model(&entities.User{})
+    if err := db.Count(&total).Error; err != nil {
+        return nil, 0, err
+    }
+
+    if err := db.Offset(offset).Limit(limit).Find(&users).Error; err != nil {
+        return nil, 0, err
+    }
+
+    return users, total, nil
+}
+
+var _ IUserRepository = (*userRepository)(nil)
+```
+
+#### 5.4.2 Repository 设计规范
+
+- **接口定义**：定义接口 `IXxxRepository`
+- **依赖注入**：使用 `inject:""` 标签注入依赖
+- **接口实现**：结构体命名为小写 `xxxRepository`
+- **生命周期**：在 `OnStart()` 中自动迁移表结构
+- **错误处理**：直接返回 GORM 错误，不在 Repository 层包装
+- **事务管理**：在 Service 层管理事务
+
+#### 5.4.3 使用事务
+
+Repository 层只提供数据库访问方法，事务管理在 Service 层进行：
+
+```go
+// Service 层
+func (s *userService) CreateUserWithProfile(user *entities.User, profile *entities.Profile) error {
+    return s.Manager.DB().Transaction(func(tx *gorm.DB) error {
+        // 创建用户
+        if err := tx.Create(user).Error; err != nil {
+            return err
+        }
+
+        // 创建用户档案
+        profile.UserID = user.ID
+        if err := tx.Create(profile).Error; err != nil {
+            return err
+        }
+
+        return nil
+    })
+}
+```
+
+---
+
+### 5.5 Service 层（服务层）
+
+Service 层实现业务逻辑，负责数据验证、事务管理、业务规则等。
+
+#### 5.5.1 Service 示例
+
+位置：`internal/services/user_service.go`
+
+```go
+package services
+
+import (
+    "errors"
+    "fmt"
+
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/samples/myapp/internal/entities"
+    "com.litelake.litecore/samples/myapp/internal/repositories"
+)
+
+type IUserService interface {
+    common.IBaseService
+    Register(name, email string, age int) (*entities.User, error)
+    GetByID(id uint) (*entities.User, error)
+    UpdateProfile(id uint, name string) error
+    DeleteUser(id uint) error
+    ListUsers(page, pageSize int) ([]*entities.User, int64, error)
+}
+
+type userService struct {
+    Config     common.IBaseConfigProvider      `inject:""`
+    Repository repositories.IUserRepository   `inject:""`
+}
+
+func NewUserService() IUserService {
+    return &userService{}
+}
+
+func (s *userService) ServiceName() string {
+    return "UserService"
+}
+
+func (s *userService) OnStart() error {
+    return nil
+}
+
+func (s *userService) OnStop() error {
+    return nil
+}
+
+func (s *userService) Register(name, email string, age int) (*entities.User, error) {
+    // 验证输入
+    if len(name) < 2 || len(name) > 50 {
+        return nil, errors.New("用户名长度必须在 2-50 个字符之间")
+    }
+    if age < 0 || age > 150 {
+        return nil, errors.New("年龄必须在 0-150 之间")
+    }
+
+    // 检查邮箱是否已存在
+    existing, err := s.Repository.GetByEmail(email)
+    if err == nil && existing != nil {
+        return nil, errors.New("邮箱已被注册")
+    }
+
+    // 创建用户
+    user := &entities.User{
+        Name:   name,
+        Email:  email,
+        Age:    age,
+        Status: "active",
+    }
+
+    if err := s.Repository.Create(user); err != nil {
+        return nil, fmt.Errorf("创建用户失败: %w", err)
+    }
+
+    return user, nil
+}
+
+func (s *userService) GetByID(id uint) (*entities.User, error) {
+    user, err := s.Repository.GetByID(id)
+    if err != nil {
+        return nil, fmt.Errorf("获取用户失败: %w", err)
+    }
+    if user == nil {
+        return nil, errors.New("用户不存在")
+    }
+    return user, nil
+}
+
+func (s *userService) UpdateProfile(id uint, name string) error {
+    // 验证输入
+    if len(name) < 2 || len(name) > 50 {
+        return errors.New("用户名长度必须在 2-50 个字符之间")
+    }
+
+    // 获取用户
+    user, err := s.Repository.GetByID(id)
+    if err != nil {
+        return fmt.Errorf("获取用户失败: %w", err)
+    }
+    if user == nil {
+        return errors.New("用户不存在")
+    }
+
+    // 更新用户
+    user.Name = name
+    if err := s.Repository.Update(user); err != nil {
+        return fmt.Errorf("更新用户失败: %w", err)
+    }
+
+    return nil
+}
+
+func (s *userService) DeleteUser(id uint) error {
+    // 检查用户是否存在
+    user, err := s.Repository.GetByID(id)
+    if err != nil {
+        return fmt.Errorf("获取用户失败: %w", err)
+    }
+    if user == nil {
+        return errors.New("用户不存在")
+    }
+
+    // 删除用户
+    if err := s.Repository.Delete(id); err != nil {
+        return fmt.Errorf("删除用户失败: %w", err)
+    }
+
+    return nil
+}
+
+func (s *userService) ListUsers(page, pageSize int) ([]*entities.User, int64, error) {
+    if page < 1 {
+        page = 1
+    }
+    if pageSize < 1 || pageSize > 100 {
+        pageSize = 20
+    }
+
+    offset := (page - 1) * pageSize
+    users, total, err := s.Repository.List(offset, pageSize)
+    if err != nil {
+        return nil, 0, fmt.Errorf("获取用户列表失败: %w", err)
+    }
+
+    return users, total, nil
+}
+
+var _ IUserService = (*userService)(nil)
+```
+
+#### 5.5.2 Service 设计规范
+
+- **业务逻辑**：在 Service 层实现所有业务逻辑
+- **数据验证**：在 Service 层进行输入验证
+- **错误包装**：使用 `fmt.Errorf()` 包装错误信息
+- **事务管理**：在 Service 层管理数据库事务
+- **依赖注入**：可以依赖 Repository、Manager、其他 Service
+
+---
+
+### 5.6 Controller 层（控制器层）
+
+Controller 层负责 HTTP 请求处理，包括参数验证、调用 Service、响应封装。
+
+#### 5.6.1 Controller 示例
+
+位置：`internal/controllers/user_controller.go`
+
+```go
+package controllers
+
+import (
+    "net/http"
+
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/samples/myapp/internal/dtos"
+    "com.litelake.litecore/samples/myapp/internal/services"
+
+    "github.com/gin-gonic/gin"
+)
+
+type IUserController interface {
+    common.IBaseController
+}
+
+type userController struct {
+    UserService services.IUserService `inject:""`
+}
+
+func NewUserController() IUserController {
+    return &userController{}
+}
+
+func (c *userController) ControllerName() string {
+    return "userController"
+}
+
+// RegisterUser 注册用户
+// @Router /api/users/register [POST]
+func (c *userController) GetRouter() string {
+    return "/api/users/register [POST]"
+}
+
+func (c *userController) Handle(ctx *gin.Context) {
+    var req dtos.RegisterUserRequest
+    if err := ctx.ShouldBindJSON(&req); err != nil {
+        ctx.JSON(http.StatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
+        return
+    }
+
+    user, err := c.UserService.Register(req.Name, req.Email, req.Age)
+    if err != nil {
+        ctx.JSON(http.StatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
+        return
+    }
+
+    ctx.JSON(http.StatusOK, dtos.SuccessResponse("注册成功", dtos.UserResponse{
+        ID:    user.ID,
+        Name:  user.Name,
+        Email: user.Email,
+    }))
+}
+
+var _ IUserController = (*userController)(nil)
+```
+
+#### 5.6.2 DTO 示例
+
+位置：`internal/dtos/user_dto.go`
+
+```go
+package dtos
+
+import "time"
+
+// RegisterUserRequest 注册用户请求
+type RegisterUserRequest struct {
+    Name  string `json:"name" binding:"required,min=2,max=50"`
+    Email string `json:"email" binding:"required,email"`
+    Age   int    `json:"age" binding:"required,min=0,max=150"`
+}
+
+// UserResponse 用户响应
+type UserResponse struct {
+    ID        uint      `json:"id"`
+    Name      string    `json:"name"`
+    Email     string    `json:"email"`
+    Age       int       `json:"age"`
+    Status    string    `json:"status"`
+    CreatedAt time.Time `json:"created_at"`
+}
+
+// SuccessResponse 成功响应
+type SuccessResponse struct {
+    Code    int         `json:"code"`
+    Message string      `json:"message"`
+    Data    interface{} `json:"data"`
+}
+
+func SuccessResponse(message string, data interface{}) SuccessResponse {
+    return SuccessResponse{
+        Code:    common.HTTPStatusOK,
+        Message: message,
+        Data:    data,
+    }
+}
+
+// ErrorResponse 错误响应
+type ErrorResponse struct {
+    Code    int    `json:"code"`
+    Message string `json:"message"`
+}
+
+func ErrorResponse(code int, message string) ErrorResponse {
+    return ErrorResponse{
+        Code:    code,
+        Message: message,
+    }
+}
+```
+
+#### 5.6.3 Controller 设计规范
+
+- **路由定义**：在 `GetRouter()` 中定义路由
+- **参数验证**：使用 Gin 的 `ShouldBindJSON()` 验证参数
+- **调用 Service**：通过依赖注入调用 Service 层方法
+- **响应封装**：使用统一的响应格式
+- **错误处理**：将 Service 层错误转换为 HTTP 响应
+
+#### 5.6.4 路由定义格式
+
+Controller 的 `GetRouter()` 方法支持完整的路由语法：
+
+```go
+// 基本 CRUD
+return "/api/users [GET]"              // 获取列表
+return "/api/users [POST]"             // 创建
+return "/api/users/:id [GET]"          // 获取详情
+return "/api/users/:id [PUT]"          // 更新
+return "/api/users/:id [DELETE]"       // 删除
+
+// 路径参数
+return "/api/files/*filepath [GET]"    // 通配符
+
+// 路由分组
+return "/api/admin/users [GET]"        // 管理端路由
+return "/api/v1/users [GET]"           // 版本化路由
+```
+
+---
+
+### 5.7 Middleware 层（中间件层）
+
+Middleware 层负责横切关注点的处理，如认证、授权、日志、CORS 等。
+
+#### 5.7.1 中间件示例
+
+位置：`internal/middlewares/auth_middleware.go`
+
+```go
+package middlewares
+
+import (
+    "strings"
+
+    "com.litelake.litecore/common"
+    "com.litelake.litecore/samples/myapp/internal/services"
+
+    "github.com/gin-gonic/gin"
+)
+
+type IAuthMiddleware interface {
+    common.IBaseMiddleware
+}
+
+type authMiddleware struct {
+    AuthService services.IAuthService `inject:""`
+}
+
+func NewAuthMiddleware() IAuthMiddleware {
+    return &authMiddleware{}
+}
+
+func (m *authMiddleware) MiddlewareName() string {
+    return "AuthMiddleware"
+}
+
+func (m *authMiddleware) Order() int {
+    return 100
+}
+
+func (m *authMiddleware) Wrapper() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // 跳过公开路由
+        if strings.HasPrefix(c.Request.URL.Path, "/api/public") {
+            c.Next()
+            return
+        }
+
+        // 获取 Authorization header
+        authHeader := c.GetHeader("Authorization")
+        if authHeader == "" {
+            c.JSON(common.HTTPStatusUnauthorized, gin.H{
+                "code":    common.HTTPStatusUnauthorized,
+                "message": "未提供认证令牌",
+            })
+            c.Abort()
+            return
+        }
+
+        // 解析 Bearer token
+        parts := strings.SplitN(authHeader, " ", 2)
+        if len(parts) != 2 || parts[0] != "Bearer" {
+            c.JSON(common.HTTPStatusUnauthorized, gin.H{
+                "code":    common.HTTPStatusUnauthorized,
+                "message": "认证令牌格式错误",
+            })
+            c.Abort()
+            return
+        }
+
+        token := parts[1]
+
+        // 验证 token
+        session, err := m.AuthService.ValidateToken(token)
+        if err != nil {
+            c.JSON(common.HTTPStatusUnauthorized, gin.H{
+                "code":    common.HTTPStatusUnauthorized,
+                "message": "认证令牌无效或已过期",
+            })
+            c.Abort()
+            return
+        }
+
+        // 将用户信息存入上下文
+        c.Set("user_session", session)
+        c.Next()
+    }
+}
+
+func (m *authMiddleware) OnStart() error {
+    return nil
+}
+
+func (m *authMiddleware) OnStop() error {
+    return nil
+}
+
+var _ IAuthMiddleware = (*authMiddleware)(nil)
+```
+
+#### 5.7.2 中间件执行顺序
+
+中间件按照 `Order()` 返回的值从小到大执行：
+
+```go
+// 推荐的中间件顺序
+func (m *RecoveryMiddleware) Order() int     { return 10 }   // 恢复中间件
+func (m *CORSMiddleware) Order() int          { return 20 }   // CORS 中间件
+func (m *AuthMiddleware) Order() int          { return 100 }  // 认证中间件
+func (m *LoggerMiddleware) Order() int       { return 200 }  // 日志中间件
+func (m *TelemetryMiddleware) Order() int    { return 300 }  // 遥测中间件
+```
+
+#### 5.7.3 中间件设计规范
+
+- **横切关注点**：中间件处理认证、日志、CORS 等横切关注点
+- **顺序控制**：使用 `Order()` 方法定义执行顺序
+- **上下文存储**：使用 `c.Set()` 和 `c.Get()` 存储上下文信息
+- **提前终止**：使用 `c.Abort()` 提前终止请求处理
+
+---
+
+## 6. 代码生成器使用
+
+LiteCore 提供代码生成器，自动扫描项目中的组件并生成容器代码。
+
+### 6.1 代码生成器配置
+
+位置：`cmd/generate/main.go`
+
+```go
+package main
+
+import (
+    "flag"
+    "fmt"
+    "os"
+
+    "com.litelake.litecore/cli/generator"
+)
+
+func main() {
+    cfg := generator.DefaultConfig()
+
+    // 自定义配置
+    cfg.OutputDir = "internal/application"
+    cfg.PackageName = "application"
+    cfg.ConfigPath = "configs/config.yaml"
+
+    if err := generator.Run(cfg); err != nil {
+        fmt.Fprintf(os.Stderr, "错误: %v\n", err)
+        os.Exit(1)
+    }
+}
+```
+
+### 6.2 运行代码生成器
+
+```bash
+# 使用默认配置生成
+go run ./cmd/generate
+
+# 使用命令行参数生成
+go run ./cmd/generate -o internal/application -pkg application -c configs/config.yaml
+```
+
+### 6.3 生成时机
+
+需要运行代码生成器的场景：
+
+1. **首次创建项目**：初始化容器代码
+2. **新增 Entity**：添加新的实体后
+3. **新增 Repository**：添加新的仓储后
+4. **新增 Service**：添加新的服务后
+5. **新增 Controller**：添加新的控制器后
+6. **新增 Middleware**：添加新的中间件后
+7. **修改依赖**：修改组件的 `inject` 标签后
+
+### 6.4 生成的文件
+
+代码生成器会自动扫描并生成以下文件：
+
+| 文件 | 说明 |
+|------|------|
+| `config_container.go` | 配置容器 |
+| `entity_container.go` | 实体容器 |
+| `manager_container.go` | Manager 容器 |
+| `repository_container.go` | 仓储容器 |
+| `service_container.go` | 服务容器 |
+| `controller_container.go` | 控制器容器 |
+| `middleware_container.go` | 中间件容器 |
+| `engine.go` | 引擎创建函数 |
+
+**重要**：生成的文件头部标记 `// Code generated by litecore/cli. DO NOT EDIT.`，请勿手动修改。
+
+---
+
+## 7. 依赖注入机制
+
+LiteCore 提供自动化的依赖注入容器，简化组件管理。
+
+### 7.1 注入语法
+
+使用 `inject:""` 标签声明依赖：
+
+```go
+type userService struct {
+    Config     common.IBaseConfigProvider      `inject:""`
+    Repository repositories.IUserRepository   `inject:""`
+    CacheMgr   infras.ICacheManager           `inject:""`
+}
+```
+
+### 7.2 依赖规则
+
+| 层级 | 可注入的依赖 |
+|------|-------------|
+| Manager | Config |
+| Repository | Config, Manager, Entity |
+| Service | Config, Manager, Repository, Service |
+| Controller | Config, Manager, Service |
+| Middleware | Config, Manager, Service |
+
+### 7.3 注入示例
+
+#### Repository 层注入
+
+```go
+type userRepository struct {
+    Config  common.IBaseConfigProvider     `inject:""`
+    Manager managers.IDatabaseManager      `inject:""`
+}
+```
+
+#### Service 层注入
+
+```go
+type userService struct {
+    Config       common.IBaseConfigProvider      `inject:""`
+    Repository   repositories.IUserRepository   `inject:""`
+    CacheMgr     infras.ICacheManager           `inject:""`
+    OtherService services.IOtherService         `inject:""`
+}
+```
+
+#### Controller 层注入
+
+```go
+type userController struct {
+    UserService services.IUserService `inject:""`
+}
+```
+
+#### Middleware 层注入
+
+```go
+type authMiddleware struct {
+    AuthService services.IAuthService `inject:""`
+}
+```
+
+### 7.4 注意事项
+
+1. **不要跨层注入**：Controller 不能直接注入 Repository
+2. **接口注入**：优先注入接口，而非具体实现
+3. **空标签**：`inject:""` 表示自动注入，无需指定名称
+4. **循环依赖**：LiteCore 不支持循环依赖，需要重构代码
+5. **类型匹配**：依赖类型必须与声明的接口类型匹配
+
+---
+
+## 8. 配置管理
+
+LiteCore 提供统一的配置管理功能，支持 YAML 和 JSON 格式。
+
+### 8.1 配置文件结构
+
+```yaml
+# 应用配置
+app:
+  name: "myapp"
+  version: "1.0.0"
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "debug"                 # debug, release, test
+  read_timeout: "10s"
+  write_timeout: "10s"
+
+# 数据库配置
+database:
+  driver: "sqlite"              # mysql, postgresql, sqlite, none
+  sqlite_config:
+    dsn: "./data/myapp.db"
+    pool_config:
+      max_open_conns: 1
+      max_idle_conns: 1
+  observability_config:
+    slow_query_threshold: "1s"
+    log_sql: false
+
+# 缓存配置
+cache:
+  driver: "memory"              # redis, memory, none
+
+# 日志配置
+logger:
+  driver: "zap"                 # zap, none
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"
+
+# 遥测配置
+telemetry:
+  driver: "none"                # none, otel
+```
+
+### 8.2 使用配置
+
+```go
+import "com.litelake.litecore/config"
+
+// 获取配置值
+appName, _ := config.Get[string](configProvider, "app.name")
+port, _ := config.Get[int](configProvider, "server.port")
+enabled, _ := config.Get[bool](configProvider, "logger.console_enabled")
+
+// 检查配置是否存在
+if configProvider.Has("database.mysql_config.dsn") {
+    // 处理配置
+}
+```
+
+### 8.3 配置项路径
+
+使用点分隔的路径访问嵌套配置：
+
+```yaml
+database:
+  driver: "mysql"
+  mysql_config:
+    dsn: "root:pass@tcp(localhost:3306)/db"
+    pool_config:
+      max_open_conns: 100
+```
+
+访问方式：
+```go
+config.Get[string](configProvider, "database.driver")
+config.Get[string](configProvider, "database.mysql_config.dsn")
+config.Get[int](configProvider, "database.mysql_config.pool_config.max_open_conns")
+```
+
+---
+
+## 9. 实用工具（util 包）
+
+LiteCore 提供了一系列实用工具包，帮助开发者处理常见的开发任务。
+
+### 9.1 JWT 工具（util/jwt）
+
+JWT 令牌生成、解析和验证。
+
+```go
+import (
+    "time"
+    "com.litelake.litecore/util/jwt"
+)
+
+// 生成 JWT Token
+secretKey := []byte("your-secret-key")
+claims := jwt.MapClaims{
+    "user_id": float64(12345),
+    "exp":     float64(time.Now().Add(24 * time.Hour).Unix()),
+    "iat":     float64(time.Now().Unix()),
+}
+
+token, err := jwt.JWT.GenerateHS256Token(claims, secretKey)
+
+// 解析 JWT Token
+parsedClaims, err := jwt.JWT.ParseHS256Token(token, secretKey)
+
+// 验证 Claims
+err = jwt.JWT.ValidateClaims(parsedClaims)
+```
+
+### 9.2 哈希工具（util/hash）
+
+常见哈希算法。
+
+```go
+import "com.litelake.litecore/util/hash"
+
+// MD5
+md5Hash := hash.Hash.MD5String("hello")
+
+// SHA256
+sha256Hash := hash.Hash.SHA256String("hello")
+```
+
+### 9.3 加密工具（util/crypt）
+
+密码加密、AES 加密。
+
+```go
+import "com.litelake.litecore/util/crypt"
+
+// 密码加密
+hashedPassword, err := crypt.BcryptHash("password123")
+
+// 密码验证
+err = crypt.BcryptVerify("password123", hashedPassword)
+
+// AES 加密
+encrypted, err := crypt.AESEncrypt("plaintext", "key")
+
+// AES 解密
+decrypted, err := crypt.AESDecrypt(encrypted, "key")
+```
+
+### 9.4 ID 生成工具（util/id）
+
+唯一 ID 生成。
+
+```go
+import "com.litelake.litecore/util/id"
+
+// 雪花算法 ID
+snowflakeID := id.Snowflake.Generate()
+
+// UUID
+uuid := id.UUID.Generate()
+```
+
+---
+
+## 10. 最佳实践
+
+### 10.1 目录组织
+
+```
+internal/
+├── application/         # 自动生成，不要手动修改
+├── entities/           # 纯数据实体，无业务逻辑
+├── repositories/       # 数据访问层，仅 CRUD
+├── services/           # 业务逻辑层，验证、事务、业务规则
+├── controllers/        # HTTP 层，仅请求响应处理
+├── middlewares/        # 中间件，横切关注点
+├── dtos/               # 请求/响应对象
+└── infras/             # 基础设施，封装框架组件
+    ├── configproviders/ # 配置提供者
+    └── managers/        # 管理器封装
+```
+
+### 10.2 错误处理
+
+```go
+// 在 Service 层包装错误
+return nil, fmt.Errorf("failed to create user: %w", err)
+
+// 在 Controller 层返回 HTTP 响应
+ctx.JSON(500, gin.H{"error": err.Error()})
+```
+
+### 10.3 日志记录
+
+```go
+import "com.litelake.litecore/common"
+
+// 在任意组件中使用
+logger := common.GetLogger(ctx)
+logger.Info("operation completed", "user_id", userID)
+logger.Error("operation failed", "error", err)
+```
+
+### 10.4 数据库事务
+
+```go
+// 使用 Transaction 方法自动处理提交和回滚
+db := r.Manager.DB()
+err := db.Transaction(func(tx *gorm.DB) error {
+    if err := tx.Create(user).Error; err != nil {
+        return err
+    }
+    return nil
+})
+```
+
+### 10.5 缓存使用
+
+```go
+// 在 Service 层使用缓存
+ctx := context.Background()
+cacheKey := fmt.Sprintf("user:%d", id)
+
+var user entities.User
+if err := s.CacheMgr.Get(ctx, cacheKey, &user); err == nil {
+    return &user, nil
+}
+
+// 从数据库查询
+user, err := s.Repository.GetByID(id)
+if err != nil {
+    return nil, err
+}
+
+// 写入缓存
+s.CacheMgr.Set(ctx, cacheKey, user, time.Hour)
+```
+
+### 10.6 测试建议
+
+```go
+// 单元测试：使用 Mock 依赖
+type mockUserRepository struct {
+    repositories.IUserRepository
+    // mock 方法
+}
+
+// 集成测试：使用 SQLite 内存数据库
+sqlite_config:
+  dsn: ":memory:"
+```
+
+---
+
+## 11. 常见问题
+
+### Q: 如何添加新的 Manager？
+
+在 `internal/infras/managers/` 创建新的 Manager 文件，然后运行 `go run ./cmd/generate`。
+
+### Q: 如何自定义路由？
+
+Controller 的 `GetRouter()` 支持完整的路由语法：
+```go
+return "/api/users/:id [GET]"
+return "/api/users [POST]"
+return "/api/files/*filepath [GET]"
+```
+
+### Q: 如何支持多种数据库？
+
+在 `configs/config.yaml` 中切换 `database.driver`，无需修改代码：
+```yaml
+database:
+  driver: "mysql"  # 或 "postgresql", "sqlite"
+  mysql_config:
+    dsn: "user:pass@tcp(localhost:3306)/dbname"
+```
+
+### Q: 如何处理循环依赖？
+
+LiteCore 的依赖注入不支持循环依赖。解决方法：
+- 重构代码，消除循环依赖
+- 使用事件驱动架构
+- 将共享逻辑提取到独立的服务
+
+### Q: 如何热重载开发？
+
+```bash
+# 安装 air
+go install github.com/cosmtrek/air@latest
+
+# 初始化配置
+air init
+
+# 运行
+air
+```
+
+---
+
+## 附录
+
+### A. 完整示例项目
+
+参考 `samples/messageboard` 目录下的留言板示例项目，了解完整的项目结构和代码实现。
+
+### B. 相关文档
+
+- [SOP - 快速实现业务服务](./SOP-build-business-application.md)
+- [SOP - 功能包文档撰写](./SOP-package-document.md)
+- [Common - 公共基础接口](../common/README.md)
+- [Database Manager - 数据库管理器](../component/manager/databasemgr/README.md)
+- [JWT 工具包](../util/jwt/README.md)
+
+### C. 技术支持
+
+如有问题，请提交 Issue 或联系维护团队。
