@@ -9,6 +9,8 @@ import (
 	"encoding/hex"
 	"hash"
 	"io"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // HashOutputFormat 哈希输出格式枚举
@@ -311,4 +313,35 @@ func (h *hashEngine) HMACSHA512(data string, key string) []byte {
 // HMACSHA512String 计算HMAC-SHA512并返回完整十六进制字符串
 func (h *hashEngine) HMACSHA512String(data string, key string) string {
 	return HMACStringGeneric(data, key, SHA512Algorithm{})
+}
+
+// =========================================
+// 便捷方法 - Bcrypt (密码哈希)
+// =========================================
+
+// BcryptDefaultCost 默认 bcrypt 成本因子
+const BcryptDefaultCost = bcrypt.DefaultCost
+
+// BcryptHash 生成 bcrypt 哈希值（使用默认成本因子）
+func (h *hashEngine) BcryptHash(password string) (string, error) {
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(password), BcryptDefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashBytes), nil
+}
+
+// BcryptHashWithCost 生成 bcrypt 哈希值（指定成本因子）
+func (h *hashEngine) BcryptHashWithCost(password string, cost int) (string, error) {
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(password), cost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashBytes), nil
+}
+
+// BcryptVerify 验证密码是否匹配 bcrypt 哈希值
+func (h *hashEngine) BcryptVerify(password string, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }

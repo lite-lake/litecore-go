@@ -3,6 +3,7 @@
 // 核心特性：
 //   - 支持多种哈希算法：MD5、SHA1、SHA256、SHA512
 //   - 支持HMAC（基于哈希的消息认证码）计算
+//   - 支持Bcrypt密码哈希（用于安全的密码存储和验证）
 //   - 提供泛型函数，可扩展支持自定义哈希算法
 //   - 支持多种输出格式：原始字节、16位/32位/完整长度十六进制字符串
 //   - 提供便捷方法，通过 util.Hash 实例快速调用
@@ -20,6 +21,14 @@
 //
 //	// 计算MD5并返回16位短格式
 //	md5Short := util.Hash.MD5String16("filename")
+//
+//	// 使用 Bcrypt 哈希密码（安全存储）
+//	hashedPassword, err := util.Hash.BcryptHash("mypassword")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	// 验证密码
+//	isValid := util.Hash.BcryptVerify("mypassword", hashedPassword)
 //
 //	// 使用泛型函数计算哈希值
 //	hashBytes := hash.HashGeneric("data", hash.SHA256Algorithm{})

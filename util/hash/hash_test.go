@@ -1040,6 +1040,178 @@ func BenchmarkHMACSHA256(b *testing.B) {
 }
 
 // =========================================
+// 测试 Bcrypt 方法
+// =========================================
+
+func TestHashEngine_BcryptHash(t *testing.T) {
+	tests := []struct {
+		name      string
+		password  string
+		wantError bool
+	}{
+		{"简单密码", "mypassword", false},
+		{"复杂密码", "P@ssw0rd!2024", false},
+		{"中文字符密码", "密码123", false},
+		{"特殊字符密码", "!@#$%^&*()", false},
+		{"中等长度密码", strings.Repeat("a", 50), false},
+		{"空密码", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hashedPassword, err := Hash.BcryptHash(tt.password)
+
+			if tt.wantError && err == nil {
+				t.Error("BcryptHash() 应该返回错误但没有")
+				return
+			}
+
+			if !tt.wantError && err != nil {
+				t.Errorf("BcryptHash() error = %v", err)
+				return
+			}
+
+			if !tt.wantError {
+				// 验证哈希值格式（bcrypt 哈希以 $2a$、$2b$ 或 $2y$ 开头）
+				if len(hashedPassword) < 60 {
+					t.Errorf("BcryptHash() 返回的哈希值长度 = %v, want >= 60", len(hashedPassword))
+				}
+
+				// 验证可以正确验证密码
+				if !Hash.BcryptVerify(tt.password, hashedPassword) {
+					t.Error("BcryptVerify() 未能验证正确的密码")
+				}
+			}
+		})
+	}
+}
+
+func TestHashEngine_BcryptHashWithCost(t *testing.T) {
+	password := "testpassword"
+
+	t.Run("默认成本因子", func(t *testing.T) {
+		hashedPassword, err := Hash.BcryptHashWithCost(password, BcryptDefaultCost)
+		if err != nil {
+			t.Errorf("BcryptHashWithCost() error = %v", err)
+		}
+
+		if !Hash.BcryptVerify(password, hashedPassword) {
+			t.Error("BcryptVerify() 未能验证正确的密码")
+		}
+	})
+
+	t.Run("低成本因子", func(t *testing.T) {
+		hashedPassword, err := Hash.BcryptHashWithCost(password, 4)
+		if err != nil {
+			t.Errorf("BcryptHashWithCost() error = %v", err)
+		}
+
+		if !Hash.BcryptVerify(password, hashedPassword) {
+			t.Error("BcryptVerify() 未能验证正确的密码")
+		}
+	})
+
+	t.Run("高成本因子", func(t *testing.T) {
+		hashedPassword, err := Hash.BcryptHashWithCost(password, 12)
+		if err != nil {
+			t.Errorf("BcryptHashWithCost() error = %v", err)
+		}
+
+		if !Hash.BcryptVerify(password, hashedPassword) {
+			t.Error("BcryptVerify() 未能验证正确的密码")
+		}
+	})
+}
+
+func TestHashEngine_BcryptVerify(t *testing.T) {
+	password := "correctpassword"
+
+	t.Run("验证正确密码", func(t *testing.T) {
+		hashedPassword, err := Hash.BcryptHash(password)
+		if err != nil {
+			t.Errorf("BcryptHash() error = %v", err)
+		}
+
+		if !Hash.BcryptVerify(password, hashedPassword) {
+			t.Error("BcryptVerify() 未能验证正确的密码")
+		}
+	})
+
+	t.Run("验证错误密码", func(t *testing.T) {
+		hashedPassword, err := Hash.BcryptHash(password)
+		if err != nil {
+			t.Errorf("BcryptHash() error = %v", err)
+		}
+
+		if Hash.BcryptVerify("wrongpassword", hashedPassword) {
+			t.Error("BcryptVerify() 验证了错误的密码")
+		}
+	})
+
+	t.Run("验证不同长度密码", func(t *testing.T) {
+		hashedPassword, err := Hash.BcryptHash(password)
+		if err != nil {
+			t.Errorf("BcryptHash() error = %v", err)
+		}
+
+		tests := []struct {
+			name     string
+			password string
+			expected bool
+		}{
+			{"空密码", "", false},
+			{"类似密码", "correctpassword1", false},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := Hash.BcryptVerify(tt.password, hashedPassword)
+				if result != tt.expected {
+					t.Errorf("BcryptVerify() = %v, want %v", result, tt.expected)
+				}
+			})
+		}
+	})
+
+	t.Run("多次哈希一致性", func(t *testing.T) {
+		hash1, err1 := Hash.BcryptHash(password)
+		hash2, err2 := Hash.BcryptHash(password)
+
+		if err1 != nil || err2 != nil {
+			t.Error("BcryptHash() 返回错误")
+		}
+
+		// bcrypt 每次生成的哈希值应该不同（因为盐值随机）
+		if hash1 == hash2 {
+			t.Error("bcrypt 哈希值应该每次都不同（随机盐值）")
+		}
+
+		// 但两个哈希值都应该能验证密码
+		if !Hash.BcryptVerify(password, hash1) || !Hash.BcryptVerify(password, hash2) {
+			t.Error("两个不同的哈希值都应该能验证密码")
+		}
+	})
+}
+
+func TestBcryptHashFormat(t *testing.T) {
+	hashedPassword, err := Hash.BcryptHash("test")
+	if err != nil {
+		t.Errorf("BcryptHash() error = %v", err)
+	}
+
+	// bcrypt 哈希格式：$2[ab]$cost$22charsalt*31chars
+	// 总长度应为 60 字符
+	if len(hashedPassword) != 60 {
+		t.Errorf("bcrypt 哈希长度 = %v, want 60", len(hashedPassword))
+	}
+
+	// 验证前缀
+	if hashedPassword[0:4] != "$2a$" && hashedPassword[0:4] != "$2b$" {
+		t.Errorf("bcrypt 哈希前缀错误: %v", hashedPassword[0:4])
+	}
+}
+
+// =========================================
 // 测试辅助类型
 // =========================================
 
