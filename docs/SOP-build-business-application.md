@@ -1,5 +1,56 @@
 # 基于 LiteCore 快速实现业务服务
 
+## 引用私有仓库的 LiteCore
+
+LiteCore 托管在私有 Git 仓库中，有两种方式在业务项目中使用：
+
+### 方式一：配置 GOPRIVATE（推荐）
+
+适用于生产环境和团队协作：
+
+```bash
+# 1. 设置私有模块前缀
+export GOPRIVATE=com.litelake.litecore
+
+# 2. 在新项目中引用指定版本
+go mod init com.litelake.myapp
+go get com.litelake.litecore@v0.0.1
+
+# 3. 或使用最新版本
+go get com.litelake.litecore@latest
+```
+
+### 方式二：使用 replace 指令
+
+适用于本地开发和调试：
+
+```bash
+# 1. 初始化项目
+go mod init com.litelake.myapp
+
+# 2. 在 go.mod 中添加 replace 指令
+# replace com.litelake.litecore => /Users/kentzhu/Projects/lite-lake/litecore-go
+
+# 3. 执行依赖整理
+go mod tidy
+
+# 4. 运行应用
+go run ./cmd/server
+```
+
+### 版本管理
+
+```bash
+# 查看可用版本
+git -C /path/to/litecore-go tag
+
+# 切换到特定版本
+go get com.litelake.litecore@v0.0.1
+
+# 更新到最新版本
+go get com.litelake.litecore@latest
+```
+
 ## 快速开始
 
 ### 1. 初始化项目
