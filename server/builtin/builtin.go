@@ -9,6 +9,7 @@ import (
 	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
 	"github.com/lite-lake/litecore-go/config"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 type Config struct {
@@ -29,6 +30,7 @@ func (c *Config) Validate() error {
 type Components struct {
 	ConfigProvider common.IBaseConfigProvider
 	LoggerManager  loggermgr.ILoggerManager
+	LoggerRegistry *logger.LoggerRegistry
 	TelemetryMgr   telemetrymgr.ITelemetryManager
 	DatabaseMgr    databasemgr.IDatabaseManager
 	CacheMgr       cachemgr.ICacheManager
@@ -44,10 +46,14 @@ func Initialize(cfg *Config) (*Components, error) {
 		return nil, fmt.Errorf("failed to create config provider: %w", err)
 	}
 
+	loggerRegistry := logger.NewLoggerRegistry()
+
 	loggerManager, err := loggermgr.BuildWithConfigProvider(configProvider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger manager: %w", err)
 	}
+
+	loggerRegistry.SetLoggerManager(loggerManager)
 
 	telemetryMgr, err := telemetrymgr.BuildWithConfigProvider(configProvider)
 	if err != nil {
@@ -67,6 +73,7 @@ func Initialize(cfg *Config) (*Components, error) {
 	return &Components{
 		ConfigProvider: configProvider,
 		LoggerManager:  loggerManager,
+		LoggerRegistry: loggerRegistry,
 		TelemetryMgr:   telemetryMgr,
 		DatabaseMgr:    databaseMgr,
 		CacheMgr:       cacheMgr,

@@ -13,12 +13,11 @@ import (
 type pprofHandlerFunc func(http.ResponseWriter, *http.Request)
 
 type PprofController struct {
-	name      string
-	route     string
-	method    string
-	handle    pprofHandlerFunc
-	loggerMgr logger.ILoggerManager
-	logger    logger.ILogger
+	name   string
+	route  string
+	method string
+	handle pprofHandlerFunc
+	Logger logger.ILogger `inject:""`
 }
 
 func (c *PprofController) ControllerName() string {
@@ -31,17 +30,6 @@ func (c *PprofController) GetRouter() string {
 
 func (c *PprofController) Handle(ctx *gin.Context) {
 	c.handle(wrapResponseWriter(ctx.Writer), ctx.Request)
-}
-
-func (c *PprofController) Logger() logger.ILogger {
-	return c.logger
-}
-
-func (c *PprofController) SetLoggerManager(mgr logger.ILoggerManager) {
-	c.loggerMgr = mgr
-	if mgr != nil {
-		c.logger = mgr.Logger(c.name)
-	}
 }
 
 var _ common.IBaseController = (*PprofController)(nil)

@@ -5,7 +5,7 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	componentControllers "github.com/lite-lake/litecore-go/component/controller"
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IResStaticController 静态文件控制器接口
@@ -15,8 +15,7 @@ type IResStaticController interface {
 
 type resStaticControllerImpl struct {
 	componentController *componentControllers.ResourceStaticController
-	LoggerMgr           loggermgr.ILoggerManager `inject:""`
-	logger              loggermgr.ILogger
+	Logger              logger.ILogger `inject:""`
 }
 
 func NewResStaticController() IResStaticController {
@@ -31,21 +30,6 @@ func (c *resStaticControllerImpl) ControllerName() string {
 
 func (c *resStaticControllerImpl) GetRouter() string {
 	return c.componentController.GetRouter()
-}
-
-func (c *resStaticControllerImpl) Logger() loggermgr.ILogger {
-	return c.logger
-}
-
-func (c *resStaticControllerImpl) SetLoggerManager(mgr loggermgr.ILoggerManager) {
-	c.LoggerMgr = mgr
-	c.initLogger()
-}
-
-func (c *resStaticControllerImpl) initLogger() {
-	if c.LoggerMgr != nil {
-		c.logger = c.LoggerMgr.Logger("ResStaticController")
-	}
 }
 
 func (c *resStaticControllerImpl) Handle(ctx *gin.Context) {

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 type mockLogger struct {
@@ -40,54 +39,11 @@ func (m *mockLogger) Fatal(msg string, args ...any) {
 	m.fatalMsgs = append(m.fatalMsgs, msg)
 }
 
-func (m *mockLogger) With(args ...any) loggermgr.ILogger {
+func (m *mockLogger) With(args ...any) logger.ILogger {
 	return m
 }
 
-func (m *mockLogger) SetLevel(level loggermgr.LogLevel) {
-}
-
-type mockLoggerManager struct {
-	loggers map[string]loggermgr.ILogger
-}
-
-func (m *mockLoggerManager) ManagerName() string {
-	return "mockLoggerManager"
-}
-
-func (m *mockLoggerManager) Health() error {
-	return nil
-}
-
-func (m *mockLoggerManager) OnStart() error {
-	return nil
-}
-
-func (m *mockLoggerManager) OnStop() error {
-	return nil
-}
-
-func (m *mockLoggerManager) Logger(name string) loggermgr.ILogger {
-	if m.loggers == nil {
-		m.loggers = make(map[string]loggermgr.ILogger)
-	}
-	logger, ok := m.loggers[name]
-	if !ok {
-		logger = &mockLogger{}
-		m.loggers[name] = logger
-	}
-	return logger
-}
-
-func (m *mockLoggerManager) SetGlobalLevel(level loggermgr.LogLevel) {
-}
-
-func (m *mockLoggerManager) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-type fatalMockLogger struct {
-	*mockLogger
+func (m *mockLogger) SetLevel(level logger.LogLevel) {
 }
 
 func TestNewRecoveryMiddleware(t *testing.T) {
@@ -174,13 +130,6 @@ func TestRecoveryMiddleware_Wrapper(t *testing.T) {
 			withLogger:     true,
 		},
 		{
-			name:           "无日志管理器的panic恢复",
-			panicValue:     "test panic",
-			hasPanic:       true,
-			expectedStatus: http.StatusInternalServerError,
-			withLogger:     false,
-		},
-		{
 			name:           "带有请求ID的panic恢复",
 			panicValue:     "test panic",
 			hasPanic:       true,
@@ -203,7 +152,7 @@ func TestRecoveryMiddleware_Wrapper(t *testing.T) {
 
 			middleware := NewRecoveryMiddleware().(*RecoveryMiddleware)
 			if tt.withLogger {
-				middleware.LoggerManager = &mockLoggerManager{}
+				middleware.Logger = &mockLogger{}
 			}
 			router.Use(middleware.Wrapper())
 
@@ -310,7 +259,7 @@ func TestRecoveryMiddleware_PanicWithContext(t *testing.T) {
 			router := gin.New()
 
 			middleware := NewRecoveryMiddleware().(*RecoveryMiddleware)
-			middleware.LoggerManager = &mockLoggerManager{}
+			middleware.Logger = &mockLogger{}
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", tt.handler)

@@ -293,16 +293,12 @@ func TestNewCacheManagerBaseImpl(t *testing.T) {
 		t.Fatal("newICacheManagerBaseImpl() returned nil")
 	}
 
-	if base.loggerMgr != nil {
-		t.Error("expected loggerMgr to be nil initially")
+	if base.Logger != nil {
+		t.Error("expected Logger to be nil initially")
 	}
 
 	if base.telemetryMgr != nil {
 		t.Error("expected telemetryMgr to be nil initially")
-	}
-
-	if base.logger != nil {
-		t.Error("expected logger to be nil before initialization")
 	}
 
 	if base.tracer != nil {
@@ -322,8 +318,8 @@ func TestICacheManagerBaseImpl_InitObservability(t *testing.T) {
 	base.initObservability()
 
 	// 验证没有 panic，且字段保持为 nil
-	if base.logger != nil {
-		t.Error("expected logger to remain nil without loggerMgr")
+	if base.Logger != nil {
+		t.Error("expected Logger to remain nil")
 	}
 
 	if base.tracer != nil {

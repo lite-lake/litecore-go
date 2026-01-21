@@ -13,6 +13,7 @@ import (
 type mockController struct {
 	name   string
 	router string
+	Logger logger.ILogger `inject:""`
 }
 
 func (m *mockController) ControllerName() string {
@@ -29,14 +30,9 @@ func (m *mockController) Handle(ctx *gin.Context) {
 	})
 }
 
-func (m *mockController) Logger() logger.ILogger {
-	return nil
+type testController struct {
+	Logger logger.ILogger `inject:""`
 }
-
-func (m *mockController) SetLoggerManager(mgr logger.ILoggerManager) {
-}
-
-type testController struct{}
 
 func (t *testController) ControllerName() string {
 	return "TestController"
@@ -50,13 +46,6 @@ func (t *testController) Handle(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{
 		"controller": t.ControllerName(),
 	})
-}
-
-func (t *testController) Logger() logger.ILogger {
-	return nil
-}
-
-func (t *testController) SetLoggerManager(mgr logger.ILoggerManager) {
 }
 
 func TestIBaseController_基础接口实现(t *testing.T) {

@@ -108,11 +108,10 @@ var _ IMockRepository = (*MockRepository)(nil)
 
 // MockService Mock 服务
 type MockService struct {
-	name      string
-	Config    common.IBaseConfigProvider `inject:""`
-	Repo      common.IBaseRepository     `inject:""`
-	loggerMgr logger.ILoggerManager
-	logger    logger.ILogger
+	name   string
+	Config common.IBaseConfigProvider `inject:""`
+	Repo   common.IBaseRepository     `inject:""`
+	Logger logger.ILogger             `inject:"optional"`
 }
 
 func (m *MockService) ServiceName() string {
@@ -127,25 +126,13 @@ func (m *MockService) OnStop() error {
 	return nil
 }
 
-func (m *MockService) Logger() logger.ILogger {
-	return m.logger
-}
-
-func (m *MockService) SetLoggerManager(mgr logger.ILoggerManager) {
-	m.loggerMgr = mgr
-	if mgr != nil {
-		m.logger = mgr.Logger("MockService")
-	}
-}
-
 var _ IMockService = (*MockService)(nil)
 
 // MockController Mock 控制器
 type MockController struct {
-	name      string
-	Service   common.IBaseService `inject:""`
-	loggerMgr logger.ILoggerManager
-	logger    logger.ILogger
+	name    string
+	Service common.IBaseService `inject:""`
+	Logger  logger.ILogger      `inject:"optional"`
 }
 
 func (m *MockController) ControllerName() string {
@@ -158,17 +145,6 @@ func (m *MockController) GetRouter() string {
 
 func (m *MockController) Handle(ctx *gin.Context) {
 	// Mock 实现
-}
-
-func (m *MockController) Logger() logger.ILogger {
-	return m.logger
-}
-
-func (m *MockController) SetLoggerManager(mgr logger.ILoggerManager) {
-	m.loggerMgr = mgr
-	if mgr != nil {
-		m.logger = mgr.Logger("MockController")
-	}
 }
 
 var _ IMockController = (*MockController)(nil)

@@ -10,15 +10,14 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // cacheManagerBaseImpl 提供可观测性和工具函数
 type cacheManagerBaseImpl struct {
-	loggerMgr         loggermgr.ILoggerManager       `inject:""`
+	Logger            logger.ILogger                 `inject:""`
 	telemetryMgr      telemetrymgr.ITelemetryManager `inject:""`
-	logger            loggermgr.ILogger
 	tracer            trace.Tracer
 	meter             metric.Meter
 	cacheHitCounter   metric.Int64Counter
@@ -33,11 +32,6 @@ func newICacheManagerBaseImpl() *cacheManagerBaseImpl {
 
 // initObservability 初始化可观测性组件（在依赖注入后调用）
 func (b *cacheManagerBaseImpl) initObservability() {
-	// 初始化 logger
-	if b.loggerMgr != nil {
-		b.logger = b.loggerMgr.Logger("cachemgr")
-	}
-
 	// 初始化 telemetry
 	if b.telemetryMgr != nil {
 		b.tracer = b.telemetryMgr.Tracer("cachemgr")
@@ -71,7 +65,7 @@ func (b *cacheManagerBaseImpl) recordOperation(
 	fn func() error,
 ) error {
 	// 如果没有可观测性配置，直接执行操作
-	if b.tracer == nil && b.logger == nil && b.operationDuration == nil {
+	if b.tracer == nil && b.Logger == nil && b.operationDuration == nil {
 		return fn()
 	}
 
@@ -99,9 +93,9 @@ func (b *cacheManagerBaseImpl) recordOperation(
 		)
 	}
 
-	if b.logger != nil {
+	if b.Logger != nil {
 		if err != nil {
-			b.logger.Error("cache operation failed",
+			b.Logger.Error("cache operation failed",
 				"operation", operation,
 				"key", sanitizeKey(key),
 				"error", err.Error(),
@@ -112,7 +106,7 @@ func (b *cacheManagerBaseImpl) recordOperation(
 				span.SetStatus(codes.Error, err.Error())
 			}
 		} else {
-			b.logger.Debug("cache operation success",
+			b.Logger.Debug("cache operation success",
 				"operation", operation,
 				"key", sanitizeKey(key),
 				"duration", duration,

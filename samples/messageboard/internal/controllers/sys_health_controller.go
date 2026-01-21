@@ -5,7 +5,7 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	componentControllers "github.com/lite-lake/litecore-go/component/controller"
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // ISysHealthController 健康检查控制器接口
@@ -15,8 +15,7 @@ type ISysHealthController interface {
 
 type sysHealthControllerImpl struct {
 	componentController componentControllers.IHealthController
-	LoggerMgr           loggermgr.ILoggerManager `inject:""`
-	logger              loggermgr.ILogger
+	Logger              logger.ILogger `inject:""`
 }
 
 func NewSysHealthController() ISysHealthController {
@@ -31,21 +30,6 @@ func (c *sysHealthControllerImpl) ControllerName() string {
 
 func (c *sysHealthControllerImpl) GetRouter() string {
 	return c.componentController.GetRouter()
-}
-
-func (c *sysHealthControllerImpl) Logger() loggermgr.ILogger {
-	return c.logger
-}
-
-func (c *sysHealthControllerImpl) SetLoggerManager(mgr loggermgr.ILoggerManager) {
-	c.LoggerMgr = mgr
-	c.initLogger()
-}
-
-func (c *sysHealthControllerImpl) initLogger() {
-	if c.LoggerMgr != nil {
-		c.logger = c.LoggerMgr.Logger("SysHealthController")
-	}
 }
 
 func (c *sysHealthControllerImpl) Handle(ctx *gin.Context) {
