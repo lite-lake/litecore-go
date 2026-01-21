@@ -9,7 +9,7 @@
 //	// 使用工厂函数创建
 //	mgr, err := loggermgr.BuildWithConfigProvider(provider)
 //	if err != nil {
-//	    log.Fatal(err)
+//	    mgr.Logger("main").Fatal("创建日志管理器失败", "error", err)
 //	}
 //	mgr.OnStart()
 //	defer mgr.Shutdown(ctx)

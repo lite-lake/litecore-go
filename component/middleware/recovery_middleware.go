@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"runtime/debug"
 	"time"
 
@@ -53,7 +52,7 @@ func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
 				if m.Logger != nil {
 					m.Logger.Error(
 						"PANIC recovered",
-						"panic", fmt.Sprintf("%v", err),
+						"panic", err,
 						"method", method,
 						"path", path,
 						"query", query,
@@ -66,7 +65,7 @@ func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
 				}
 
 				c.JSON(common.HTTPStatusInternalServerError, gin.H{
-					"error": fmt.Sprintf("内部服务器错误"),
+					"error": "内部服务器错误",
 					"code":  "INTERNAL_SERVER_ERROR",
 				})
 				c.Abort()

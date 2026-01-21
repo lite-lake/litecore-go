@@ -16,9 +16,14 @@ package databasemgr
 //	cfg := map[string]any{
 //	    "dsn": "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local",
 //	}
+//
+//	loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
+//	loggerMgr := loggermgr.GetLoggerManager()
+//	logger := loggerMgr.Logger("main")
+//
 //	dbMgr, err := databasemgr.Build("mysql", cfg)
 //	if err != nil {
-//	    log.Fatal(err)
+//	    logger.Fatal("创建数据库管理器失败", "error", err)
 //	}
 //	defer dbMgr.Close()
 //
@@ -75,7 +80,7 @@ package databasemgr
 // 所有数据库操作都应检查错误。Health() 方法可用于健康检查:
 //
 //	if err := dbMgr.Health(); err != nil {
-//	    log.Error("database health check failed", err)
+//	    logger.Error("数据库健康检查失败", "error", err)
 //	}
 //
 // 性能考虑：
