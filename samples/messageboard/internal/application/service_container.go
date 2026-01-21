@@ -7,12 +7,8 @@ import (
 )
 
 // InitServiceContainer 初始化服务容器
-func InitServiceContainer(
-	configContainer *container.ConfigContainer,
-	managerContainer *container.ManagerContainer,
-	repositoryContainer *container.RepositoryContainer,
-) *container.ServiceContainer {
-	serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
+func InitServiceContainer(repositoryContainer *container.RepositoryContainer) *container.ServiceContainer {
+	serviceContainer := container.NewServiceContainer(repositoryContainer)
 	container.RegisterService[services.IAuthService](serviceContainer, services.NewAuthService())
 	container.RegisterService[services.IHTMLTemplateService](serviceContainer, services.NewHTMLTemplateService())
 	container.RegisterService[services.IMessageService](serviceContainer, services.NewMessageService())

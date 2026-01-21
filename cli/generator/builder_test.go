@@ -31,25 +31,11 @@ func TestBuilder_Generate(t *testing.T) {
 		info := &analyzer.ProjectInfo{
 			ModuleName: "test.module",
 			Layers: map[analyzer.Layer][]*analyzer.ComponentInfo{
-				analyzer.LayerConfig: {
-					{
-						InterfaceName: "ConfigProvider",
-						FactoryFunc:   "NewConfigProvider",
-						PackagePath:   "test.module/config",
-					},
-				},
 				analyzer.LayerEntity: {
 					{
 						InterfaceName: "User",
 						FileName:      "user.go",
 						PackagePath:   "test.module/entities",
-					},
-				},
-				analyzer.LayerManager: {
-					{
-						InterfaceName: "DatabaseManager",
-						FactoryFunc:   "NewDatabaseManager",
-						PackagePath:   "test.module/infras",
 					},
 				},
 				analyzer.LayerRepository: {
@@ -88,9 +74,7 @@ func TestBuilder_Generate(t *testing.T) {
 
 		require.NoError(t, err)
 
-		assert.FileExists(t, filepath.Join(outputDir, "config_container.go"))
 		assert.FileExists(t, filepath.Join(outputDir, "entity_container.go"))
-		assert.FileExists(t, filepath.Join(outputDir, "manager_container.go"))
 		assert.FileExists(t, filepath.Join(outputDir, "repository_container.go"))
 		assert.FileExists(t, filepath.Join(outputDir, "service_container.go"))
 		assert.FileExists(t, filepath.Join(outputDir, "controller_container.go"))

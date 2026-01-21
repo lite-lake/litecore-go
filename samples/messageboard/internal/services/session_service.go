@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/cachemgr"
 	"github.com/lite-lake/litecore-go/config"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
-	"github.com/lite-lake/litecore-go/samples/messageboard/internal/infras/managers"
-	"github.com/google/uuid"
 )
 
 // ISessionService 会话服务接口
@@ -24,7 +24,7 @@ type ISessionService interface {
 
 type sessionService struct {
 	Config   common.IBaseConfigProvider `inject:""`
-	CacheMgr managers.ICacheManager     `inject:""`
+	CacheMgr cachemgr.ICacheManager     `inject:""`
 	timeout  time.Duration
 }
 

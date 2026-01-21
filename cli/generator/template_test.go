@@ -46,20 +46,20 @@ func TestComponentTemplateData(t *testing.T) {
 	assert.Equal(t, "NewMessage", comp.FactoryFunc)
 }
 
-func TestGenerateConfigContainer(t *testing.T) {
+func TestGenerateEngine(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
 		ConfigPath:  "configs/config.yaml",
-		Imports:     map[string]string{},
 	}
 
-	code, err := GenerateConfigContainer(data)
+	code, err := GenerateEngine(data)
 	assert.NoError(t, err)
 	assert.Contains(t, code, "package application")
-	assert.Contains(t, code, "InitConfigContainer")
+	assert.Contains(t, code, "NewEngine")
+	assert.Contains(t, code, "server.NewEngine")
+	assert.Contains(t, code, "builtin.Config")
 	assert.Contains(t, code, "configs/config.yaml")
 }
-
 func TestGenerateEntityContainer(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
@@ -166,16 +166,4 @@ func TestGenerateMiddlewareContainer(t *testing.T) {
 	assert.Contains(t, code, "InitMiddlewareContainer")
 	assert.Contains(t, code, "RegisterMiddleware")
 	assert.Contains(t, code, "IAuthMiddleware")
-}
-
-func TestGenerateEngine(t *testing.T) {
-	data := &TemplateData{
-		PackageName: "application",
-	}
-
-	code, err := GenerateEngine(data)
-	assert.NoError(t, err)
-	assert.Contains(t, code, "package application")
-	assert.Contains(t, code, "NewEngine")
-	assert.Contains(t, code, "server.NewEngine")
 }

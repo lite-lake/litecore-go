@@ -9,30 +9,14 @@ import (
 
 // TestControllerContainer 测试 ControllerContainer
 func TestControllerContainer(t *testing.T) {
-	configContainer := NewConfigContainer()
-	managerContainer := NewManagerContainer(configContainer)
 	entityContainer := NewEntityContainer()
-	repositoryContainer := NewRepositoryContainer(configContainer, managerContainer, entityContainer)
-	serviceContainer := NewServiceContainer(configContainer, managerContainer, repositoryContainer)
-	controllerContainer := NewControllerContainer(configContainer, managerContainer, serviceContainer)
-
-	// 注册配置
-	config := &MockConfigProvider{name: "app-config"}
-	err := configContainer.RegisterByType(reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem(), config)
-	if err != nil {
-		t.Fatalf("Register config failed: %v", err)
-	}
-
-	// 注册管理器
-	manager := &MockManager{name: "db-manager"}
-	err = managerContainer.RegisterByType(reflect.TypeOf((*common.IBaseManager)(nil)).Elem(), manager)
-	if err != nil {
-		t.Fatalf("Register manager failed: %v", err)
-	}
+	repositoryContainer := NewRepositoryContainer(entityContainer)
+	serviceContainer := NewServiceContainer(repositoryContainer)
+	controllerContainer := NewControllerContainer(serviceContainer)
 
 	// 注册实体
 	entity := &MockEntity{name: "user-entity", id: "1"}
-	err = entityContainer.Register(entity)
+	err := entityContainer.Register(entity)
 	if err != nil {
 		t.Fatalf("Register entity failed: %v", err)
 	}
@@ -51,12 +35,26 @@ func TestControllerContainer(t *testing.T) {
 		t.Fatalf("Register service failed: %v", err)
 	}
 
-	// 注入下层容器
-	err = managerContainer.InjectAll()
+	// 注册控制器
+	controller := &MockController{name: "user-controller"}
+	err = controllerContainer.RegisterByType(reflect.TypeOf((*common.IBaseController)(nil)).Elem(), controller)
 	if err != nil {
-		t.Fatalf("Manager InjectAll failed: %v", err)
+		t.Fatalf("Register controller failed: %v", err)
 	}
 
+	// 设置 BuiltinProvider
+	config := &MockConfigProvider{name: "app-config"}
+	manager := &MockManager{name: "db-manager"}
+	builtinProvider := &MockBuiltinProvider{
+		configProvider: config,
+		managers:       []interface{}{manager},
+	}
+
+	repositoryContainer.SetBuiltinProvider(builtinProvider)
+	serviceContainer.SetBuiltinProvider(builtinProvider)
+	controllerContainer.SetBuiltinProvider(builtinProvider)
+
+	// 注入依赖
 	err = repositoryContainer.InjectAll()
 	if err != nil {
 		t.Fatalf("Repository InjectAll failed: %v", err)
@@ -67,14 +65,6 @@ func TestControllerContainer(t *testing.T) {
 		t.Fatalf("Service InjectAll failed: %v", err)
 	}
 
-	// 注册控制器
-	controller := &MockController{name: "user-controller"}
-	err = controllerContainer.RegisterByType(reflect.TypeOf((*common.IBaseController)(nil)).Elem(), controller)
-	if err != nil {
-		t.Fatalf("Register controller failed: %v", err)
-	}
-
-	// 注入依赖
 	err = controllerContainer.InjectAll()
 	if err != nil {
 		t.Fatalf("InjectAll failed: %v", err)

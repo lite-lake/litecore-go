@@ -12,14 +12,18 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
+	"github.com/lite-lake/litecore-go/server/builtin"
 )
 
 // Engine 服务引擎
 type Engine struct {
+	// 内置配置（在 Initialize 时用于初始化内置组件）
+	builtinConfig *builtin.Config
+	// 内置组件（在 Initialize 时初始化）
+	builtin *builtin.Components
+
 	// 容器
-	Config     *container.ConfigContainer
 	Entity     *container.EntityContainer
-	Manager    *container.ManagerContainer
 	Repository *container.RepositoryContainer
 	Service    *container.ServiceContainer
 	Controller *container.ControllerContainer
@@ -40,11 +44,9 @@ type Engine struct {
 	mu      sync.RWMutex
 }
 
-// NewEngine 创建服务引擎
 func NewEngine(
-	config *container.ConfigContainer,
+	builtinConfig *builtin.Config,
 	entity *container.EntityContainer,
-	manager *container.ManagerContainer,
 	repository *container.RepositoryContainer,
 	service *container.ServiceContainer,
 	controller *container.ControllerContainer,
@@ -54,9 +56,7 @@ func NewEngine(
 	defaultConfig := defaultServerConfig()
 
 	return &Engine{
-		Config:          config,
 		Entity:          entity,
-		Manager:         manager,
 		Repository:      repository,
 		Service:         service,
 		Controller:      controller,
@@ -65,10 +65,12 @@ func NewEngine(
 		shutdownTimeout: defaultConfig.ShutdownTimeout,
 		ctx:             ctx,
 		cancel:          cancel,
+		builtinConfig:   builtinConfig,
 	}
 }
 
 // Initialize 初始化引擎（实现 liteServer 接口）
+// - 初始化内置组件（Config、Logger、Telemetry、Database、Cache）
 // - 创建 Gin 引擎
 // - 注册全局中间件
 // - 注册系统路由
@@ -76,6 +78,13 @@ func NewEngine(
 func (e *Engine) Initialize() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	// 初始化内置组件
+	builtinComponents, err := builtin.Initialize(e.builtinConfig)
+	if err != nil {
+		return fmt.Errorf("failed to initialize builtin components: %w", err)
+	}
+	e.builtin = builtinComponents
 
 	// 自动依赖注入
 	if err := e.autoInject(); err != nil {
@@ -126,33 +135,31 @@ func (e *Engine) Initialize() error {
 // autoInject 自动依赖注入
 func (e *Engine) autoInject() error {
 	// 按依赖顺序自动注入
-	// 1. Config 层（无依赖）- 已经在 NewEngine 中完成
-	// 2. Entity 层（无依赖）
+	// 1. Entity 层（无依赖）
 	if err := e.Entity.InjectAll(); err != nil {
 		return fmt.Errorf("entity inject failed: %w", err)
 	}
 
-	// 3. Manager 层（依赖 Config + 同层）
-	if err := e.Manager.InjectAll(); err != nil {
-		return fmt.Errorf("manager inject failed: %w", err)
-	}
-
-	// 4. Repository 层（依赖 Config + Manager + Entity）
+	// 2. Repository 层（依赖 Builtin + Entity）
+	e.Repository.SetBuiltinProvider(e.builtin)
 	if err := e.Repository.InjectAll(); err != nil {
 		return fmt.Errorf("repository inject failed: %w", err)
 	}
 
-	// 5. Service 层（依赖 Config + Manager + Repository + 同层）
+	// 3. Service 层（依赖 Builtin + Repository + 同层）
+	e.Service.SetBuiltinProvider(e.builtin)
 	if err := e.Service.InjectAll(); err != nil {
 		return fmt.Errorf("service inject failed: %w", err)
 	}
 
-	// 6. Controller 层（依赖 Config + Manager + Service）
+	// 4. Controller 层（依赖 Builtin + Service）
+	e.Controller.SetBuiltinProvider(e.builtin)
 	if err := e.Controller.InjectAll(); err != nil {
 		return fmt.Errorf("controller inject failed: %w", err)
 	}
 
-	// 7. Middleware 层（依赖 Config + Manager + Service）
+	// 5. Middleware 层（依赖 Builtin + Service）
+	e.Middleware.SetBuiltinProvider(e.builtin)
 	if err := e.Middleware.InjectAll(); err != nil {
 		return fmt.Errorf("middleware inject failed: %w", err)
 	}

@@ -32,16 +32,8 @@ func NewBuilder(projectPath, outputDir, packageName, moduleName, configPath stri
 
 // Generate 生成所有容器代码
 func (b *Builder) Generate(info *analyzer.ProjectInfo) error {
-	if err := b.generateConfigContainer(info); err != nil {
-		return fmt.Errorf("generate config container failed: %w", err)
-	}
-
 	if err := b.generateEntityContainer(info); err != nil {
 		return fmt.Errorf("generate entity container failed: %w", err)
-	}
-
-	if err := b.generateManagerContainer(info); err != nil {
-		return fmt.Errorf("generate manager container failed: %w", err)
 	}
 
 	if err := b.generateRepositoryContainer(info); err != nil {
@@ -67,25 +59,6 @@ func (b *Builder) Generate(info *analyzer.ProjectInfo) error {
 	return nil
 }
 
-// generateConfigContainer 生成配置容器代码
-func (b *Builder) generateConfigContainer(info *analyzer.ProjectInfo) error {
-	components := b.convertComponents(info.Layers[analyzer.LayerConfig])
-
-	data := &TemplateData{
-		PackageName: b.packageName,
-		ConfigPath:  b.configPath,
-		Imports:     b.collectImports(info, analyzer.LayerConfig),
-		Components:  components,
-	}
-
-	code, err := GenerateConfigContainer(data)
-	if err != nil {
-		return err
-	}
-
-	return b.writeFile("config_container.go", code)
-}
-
 // generateEntityContainer 生成实体容器代码
 func (b *Builder) generateEntityContainer(info *analyzer.ProjectInfo) error {
 	components := b.convertComponents(info.Layers[analyzer.LayerEntity])
@@ -102,24 +75,6 @@ func (b *Builder) generateEntityContainer(info *analyzer.ProjectInfo) error {
 	}
 
 	return b.writeFile("entity_container.go", code)
-}
-
-// generateManagerContainer 生成管理器容器代码
-func (b *Builder) generateManagerContainer(info *analyzer.ProjectInfo) error {
-	components := b.convertComponents(info.Layers[analyzer.LayerManager])
-
-	data := &TemplateData{
-		PackageName: b.packageName,
-		Imports:     b.collectImports(info, analyzer.LayerManager),
-		Components:  components,
-	}
-
-	code, err := GenerateManagerContainer(data)
-	if err != nil {
-		return err
-	}
-
-	return b.writeFile("manager_container.go", code)
 }
 
 // generateRepositoryContainer 生成仓储容器代码
@@ -198,6 +153,7 @@ func (b *Builder) generateMiddlewareContainer(info *analyzer.ProjectInfo) error 
 func (b *Builder) generateEngine(info *analyzer.ProjectInfo) error {
 	data := &TemplateData{
 		PackageName: b.packageName,
+		ConfigPath:  b.configPath,
 	}
 
 	code, err := GenerateEngine(data)

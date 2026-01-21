@@ -7,12 +7,8 @@ import (
 )
 
 // InitControllerContainer 初始化控制器容器
-func InitControllerContainer(
-	configContainer *container.ConfigContainer,
-	managerContainer *container.ManagerContainer,
-	serviceContainer *container.ServiceContainer,
-) *container.ControllerContainer {
-	controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
+func InitControllerContainer(serviceContainer *container.ServiceContainer) *container.ControllerContainer {
+	controllerContainer := container.NewControllerContainer(serviceContainer)
 	container.RegisterController[controllers.IAdminAuthController](controllerContainer, controllers.NewAdminAuthController())
 	container.RegisterController[controllers.IMsgAllController](controllerContainer, controllers.NewMsgAllController())
 	container.RegisterController[controllers.IMsgCreateController](controllerContainer, controllers.NewMsgCreateController())
