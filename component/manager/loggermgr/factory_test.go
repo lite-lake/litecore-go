@@ -4,8 +4,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/lite-lake/litecore-go/common"
 )
 
 // mockConfigProvider 模拟配置提供者
@@ -398,7 +396,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 
 // TestBuildWithConfigProviderNilConfig 测试配置提供者为 nil 的情况
 func TestBuildWithConfigProviderNilConfig(t *testing.T) {
-	var provider common.IBaseConfigProvider = nil
+	var provider IConfigProvider = nil
 	_, err := BuildWithConfigProvider(provider)
 	if err == nil {
 		t.Error("Expected error when provider is nil")

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/util/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,6 +29,13 @@ func (m *mockController) Handle(ctx *gin.Context) {
 	})
 }
 
+func (m *mockController) Logger() logger.ILogger {
+	return nil
+}
+
+func (m *mockController) SetLoggerManager(mgr logger.ILoggerManager) {
+}
+
 type testController struct{}
 
 func (t *testController) ControllerName() string {
@@ -42,6 +50,13 @@ func (t *testController) Handle(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{
 		"controller": t.ControllerName(),
 	})
+}
+
+func (t *testController) Logger() logger.ILogger {
+	return nil
+}
+
+func (t *testController) SetLoggerManager(mgr logger.ILoggerManager) {
 }
 
 func TestIBaseController_基础接口实现(t *testing.T) {

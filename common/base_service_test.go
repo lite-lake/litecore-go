@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/lite-lake/litecore-go/util/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,6 +24,13 @@ func (m *mockService) OnStop() error {
 	return nil
 }
 
+func (m *mockService) Logger() logger.ILogger {
+	return nil
+}
+
+func (m *mockService) SetLoggerManager(mgr logger.ILoggerManager) {
+}
+
 type failingService struct{}
 
 func (f *failingService) ServiceName() string {
@@ -35,6 +43,13 @@ func (f *failingService) OnStart() error {
 
 func (f *failingService) OnStop() error {
 	return errors.New("服务停止失败")
+}
+
+func (f *failingService) Logger() logger.ILogger {
+	return nil
+}
+
+func (f *failingService) SetLoggerManager(mgr logger.ILoggerManager) {
 }
 
 func TestIBaseService_基础接口实现(t *testing.T) {

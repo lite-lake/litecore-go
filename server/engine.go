@@ -69,6 +69,11 @@ func NewEngine(
 	}
 }
 
+// GetBuiltin 获取内置组件
+func (e *Engine) GetBuiltin() *builtin.Components {
+	return e.builtin
+}
+
 // Initialize 初始化引擎（实现 liteServer 接口）
 // - 初始化内置组件（Config、Logger、Telemetry、Database、Cache）
 // - 创建 Gin 引擎
@@ -102,9 +107,9 @@ func (e *Engine) Initialize() error {
 		return fmt.Errorf("register middlewares failed: %w", err)
 	}
 
-	// 添加 NoRoute 处理器用于调试
+	// 添加 NoRoute 处理器
 	e.ginEngine.NoRoute(func(c *gin.Context) {
-		fmt.Printf("[NoRoute] Path: %s, Method: %s\n", c.Request.URL.Path, c.Request.Method)
+		e.builtin.LoggerManager.Logger("server").Warn("Route not found", "path", c.Request.URL.Path, "method", c.Request.Method)
 		c.JSON(common.HTTPStatusNotFound, gin.H{
 			"error":  "route not found",
 			"path":   c.Request.URL.Path,
@@ -180,33 +185,27 @@ func (e *Engine) Start() error {
 		return fmt.Errorf("engine already started")
 	}
 
-	fmt.Println("[DEBUG] Starting all managers...")
 	// 1. 启动所有 Manager
 	if err := e.startManagers(); err != nil {
 		return fmt.Errorf("start managers failed: %w", err)
 	}
-	fmt.Println("[DEBUG] All managers started successfully")
 
-	fmt.Println("[DEBUG] Starting all repositories...")
 	// 2. 启动所有 Repository
 	if err := e.startRepositories(); err != nil {
 		return fmt.Errorf("start repositories failed: %w", err)
 	}
-	fmt.Println("[DEBUG] All repositories started successfully")
 
-	fmt.Println("[DEBUG] Starting all services...")
 	// 3. 启动所有 Service
 	if err := e.startServices(); err != nil {
 		return fmt.Errorf("start services failed: %w", err)
 	}
-	fmt.Println("[DEBUG] All services started successfully")
 
 	// 4. 启动 HTTP 服务器
 	errChan := make(chan error, 1)
 	go func() {
-		fmt.Println("[DEBUG] HTTP server listening on", e.httpServer.Addr)
+		e.builtin.LoggerManager.Logger("server").Info("HTTP server listening", "addr", e.httpServer.Addr)
 		if err := e.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("[ERROR] HTTP server error: %v\n", err)
+			e.builtin.LoggerManager.Logger("server").Error("HTTP server error", "error", err)
 			errChan <- fmt.Errorf("HTTP server error: %w", err)
 			e.cancel()
 		}
@@ -251,13 +250,13 @@ func (e *Engine) registerControllers() error {
 
 		method, path, err := parseRoute(route)
 		if err != nil {
-			fmt.Printf("[WARNING] Controller %s has invalid route format: %v\n", ctrl.ControllerName(), err)
+			e.builtin.LoggerManager.Logger("server").Warn("Invalid route format", "controller", ctrl.ControllerName(), "error", err)
 			continue
 		}
 
 		handler := ctrl.Handle
 		e.registerRoute(method, path, handler)
-		fmt.Printf("[DEBUG] Registered controller: %s -> %s %s\n", ctrl.ControllerName(), method, path)
+		e.builtin.LoggerManager.Logger("server").Debug("Registered controller", "name", ctrl.ControllerName(), "method", method, "path", path)
 	}
 
 	return nil

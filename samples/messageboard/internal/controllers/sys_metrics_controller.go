@@ -5,6 +5,7 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	componentControllers "github.com/lite-lake/litecore-go/component/controller"
+	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 // ISysMetricsController 指标控制器接口
@@ -14,6 +15,8 @@ type ISysMetricsController interface {
 
 type sysMetricsControllerImpl struct {
 	componentController componentControllers.IMetricsController
+	LoggerMgr           loggermgr.ILoggerManager `inject:""`
+	logger              loggermgr.ILogger
 }
 
 func NewSysMetricsController() ISysMetricsController {
@@ -28,6 +31,21 @@ func (c *sysMetricsControllerImpl) ControllerName() string {
 
 func (c *sysMetricsControllerImpl) GetRouter() string {
 	return c.componentController.GetRouter()
+}
+
+func (c *sysMetricsControllerImpl) Logger() loggermgr.ILogger {
+	return c.logger
+}
+
+func (c *sysMetricsControllerImpl) SetLoggerManager(mgr loggermgr.ILoggerManager) {
+	c.LoggerMgr = mgr
+	c.initLogger()
+}
+
+func (c *sysMetricsControllerImpl) initLogger() {
+	if c.LoggerMgr != nil {
+		c.logger = c.LoggerMgr.Logger("SysMetricsController")
+	}
 }
 
 func (c *sysMetricsControllerImpl) Handle(ctx *gin.Context) {

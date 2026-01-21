@@ -106,3 +106,45 @@ engine.Run()
 3. `go vet ./...` - check issues
 4. Verify package boundaries
 5. Add tests and documentation
+
+## 日志使用规范
+
+### 禁止使用
+- ❌ 标准库 log.Fatal/Print/Printf/Println
+- ❌ fmt.Printf/fmt.Println（仅限开发调试）
+- ❌ println/print
+
+### 推荐使用
+- ✅ 依赖注入 ILoggerManager
+- ✅ 使用结构化日志：logger.Info("msg", "key", value)
+- ✅ 使用 With 添加上下文：logger.With("user_id", id).Info("...")
+
+### 各层日志级别
+- Debug: 开发调试信息
+- Info: 正常业务流程（请求开始/完成、资源创建）
+- Warn: 降级处理、慢查询、重试
+- Error: 业务错误、操作失败（需人工关注）
+- Fatal: 致命错误，需要立即终止
+
+### 敏感信息处理
+- 密码、token、密钥等必须脱敏
+- 使用内置过滤规则或自定义脱敏函数
+
+### 业务层日志实现
+```go
+type MyService struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+    logger     loggermgr.ILogger
+}
+
+func (s *MyService) initLogger() {
+    if s.LoggerMgr != nil {
+        s.logger = s.LoggerMgr.Logger("MyService")
+    }
+}
+
+func (s *MyService) SomeMethod() {
+    s.initLogger()
+    s.logger.Info("操作开始", "param", value)
+}
+```

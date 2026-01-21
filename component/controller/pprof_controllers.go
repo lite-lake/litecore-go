@@ -7,15 +7,18 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 type pprofHandlerFunc func(http.ResponseWriter, *http.Request)
 
 type PprofController struct {
-	name   string
-	route  string
-	method string
-	handle pprofHandlerFunc
+	name      string
+	route     string
+	method    string
+	handle    pprofHandlerFunc
+	loggerMgr logger.ILoggerManager
+	logger    logger.ILogger
 }
 
 func (c *PprofController) ControllerName() string {
@@ -28,6 +31,17 @@ func (c *PprofController) GetRouter() string {
 
 func (c *PprofController) Handle(ctx *gin.Context) {
 	c.handle(wrapResponseWriter(ctx.Writer), ctx.Request)
+}
+
+func (c *PprofController) Logger() logger.ILogger {
+	return c.logger
+}
+
+func (c *PprofController) SetLoggerManager(mgr logger.ILoggerManager) {
+	c.loggerMgr = mgr
+	if mgr != nil {
+		c.logger = mgr.Logger(c.name)
+	}
 }
 
 var _ common.IBaseController = (*PprofController)(nil)

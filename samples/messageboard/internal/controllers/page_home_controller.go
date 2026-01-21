@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
 )
 
@@ -14,6 +15,8 @@ type IPageHomeController interface {
 
 type pageHomeControllerImpl struct {
 	HTMLTemplateService services.IHTMLTemplateService `inject:""`
+	LoggerMgr           loggermgr.ILoggerManager      `inject:""`
+	logger              loggermgr.ILogger
 }
 
 func NewPageHomeController() IPageHomeController {
@@ -26,6 +29,21 @@ func (c *pageHomeControllerImpl) ControllerName() string {
 
 func (c *pageHomeControllerImpl) GetRouter() string {
 	return "/ [GET]"
+}
+
+func (c *pageHomeControllerImpl) Logger() loggermgr.ILogger {
+	return c.logger
+}
+
+func (c *pageHomeControllerImpl) SetLoggerManager(mgr loggermgr.ILoggerManager) {
+	c.LoggerMgr = mgr
+	c.initLogger()
+}
+
+func (c *pageHomeControllerImpl) initLogger() {
+	if c.LoggerMgr != nil {
+		c.logger = c.LoggerMgr.Logger("PageHomeController")
+	}
 }
 
 func (c *pageHomeControllerImpl) Handle(ctx *gin.Context) {

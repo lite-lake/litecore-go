@@ -1,55 +1,20 @@
 package loggermgr
 
 import (
-	"context"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
-// ILogger 日志接口
-type ILogger interface {
-	// Debug 记录调试级别日志
-	Debug(msg string, args ...any)
+// ILogger 日志接口（类型别名，指向 util/logger）
+type ILogger = logger.ILogger
 
-	// Info 记录信息级别日志
-	Info(msg string, args ...any)
+// ILoggerManager 日志管理器接口（类型别名，指向 util/logger）
+type ILoggerManager = logger.ILoggerManager
 
-	// Warn 记录警告级别日志
-	Warn(msg string, args ...any)
+// LogLevel 日志级别类型（类型别名，指向 util/logger）
+type LogLevel = logger.LogLevel
 
-	// Error 记录错误级别日志
-	Error(msg string, args ...any)
+// ParseLogLevel 从字符串解析日志级别
+var ParseLogLevel = logger.ParseLogLevel
 
-	// Fatal 记录致命错误级别日志，然后退出程序
-	Fatal(msg string, args ...any)
-
-	// With 返回一个带有额外字段的新 Logger
-	With(args ...any) ILogger
-
-	// SetLevel 设置日志级别
-	SetLevel(level LogLevel)
-}
-
-// ILoggerManager 日志管理器接口
-type ILoggerManager interface {
-	// ========== 生命周期管理（符合 BaseManager 接口） ==========
-	// ManagerName 返回管理器名称
-	ManagerName() string
-
-	// Health 检查管理器健康状态
-	Health() error
-
-	// OnStart 在服务器启动时触发
-	OnStart() error
-
-	// OnStop 在服务器停止时触发
-	OnStop() error
-
-	// ========== 日志管理 ==========
-	// Logger 获取指定名称的 Logger 实例
-	Logger(name string) ILogger
-
-	// SetGlobalLevel 设置全局日志级别
-	SetGlobalLevel(level LogLevel)
-
-	// Shutdown 关闭日志管理器，刷新所有待处理的日志
-	Shutdown(ctx context.Context) error
-}
+// IsValidLogLevel 检查日志级别字符串是否有效
+var IsValidLogLevel = logger.IsValidLogLevel

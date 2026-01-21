@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // HealthResponse 健康检查响应
@@ -23,6 +24,8 @@ type IHealthController interface {
 
 type HealthController struct {
 	ManagerContainer common.IBaseManager `inject:""`
+	loggerMgr        logger.ILoggerManager
+	logger           logger.ILogger
 }
 
 func NewHealthController() IHealthController {
@@ -67,6 +70,17 @@ func (c *HealthController) Handle(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, response)
 	} else {
 		ctx.JSON(http.StatusServiceUnavailable, response)
+	}
+}
+
+func (c *HealthController) Logger() logger.ILogger {
+	return c.logger
+}
+
+func (c *HealthController) SetLoggerManager(mgr logger.ILoggerManager) {
+	c.loggerMgr = mgr
+	if mgr != nil {
+		c.logger = mgr.Logger("HealthController")
 	}
 }
 

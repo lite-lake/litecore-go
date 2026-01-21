@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/util/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,6 +26,13 @@ func (s *mockService) OnStart() error {
 
 func (s *mockService) OnStop() error {
 	return s.stopErr
+}
+
+func (s *mockService) Logger() logger.ILogger {
+	return nil
+}
+
+func (s *mockService) SetLoggerManager(mgr logger.ILoggerManager) {
 }
 
 func TestNewMetricsController(t *testing.T) {
