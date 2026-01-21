@@ -4,8 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IPageAdminController 管理页面控制器接口
@@ -15,8 +15,7 @@ type IPageAdminController interface {
 
 type pageAdminControllerImpl struct {
 	HTMLTemplateService services.IHTMLTemplateService `inject:""`
-	LoggerMgr           loggermgr.ILoggerManager      `inject:""`
-	logger              loggermgr.ILogger
+	Logger              logger.ILogger                `inject:""`
 }
 
 func NewPageAdminController() IPageAdminController {
@@ -29,21 +28,6 @@ func (c *pageAdminControllerImpl) ControllerName() string {
 
 func (c *pageAdminControllerImpl) GetRouter() string {
 	return "/admin [GET]"
-}
-
-func (c *pageAdminControllerImpl) Logger() loggermgr.ILogger {
-	return c.logger
-}
-
-func (c *pageAdminControllerImpl) SetLoggerManager(mgr loggermgr.ILoggerManager) {
-	c.LoggerMgr = mgr
-	c.initLogger()
-}
-
-func (c *pageAdminControllerImpl) initLogger() {
-	if c.LoggerMgr != nil {
-		c.logger = c.LoggerMgr.Logger("PageAdminController")
-	}
 }
 
 func (c *pageAdminControllerImpl) Handle(ctx *gin.Context) {

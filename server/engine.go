@@ -13,6 +13,7 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/server/builtin"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // Engine 服务引擎
@@ -21,6 +22,9 @@ type Engine struct {
 	builtinConfig *builtin.Config
 	// 内置组件（在 Initialize 时初始化）
 	builtin *builtin.Components
+
+	// LoggerRegistry（早期日志支持）
+	loggerRegistry *logger.LoggerRegistry
 
 	// 容器
 	Entity     *container.EntityContainer
@@ -74,6 +78,11 @@ func (e *Engine) GetBuiltin() *builtin.Components {
 	return e.builtin
 }
 
+// GetLoggerRegistry 获取 LoggerRegistry
+func (e *Engine) GetLoggerRegistry() *logger.LoggerRegistry {
+	return e.loggerRegistry
+}
+
 // Initialize 初始化引擎（实现 liteServer 接口）
 // - 初始化内置组件（Config、Logger、Telemetry、Database、Cache）
 // - 创建 Gin 引擎
@@ -84,14 +93,20 @@ func (e *Engine) Initialize() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// 初始化内置组件
+	// 1. 创建 LoggerRegistry（总是可用）
+	e.loggerRegistry = logger.NewLoggerRegistry()
+
+	// 2. 初始化内置组件
 	builtinComponents, err := builtin.Initialize(e.builtinConfig)
 	if err != nil {
 		return fmt.Errorf("failed to initialize builtin components: %w", err)
 	}
 	e.builtin = builtinComponents
 
-	// 自动依赖注入
+	// 3. 将 LoggerManager 设置给 LoggerRegistry
+	e.loggerRegistry.SetLoggerManager(e.builtin.LoggerManager)
+
+	// 4. 自动依赖注入
 	if err := e.autoInject(); err != nil {
 		return fmt.Errorf("auto inject failed: %w", err)
 	}
@@ -147,24 +162,28 @@ func (e *Engine) autoInject() error {
 
 	// 2. Repository 层（依赖 Builtin + Entity）
 	e.Repository.SetBuiltinProvider(e.builtin)
+	e.Repository.SetLoggerRegistry(e.loggerRegistry)
 	if err := e.Repository.InjectAll(); err != nil {
 		return fmt.Errorf("repository inject failed: %w", err)
 	}
 
 	// 3. Service 层（依赖 Builtin + Repository + 同层）
 	e.Service.SetBuiltinProvider(e.builtin)
+	e.Service.SetLoggerRegistry(e.loggerRegistry)
 	if err := e.Service.InjectAll(); err != nil {
 		return fmt.Errorf("service inject failed: %w", err)
 	}
 
 	// 4. Controller 层（依赖 Builtin + Service）
 	e.Controller.SetBuiltinProvider(e.builtin)
+	e.Controller.SetLoggerRegistry(e.loggerRegistry)
 	if err := e.Controller.InjectAll(); err != nil {
 		return fmt.Errorf("controller inject failed: %w", err)
 	}
 
 	// 5. Middleware 层（依赖 Builtin + Service）
 	e.Middleware.SetBuiltinProvider(e.builtin)
+	e.Middleware.SetLoggerRegistry(e.loggerRegistry)
 	if err := e.Middleware.InjectAll(); err != nil {
 		return fmt.Errorf("middleware inject failed: %w", err)
 	}
@@ -256,7 +275,7 @@ func (e *Engine) registerControllers() error {
 
 		handler := ctrl.Handle
 		e.registerRoute(method, path, handler)
-		e.builtin.LoggerManager.Logger("server").Debug("Registered controller", "name", ctrl.ControllerName(), "method", method, "path", path)
+		e.builtin.LoggerManager.Logger("server").Info("Registered controller", "name", ctrl.ControllerName(), "method", method, "path", path)
 	}
 
 	return nil

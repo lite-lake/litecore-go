@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 type mockRequestLogger struct {
@@ -41,50 +40,11 @@ func (m *mockRequestLogger) Fatal(msg string, args ...any) {
 	m.fatalMsgs = append(m.fatalMsgs, msg)
 }
 
-func (m *mockRequestLogger) With(args ...any) loggermgr.ILogger {
+func (m *mockRequestLogger) With(args ...any) logger.ILogger {
 	return m
 }
 
-func (m *mockRequestLogger) SetLevel(level loggermgr.LogLevel) {
-}
-
-type mockRequestLoggerManager struct {
-	loggers map[string]loggermgr.ILogger
-}
-
-func (m *mockRequestLoggerManager) ManagerName() string {
-	return "mockRequestLoggerManager"
-}
-
-func (m *mockRequestLoggerManager) Health() error {
-	return nil
-}
-
-func (m *mockRequestLoggerManager) OnStart() error {
-	return nil
-}
-
-func (m *mockRequestLoggerManager) OnStop() error {
-	return nil
-}
-
-func (m *mockRequestLoggerManager) Logger(name string) loggermgr.ILogger {
-	if m.loggers == nil {
-		m.loggers = make(map[string]loggermgr.ILogger)
-	}
-	logger, ok := m.loggers[name]
-	if !ok {
-		logger = &mockRequestLogger{}
-		m.loggers[name] = logger
-	}
-	return logger
-}
-
-func (m *mockRequestLoggerManager) SetGlobalLevel(level loggermgr.LogLevel) {
-}
-
-func (m *mockRequestLoggerManager) Shutdown(ctx context.Context) error {
-	return nil
+func (m *mockRequestLogger) SetLevel(level logger.LogLevel) {
 }
 
 func TestNewRequestLoggerMiddleware(t *testing.T) {
@@ -183,12 +143,6 @@ func TestRequestLoggerMiddleware_Wrapper(t *testing.T) {
 			withError:  true,
 		},
 		{
-			name:       "无日志管理器的请求",
-			method:     http.MethodGet,
-			statusCode: http.StatusOK,
-			withLogger: false,
-		},
-		{
 			name:       "PATCH请求成功",
 			method:     http.MethodPatch,
 			statusCode: http.StatusOK,
@@ -203,7 +157,7 @@ func TestRequestLoggerMiddleware_Wrapper(t *testing.T) {
 
 			middleware := NewRequestLoggerMiddleware().(*RequestLoggerMiddleware)
 			if tt.withLogger {
-				middleware.loggerMgr = &mockRequestLoggerManager{}
+				middleware.Logger = &mockRequestLogger{}
 			}
 			router.Use(middleware.Wrapper())
 
@@ -333,36 +287,6 @@ func TestRequestLoggerMiddleware_OnStop(t *testing.T) {
 	}
 }
 
-func TestRequestLoggerMiddleware_initLogger(t *testing.T) {
-	tests := []struct {
-		name   string
-		hasMgr bool
-	}{
-		{
-			name:   "有日志管理器时初始化",
-			hasMgr: true,
-		},
-		{
-			name:   "无日志管理器时使用默认日志器",
-			hasMgr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewRequestLoggerMiddleware().(*RequestLoggerMiddleware)
-			assert.Nil(t, middleware.logger)
-
-			if tt.hasMgr {
-				middleware.loggerMgr = &mockRequestLoggerManager{}
-			}
-
-			middleware.initLogger()
-
-			assert.NotNil(t, middleware.logger)
-		})
-	}
-}
-
 func TestRequestLoggerMiddleware_WithError(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -387,7 +311,7 @@ func TestRequestLoggerMiddleware_WithError(t *testing.T) {
 			router := gin.New()
 
 			middleware := NewRequestLoggerMiddleware().(*RequestLoggerMiddleware)
-			middleware.loggerMgr = &mockRequestLoggerManager{}
+			middleware.Logger = &mockRequestLogger{}
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -446,7 +370,7 @@ func TestRequestLoggerMiddleware_RequestBodyHandling(t *testing.T) {
 			router := gin.New()
 
 			middleware := NewRequestLoggerMiddleware().(*RequestLoggerMiddleware)
-			middleware.loggerMgr = &mockRequestLoggerManager{}
+			middleware.Logger = &mockRequestLogger{}
 			router.Use(middleware.Wrapper())
 
 			var handler gin.HandlerFunc

@@ -8,13 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // RecoveryMiddleware panic 恢复中间件
 type RecoveryMiddleware struct {
-	order         int
-	LoggerManager loggermgr.ILoggerManager `inject:""`
+	order  int
+	Logger logger.ILogger `inject:""`
 }
 
 // NewRecoveryMiddleware 创建 panic 恢复中间件
@@ -50,9 +50,8 @@ func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
 				userAgent := c.Request.UserAgent()
 				query := c.Request.URL.RawQuery
 
-				if m.LoggerManager != nil {
-					logger := m.LoggerManager.Logger("recovery")
-					logger.Error(
+				if m.Logger != nil {
+					m.Logger.Error(
 						"PANIC recovered",
 						"panic", fmt.Sprintf("%v", err),
 						"method", method,

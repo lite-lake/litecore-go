@@ -17,8 +17,7 @@ type IMetricsController interface {
 type MetricsController struct {
 	ManagerContainer common.IBaseManager `inject:""`
 	ServiceContainer common.IBaseService `inject:""`
-	loggerMgr        logger.ILoggerManager
-	logger           logger.ILogger
+	Logger           logger.ILogger      `inject:""`
 }
 
 func NewMetricsController() IMetricsController {
@@ -51,17 +50,6 @@ func (c *MetricsController) Handle(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, metrics)
-}
-
-func (c *MetricsController) Logger() logger.ILogger {
-	return c.logger
-}
-
-func (c *MetricsController) SetLoggerManager(mgr logger.ILoggerManager) {
-	c.loggerMgr = mgr
-	if mgr != nil {
-		c.logger = mgr.Logger("MetricsController")
-	}
 }
 
 var _ common.IBaseController = (*MetricsController)(nil)

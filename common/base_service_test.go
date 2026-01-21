@@ -9,7 +9,8 @@ import (
 )
 
 type mockService struct {
-	name string
+	name   string
+	Logger logger.ILogger `inject:""`
 }
 
 func (m *mockService) ServiceName() string {
@@ -24,14 +25,9 @@ func (m *mockService) OnStop() error {
 	return nil
 }
 
-func (m *mockService) Logger() logger.ILogger {
-	return nil
+type failingService struct {
+	Logger logger.ILogger `inject:""`
 }
-
-func (m *mockService) SetLoggerManager(mgr logger.ILoggerManager) {
-}
-
-type failingService struct{}
 
 func (f *failingService) ServiceName() string {
 	return "FailingService"
@@ -43,13 +39,6 @@ func (f *failingService) OnStart() error {
 
 func (f *failingService) OnStop() error {
 	return errors.New("服务停止失败")
-}
-
-func (f *failingService) Logger() logger.ILogger {
-	return nil
-}
-
-func (f *failingService) SetLoggerManager(mgr logger.ILoggerManager) {
 }
 
 func TestIBaseService_基础接口实现(t *testing.T) {

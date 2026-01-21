@@ -2,8 +2,6 @@ package common
 
 import (
 	"github.com/gin-gonic/gin"
-
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IBaseController 基础控制器接口
@@ -18,10 +16,4 @@ type IBaseController interface {
 	GetRouter() string
 	// Handle 处理当前控制器的请求
 	Handle(ctx *gin.Context)
-
-	// Logger 获取日志实例
-	Logger() logger.ILogger
-
-	// SetLoggerManager 设置日志管理器
-	SetLoggerManager(mgr logger.ILoggerManager)
 }

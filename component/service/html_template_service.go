@@ -24,8 +24,7 @@ type IHTMLTemplateService interface {
 type HTMLTemplateService struct {
 	config    *HTMLTemplateConfig
 	ginEngine *gin.Engine
-	loggerMgr logger.ILoggerManager
-	logger    logger.ILogger
+	Logger    logger.ILogger `inject:""`
 }
 
 // NewHTMLTemplateService 创建HTML模板服务
@@ -74,17 +73,6 @@ func (s *HTMLTemplateService) Render(ctx *gin.Context, name string, data interfa
 // GetConfig 获取HTML模板配置
 func (s *HTMLTemplateService) GetConfig() *HTMLTemplateConfig {
 	return s.config
-}
-
-func (s *HTMLTemplateService) Logger() logger.ILogger {
-	return s.logger
-}
-
-func (s *HTMLTemplateService) SetLoggerManager(mgr logger.ILoggerManager) {
-	s.loggerMgr = mgr
-	if mgr != nil {
-		s.logger = mgr.Logger("HTMLTemplateService")
-	}
 }
 
 var _ IHTMLTemplateService = (*HTMLTemplateService)(nil)

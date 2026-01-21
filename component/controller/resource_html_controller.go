@@ -17,8 +17,7 @@ type ResourceHTMLConfig struct {
 type ResourceHTMLController struct {
 	config    *ResourceHTMLConfig
 	ginEngine *gin.Engine
-	loggerMgr logger.ILoggerManager
-	logger    logger.ILogger
+	Logger    logger.ILogger `inject:""`
 }
 
 // NewResourceHTMLController 创建HTML模板控制器
@@ -60,17 +59,6 @@ func (c *ResourceHTMLController) Render(ctx *gin.Context, name string, data inte
 // GetConfig 获取HTML模板配置
 func (c *ResourceHTMLController) GetConfig() *ResourceHTMLConfig {
 	return c.config
-}
-
-func (c *ResourceHTMLController) Logger() logger.ILogger {
-	return c.logger
-}
-
-func (c *ResourceHTMLController) SetLoggerManager(mgr logger.ILoggerManager) {
-	c.loggerMgr = mgr
-	if mgr != nil {
-		c.logger = mgr.Logger("ResourceHTMLController")
-	}
 }
 
 var _ common.IBaseController = (*ResourceHTMLController)(nil)

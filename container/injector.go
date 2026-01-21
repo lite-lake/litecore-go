@@ -3,13 +3,16 @@ package container
 import (
 	"reflect"
 	"strings"
+	"unsafe"
+
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IDependencyResolver 依赖解析器接口
 // 各容器通过实现此接口提供自己的依赖解析逻辑
 type IDependencyResolver interface {
 	// ResolveDependency 解析字段类型对应的依赖实例
-	ResolveDependency(fieldType reflect.Type) (interface{}, error)
+	ResolveDependency(fieldType reflect.Type, structType reflect.Type, fieldName string) (interface{}, error)
 }
 
 // ContainerSource 容器依赖源接口
@@ -50,7 +53,7 @@ func injectDependencies(instance interface{}, resolver IDependencyResolver) erro
 		// 检查是否为可选依赖
 		if tagValue == "optional" {
 			// 可选依赖，如果找不到也不报错
-			if dep, err := resolver.ResolveDependency(field.Type); err == nil && dep != nil {
+			if dep, err := resolver.ResolveDependency(field.Type, typ, field.Name); err == nil && dep != nil {
 				if fieldVal.CanSet() {
 					fieldVal.Set(reflect.ValueOf(dep))
 				}
@@ -59,7 +62,7 @@ func injectDependencies(instance interface{}, resolver IDependencyResolver) erro
 		}
 
 		// 必需依赖（包括 tagValue == "" 的情况）
-		dependency, err := resolver.ResolveDependency(field.Type)
+		dependency, err := resolver.ResolveDependency(field.Type, typ, field.Name)
 		if err != nil {
 			return err
 		}
@@ -67,6 +70,8 @@ func injectDependencies(instance interface{}, resolver IDependencyResolver) erro
 		if fieldVal.CanSet() {
 			fieldVal.Set(reflect.ValueOf(dependency))
 		} else {
+			fieldPtr := unsafe.Pointer(fieldVal.UnsafeAddr())
+			reflect.NewAt(field.Type, fieldPtr).Elem().Set(reflect.ValueOf(dependency))
 		}
 	}
 
@@ -100,19 +105,32 @@ func toLowerCamelCase(s string) string {
 // GenericDependencyResolver 通用依赖解析器
 // 支持按优先级顺序从多个容器源解析依赖
 type GenericDependencyResolver struct {
-	sources []ContainerSource
+	sources        []ContainerSource
+	loggerRegistry *logger.LoggerRegistry
 }
 
 // NewGenericDependencyResolver 创建通用依赖解析器
-func NewGenericDependencyResolver(sources ...ContainerSource) *GenericDependencyResolver {
+func NewGenericDependencyResolver(
+	loggerRegistry *logger.LoggerRegistry,
+	sources ...ContainerSource,
+) *GenericDependencyResolver {
 	return &GenericDependencyResolver{
-		sources: sources,
+		sources:        sources,
+		loggerRegistry: loggerRegistry,
 	}
 }
 
 // ResolveDependency 解析字段类型对应的依赖实例
 // 按照sources的顺序依次尝试解析，找到第一个匹配的依赖
-func (r *GenericDependencyResolver) ResolveDependency(fieldType reflect.Type) (interface{}, error) {
+func (r *GenericDependencyResolver) ResolveDependency(fieldType reflect.Type, structType reflect.Type, fieldName string) (interface{}, error) {
+	loggerType := reflect.TypeOf((*logger.ILogger)(nil)).Elem()
+	if fieldType == loggerType || fieldType.Implements(loggerType) {
+		if r.loggerRegistry != nil {
+			loggerName := r.extractLoggerName(structType)
+			return r.loggerRegistry.GetLogger(loggerName), nil
+		}
+	}
+
 	for _, source := range r.sources {
 		dep, err := source.GetDependency(fieldType)
 		if dep != nil {
@@ -127,4 +145,10 @@ func (r *GenericDependencyResolver) ResolveDependency(fieldType reflect.Type) (i
 		FieldType:     fieldType,
 		ContainerType: "Unknown",
 	}
+}
+
+// extractLoggerName 从结构体类型推断 logger 名称
+func (r *GenericDependencyResolver) extractLoggerName(structType reflect.Type) string {
+	name := extractNameFromType(structType)
+	return name
 }

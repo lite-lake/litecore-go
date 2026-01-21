@@ -16,15 +16,14 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // databaseManagerBaseImpl 数据库管理器基础实现
 type databaseManagerBaseImpl struct {
-	loggerMgr    loggermgr.ILoggerManager       `inject:""`
+	Logger       logger.ILogger                 `inject:""`
 	telemetryMgr telemetrymgr.ITelemetryManager `inject:""`
-	logger       loggermgr.ILogger
 	tracer       trace.Tracer
 	meter        metric.Meter
 
@@ -61,11 +60,6 @@ func newIDatabaseManagerBaseImpl(name, driver string, db *gorm.DB) *databaseMana
 
 // initObservability 初始化可观测性组件（在依赖注入后调用）
 func (b *databaseManagerBaseImpl) initObservability(cfg *DatabaseConfig) {
-	// 初始化 logger
-	if b.loggerMgr != nil {
-		b.logger = b.loggerMgr.Logger("databasemgr")
-	}
-
 	// 初始化 telemetry
 	if b.telemetryMgr != nil {
 		b.tracer = b.telemetryMgr.Tracer("databasemgr")
@@ -78,7 +72,7 @@ func (b *databaseManagerBaseImpl) initObservability(cfg *DatabaseConfig) {
 	// 设置可观测性插件
 	if b.observabilityPlugin != nil {
 		b.observabilityPlugin.Setup(
-			b.logger,
+			b.Logger,
 			b.tracer,
 			b.meter,
 			b.queryDuration,
@@ -99,7 +93,7 @@ func (b *databaseManagerBaseImpl) initObservability(cfg *DatabaseConfig) {
 		}
 
 		// 注册 GORM 插件
-		if b.logger != nil || b.tracer != nil {
+		if b.Logger != nil || b.tracer != nil {
 			b.db.Use(b.observabilityPlugin)
 		}
 	}
@@ -157,7 +151,7 @@ func (b *databaseManagerBaseImpl) createQueryMetrics() {
 // ========== observabilityPlugin GORM 可观测性插件 ==========
 
 type observabilityPlugin struct {
-	logger             loggermgr.ILogger
+	logger             logger.ILogger
 	tracer             trace.Tracer
 	meter              metric.Meter
 	queryDuration      metric.Float64Histogram
@@ -182,7 +176,7 @@ func newObservabilityPlugin() *observabilityPlugin {
 
 // Setup 设置观测组件和指标
 func (p *observabilityPlugin) Setup(
-	logger loggermgr.ILogger,
+	logger logger.ILogger,
 	tracer trace.Tracer,
 	meter metric.Meter,
 	queryDuration metric.Float64Histogram,

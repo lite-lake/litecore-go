@@ -9,28 +9,18 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // RequestLoggerMiddleware 请求日志中间件
 type RequestLoggerMiddleware struct {
-	order     int
-	loggerMgr loggermgr.ILoggerManager `inject:""`
-	logger    loggermgr.ILogger
+	order  int
+	Logger logger.ILogger `inject:""`
 }
 
 // NewRequestLoggerMiddleware 创建请求日志中间件
 func NewRequestLoggerMiddleware() common.IBaseMiddleware {
 	return &RequestLoggerMiddleware{order: 20}
-}
-
-// initLogger 初始化日志器（依赖注入后调用）
-func (m *RequestLoggerMiddleware) initLogger() {
-	if m.loggerMgr != nil {
-		m.logger = m.loggerMgr.Logger("request_logger_middleware")
-	} else {
-		m.logger = loggermgr.Default()
-	}
 }
 
 // MiddlewareName 返回中间件名称
@@ -46,7 +36,6 @@ func (m *RequestLoggerMiddleware) Order() int {
 // Wrapper 返回 Gin 中间件函数
 func (m *RequestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		m.initLogger()
 		start := time.Now()
 
 		var bodyBytes []byte
@@ -66,7 +55,7 @@ func (m *RequestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			for _, e := range c.Errors {
-				m.logger.Error("请求处理错误",
+				m.Logger.Error("请求处理错误",
 					"request_id", requestID,
 					"method", method,
 					"path", path,
@@ -78,7 +67,7 @@ func (m *RequestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 				)
 			}
 		} else {
-			m.logger.Info("请求处理完成",
+			m.Logger.Info("请求处理完成",
 				"request_id", requestID,
 				"method", method,
 				"path", path,

@@ -18,9 +18,8 @@ type ResourceStaticConfig struct {
 // ResourceStaticController 静态文件控制器
 // 用于处理静态文件服务
 type ResourceStaticController struct {
-	config    *ResourceStaticConfig
-	loggerMgr logger.ILoggerManager
-	logger    logger.ILogger
+	config *ResourceStaticConfig
+	Logger logger.ILogger `inject:""`
 }
 
 // NewResourceStaticController 创建静态文件控制器
@@ -48,17 +47,6 @@ func (c *ResourceStaticController) Handle(ctx *gin.Context) {
 // GetConfig 获取静态文件配置
 func (c *ResourceStaticController) GetConfig() *ResourceStaticConfig {
 	return c.config
-}
-
-func (c *ResourceStaticController) Logger() logger.ILogger {
-	return c.logger
-}
-
-func (c *ResourceStaticController) SetLoggerManager(mgr logger.ILoggerManager) {
-	c.loggerMgr = mgr
-	if mgr != nil {
-		c.logger = mgr.Logger("ResourceStaticController")
-	}
 }
 
 var _ common.IBaseController = (*ResourceStaticController)(nil)

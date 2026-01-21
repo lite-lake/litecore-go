@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 type BuiltinProvider interface {
@@ -23,6 +24,7 @@ type RepositoryContainer struct {
 	items           map[reflect.Type]common.IBaseRepository
 	entityContainer *EntityContainer
 	builtinProvider BuiltinProvider
+	loggerRegistry  *logger.LoggerRegistry
 	injected        bool
 }
 
@@ -41,6 +43,14 @@ func (r *RepositoryContainer) SetBuiltinProvider(provider BuiltinProvider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.builtinProvider = provider
+	r.loggerRegistry = nil
+}
+
+// SetLoggerRegistry 设置 LoggerRegistry
+func (r *RepositoryContainer) SetLoggerRegistry(registry *logger.LoggerRegistry) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.loggerRegistry = registry
 }
 
 // RegisterRepository 泛型注册函数，按接口类型注册
@@ -88,7 +98,7 @@ func (r *RepositoryContainer) InjectAll() error {
 		return nil
 	}
 
-	resolver := NewGenericDependencyResolver(r.entityContainer, r)
+	resolver := NewGenericDependencyResolver(r.loggerRegistry, r.entityContainer, r)
 	for ifaceType, repo := range r.items {
 		if err := injectDependencies(repo, resolver); err != nil {
 			return fmt.Errorf("inject %v failed: %w", ifaceType, err)

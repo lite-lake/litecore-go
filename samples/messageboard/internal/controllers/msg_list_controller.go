@@ -3,9 +3,9 @@ package controllers
 
 import (
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
+	"github.com/lite-lake/litecore-go/util/logger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,8 +17,7 @@ type IMsgListController interface {
 
 type msgListControllerImpl struct {
 	MessageService services.IMessageService `inject:""`
-	LoggerMgr      loggermgr.ILoggerManager `inject:""`
-	logger         loggermgr.ILogger
+	Logger         logger.ILogger           `inject:""`
 }
 
 // NewMsgListController 创建控制器实例
@@ -34,30 +33,15 @@ func (c *msgListControllerImpl) GetRouter() string {
 	return "/api/messages [GET]"
 }
 
-func (c *msgListControllerImpl) Logger() loggermgr.ILogger {
-	return c.logger
-}
-
-func (c *msgListControllerImpl) SetLoggerManager(mgr loggermgr.ILoggerManager) {
-	c.LoggerMgr = mgr
-	c.initLogger()
-}
-
-func (c *msgListControllerImpl) initLogger() {
-	if c.LoggerMgr != nil {
-		c.logger = c.LoggerMgr.Logger("MsgListController")
-	}
-}
-
 func (c *msgListControllerImpl) Handle(ctx *gin.Context) {
-	if c.logger != nil {
-		c.logger.Debug("开始获取已审核留言列表")
+	if c.Logger != nil {
+		c.Logger.Debug("开始获取已审核留言列表")
 	}
 
 	messages, err := c.MessageService.GetApprovedMessages()
 	if err != nil {
-		if c.logger != nil {
-			c.logger.Error("获取已审核留言失败", "error", err)
+		if c.Logger != nil {
+			c.Logger.Error("获取已审核留言失败", "error", err)
 		}
 		ctx.JSON(common.HTTPStatusInternalServerError, dtos.ErrInternalServer)
 		return
@@ -78,8 +62,8 @@ func (c *msgListControllerImpl) Handle(ctx *gin.Context) {
 		responseList[i].Status = ""
 	}
 
-	if c.logger != nil {
-		c.logger.Info("获取已审核留言成功", "count", len(responseList))
+	if c.Logger != nil {
+		c.Logger.Info("获取已审核留言成功", "count", len(responseList))
 	}
 
 	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithData(responseList))
