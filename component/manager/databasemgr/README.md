@@ -19,7 +19,7 @@ package main
 
 import (
     "log"
-    "com.litelake.litecore/manager/databasemgr"
+    "github.com/lite-lake/litecore-go/manager/databasemgr"
 )
 
 func main() {
@@ -100,7 +100,7 @@ dbMgr := databasemgr.Build("none", nil)
 `BuildWithConfigProvider` 从配置提供者读取配置,适合依赖注入场景:
 
 ```go
-import "com.litelake.litecore/common"
+import "github.com/lite-lake/litecore-go/common"
 
 // 创建配置提供者
 provider := config.NewYamlConfigProvider("config.yaml")

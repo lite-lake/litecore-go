@@ -18,7 +18,7 @@
 ### 安装
 
 ```bash
-go get com.litelake.litecore
+go get github.com/lite-lake/litecore-go
 ```
 
 ### 创建项目
@@ -27,7 +27,7 @@ go get com.litelake.litecore
 # 1. 初始化项目
 mkdir myapp && cd myapp
 go mod init com.litelake.myapp
-go get com.litelake.litecore
+go get github.com/lite-lake/litecore-go
 
 # 2. 创建目录结构
 mkdir -p internal/{entities,repositories,services,controllers,middlewares,infras,dtos}
@@ -54,7 +54,7 @@ cat > cmd/generate/main.go <<'MAINEOF'
 package main
 
 import (
-    "com.litelake.litecore/cli/generator"
+    "github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {
@@ -384,7 +384,7 @@ go build -o litecore-generate ./cli
 ```go
 package main
 
-import "com.litelake.litecore/cli/generator"
+import "github.com/lite-lake/litecore-go/cli/generator"
 
 func main() {
     generator.MustRun(generator.DefaultConfig())
@@ -402,7 +402,7 @@ go run ./cmd/generate
 ### 1. JWT 工具
 
 ```go
-import "com.litelake.litecore/util/jwt"
+import "github.com/lite-lake/litecore-go/util/jwt"
 
 // 生成 Token
 token, err := jwt.GenerateHS256Token(jwt.StandardClaims{
@@ -418,7 +418,7 @@ claims, err := jwt.VerifyHS256Token(token, "secret")
 ### 2. Hash 工具
 
 ```go
-import "com.litelake.litecore/util/hash"
+import "github.com/lite-lake/litecore-go/util/hash"
 
 // MD5
 md5 := hash.MD5("hello")
@@ -434,7 +434,7 @@ err = hash.BcryptVerify("password", hashed)
 ### 3. 验证器
 
 ```go
-import "com.litelake.litecore/util/validator"
+import "github.com/lite-lake/litecore-go/util/validator"
 
 type User struct {
     Name  string `validate:"required,min=3,max=50"`
@@ -449,7 +449,7 @@ err := v.Struct(&User{Name: "abc", Email: "test@example.com", Age: 25})
 ### 4. ID 生成器
 
 ```go
-import "com.litelake.litecore/util/id"
+import "github.com/lite-lake/litecore-go/util/id"
 
 // UUID
 uuid := id.UUID()
@@ -598,7 +598,7 @@ import (
     "github.com/gin-gonic/gin"  // 第三方库
     "github.com/stretchr/testify/assert"
 
-    "com.litelake.litecore/common"  // 本地模块
+    "github.com/lite-lake/litecore-go/common"  // 本地模块
 )
 ```
 

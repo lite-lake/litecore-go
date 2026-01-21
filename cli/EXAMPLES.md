@@ -8,7 +8,7 @@
 // cmd/generate/main.go
 package main
 
-import "com.litelake.litecore/cli/generator"
+import "github.com/lite-lake/litecore-go/cli/generator"
 
 func main() {
     generator.MustRun(generator.DefaultConfig())
@@ -31,7 +31,7 @@ import (
 	"fmt"
 	"os"
 
-	"com.litelake.litecore/cli/generator"
+	"github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {
@@ -84,7 +84,7 @@ import (
 	"fmt"
 	"os"
 
-	"com.litelake.litecore/cli/generator"
+	"github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {

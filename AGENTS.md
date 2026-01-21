@@ -4,7 +4,7 @@ Guidelines for agentic coding tools in this repository.
 
 ## Project Overview
 
-- **Language**: Go 1.25+, Module: `com.litelake.litecore`
+- **Language**: Go 1.25+, Module: `github.com/lite-lake/litecore-go`
 - **Framework**: Gin, GORM, Zap
 - **Architecture**: 7-tier layered dependency injection (Config → Entity → Manager → Repository → Service → Controller/Middleware)
 
@@ -37,7 +37,7 @@ import (
 	"github.com/gin-gonic/gin"  // third-party second
 	"github.com/stretchr/testify/assert"
 
-	"com.litelake.litecore/common"  // local modules last
+	"github.com/lite-lake/litecore-go/common"  // local modules last
 )
 ```
 

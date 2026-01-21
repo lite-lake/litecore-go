@@ -17,7 +17,7 @@ package main
 import (
     "github.com/gin-gonic/gin"
 
-    "com.litelake.litecore/util/request"
+    "github.com/lite-lake/litecore-go/util/request"
 )
 
 // 1. 定义请求类型
