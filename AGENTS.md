@@ -6,7 +6,8 @@ Guidelines for agentic coding tools in this repository.
 
 - **Language**: Go 1.25+, Module: `github.com/lite-lake/litecore-go`
 - **Framework**: Gin, GORM, Zap
-- **Architecture**: 7-tier layered dependency injection (Config → Entity → Manager → Repository → Service → Controller/Middleware)
+- **Architecture**: 5-tier layered dependency injection (Entity → Repository → Service → Controller/Middleware)
+- **Built-in Components**: Config and Manager are server built-in components, auto-initialized and injected
 
 ## Essential Commands
 
@@ -87,16 +88,15 @@ type UserServiceImpl struct {
 
 ### DI Setup
 ```go
-configContainer := container.NewConfigContainer()
 entityContainer := container.NewEntityContainer()
-managerContainer := container.NewManagerContainer(configContainer)
-repositoryContainer := container.NewRepositoryContainer(configContainer, managerContainer, entityContainer)
-serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
-controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
-middlewareContainer := container.NewMiddlewareContainer(configContainer, managerManager, serviceContainer)
+repositoryContainer := container.NewRepositoryContainer(entityContainer)
+serviceContainer := container.NewServiceContainer(repositoryContainer)
+controllerContainer := container.NewControllerContainer(serviceContainer)
+middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
+// Config and Manager are auto-initialized by the engine
 // Register and inject all layers, then create engine
-engine := server.NewEngine(configContainer, entityContainer, managerContainer, repositoryContainer, serviceContainer, controllerContainer, middlewareContainer)
+engine := server.NewEngine(entityContainer, repositoryContainer, serviceContainer, controllerContainer, middlewareContainer)
 engine.Run()
 ```
 

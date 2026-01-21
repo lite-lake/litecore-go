@@ -5,7 +5,7 @@ LiteCore CLI 是一个代码生成工具，用于自动生成 LiteCore 框架的
 ## 功能
 
 - 自动扫描项目中的实体、仓储、服务、控制器、中间件等组件
-- 按照 LiteCore 的 7 层分层架构生成容器初始化代码
+- 按照 LiteCore 的 5 层分层架构生成容器初始化代码
 - 每个容器生成一个独立的 Go 文件
 - 支持自定义配置路径、输出目录和包名
 
@@ -135,9 +135,7 @@ go run ./cmd/generate
 
 ```
 internal/application/
-├── config_container.go        # 配置容器初始化
 ├── entity_container.go        # 实体容器初始化
-├── manager_container.go       # 管理器容器初始化
 ├── repository_container.go    # 仓储容器初始化
 ├── service_container.go       # 服务容器初始化
 ├── controller_container.go    # 控制器容器初始化
@@ -179,7 +177,7 @@ func main() {
 ## 注意事项
 
 1. 生成的代码不应手动修改，因为每次运行生成器都会覆盖这些文件
-2. 标准管理器（DatabaseManager、CacheManager、LoggerManager）需要手动注册到 `manager_container.go`
+2. Config 和 Manager 作为内置组件，由引擎自动初始化和注入，无需手动注册
 3. 如果需要自定义容器的初始化逻辑，可以在生成后手动修改相关文件
 
 ## 工作原理

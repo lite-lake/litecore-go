@@ -6,31 +6,31 @@
 - [2. 核心特性](#2-核心特性)
 - [3. 架构概述](#3-架构概述)
 - [4. 快速开始](#4-快速开始)
-- [5. 7 层架构详解](#5-7-层架构详解)
-  - [5.1 Config 层（配置层）](#51-config-层配置层)
-  - [5.2 Entity 层（实体层）](#52-entity-层实体层)
-  - [5.3 Manager 层（管理器层）](#53-manager-层管理器层)
-  - [5.4 Repository 层（仓储层）](#54-repository-层仓储层)
-  - [5.5 Service 层（服务层）](#55-service-层服务层)
-  - [5.6 Controller 层（控制器层）](#56-controller-层控制器层)
-  - [5.7 Middleware 层（中间件层）](#57-middleware-层中间件层)
-- [6. 代码生成器使用](#6-代码生成器使用)
-- [7. 依赖注入机制](#7-依赖注入机制)
-- [8. 配置管理](#8-配置管理)
-- [9. 实用工具（util 包）](#9-实用工具util-包)
-- [10. 最佳实践](#10-最佳实践)
-- [11. 常见问题](#11-常见问题)
+- [5. 5 层架构详解](#5-5-层架构详解)
+  - [5.1 Entity 层（实体层）](#51-entity-层实体层)
+  - [5.2 Repository 层（仓储层）](#52-repository-层仓储层)
+  - [5.3 Service 层（服务层）](#53-service-层服务层)
+  - [5.4 Controller 层（控制器层）](#54-controller-层控制器层)
+  - [5.5 Middleware 层（中间件层）](#55-middleware-层中间件层)
+- [6. 内置组件](#6-内置组件)
+- [7. 代码生成器使用](#7-代码生成器使用)
+- [8. 依赖注入机制](#8-依赖注入机制)
+- [9. 配置管理](#9-配置管理)
+- [10. 实用工具（util 包）](#10-实用工具util-包)
+- [11. 最佳实践](#11-最佳实践)
+- [12. 常见问题](#12-常见问题)
 - [附录](#附录)
 
 ---
 
 ## 1. 简介
 
-LiteCore 是一个基于 Go 的轻量级企业级应用框架，旨在提供标准化、可扩展的微服务开发能力。框架采用 7 层分层架构，内置依赖注入容器、配置管理、数据库管理、缓存管理、日志管理等功能，帮助开发者快速构建业务系统。
+LiteCore 是一个基于 Go 的轻量级企业级应用框架，旨在提供标准化、可扩展的微服务开发能力。框架采用 5 层分层架构，内置依赖注入容器、配置管理、数据库管理、缓存管理、日志管理等功能，帮助开发者快速构建业务系统。
 
 ### 为什么要使用 LiteCore？
 
-- **标准化架构**：统一的 7 层架构规范，降低团队协作成本
+- **标准化架构**：统一的 5 层架构规范，降低团队协作成本
+- **内置组件**：Config 和 Manager 作为服务器内置组件，自动初始化和注入
 - **依赖注入**：自动化的依赖注入容器，简化组件管理
 - **开箱即用**：内置数据库、缓存、日志等基础组件
 - **代码生成**：自动生成容器代码，减少重复劳动
@@ -52,7 +52,8 @@ LiteCore 是一个基于 Go 的轻量级企业级应用框架，旨在提供标�
 
 | 功能 | 说明 | 实现方式 |
 |------|------|----------|
-| **7 层架构** | Config → Entity → Manager → Repository → Service → Controller/Middleware | 接口定义 + 依赖注入 |
+| **5 层架构** | Entity → Repository → Service → Controller/Middleware | 接口定义 + 依赖注入 |
+| **内置组件** | Config 和 Manager 自动初始化和注入 | server/builtin 包 |
 | **依赖注入** | 自动扫描、自动注入、生命周期管理 | reflect + inject 标签 |
 | **代码生成** | 自动生成容器代码和引擎代码 | CLI 工具 |
 | **配置管理** | 支持 YAML/JSON 配置文件 | config 包 |
@@ -81,7 +82,7 @@ LiteCore 提供了一系列实用的工具包，帮助开发者处理常见的�
 
 ## 3. 架构概述
 
-### 3.1 7 层架构图
+### 3.1 5 层架构图
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -117,46 +118,35 @@ LiteCore 提供了一系列实用的工具包，帮助开发者处理常见的�
 │  - ORM 操作                                              │
 │  - 数据库迁移                                            │
 └─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  Manager 层（管理器）                                    │
-│  - DatabaseManager（数据库）                             │
-│  - CacheManager（缓存）                                  │
-│  - LoggerManager（日志）                                 │
-│  - TelemetryManager（遥测）                              │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  Entity 层（实体）                                        │
-│  - 数据模型定义                                          │
-│  - 表结构定义                                            │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  Config 层（配置）                                        │
-│  - 配置文件加载                                          │
-│  - 配置项访问                                            │
-└─────────────────────────────────────────────────────────┘
+            ↑ 依赖              ↓ 使用
+┌─────────────────────────┐    ┌──────────────────────┐
+│  Entity    (实体层)     │    │  Manager   (内置组件) │
+│  - 数据模型定义          │    │  - DatabaseManager   │
+│  - 表结构定义            │    │  - CacheManager      │
+└─────────────────────────┘    │  - LoggerManager     │
+                              │  - TelemetryManager  │
+                              └──────────────────────┘
+                                        ↑ 依赖
+                              ┌──────────────────────┐
+                              │  Config    (内置配置) │
+                              │  - 配置文件加载       │
+                              │  - 配置项访问         │
+                              └──────────────────────┘
 ```
 
 ### 3.2 依赖规则
 
 ```
-Config 层（无依赖）
-    ↓
 Entity 层（无外部依赖）
     ↓
-Manager 层（依赖 Config）
+Repository 层（依赖 Entity、Config、Manager）
     ↓
-Repository 层（依赖 Config、Manager、Entity）
+Service 层（依赖 Repository、Config、Manager、Service）
     ↓
-Service 层（依赖 Config、Manager、Repository、Service）
-    ↓
-Controller 层（依赖 Config、Manager、Service）
-Middleware 层（依赖 Config、Manager、Service）
+Controller 层（依赖 Service、Config、Manager）
+Middleware 层（依赖 Service、Config、Manager）
+    ↑ 依赖（由引擎自动注入）
+Config 和 Manager（内置组件）
 ```
 
 **规则说明**：
@@ -164,6 +154,7 @@ Middleware 层（依赖 Config、Manager、Service）
 - 下层不能依赖上层
 - 同层之间可以相互依赖（例如 Service 可以依赖另一个 Service）
 - Controller 不能直接依赖 Repository，必须通过 Service
+- Config 和 Manager 作为内置组件，由引擎自动初始化和注入
 
 ### 3.3 生命周期管理
 
@@ -173,7 +164,7 @@ Middleware 层（依赖 Config、Manager、Service）
 |------|----------|------|
 | `OnStart()` | 服务器启动时 | 初始化资源（连接数据库、加载缓存等） |
 | `OnStop()` | 服务器停止时 | 清理资源（关闭连接、保存数据等） |
-| `Health()` | 健康检查时 | 检查组件健康状态（仅 Manager 层） |
+| `Health()` | 健康检查时 | 检查组件健康状态（内置 Manager 组件） |
 
 ---
 
@@ -245,9 +236,7 @@ myapp/
 ├── configs/config.yaml          # 配置文件
 ├── internal/
 │   ├── application/             # 自动生成的容器（DO NOT EDIT）
-│   │   ├── config_container.go
 │   │   ├── entity_container.go
-│   │   ├── manager_container.go
 │   │   ├── repository_container.go
 │   │   ├── service_container.go
 │   │   ├── controller_container.go
@@ -260,8 +249,6 @@ myapp/
 │   ├── middlewares/             # 中间件层（依赖 Service）
 │   ├── dtos/                    # 数据传输对象
 │   └── infras/                  # 基础设施（Manager 封装）
-│       ├── configproviders/     # 配置提供者
-│       │   └── config_provider.go
 │       └── managers/            # 管理器封装
 │           ├── database_manager.go
 │           ├── cache_manager.go
@@ -364,78 +351,19 @@ go run ./cmd/server/main.go
 
 ---
 
-## 5. 7 层架构详解
+## 5. 5 层架构详解
 
-### 5.1 Config 层（配置层）
+### 5.1 Entity 层（实体层）
 
 Config 层负责配置文件的加载和配置项的访问。
 
-#### 5.1.1 创建配置提供者
+Entity 层定义数据实体，映射到数据库表结构。实体层无外部依赖，只包含纯数据定义。
 
-位置：`internal/infras/configproviders/config_provider.go`
-
-```go
-package configproviders
-
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/config"
-)
-
-func NewConfigProvider() (common.IBaseConfigProvider, error) {
-    return config.NewConfigProvider("yaml", "configs/config.yaml")
-}
-```
-
-#### 5.1.2 使用配置
-
-```go
-import "github.com/lite-lake/litecore-go/config"
-
-// 获取字符串配置
-appName, err := config.Get[string](configProvider, "app.name")
-
-// 获取整数配置
-port, err := config.Get[int](configProvider, "server.port")
-
-// 获取布尔配置
-enabled, err := config.Get[bool](configProvider, "logger.console_enabled")
-
-// 检查配置是否存在
-if configProvider.Has("database.mysql_config.dsn") {
-    // 处理配置
-}
-```
-
-#### 5.1.3 配置项路径语法
-
-配置项使用点分隔的路径语法：
-
-```yaml
-database:
-  driver: "mysql"
-  mysql_config:
-    dsn: "root:pass@tcp(localhost:3306)/db"
-    pool_config:
-      max_open_conns: 100
-```
-
-访问方式：
-```go
-config.Get[string](configProvider, "database.driver")
-config.Get[string](configProvider, "database.mysql_config.dsn")
-config.Get[int](configProvider, "database.mysql_config.pool_config.max_open_conns")
-```
-
----
-
-### 5.2 Entity 层（实体层）
+#### 5.1.1 实体示例
 
 Entity 层定义数据实体，映射到数据库表结构。实体层无外部依赖，只包含纯数据定义。
 
-#### 5.2.1 实体示例
-
-位置：`internal/entities/user_entity.go`
+#### 5.1.2 实体示例
 
 ```go
 package entities
@@ -480,7 +408,7 @@ func (u *User) IsActive() bool {
 var _ common.IBaseEntity = (*User)(nil)
 ```
 
-#### 5.2.2 GORM 标签说明
+#### 5.1.3 GORM 标签说明
 
 | 标签 | 说明 | 示例 |
 |------|------|------|
@@ -493,7 +421,7 @@ var _ common.IBaseEntity = (*User)(nil)
 | `size` | 字段大小 | `gorm:"size:100"` |
 | `column` | 列名 | `gorm:"column:user_name"` |
 
-#### 5.2.3 实体设计规范
+#### 5.1.4 实体设计规范
 
 - **纯数据模型**：实体只包含数据，不包含业务逻辑
 - **GORM 标签**：使用 GORM 标签定义表结构
@@ -503,175 +431,11 @@ var _ common.IBaseEntity = (*User)(nil)
 
 ---
 
-### 5.3 Manager 层（管理器层）
-
-Manager 层封装基础设施组件，提供数据库、缓存、日志、遥测等功能。
-
-#### 5.3.1 可用的 Manager
-
-LiteCore 提供以下 Manager 组件：
-
-| Manager | 功能 | 支持驱动 |
-|---------|------|----------|
-| `DatabaseManager` | 数据库管理 | MySQL, PostgreSQL, SQLite, None |
-| `CacheManager` | 缓存管理 | Redis, Memory, None |
-| `LoggerManager` | 日志管理 | Zap, None |
-| `TelemetryManager` | 遥测管理 | OpenTelemetry, None |
-
-#### 5.3.2 封装 Database Manager
-
-位置：`internal/infras/managers/database_manager.go`
-
-```go
-package managers
-
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/component/manager/databasemgr"
-)
-
-type IDatabaseManager interface {
-    databasemgr.IDatabaseManager
-}
-
-type databaseManagerImpl struct {
-    databasemgr.IDatabaseManager
-}
-
-func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseManager, error) {
-    mgr, err := databasemgr.BuildWithConfigProvider(configProvider)
-    if err != nil {
-        return nil, err
-    }
-    return &databaseManagerImpl{mgr}, nil
-}
-```
-
-#### 5.3.3 封装 Cache Manager
-
-位置：`internal/infras/managers/cache_manager.go`
-
-```go
-package managers
-
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/component/manager/cachemgr"
-)
-
-type ICacheManager interface {
-    cachemgr.ICacheManager
-}
-
-type cacheManagerImpl struct {
-    cachemgr.ICacheManager
-}
-
-func NewCacheManager(configProvider common.IBaseConfigProvider) (ICacheManager, error) {
-    mgr, err := cachemgr.BuildWithConfigProvider(configProvider)
-    if err != nil {
-        return nil, err
-    }
-    return &cacheManagerImpl{mgr}, nil
-}
-```
-
-#### 5.3.4 封装 Logger Manager
-
-位置：`internal/infras/managers/logger_manager.go`
-
-```go
-package managers
-
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/component/manager/loggermgr"
-)
-
-type ILoggerManager interface {
-    loggermgr.ILoggerManager
-}
-
-type loggerManagerImpl struct {
-    loggermgr.ILoggerManager
-}
-
-func NewLoggerManager(configProvider common.IBaseConfigProvider) (ILoggerManager, error) {
-    mgr, err := loggermgr.BuildWithConfigProvider(configProvider)
-    if err != nil {
-        return nil, err
-    }
-    return &loggerManagerImpl{mgr}, nil
-}
-```
-
-#### 5.3.5 使用 Database Manager
-
-```go
-// 获取 GORM DB 实例
-db := r.Manager.DB()
-
-// 创建记录
-user := &entities.User{Name: "Alice"}
-if err := db.Create(user).Error; err != nil {
-    return err
-}
-
-// 查询记录
-var result entities.User
-if err := db.First(&result, user.ID).Error; err != nil {
-    return err
-}
-
-// 更新记录
-if err := db.Model(&result).Update("Name", "Bob").Error; err != nil {
-    return err
-}
-
-// 删除记录
-if err := db.Delete(&result).Error; err != nil {
-    return err
-}
-
-// 自动迁移表结构
-if err := r.Manager.AutoMigrate(&entities.User{}); err != nil {
-    return err
-}
-```
-
-#### 5.3.6 使用 Cache Manager
-
-```go
-import "context"
-
-// 设置缓存
-ctx := context.Background()
-cacheKey := "user:1"
-if err := s.CacheMgr.Set(ctx, cacheKey, user, time.Hour); err != nil {
-    return err
-}
-
-// 获取缓存
-var cachedUser entities.User
-if err := s.CacheMgr.Get(ctx, cacheKey, &cachedUser); err == nil {
-    return &cachedUser, nil
-}
-
-// 删除缓存
-if err := s.CacheMgr.Delete(ctx, cacheKey); err != nil {
-    return err
-}
-```
-
----
-
-### 5.4 Repository 层（仓储层）
+### 5.2 Repository 层（仓储层）
 
 Repository 层负责数据访问，提供 CRUD 操作和数据库交互。
 
-#### 5.4.1 Repository 示例
-
-位置：`internal/repositories/user_repository.go`
+#### 5.2.1 Repository 示例
 
 ```go
 package repositories
@@ -763,7 +527,7 @@ func (r *userRepository) List(offset, limit int) ([]*entities.User, int64, error
 var _ IUserRepository = (*userRepository)(nil)
 ```
 
-#### 5.4.2 Repository 设计规范
+#### 5.2.2 Repository 设计规范
 
 - **接口定义**：定义接口 `IXxxRepository`
 - **依赖注入**：使用 `inject:""` 标签注入依赖
@@ -772,7 +536,7 @@ var _ IUserRepository = (*userRepository)(nil)
 - **错误处理**：直接返回 GORM 错误，不在 Repository 层包装
 - **事务管理**：在 Service 层管理事务
 
-#### 5.4.3 使用事务
+#### 5.2.3 使用事务
 
 Repository 层只提供数据库访问方法，事务管理在 Service 层进行：
 
@@ -798,13 +562,11 @@ func (s *userService) CreateUserWithProfile(user *entities.User, profile *entiti
 
 ---
 
-### 5.5 Service 层（服务层）
+### 5.3 Service 层（服务层）
 
 Service 层实现业务逻辑，负责数据验证、事务管理、业务规则等。
 
-#### 5.5.1 Service 示例
-
-位置：`internal/services/user_service.go`
+#### 5.3.1 Service 示例
 
 ```go
 package services
@@ -951,7 +713,7 @@ func (s *userService) ListUsers(page, pageSize int) ([]*entities.User, int64, er
 var _ IUserService = (*userService)(nil)
 ```
 
-#### 5.5.2 Service 设计规范
+#### 5.3.2 Service 设计规范
 
 - **业务逻辑**：在 Service 层实现所有业务逻辑
 - **数据验证**：在 Service 层进行输入验证
@@ -961,13 +723,11 @@ var _ IUserService = (*userService)(nil)
 
 ---
 
-### 5.6 Controller 层（控制器层）
+### 5.4 Controller 层（控制器层）
 
 Controller 层负责 HTTP 请求处理，包括参数验证、调用 Service、响应封装。
 
-#### 5.6.1 Controller 示例
-
-位置：`internal/controllers/user_controller.go`
+#### 5.4.1 Controller 示例
 
 ```go
 package controllers
@@ -1027,9 +787,7 @@ func (c *userController) Handle(ctx *gin.Context) {
 var _ IUserController = (*userController)(nil)
 ```
 
-#### 5.6.2 DTO 示例
-
-位置：`internal/dtos/user_dto.go`
+#### 5.4.2 DTO 示例
 
 ```go
 package dtos
@@ -1082,7 +840,7 @@ func ErrorResponse(code int, message string) ErrorResponse {
 }
 ```
 
-#### 5.6.3 Controller 设计规范
+#### 5.4.3 Controller 设计规范
 
 - **路由定义**：在 `GetRouter()` 中定义路由
 - **参数验证**：使用 Gin 的 `ShouldBindJSON()` 验证参数
@@ -1090,7 +848,7 @@ func ErrorResponse(code int, message string) ErrorResponse {
 - **响应封装**：使用统一的响应格式
 - **错误处理**：将 Service 层错误转换为 HTTP 响应
 
-#### 5.6.4 路由定义格式
+#### 5.4.4 路由定义格式
 
 Controller 的 `GetRouter()` 方法支持完整的路由语法：
 
@@ -1112,13 +870,11 @@ return "/api/v1/users [GET]"           // 版本化路由
 
 ---
 
-### 5.7 Middleware 层（中间件层）
+### 5.5 Middleware 层（中间件层）
 
 Middleware 层负责横切关注点的处理，如认证、授权、日志、CORS 等。
 
-#### 5.7.1 中间件示例
-
-位置：`internal/middlewares/auth_middleware.go`
+#### 5.5.1 中间件示例
 
 ```go
 package middlewares
@@ -1212,7 +968,7 @@ func (m *authMiddleware) OnStop() error {
 var _ IAuthMiddleware = (*authMiddleware)(nil)
 ```
 
-#### 5.7.2 中间件执行顺序
+#### 5.5.2 中间件执行顺序
 
 中间件按照 `Order()` 返回的值从小到大执行：
 
@@ -1225,7 +981,7 @@ func (m *LoggerMiddleware) Order() int       { return 200 }  // 日志中间件
 func (m *TelemetryMiddleware) Order() int    { return 300 }  // 遥测中间件
 ```
 
-#### 5.7.3 中间件设计规范
+#### 5.5.3 中间件设计规范
 
 - **横切关注点**：中间件处理认证、日志、CORS 等横切关注点
 - **顺序控制**：使用 `Order()` 方法定义执行顺序
@@ -1234,7 +990,84 @@ func (m *TelemetryMiddleware) Order() int    { return 300 }  // 遥测中间件
 
 ---
 
-## 6. 代码生成器使用
+## 6. 内置组件
+
+### 6.1 Config（配置）
+
+Config 作为服务器内置组件，由引擎自动初始化。开发者只需提供配置提供者（由框架自动发现并初始化）：
+
+```go
+// 框架会自动发现并调用此函数初始化 Config
+package configproviders
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/config"
+)
+
+func NewConfigProvider() (common.IBaseConfigProvider, error) {
+    return config.NewConfigProvider("yaml", "configs/config.yaml")
+}
+```
+
+### 6.2 Manager（管理器）
+
+Manager 组件也作为服务器内置组件，由引擎自动初始化。开发者只需提供管理器工厂（由框架自动发现并初始化）：
+
+```go
+// 框架会自动发现并调用此函数初始化 DatabaseManager
+package managers
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/manager/databasemgr"
+)
+
+type IDatabaseManager interface {
+    databasemgr.IDatabaseManager
+}
+
+type databaseManagerImpl struct {
+    databasemgr.IDatabaseManager
+}
+
+func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseManager, error) {
+    mgr, err := databasemgr.BuildWithConfigProvider(configProvider)
+    if err != nil {
+        return nil, err
+    }
+    return &databaseManagerImpl{mgr}, nil
+}
+```
+
+### 6.3 可用的内置 Manager
+
+| Manager | 功能 | 支持驱动 |
+|---------|------|----------|
+| `DatabaseManager` | 数据库管理 | MySQL, PostgreSQL, SQLite, None |
+| `CacheManager` | 缓存管理 | Redis, Memory, None |
+| `LoggerManager` | 日志管理 | Zap, None |
+| `TelemetryManager` | 遥测管理 | OpenTelemetry, None |
+
+### 6.4 使用内置组件
+
+在任何层中，都可以通过 `inject:""` 标签自动注入 Config 和 Manager：
+
+```go
+type UserServiceImpl struct {
+    // 内置组件（由引擎自动注入）
+    Config    common.IBaseConfigProvider  `inject:""`
+    DBManager databasemgr.IDatabaseManager `inject:""`
+    CacheMgr  cachemgr.ICacheManager      `inject:""`
+
+    // 业务依赖
+    UserRepo  IUserRepository             `inject:""`
+}
+```
+
+---
+
+## 7. 代码生成器使用
 
 LiteCore 提供代码生成器，自动扫描项目中的组件并生成容器代码。
 
@@ -1296,9 +1129,7 @@ go run ./cmd/generate -o internal/application -pkg application -c configs/config
 
 | 文件 | 说明 |
 |------|------|
-| `config_container.go` | 配置容器 |
 | `entity_container.go` | 实体容器 |
-| `manager_container.go` | Manager 容器 |
 | `repository_container.go` | 仓储容器 |
 | `service_container.go` | 服务容器 |
 | `controller_container.go` | 控制器容器 |
@@ -1309,31 +1140,34 @@ go run ./cmd/generate -o internal/application -pkg application -c configs/config
 
 ---
 
-## 7. 依赖注入机制
+## 8. 依赖注入机制
 
 LiteCore 提供自动化的依赖注入容器，简化组件管理。
 
-### 7.1 注入语法
+### 8.1 注入语法
 
-使用 `inject:""` 标签声明依赖：
+使用 `inject:""` 标签声明依赖，Config 和 Manager 由引擎自动注入：
 
 ```go
 type userService struct {
+    // 内置组件（引擎自动注入）
     Config     common.IBaseConfigProvider      `inject:""`
-    Repository repositories.IUserRepository   `inject:""`
+    DBManager  databasemgr.IDatabaseManager   `inject:""`
     CacheMgr   infras.ICacheManager           `inject:""`
+
+    // 业务依赖
+    Repository repositories.IUserRepository   `inject:""`
 }
 ```
 
-### 7.2 依赖规则
+### 8.2 依赖规则
 
 | 层级 | 可注入的依赖 |
 |------|-------------|
-| Manager | Config |
-| Repository | Config, Manager, Entity |
-| Service | Config, Manager, Repository, Service |
-| Controller | Config, Manager, Service |
-| Middleware | Config, Manager, Service |
+| Repository | Entity, Config, Manager（内置） |
+| Service | Repository, Config, Manager（内置）, Service |
+| Controller | Service, Config, Manager（内置） |
+| Middleware | Service, Config, Manager（内置） |
 
 ### 7.3 注入示例
 
@@ -1341,8 +1175,11 @@ type userService struct {
 
 ```go
 type userRepository struct {
+    // 内置组件（引擎自动注入）
     Config  common.IBaseConfigProvider     `inject:""`
     Manager managers.IDatabaseManager      `inject:""`
+
+    // 业务依赖
 }
 ```
 
@@ -1350,9 +1187,13 @@ type userRepository struct {
 
 ```go
 type userService struct {
-    Config       common.IBaseConfigProvider      `inject:""`
+    // 内置组件（引擎自动注入）
+    Config     common.IBaseConfigProvider      `inject:""`
+    DBManager  databasemgr.IDatabaseManager   `inject:""`
+    CacheMgr   infras.ICacheManager           `inject:""`
+
+    // 业务依赖
     Repository   repositories.IUserRepository   `inject:""`
-    CacheMgr     infras.ICacheManager           `inject:""`
     OtherService services.IOtherService         `inject:""`
 }
 ```
@@ -1361,6 +1202,10 @@ type userService struct {
 
 ```go
 type userController struct {
+    // 内置组件（引擎自动注入）
+    Config    common.IBaseConfigProvider  `inject:""`
+
+    // 业务依赖
     UserService services.IUserService `inject:""`
 }
 ```
@@ -1369,21 +1214,26 @@ type userController struct {
 
 ```go
 type authMiddleware struct {
+    // 内置组件（引擎自动注入）
+    Config    common.IBaseConfigProvider  `inject:""`
+
+    // 业务依赖
     AuthService services.IAuthService `inject:""`
 }
 ```
 
-### 7.4 注意事项
+### 8.4 注意事项
 
 1. **不要跨层注入**：Controller 不能直接注入 Repository
 2. **接口注入**：优先注入接口，而非具体实现
 3. **空标签**：`inject:""` 表示自动注入，无需指定名称
 4. **循环依赖**：LiteCore 不支持循环依赖，需要重构代码
 5. **类型匹配**：依赖类型必须与声明的接口类型匹配
+6. **内置组件**：Config 和 Manager 由引擎自动初始化和注入，无需手动创建
 
 ---
 
-## 8. 配置管理
+## 9. 配置管理
 
 LiteCore 提供统一的配置管理功能，支持 YAML 和 JSON 格式。
 
@@ -1470,7 +1320,7 @@ config.Get[int](configProvider, "database.mysql_config.pool_config.max_open_conn
 
 ---
 
-## 9. 实用工具（util 包）
+## 10. 实用工具（util 包）
 
 LiteCore 提供了一系列实用工具包，帮助开发者处理常见的开发任务。
 
@@ -1551,7 +1401,7 @@ uuid := id.UUID.Generate()
 
 ---
 
-## 10. 最佳实践
+## 11. 最佳实践
 
 ### 10.1 目录组织
 
@@ -1641,7 +1491,7 @@ sqlite_config:
 
 ---
 
-## 11. 常见问题
+## 12. 常见问题
 
 ### Q: 如何添加新的 Manager？
 

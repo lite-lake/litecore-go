@@ -4,9 +4,9 @@
 
 ## 特性
 
-- **分层架构** - 定义 Config/Entity/Manager/Repository/Service/Controller/Middleware 七层容器，严格单向依赖
+- **分层架构** - 定义 Entity/Repository/Service/Controller/Middleware 五层容器，严格单向依赖
 - **依赖注入** - 通过 inject 标签自动注入依赖，支持接口类型匹配和可选依赖
-- **同层依赖** - Manager 和 Service 层支持同层依赖，自动拓扑排序确定注入顺序
+- **同层依赖** - Service 层支持同层依赖，自动拓扑排序确定注入顺序
 - **类型安全** - 使用泛型 API 注册，编译时类型检查，接口实现校验
 - **错误检测** - 自动检测循环依赖、依赖缺失、接口未实现等错误
 - **并发安全** - 使用 RWMutex 保护容器内部状态，支持多线程并发读取
@@ -21,26 +21,18 @@ import (
     "reflect"
 
     "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/config"
     "github.com/lite-lake/litecore-go/container"
-    "github.com/lite-lake/litecore-go/manager/databasemgr"
 )
 
 func main() {
     // 1. 创建容器（按依赖顺序）
-    configContainer := container.NewConfigContainer()
-    managerContainer := container.NewManagerContainer(configContainer)
     entityContainer := container.NewEntityContainer()
-    repositoryContainer := container.NewRepositoryContainer(configContainer, managerContainer, entityContainer)
-    serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
+    repositoryContainer := container.NewRepositoryContainer(entityContainer)
+    serviceContainer := container.NewServiceContainer(repositoryContainer)
+    controllerContainer := container.NewControllerContainer(serviceContainer)
+    middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
     // 2. 注册实例（使用泛型 API）
-    configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
-    container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
-
-    dbManager := databasemgr.NewDatabaseManager()
-    container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbManager)
-
     userEntity := &User{}
     container.RegisterEntity[User](entityContainer, userEntity)
 
@@ -50,15 +42,21 @@ func main() {
     userService := &UserServiceImpl{}
     container.RegisterService[UserService](serviceContainer, userService)
 
+    userController := &UserControllerImpl{}
+    container.RegisterController[UserController](controllerContainer, userController)
+
     // 3. 执行依赖注入（按层次从下到上）
-    if err := managerContainer.InjectAll(); err != nil {
-        log.Fatalf("Manager injection failed: %v", err)
-    }
     if err := repositoryContainer.InjectAll(); err != nil {
         log.Fatalf("Repository injection failed: %v", err)
     }
     if err := serviceContainer.InjectAll(); err != nil {
         log.Fatalf("Service injection failed: %v", err)
+    }
+    if err := controllerContainer.InjectAll(); err != nil {
+        log.Fatalf("Controller injection failed: %v", err)
+    }
+    if err := middlewareContainer.InjectAll(); err != nil {
+        log.Fatalf("Middleware injection failed: %v", err)
     }
 
     // 4. 获取实例使用
@@ -72,7 +70,7 @@ func main() {
 
 ## 容器层次
 
-系统定义以下七层容器，遵循单向依赖原则：
+系统定义以下五层容器，遵循单向依赖原则：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -84,21 +82,20 @@ func main() {
 │  Repository Layer   (BaseRepository)                        │
 ├─────────────────────────────────────────────────────────────┤
 │  Entity Layer       (BaseEntity)                            │
-│  Manager Layer      (BaseManager)                           │
-├─────────────────────────────────────────────────────────────┤
-│  Config Layer       (BaseConfigProvider)                    │
+└─────────────────────────────────────────────────────────────┘
+                        ↑ 内置组件
+┌─────────────────────────────────────────────────────────────┐
+│  Config & Manager  (内置组件，由引擎自动初始化)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 | 层级       | 可依赖的层级                              |
 | ---------- | ----------------------------------------- |
-| Config     | 无依赖                                    |
 | Entity     | 无依赖                                    |
-| Manager    | Config, 其他 Manager                      |
-| Repository | Config, Manager, Entity                   |
-| Service    | Config, Manager, Repository, 其他 Service |
-| Controller | Config, Manager, Service                  |
-| Middleware | Config, Manager, Service                  |
+| Repository | Entity, Config, Manager (内置)           |
+| Service    | Repository, Config, Manager (内置), 其他 Service |
+| Controller | Service, Config, Manager (内置)         |
+| Middleware | Service, Config, Manager (内置)         |
 
 ## 注册实例
 
@@ -107,14 +104,6 @@ func main() {
 使用泛型辅助函数注册，类型安全且代码简洁：
 
 ```go
-// Config 层
-configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
-container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
-
-// Manager 层
-dbManager := databasemgr.NewDatabaseManager()
-container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbManager)
-
 // Entity 层
 userEntity := &User{}
 container.RegisterEntity[User](entityContainer, userEntity)
@@ -156,15 +145,21 @@ err := container.RegisterService[UserService](serviceContainer, &InvalidServiceI
 
 ### 声明依赖
 
-在结构体字段上使用 `inject` 标签声明需要注入的依赖：
+在结构体字段上使用 `inject` 标签声明需要注入的依赖，Config 和 Manager 由引擎自动注入：
 
 ```go
 type UserServiceImpl struct {
+    // 内置组件（由引擎自动注入）
     Config    common.BaseConfigProvider `inject:""`
     DBManager DatabaseManager           `inject:""`
+    CacheMgr  CacheManager              `inject:""`
+
+    // 业务依赖
     UserRepo  UserRepository            `inject:""`
     OrderSvc  OrderService              `inject:""`  // 同层依赖
-    CacheMgr  CacheManager              `inject:"optional"` // 可选依赖
+
+    // 可选依赖
+    OptionalService IOtherService       `inject:"optional"`
 }
 
 func (s *UserServiceImpl) ServiceName() string {
@@ -206,7 +201,7 @@ type UserServiceImpl struct {
 
 ## 同层依赖
 
-Service 和 Manager 层支持同层依赖，容器会自动构建依赖图并进行拓扑排序。
+Service 层支持同层依赖，容器会自动构建依赖图并进行拓扑排序。
 
 ### 示例场景
 
@@ -327,12 +322,6 @@ if err := serviceContainer.InjectAll(); err != nil {
 ### 泛型辅助函数（推荐）
 
 ```go
-// Config 层
-func RegisterConfig[T common.BaseConfigProvider](c *ConfigContainer, impl T) error
-
-// Manager 层
-func RegisterManager[T common.BaseManager](m *ManagerContainer, impl T) error
-
 // Entity 层
 func RegisterEntity[T common.BaseEntity](e *EntityContainer, impl T) error
 
@@ -349,28 +338,6 @@ func RegisterController[T common.BaseController](c *ControllerContainer, impl T)
 func RegisterMiddleware[T common.BaseMiddleware](m *MiddlewareContainer, impl T) error
 ```
 
-### ConfigContainer
-
-```go
-func NewConfigContainer() *ConfigContainer
-func (c *ConfigContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseConfigProvider) error
-func (c *ConfigContainer) InjectAll() error
-func (c *ConfigContainer) GetAll() []common.BaseConfigProvider
-func (c *ConfigContainer) GetByType(typ reflect.Type) (common.BaseConfigProvider, error)
-func (c *ConfigContainer) Count() int
-```
-
-### ManagerContainer
-
-```go
-func NewManagerContainer(config *ConfigContainer) *ManagerContainer
-func (m *ManagerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseManager) error
-func (m *ManagerContainer) InjectAll() error
-func (m *ManagerContainer) GetAll() []common.BaseManager
-func (m *ManagerContainer) GetByType(typ reflect.Type) (common.BaseManager, error)
-func (m *ManagerContainer) Count() int
-```
-
 ### EntityContainer
 
 ```go
@@ -385,11 +352,7 @@ func (e *EntityContainer) Count() int
 ### RepositoryContainer
 
 ```go
-func NewRepositoryContainer(
-    config *ConfigContainer,
-    manager *ManagerContainer,
-    entity *EntityContainer,
-) *RepositoryContainer
+func NewRepositoryContainer(entity *EntityContainer) *RepositoryContainer
 func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseRepository) error
 func (r *RepositoryContainer) InjectAll() error
 func (r *RepositoryContainer) GetAll() []common.BaseRepository
@@ -400,11 +363,7 @@ func (r *RepositoryContainer) Count() int
 ### ServiceContainer
 
 ```go
-func NewServiceContainer(
-    config *ConfigContainer,
-    manager *ManagerContainer,
-    repository *RepositoryContainer,
-) *ServiceContainer
+func NewServiceContainer(repository *RepositoryContainer) *ServiceContainer
 func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseService) error
 func (s *ServiceContainer) InjectAll() error
 func (s *ServiceContainer) GetAll() []common.BaseService
@@ -415,11 +374,7 @@ func (s *ServiceContainer) Count() int
 ### ControllerContainer
 
 ```go
-func NewControllerContainer(
-    config *ConfigContainer,
-    manager *ManagerContainer,
-    service *ServiceContainer,
-) *ControllerContainer
+func NewControllerContainer(service *ServiceContainer) *ControllerContainer
 func (c *ControllerContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseController) error
 func (c *ControllerContainer) InjectAll() error
 func (c *ControllerContainer) GetAll() []common.BaseController
@@ -430,11 +385,7 @@ func (c *ControllerContainer) Count() int
 ### MiddlewareContainer
 
 ```go
-func NewMiddlewareContainer(
-    config *ConfigContainer,
-    manager *ManagerContainer,
-    service *ServiceContainer,
-) *MiddlewareContainer
+func NewMiddlewareContainer(service *ServiceContainer) *MiddlewareContainer
 func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.BaseMiddleware) error
 func (m *MiddlewareContainer) InjectAll() error
 func (m *MiddlewareContainer) GetAll() []common.BaseMiddleware
@@ -474,14 +425,15 @@ UserService → OrderService → UserService (循环!)
 ```go
 // 推荐：依赖聚焦
 type UserServiceImpl struct {
-    UserRepo UserRepository `inject:""`
+    DBManager  DatabaseManager      `inject:""`  // 内置组件
+    UserRepo   UserRepository       `inject:""`
 }
 
 // 避免：依赖过多
 type UserServiceImpl struct {
-    Config     common.BaseConfigProvider `inject:""`
-    DBManager  DatabaseManager           `inject:""`
-    CacheMgr   CacheManager              `inject:""`
+    Config     common.BaseConfigProvider `inject:""`  // 内置组件
+    DBManager  DatabaseManager           `inject:""`  // 内置组件
+    CacheMgr   CacheManager              `inject:""`  // 内置组件
     UserRepo   UserRepository            `inject:""`
     OrderRepo  OrderRepository           `inject:""`
     OrderSvc   OrderService              `inject:""`

@@ -4,8 +4,9 @@
 
 ## 特性
 
-- **容器管理** - 集成 Config、Entity、Manager、Repository、Service、Controller、Middleware 七层容器
-- **自动注入** - 按依赖顺序自动处理组件注入（Entity → Manager → Repository → Service → Controller/Middleware）
+- **容器管理** - 集成 Entity、Repository、Service、Controller、Middleware 五层容器
+- **内置组件** - Config 和 Manager 作为内置组件，由引擎自动初始化和注入
+- **自动注入** - 按依赖顺序自动处理组件注入（Entity → Repository → Service → Controller/Middleware）
 - **生命周期管理** - 统一管理各层组件的启动和停止，支持健康检查
 - **中间件集成** - 自动排序并注册全局中间件到 Gin 引擎
 - **路由管理** - 自动注册控制器路由，通过 BaseController 统一管理
@@ -53,29 +54,19 @@ import (
 
 func main() {
     // 创建容器
-    configContainer := container.NewConfigContainer()
     entityContainer := container.NewEntityContainer()
-    managerContainer := container.NewManagerContainer(configContainer)
-    repositoryContainer := container.NewRepositoryContainer(configContainer, managerContainer, entityContainer)
-    serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
-    controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
-    middlewareContainer := container.NewMiddlewareContainer(configContainer, managerContainer, serviceContainer)
-
-    // 注册配置
-    configProvider, _ := config.NewConfigProvider("yaml", "config.yaml")
-    container.RegisterConfig[common.BaseConfigProvider](configContainer, configProvider)
-
-    // 注册管理器
-    dbMgr := databasemgr.NewDatabaseManager()
-    container.RegisterManager[databasemgr.DatabaseManager](managerContainer, dbMgr)
+    repositoryContainer := container.NewRepositoryContainer(entityContainer)
+    serviceContainer := container.NewServiceContainer(repositoryContainer)
+    controllerContainer := container.NewControllerContainer(serviceContainer)
+    middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
     // 注册其他组件（实体、仓储、服务、控制器、中间件）...
 
+    // Config 和 Manager 由引擎自动初始化和注入
+
     // 创建并启动引擎
     engine := server.NewEngine(
-        configContainer,
         entityContainer,
-        managerContainer,
         repositoryContainer,
         serviceContainer,
         controllerContainer,
@@ -105,9 +96,7 @@ if err != nil {
 
 ```go
 engine := server.NewEngine(
-    configContainer,
     entityContainer,
-    managerContainer,
     repositoryContainer,
     serviceContainer,
     controllerContainer,
@@ -150,16 +139,20 @@ engine.WaitForShutdown()
 Engine 按以下顺序管理组件生命周期：
 
 **启动顺序：**
-1. Manager 层（按注册顺序）
-2. Repository 层（按注册顺序）
-3. Service 层（按注册顺序）
-4. HTTP 服务器
+1. Config 和 Manager（内置组件，自动初始化）
+2. Entity 层（按注册顺序）
+3. Repository 层（按注册顺序）
+4. Service 层（按注册顺序）
+5. Controller 和 Middleware 层（按注册顺序）
+6. HTTP 服务器
 
 **停止顺序（反转启动顺序）：**
 1. HTTP 服务器（优雅关闭）
-2. Service 层（反转顺序）
-3. Repository 层（反转顺序）
-4. Manager 层（反转顺序）
+2. Controller 和 Middleware 层（反转顺序）
+3. Service 层（反转顺序）
+4. Repository 层（反转顺序）
+5. Entity 层（反转顺序）
+6. Manager 和 Config（内置组件，自动清理）
 
 ```go
 // 手动停止
@@ -172,19 +165,22 @@ if err := engine.Stop(); err != nil {
 
 Engine 在初始化时自动按以下顺序执行依赖注入：
 
-1. **Entity 层**（无依赖）
-2. **Manager 层**（依赖 Config 和同层 Manager）
+1. **Config 和 Manager**（内置组件，自动初始化）
+2. **Entity 层**（无依赖）
 3. **Repository 层**（依赖 Config、Manager、Entity）
 4. **Service 层**（依赖 Config、Manager、Repository 和同层 Service）
 5. **Controller 层**（依赖 Config、Manager、Service）
 6. **Middleware 层**（依赖 Config、Manager、Service）
 
-各层组件通过 `inject:""` 标签声明依赖：
+各层组件通过 `inject:""` 标签声明依赖，Config 和 Manager 由引擎自动注入：
 
 ```go
 type UserServiceImpl struct {
+    // 内置组件（引擎自动注入）
     Config    common.BaseConfigProvider  `inject:""`
     DBManager databasemgr.DatabaseManager `inject:""`
+
+    // 业务依赖
     UserRepo  repository.IUserRepository `inject:""`
 }
 ```
@@ -270,9 +266,7 @@ func (ctrl *MessageListController) Handle(c *gin.Context) {
 
 ```go
 func NewEngine(
-    config *container.ConfigContainer,
     entity *container.EntityContainer,
-    manager *container.ManagerContainer,
     repository *container.RepositoryContainer,
     service *container.ServiceContainer,
     controller *container.ControllerContainer,
@@ -298,22 +292,20 @@ func NewEngine(
 
 ```go
 // 1. 创建容器（按依赖顺序）
-configContainer := container.NewConfigContainer()
 entityContainer := container.NewEntityContainer()
-managerContainer := container.NewManagerContainer(configContainer)
-repositoryContainer := container.NewRepositoryContainer(configContainer, managerContainer, entityContainer)
-serviceContainer := container.NewServiceContainer(configContainer, managerContainer, repositoryContainer)
-controllerContainer := container.NewControllerContainer(configContainer, managerContainer, serviceContainer)
-middlewareContainer := container.NewMiddlewareContainer(configContainer, managerContainer, serviceContainer)
+repositoryContainer := container.NewRepositoryContainer(entityContainer)
+serviceContainer := container.NewServiceContainer(repositoryContainer)
+controllerContainer := container.NewControllerContainer(serviceContainer)
+middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
 // 2. 注册组件（按层级顺序）
-// Config 层
-// Manager 层
 // Entity 层
 // Repository 层
 // Service 层
 // Controller 层
 // Middleware 层
+
+// Config 和 Manager 由引擎自动初始化
 ```
 
 推荐使用 CLI 工具生成容器初始化代码：
@@ -321,26 +313,13 @@ middlewareContainer := container.NewMiddlewareContainer(configContainer, manager
 ```go
 // 由 CLI 工具自动生成 application/engine.go
 func NewEngine() (*server.Engine, error) {
-    configContainer, err := InitConfigContainer()
-    if err != nil {
-        return nil, err
-    }
-
     entityContainer := InitEntityContainer()
-    managerContainer, err := InitManagerContainer(configContainer)
-    if err != nil {
-        return nil, err
-    }
-
-    repositoryContainer := InitRepositoryContainer(configContainer, managerContainer, entityContainer)
-    serviceContainer := InitServiceContainer(configContainer, managerContainer, repositoryContainer)
-    controllerContainer := InitControllerContainer(configContainer, managerContainer, serviceContainer)
-    middlewareContainer := InitMiddlewareContainer(configContainer, managerContainer, serviceContainer)
+    repositoryContainer := InitRepositoryContainer(entityContainer)
+    serviceContainer := InitServiceContainer(repositoryContainer)
+    controllerContainer := InitControllerContainer(serviceContainer)
+    middlewareContainer := InitMiddlewareContainer(serviceContainer)
 
     // 自动注入依赖
-    if err := managerContainer.InjectAll(); err != nil {
-        return nil, err
-    }
     if err := repositoryContainer.InjectAll(); err != nil {
         return nil, err
     }
@@ -354,7 +333,7 @@ func NewEngine() (*server.Engine, error) {
         return nil, err
     }
 
-    return server.NewEngine(configContainer, entityContainer, managerContainer, repositoryContainer, serviceContainer, controllerContainer, middlewareContainer), nil
+    return server.NewEngine(entityContainer, repositoryContainer, serviceContainer, controllerContainer, middlewareContainer), nil
 }
 ```
 
