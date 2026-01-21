@@ -28,6 +28,8 @@ func NewRequestLoggerMiddleware() common.IBaseMiddleware {
 func (m *RequestLoggerMiddleware) initLogger() {
 	if m.loggerMgr != nil {
 		m.logger = m.loggerMgr.Logger("request_logger_middleware")
+	} else {
+		m.logger = loggermgr.Default()
 	}
 }
 
@@ -63,37 +65,27 @@ func (m *RequestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 		requestID := m.getRequestID(c)
 
 		if len(c.Errors) > 0 {
-			if m.logger != nil {
-				for _, e := range c.Errors {
-					m.logger.Error("请求处理错误",
-						"request_id", requestID,
-						"method", method,
-						"path", path,
-						"client_ip", clientIP,
-						"status", status,
-						"latency", latency,
-						"error", e.Error(),
-						"stack", e.Type,
-					)
-				}
-			} else {
-				for _, e := range c.Errors {
-					println("[ERROR]", e.Error())
-				}
-			}
-		} else {
-			if m.logger != nil {
-				m.logger.Info("请求处理完成",
+			for _, e := range c.Errors {
+				m.logger.Error("请求处理错误",
 					"request_id", requestID,
 					"method", method,
 					"path", path,
 					"client_ip", clientIP,
 					"status", status,
 					"latency", latency,
+					"error", e.Error(),
+					"stack", e.Type,
 				)
-			} else {
-				println("[INFO]", clientIP, method, path, status, latency)
 			}
+		} else {
+			m.logger.Info("请求处理完成",
+				"request_id", requestID,
+				"method", method,
+				"path", path,
+				"client_ip", clientIP,
+				"status", status,
+				"latency", latency,
+			)
 		}
 	}
 }

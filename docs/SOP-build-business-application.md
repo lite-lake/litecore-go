@@ -129,23 +129,25 @@ logger:
 package main
 
 import (
-    "log"
-
     app "github.com/lite-lake/litecore-go/samples/myapp/internal/application"
+    loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 func main() {
     engine, err := app.NewEngine()
     if err != nil {
-        log.Fatalf("Failed to create engine: %v", err)
+        loggerMgr := loggermgr.GetLoggerManager()
+        loggerMgr.Logger("main").Fatal("Failed to create engine", "error", err)
     }
 
     if err := engine.Initialize(); err != nil {
-        log.Fatalf("Failed to initialize engine: %v", err)
+        loggerMgr := loggermgr.GetLoggerManager()
+        loggerMgr.Logger("main").Fatal("Failed to initialize engine", "error", err)
     }
 
     if err := engine.Start(); err != nil {
-        log.Fatalf("Failed to start engine: %v", err)
+        loggerMgr := loggermgr.GetLoggerManager()
+        loggerMgr.Logger("main").Fatal("Failed to start engine", "error", err)
     }
 
     engine.WaitForShutdown()

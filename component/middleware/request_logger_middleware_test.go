@@ -343,7 +343,7 @@ func TestRequestLoggerMiddleware_initLogger(t *testing.T) {
 			hasMgr: true,
 		},
 		{
-			name:   "无日志管理器时不初始化",
+			name:   "无日志管理器时使用默认日志器",
 			hasMgr: false,
 		},
 	}
@@ -358,11 +358,7 @@ func TestRequestLoggerMiddleware_initLogger(t *testing.T) {
 
 			middleware.initLogger()
 
-			if tt.hasMgr {
-				assert.NotNil(t, middleware.logger)
-			} else {
-				assert.Nil(t, middleware.logger)
-			}
+			assert.NotNil(t, middleware.logger)
 		})
 	}
 }

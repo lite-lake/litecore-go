@@ -1,98 +1,24 @@
 package loggermgr
 
 import (
-	"fmt"
-	"strings"
-
 	"go.uber.org/zap/zapcore"
+
+	"github.com/lite-lake/litecore-go/util/logger"
 )
 
-// LogLevel 日志级别类型
-type LogLevel int
-
+// 日志级别常量
 const (
 	// DebugLevel 调试级别
-	DebugLevel LogLevel = iota
+	DebugLevel LogLevel = logger.DebugLevel
 	// InfoLevel 信息级别
-	InfoLevel
+	InfoLevel LogLevel = logger.InfoLevel
 	// WarnLevel 警告级别
-	WarnLevel
+	WarnLevel LogLevel = logger.WarnLevel
 	// ErrorLevel 错误级别
-	ErrorLevel
+	ErrorLevel LogLevel = logger.ErrorLevel
 	// FatalLevel 致命错误级别
-	FatalLevel
+	FatalLevel LogLevel = logger.FatalLevel
 )
-
-// String 返回日志级别的字符串表示
-func (l LogLevel) String() string {
-	switch l {
-	case DebugLevel:
-		return "debug"
-	case InfoLevel:
-		return "info"
-	case WarnLevel:
-		return "warn"
-	case ErrorLevel:
-		return "error"
-	case FatalLevel:
-		return "fatal"
-	default:
-		return "unknown"
-	}
-}
-
-// ParseLogLevel 从字符串解析日志级别
-func ParseLogLevel(level string) LogLevel {
-	switch strings.ToLower(strings.TrimSpace(level)) {
-	case "debug":
-		return DebugLevel
-	case "info":
-		return InfoLevel
-	case "warn", "warning":
-		return WarnLevel
-	case "error":
-		return ErrorLevel
-	case "fatal":
-		return FatalLevel
-	default:
-		return InfoLevel
-	}
-}
-
-// IsValidLogLevel 检查日志级别字符串是否有效
-func IsValidLogLevel(level string) bool {
-	switch strings.ToLower(strings.TrimSpace(level)) {
-	case "debug", "info", "warn", "warning", "error", "fatal", "":
-		return true
-	default:
-		return false
-	}
-}
-
-// Validate 验证日志级别并返回错误（如果无效）
-func (l LogLevel) Validate() error {
-	if l < DebugLevel || l > FatalLevel {
-		return fmt.Errorf("invalid log level: %d", l)
-	}
-	return nil
-}
-
-// MarshalText 实现 encoding.TextMarshaler 接口，用于 YAML/JSON 序列化
-func (l LogLevel) MarshalText() ([]byte, error) {
-	return []byte(l.String()), nil
-}
-
-// UnmarshalText 实现 encoding.TextUnmarshaler 接口，用于 YAML/JSON 反序列化
-func (l *LogLevel) UnmarshalText(data []byte) error {
-	level := ParseLogLevel(string(data))
-	*l = level
-	return nil
-}
-
-// Int 返回日志级别的整数值
-func (l LogLevel) Int() int {
-	return int(l)
-}
 
 // LogLevelToZap 转换 LogLevel 到 zapcore.Level
 func LogLevelToZap(level LogLevel) zapcore.Level {

@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/component/service"
 )
 
@@ -12,10 +13,13 @@ import (
 type IHTMLTemplateService interface {
 	common.IBaseService
 	Render(ctx *gin.Context, name string, data interface{})
+	SetGinEngine(engine *gin.Engine)
 }
 
 type htmlTemplateService struct {
-	inner *service.HTMLTemplateService
+	inner     *service.HTMLTemplateService
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
+	logger    loggermgr.ILogger
 }
 
 // NewHTMLTemplateService 创建HTML模板服务
@@ -30,11 +34,27 @@ func (s *htmlTemplateService) ServiceName() string {
 }
 
 func (s *htmlTemplateService) OnStart() error {
+	s.initLogger()
 	return s.inner.OnStart()
 }
 
 func (s *htmlTemplateService) OnStop() error {
 	return s.inner.OnStop()
+}
+
+func (s *htmlTemplateService) Logger() loggermgr.ILogger {
+	return s.logger
+}
+
+func (s *htmlTemplateService) SetLoggerManager(mgr loggermgr.ILoggerManager) {
+	s.LoggerMgr = mgr
+	s.initLogger()
+}
+
+func (s *htmlTemplateService) initLogger() {
+	if s.LoggerMgr != nil {
+		s.logger = s.LoggerMgr.Logger("HTMLTemplateService")
+	}
 }
 
 func (s *htmlTemplateService) Render(ctx *gin.Context, name string, data interface{}) {

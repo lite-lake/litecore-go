@@ -3,9 +3,17 @@ package loggermgr
 import (
 	"fmt"
 	"strings"
-
-	"github.com/lite-lake/litecore-go/common"
 )
+
+// IConfigProvider 配置提供者接口
+type IConfigProvider interface {
+	// ConfigProviderName 返回当前配置提供者的类名
+	ConfigProviderName() string
+	// Get 获取配置项 （key 支持 aaa.bbb.ccc 路径查询)
+	Get(key string) (any, error)
+	// Has 检查配置项是否存在
+	Has(key string) bool
+}
 
 // Build 创建日志管理器实例
 // driverType: 驱动类型 ("zap", "none")
@@ -61,7 +69,7 @@ func Build(
 //   - logger.zap_config: Zap 驱动配置（当 driver=zap 时使用）
 //
 // 返回 LoggerManager 接口实例和可能的错误
-func BuildWithConfigProvider(configProvider common.IBaseConfigProvider) (ILoggerManager, error) {
+func BuildWithConfigProvider(configProvider IConfigProvider) (ILoggerManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}
@@ -105,4 +113,10 @@ func BuildWithConfigProvider(configProvider common.IBaseConfigProvider) (ILogger
 
 	// 3. 调用 Build 函数创建实例
 	return Build(driverTypeStr, driverConfig)
+}
+
+// Default 返回默认的日志实例
+func Default() ILogger {
+	mgr := NewLoggerManagerNoneImpl()
+	return mgr.Logger("default")
 }

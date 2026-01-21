@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,10 +12,10 @@ func (e *Engine) WaitForShutdown() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	sig := <-sigs
-	fmt.Printf("Received signal %v, shutting down...\n", sig)
+	e.builtin.LoggerManager.Logger("server").Info("Received shutdown signal", "signal", sig)
 
 	if err := e.Stop(); err != nil {
-		fmt.Printf("shutdown error: %v\n", err)
+		e.builtin.LoggerManager.Logger("server").Fatal("Shutdown error", "error", err)
 		os.Exit(1)
 	}
 }

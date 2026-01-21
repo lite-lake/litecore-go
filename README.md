@@ -71,19 +71,20 @@ cat > cmd/server/main.go <<'SERVEREOF'
 package main
 
 import (
-    "log"
-
     app "com.litelake.myapp/internal/application"
+    loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 func main() {
     engine, err := app.NewEngine()
     if err != nil {
-        log.Fatalf("Failed to create engine: %v", err)
+        loggerMgr := loggermgr.GetLoggerManager()
+        loggerMgr.Logger("main").Fatal("Failed to create engine", "error", err)
     }
 
     if err := engine.Run(); err != nil {
-        log.Fatalf("Engine run failed: %v", err)
+        loggerMgr := loggermgr.GetLoggerManager()
+        loggerMgr.Logger("main").Fatal("Engine run failed", "error", err)
     }
 }
 SERVEREOF

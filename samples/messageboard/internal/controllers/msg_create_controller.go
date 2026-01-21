@@ -3,6 +3,7 @@ package controllers
 
 import (
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
 
@@ -16,6 +17,8 @@ type IMsgCreateController interface {
 
 type msgCreateControllerImpl struct {
 	MessageService services.IMessageService `inject:""`
+	LoggerMgr      loggermgr.ILoggerManager `inject:""`
+	logger         loggermgr.ILogger
 }
 
 // NewMsgCreateController 创建控制器实例
@@ -31,17 +34,46 @@ func (c *msgCreateControllerImpl) GetRouter() string {
 	return "/api/messages [POST]"
 }
 
+func (c *msgCreateControllerImpl) Logger() loggermgr.ILogger {
+	return c.logger
+}
+
+func (c *msgCreateControllerImpl) SetLoggerManager(mgr loggermgr.ILoggerManager) {
+	c.LoggerMgr = mgr
+	c.initLogger()
+}
+
+func (c *msgCreateControllerImpl) initLogger() {
+	if c.LoggerMgr != nil {
+		c.logger = c.LoggerMgr.Logger("MsgCreateController")
+	}
+}
+
 func (c *msgCreateControllerImpl) Handle(ctx *gin.Context) {
 	var req dtos.CreateMessageRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		if c.logger != nil {
+			c.logger.Error("创建留言失败：参数绑定失败", "error", err)
+		}
 		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
 	}
 
+	if c.logger != nil {
+		c.logger.Debug("开始创建留言", "nickname", req.Nickname, "content_length", len(req.Content))
+	}
+
 	message, err := c.MessageService.CreateMessage(req.Nickname, req.Content)
 	if err != nil {
+		if c.logger != nil {
+			c.logger.Error("创建留言失败", "nickname", req.Nickname, "error", err)
+		}
 		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
+	}
+
+	if c.logger != nil {
+		c.logger.Info("创建留言成功", "id", message.ID, "nickname", message.Nickname)
 	}
 
 	ctx.JSON(common.HTTPStatusOK, dtos.SuccessResponse("留言提交成功，等待审核", gin.H{
