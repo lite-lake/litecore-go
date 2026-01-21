@@ -39,7 +39,7 @@ func (c *ResourceStaticController) GetRouter() string {
 }
 
 func (c *ResourceStaticController) Handle(ctx *gin.Context) {
-	ctx.FileFromFS(ctx.Request.URL.Path, http.Dir(c.config.FilePath))
+	ctx.FileFromFS("/"+ctx.Param("filepath"), http.Dir(c.config.FilePath))
 }
 
 // GetConfig 获取静态文件配置
