@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"com.litelake.litecore/cli/generator"
+	"github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {

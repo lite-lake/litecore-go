@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 // RequestLoggerMiddleware 请求日志中间件

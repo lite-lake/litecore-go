@@ -1,8 +1,8 @@
 package configproviders
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/config"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/config"
 )
 
 func NewConfigProvider() (common.IBaseConfigProvider, error) {

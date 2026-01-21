@@ -10,11 +10,11 @@ const (
 package {{.PackageName}}
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
 	{{- if .Components}}
 	{{- else}}
-	"com.litelake.litecore/config"
+	"github.com/lite-lake/litecore-go/config"
 	{{- end}}
 	{{- range $alias, $path := .Imports}}
 	{{- if $alias}}
@@ -48,8 +48,8 @@ func InitConfigContainer() (*container.ConfigContainer, error) {
 package {{.PackageName}}
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
 	{{- range $alias, $path := .Imports}}
 	{{- if $alias}}
 	{{ $alias }} "{{$path}}"
@@ -77,8 +77,8 @@ package {{.PackageName}}
 import (
 	"reflect"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
 	{{- range $alias, $path := .Imports}}
 	{{- if $alias}}
 	{{ $alias }} "{{$path}}"
@@ -111,7 +111,7 @@ func InitManagerContainer(configContainer *container.ConfigContainer) (*containe
 package {{.PackageName}}
 
 import (
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/container"
 	{{- range $alias, $path := .Imports}}
 	{{- if $alias}}
 	{{ $alias }} "{{$path}}"
@@ -141,7 +141,7 @@ func InitRepositoryContainer(
 package {{.PackageName}}
 
 import (
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/container"
 	{{- range $alias, $path := .Imports}}
 	{{- if $alias}}
 	{{ $alias }} "{{$path}}"
@@ -171,7 +171,7 @@ func InitServiceContainer(
 package {{.PackageName}}
 
 import (
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/container"
 	{{- range $alias, $path := .Imports}}
 	{{- if $alias}}
 	{{ $alias }} "{{$path}}"
@@ -201,7 +201,7 @@ func InitControllerContainer(
 package {{.PackageName}}
 
 import (
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/container"
 	{{- range $alias, $path := .Imports}}
 	{{- if $alias}}
 	{{ $alias }} "{{$path}}"
@@ -231,7 +231,7 @@ func InitMiddlewareContainer(
 package {{.PackageName}}
 
 import (
-	"com.litelake.litecore/server"
+	"github.com/lite-lake/litecore-go/server"
 )
 
 // NewEngine 创建应用引擎

@@ -2,8 +2,8 @@
 package application
 
 import (
-	"com.litelake.litecore/container"
-	middlewares "com.litelake.litecore/samples/messageboard/internal/middlewares"
+	"github.com/lite-lake/litecore-go/container"
+	middlewares "github.com/lite-lake/litecore-go/samples/messageboard/internal/middlewares"
 )
 
 // InitMiddlewareContainer 初始化中间件容器

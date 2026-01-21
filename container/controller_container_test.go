@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // TestControllerContainer 测试 ControllerContainer

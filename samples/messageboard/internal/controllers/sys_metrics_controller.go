@@ -3,8 +3,8 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
-	componentControllers "com.litelake.litecore/component/controller"
+	"github.com/lite-lake/litecore-go/common"
+	componentControllers "github.com/lite-lake/litecore-go/component/controller"
 )
 
 // ISysMetricsController 指标控制器接口

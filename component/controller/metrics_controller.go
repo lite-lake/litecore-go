@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // IMetricsController 指标控制器接口

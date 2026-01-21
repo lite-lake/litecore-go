@@ -3,8 +3,8 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/samples/messageboard/internal/services"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
 )
 
 // IPageAdminController 管理页面控制器接口

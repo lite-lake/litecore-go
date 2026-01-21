@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"com.litelake.litecore/cli/analyzer"
+	"github.com/lite-lake/litecore-go/cli/analyzer"
 )
 
 // Parser 解析器

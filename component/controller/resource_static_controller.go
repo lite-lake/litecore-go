@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // ResourceStaticConfig 静态文件配置

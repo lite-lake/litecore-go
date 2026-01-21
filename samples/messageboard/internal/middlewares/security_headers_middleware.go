@@ -4,8 +4,8 @@ package middlewares
 import (
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
-	componentMiddleware "com.litelake.litecore/component/middleware"
+	"github.com/lite-lake/litecore-go/common"
+	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
 )
 
 // ISecurityHeadersMiddleware 安全头中间件接口

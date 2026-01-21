@@ -10,8 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
 )
 
 // Engine 服务引擎

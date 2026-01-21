@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/samples/messageboard/internal/entities"
-	"com.litelake.litecore/samples/messageboard/internal/repositories"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/repositories"
 )
 
 // IMessageService 留言服务接口

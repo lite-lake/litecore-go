@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // TestCircularDependencyDetection 测试循环依赖检测

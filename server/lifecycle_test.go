@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"com.litelake.litecore/container"
+	"github.com/lite-lake/litecore-go/container"
 )
 
 // TestStartManagers 测试管理器启动

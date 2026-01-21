@@ -2,7 +2,7 @@
 package application
 
 import (
-	"com.litelake.litecore/server"
+	"github.com/lite-lake/litecore-go/server"
 )
 
 // NewEngine 创建应用引擎

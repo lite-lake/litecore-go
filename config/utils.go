@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 	"github.com/duke-git/lancet/v2/convertor"
 )
 

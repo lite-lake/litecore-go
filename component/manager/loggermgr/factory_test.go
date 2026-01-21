@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // mockConfigProvider 模拟配置提供者

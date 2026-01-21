@@ -1,8 +1,8 @@
 package managers
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 type ILoggerManager interface {

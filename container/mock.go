@@ -1,7 +1,7 @@
 package container
 
 import (
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 	"github.com/gin-gonic/gin"
 )
 

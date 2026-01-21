@@ -2,8 +2,8 @@
 package middlewares
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/samples/messageboard/internal/services"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
 	"strings"
 
 	"github.com/gin-gonic/gin"

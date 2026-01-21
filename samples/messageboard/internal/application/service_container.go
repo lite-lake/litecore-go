@@ -2,8 +2,8 @@
 package application
 
 import (
-	"com.litelake.litecore/container"
-	services "com.litelake.litecore/samples/messageboard/internal/services"
+	"github.com/lite-lake/litecore-go/container"
+	services "github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
 )
 
 // InitServiceContainer 初始化服务容器

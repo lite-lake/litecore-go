@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // Message 留言实体

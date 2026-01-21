@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // startManagers 启动所有管理器

@@ -16,8 +16,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 
-	"com.litelake.litecore/component/manager/loggermgr"
-	"com.litelake.litecore/component/manager/telemetrymgr"
+	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
 )
 
 // databaseManagerBaseImpl 数据库管理器基础实现

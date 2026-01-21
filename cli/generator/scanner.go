@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"com.litelake.litecore/cli/analyzer"
+	"github.com/lite-lake/litecore-go/cli/analyzer"
 )
 
 // Scanner 扫描器

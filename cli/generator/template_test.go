@@ -10,13 +10,13 @@ func TestTemplateData(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
 		ConfigPath:  "configs/config.yaml",
-		Imports:     map[string]string{"entities": "com.litelake.litecore/common"},
+		Imports:     map[string]string{"entities": "github.com/lite-lake/litecore-go/common"},
 		Components: []ComponentTemplateData{
 			{
 				TypeName:      "Message",
 				InterfaceName: "IMessage",
 				InterfaceType: "entities.IMessage",
-				PackagePath:   "com.litelake.litecore/entities",
+				PackagePath:   "github.com/lite-lake/litecore-go/entities",
 				PackageAlias:  "entities",
 				FactoryFunc:   "NewMessage",
 			},
@@ -35,14 +35,14 @@ func TestComponentTemplateData(t *testing.T) {
 		TypeName:      "Message",
 		InterfaceName: "IMessage",
 		InterfaceType: "entities.IMessage",
-		PackagePath:   "com.litelake.litecore/entities",
+		PackagePath:   "github.com/lite-lake/litecore-go/entities",
 		FactoryFunc:   "NewMessage",
 	}
 
 	assert.Equal(t, "Message", comp.TypeName)
 	assert.Equal(t, "IMessage", comp.InterfaceName)
 	assert.Equal(t, "entities.IMessage", comp.InterfaceType)
-	assert.Equal(t, "com.litelake.litecore/entities", comp.PackagePath)
+	assert.Equal(t, "github.com/lite-lake/litecore-go/entities", comp.PackagePath)
 	assert.Equal(t, "NewMessage", comp.FactoryFunc)
 }
 
@@ -87,7 +87,7 @@ func TestGenerateRepositoryContainer(t *testing.T) {
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "repositories.IMessageRepository",
-				PackagePath:   "com.litelake.litecore/repositories",
+				PackagePath:   "github.com/lite-lake/litecore-go/repositories",
 				PackageAlias:  "repositories",
 				FactoryFunc:   "NewMessageRepository",
 			},
@@ -109,7 +109,7 @@ func TestGenerateServiceContainer(t *testing.T) {
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "services.IMessageService",
-				PackagePath:   "com.litelake.litecore/services",
+				PackagePath:   "github.com/lite-lake/litecore-go/services",
 				PackageAlias:  "services",
 				FactoryFunc:   "NewMessageService",
 			},
@@ -131,7 +131,7 @@ func TestGenerateControllerContainer(t *testing.T) {
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "controllers.ICreateMessageController",
-				PackagePath:   "com.litelake.litecore/controllers",
+				PackagePath:   "github.com/lite-lake/litecore-go/controllers",
 				PackageAlias:  "controllers",
 				FactoryFunc:   "NewCreateMessageController",
 			},
@@ -153,7 +153,7 @@ func TestGenerateMiddlewareContainer(t *testing.T) {
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "middlewares.IAuthMiddleware",
-				PackagePath:   "com.litelake.litecore/middlewares",
+				PackagePath:   "github.com/lite-lake/litecore-go/middlewares",
 				PackageAlias:  "middlewares",
 				FactoryFunc:   "NewAuthMiddleware",
 			},

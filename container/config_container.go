@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // ConfigContainer 配置层容器

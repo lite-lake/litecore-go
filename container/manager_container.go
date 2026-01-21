@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // ManagerContainer 管理器层容器

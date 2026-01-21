@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // Mock provider for testing

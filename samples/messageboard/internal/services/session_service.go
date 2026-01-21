@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/config"
-	"com.litelake.litecore/samples/messageboard/internal/dtos"
-	"com.litelake.litecore/samples/messageboard/internal/infras/managers"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/config"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/infras/managers"
 	"github.com/google/uuid"
 )
 

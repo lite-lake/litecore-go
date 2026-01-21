@@ -2,9 +2,9 @@
 package controllers
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/samples/messageboard/internal/dtos"
-	"com.litelake.litecore/samples/messageboard/internal/services"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
 	"strconv"
 
 	"github.com/gin-gonic/gin"

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // Helper function to create a temporary JSON file
