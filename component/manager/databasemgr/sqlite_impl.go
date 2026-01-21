@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"gorm.io/driver/sqlite"
@@ -28,6 +30,14 @@ func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (IDatabaseManager, error) {
 
 	if cfg.DSN == "" {
 		return nil, fmt.Errorf("sqlite DSN is required")
+	}
+
+	// 确保数据库文件所在目录存在
+	dbDir := filepath.Dir(cfg.DSN)
+	if dbDir != "." && dbDir != "" {
+		if err := os.MkdirAll(dbDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create database directory: %w", err)
+		}
 	}
 
 	// GORM 配置

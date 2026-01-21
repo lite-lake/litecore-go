@@ -7,12 +7,8 @@ import (
 )
 
 // InitMiddlewareContainer 初始化中间件容器
-func InitMiddlewareContainer(
-	configContainer *container.ConfigContainer,
-	managerContainer *container.ManagerContainer,
-	serviceContainer *container.ServiceContainer,
-) *container.MiddlewareContainer {
-	middlewareContainer := container.NewMiddlewareContainer(configContainer, managerContainer, serviceContainer)
+func InitMiddlewareContainer(serviceContainer *container.ServiceContainer) *container.MiddlewareContainer {
+	middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 	container.RegisterMiddleware[middlewares.IAuthMiddleware](middlewareContainer, middlewares.NewAuthMiddleware())
 	container.RegisterMiddleware[middlewares.ICorsMiddleware](middlewareContainer, middlewares.NewCorsMiddleware())
 	container.RegisterMiddleware[middlewares.IRecoveryMiddleware](middlewareContainer, middlewares.NewRecoveryMiddleware())

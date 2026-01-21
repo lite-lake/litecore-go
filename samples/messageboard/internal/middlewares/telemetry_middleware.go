@@ -5,8 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
 	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
-	"github.com/lite-lake/litecore-go/samples/messageboard/internal/infras/managers"
 )
 
 // ITelemetryMiddleware 遥测中间件接口
@@ -17,7 +17,7 @@ type ITelemetryMiddleware interface {
 type telemetryMiddleware struct {
 	inner            common.IBaseMiddleware
 	order            int
-	TelemetryManager managers.ITelemetryManager `inject:""`
+	TelemetryManager telemetrymgr.ITelemetryManager `inject:""`
 }
 
 // NewTelemetryMiddleware 创建遥测中间件

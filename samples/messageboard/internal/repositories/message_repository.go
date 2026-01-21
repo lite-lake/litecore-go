@@ -3,8 +3,8 @@ package repositories
 
 import (
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/databasemgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
-	"github.com/lite-lake/litecore-go/samples/messageboard/internal/infras/managers"
 )
 
 // IMessageRepository 留言仓储接口
@@ -20,8 +20,8 @@ type IMessageRepository interface {
 }
 
 type messageRepository struct {
-	Config  common.IBaseConfigProvider `inject:""`
-	Manager managers.IDatabaseManager  `inject:""`
+	Config  common.IBaseConfigProvider   `inject:""`
+	Manager databasemgr.IDatabaseManager `inject:""`
 }
 
 // NewMessageRepository 创建留言仓储

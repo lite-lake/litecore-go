@@ -10,10 +10,11 @@ import (
 
 // startManagers 启动所有管理器
 func (e *Engine) startManagers() error {
-	managers := e.Manager.GetAll()
+	// 启动内置管理器
+	managers := e.builtin.GetManagers()
 	for _, mgr := range managers {
-		if err := mgr.OnStart(); err != nil {
-			return fmt.Errorf("failed to start manager %s: %w", mgr.ManagerName(), err)
+		if err := mgr.(common.IBaseManager).OnStart(); err != nil {
+			return fmt.Errorf("failed to start manager %s: %w", mgr.(common.IBaseManager).ManagerName(), err)
 		}
 	}
 	return nil
@@ -43,11 +44,12 @@ func (e *Engine) startServices() error {
 
 // stopManagers 停止所有管理器
 func (e *Engine) stopManagers() []error {
-	managers := e.Manager.GetAll()
+	// 停止内置管理器（反向顺序）
+	managers := e.builtin.GetManagers()
 	var errors []error
 	for i := len(managers) - 1; i >= 0; i-- {
-		if err := managers[i].OnStop(); err != nil {
-			errors = append(errors, fmt.Errorf("failed to stop manager %s: %w", managers[i].ManagerName(), err))
+		if err := managers[i].(common.IBaseManager).OnStop(); err != nil {
+			errors = append(errors, fmt.Errorf("failed to stop manager %s: %w", managers[i].(common.IBaseManager).ManagerName(), err))
 		}
 	}
 	return errors

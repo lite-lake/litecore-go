@@ -38,9 +38,7 @@ func TestRun(t *testing.T) {
 
 		require.NoError(t, err)
 
-		assert.FileExists(t, filepath.Join(outputDir, "config_container.go"))
 		assert.FileExists(t, filepath.Join(outputDir, "entity_container.go"))
-		assert.FileExists(t, filepath.Join(outputDir, "manager_container.go"))
 		assert.FileExists(t, filepath.Join(outputDir, "repository_container.go"))
 		assert.FileExists(t, filepath.Join(outputDir, "service_container.go"))
 		assert.FileExists(t, filepath.Join(outputDir, "controller_container.go"))
@@ -110,7 +108,7 @@ func TestMustRun(t *testing.T) {
 			MustRun(cfg)
 		})
 
-		assert.FileExists(t, filepath.Join(outputDir, "config_container.go"))
+		assert.FileExists(t, filepath.Join(outputDir, "engine.go"))
 	})
 
 	t.Run("失败时panic", func(t *testing.T) {
@@ -140,7 +138,6 @@ go 1.21
 	os.MkdirAll(filepath.Join(tempDir, "internal", "services"), 0755)
 	os.MkdirAll(filepath.Join(tempDir, "internal", "controllers"), 0755)
 	os.MkdirAll(filepath.Join(tempDir, "internal", "middlewares"), 0755)
-	os.MkdirAll(filepath.Join(tempDir, "internal", "infras"), 0755)
 
 	entityCode := `package entities
 

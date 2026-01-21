@@ -9,32 +9,38 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 )
 
+type BuiltinProvider interface {
+	GetConfigProvider() common.IBaseConfigProvider
+	GetManagers() []interface{}
+}
+
 // RepositoryContainer 存储库层容器
 // InjectAll 行为：
-// 1. 注入 BaseConfigProvider（从 ConfigContainer 获取）
-// 2. 注入 BaseManager（从 ManagerContainer 获取）
-// 3. 注入 BaseEntity（从 EntityContainer 获取）
+// 1. 注入 BuiltinProvider（ConfigProvider、Managers）
+// 2. 注入 BaseEntity（从 EntityContainer 获取）
 type RepositoryContainer struct {
-	mu               sync.RWMutex
-	items            map[reflect.Type]common.IBaseRepository
-	configContainer  *ConfigContainer
-	managerContainer *ManagerContainer
-	entityContainer  *EntityContainer
-	injected         bool
+	mu              sync.RWMutex
+	items           map[reflect.Type]common.IBaseRepository
+	entityContainer *EntityContainer
+	builtinProvider BuiltinProvider
+	injected        bool
 }
 
 // NewRepositoryContainer 创建新的存储库容器
 func NewRepositoryContainer(
-	config *ConfigContainer,
-	manager *ManagerContainer,
 	entity *EntityContainer,
 ) *RepositoryContainer {
 	return &RepositoryContainer{
-		items:            make(map[reflect.Type]common.IBaseRepository),
-		configContainer:  config,
-		managerContainer: manager,
-		entityContainer:  entity,
+		items:           make(map[reflect.Type]common.IBaseRepository),
+		entityContainer: entity,
 	}
+}
+
+// SetBuiltinProvider 设置内置组件提供者
+func (r *RepositoryContainer) SetBuiltinProvider(provider BuiltinProvider) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.builtinProvider = provider
 }
 
 // RegisterRepository 泛型注册函数，按接口类型注册
@@ -74,9 +80,6 @@ func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common
 }
 
 // InjectAll 注入所有依赖
-// 1. 注入 BaseConfigProvider
-// 2. 注入 BaseManager
-// 3. 注入 BaseEntity
 func (r *RepositoryContainer) InjectAll() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -85,8 +88,8 @@ func (r *RepositoryContainer) InjectAll() error {
 		return nil
 	}
 
+	resolver := NewGenericDependencyResolver(r.entityContainer, r)
 	for ifaceType, repo := range r.items {
-		resolver := NewGenericDependencyResolver(r.configContainer, r.managerContainer, r.entityContainer, r)
 		if err := injectDependencies(repo, resolver); err != nil {
 			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
 		}
@@ -135,12 +138,18 @@ func (r *RepositoryContainer) Count() int {
 // GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
 func (r *RepositoryContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
 	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
-	if fieldType.Implements(baseConfigType) {
-		impl := r.configContainer.GetByType(fieldType)
+	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
+		if r.builtinProvider == nil {
+			return nil, &DependencyNotFoundError{
+				FieldType:     fieldType,
+				ContainerType: "Builtin",
+			}
+		}
+		impl := r.builtinProvider.GetConfigProvider()
 		if impl == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
-				ContainerType: "Config",
+				ContainerType: "Builtin",
 			}
 		}
 		return impl, nil
@@ -148,12 +157,16 @@ func (r *RepositoryContainer) GetDependency(fieldType reflect.Type) (interface{}
 
 	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
 	if fieldType.Implements(baseManagerType) {
-		impl := r.managerContainer.GetByType(fieldType)
-		if impl == nil {
+		if r.builtinProvider == nil {
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
-				ContainerType: "Manager",
+				ContainerType: "Builtin",
 			}
+		}
+
+		impl, err := r.getManagerByType(fieldType)
+		if err != nil {
+			return nil, err
 		}
 		return impl, nil
 	}
@@ -184,4 +197,30 @@ func (r *RepositoryContainer) GetDependency(fieldType reflect.Type) (interface{}
 	}
 
 	return nil, nil
+}
+
+// getManagerByType 根据类型获取内置管理器
+func (r *RepositoryContainer) getManagerByType(fieldType reflect.Type) (interface{}, error) {
+	if r.builtinProvider == nil {
+		return nil, &DependencyNotFoundError{
+			FieldType:     fieldType,
+			ContainerType: "Builtin",
+		}
+	}
+
+	managers := r.builtinProvider.GetManagers()
+	for _, impl := range managers {
+		if impl == nil {
+			continue
+		}
+		implType := reflect.TypeOf(impl)
+		if implType == fieldType || implType.Implements(fieldType) {
+			return impl, nil
+		}
+	}
+
+	return nil, &DependencyNotFoundError{
+		FieldType:     fieldType,
+		ContainerType: "Builtin",
+	}
 }

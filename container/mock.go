@@ -1,8 +1,8 @@
 package container
 
 import (
-	"github.com/lite-lake/litecore-go/common"
 	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // IMockService Mock 服务接口
@@ -172,3 +172,17 @@ func (m *MockMiddleware) OnStop() error {
 }
 
 var _ IMockMiddleware = (*MockMiddleware)(nil)
+
+// MockBuiltinProvider Mock 内置组件提供者
+type MockBuiltinProvider struct {
+	configProvider common.IBaseConfigProvider
+	managers       []interface{}
+}
+
+func (m *MockBuiltinProvider) GetConfigProvider() common.IBaseConfigProvider {
+	return m.configProvider
+}
+
+func (m *MockBuiltinProvider) GetManagers() []interface{} {
+	return m.managers
+}

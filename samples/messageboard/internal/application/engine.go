@@ -3,50 +3,23 @@ package application
 
 import (
 	"github.com/lite-lake/litecore-go/server"
+	"github.com/lite-lake/litecore-go/server/builtin"
 )
 
 // NewEngine 创建应用引擎
 func NewEngine() (*server.Engine, error) {
-	configContainer, err := InitConfigContainer()
-	if err != nil {
-		return nil, err
-	}
-
 	entityContainer := InitEntityContainer()
-
-	managerContainer, err := InitManagerContainer(configContainer)
-	if err != nil {
-		return nil, err
-	}
-
-	repositoryContainer := InitRepositoryContainer(configContainer, managerContainer, entityContainer)
-
-	serviceContainer := InitServiceContainer(configContainer, managerContainer, repositoryContainer)
-
-	controllerContainer := InitControllerContainer(configContainer, managerContainer, serviceContainer)
-
-	middlewareContainer := InitMiddlewareContainer(configContainer, managerContainer, serviceContainer)
-
-	if err := managerContainer.InjectAll(); err != nil {
-		return nil, err
-	}
-	if err := repositoryContainer.InjectAll(); err != nil {
-		return nil, err
-	}
-	if err := serviceContainer.InjectAll(); err != nil {
-		return nil, err
-	}
-	if err := controllerContainer.InjectAll(); err != nil {
-		return nil, err
-	}
-	if err := middlewareContainer.InjectAll(); err != nil {
-		return nil, err
-	}
+	repositoryContainer := InitRepositoryContainer(entityContainer)
+	serviceContainer := InitServiceContainer(repositoryContainer)
+	controllerContainer := InitControllerContainer(serviceContainer)
+	middlewareContainer := InitMiddlewareContainer(serviceContainer)
 
 	return server.NewEngine(
-		configContainer,
+		&builtin.Config{
+			Driver:   "yaml",
+			FilePath: "configs/config.yaml",
+		},
 		entityContainer,
-		managerContainer,
 		repositoryContainer,
 		serviceContainer,
 		controllerContainer,

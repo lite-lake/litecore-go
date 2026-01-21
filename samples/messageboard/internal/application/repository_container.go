@@ -7,12 +7,8 @@ import (
 )
 
 // InitRepositoryContainer 初始化仓储容器
-func InitRepositoryContainer(
-	configContainer *container.ConfigContainer,
-	managerContainer *container.ManagerContainer,
-	entityContainer *container.EntityContainer,
-) *container.RepositoryContainer {
-	repositoryContainer := container.NewRepositoryContainer(configContainer, managerContainer, entityContainer)
+func InitRepositoryContainer(entityContainer *container.EntityContainer) *container.RepositoryContainer {
+	repositoryContainer := container.NewRepositoryContainer(entityContainer)
 	container.RegisterRepository[repositories.IMessageRepository](repositoryContainer, repositories.NewMessageRepository())
 
 	return repositoryContainer
