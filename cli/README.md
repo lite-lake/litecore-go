@@ -19,10 +19,10 @@ go build -o litecore-generate ./cli
 
 ### 方式二：在业务项目中导入使用
 
-业务项目可以导入 `com.litelake.litecore/cli/generator` 包，调用简化的 API：
+业务项目可以导入 `github.com/lite-lake/litecore-go/cli/generator` 包，调用简化的 API：
 
 ```go
-import "com.litelake.litecore/cli/generator"
+import "github.com/lite-lake/litecore-go/cli/generator"
 
 func main() {
     // 使用默认配置
@@ -66,7 +66,7 @@ import (
 	"fmt"
 	"os"
 
-	"com.litelake.litecore/cli/generator"
+	"github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {
@@ -155,7 +155,7 @@ package main
 import (
     "log"
 
-    messageboardapp "com.litelake.litecore/samples/messageboard/internal/application"
+    messageboardapp "github.com/lite-lake/litecore-go/samples/messageboard/internal/application"
 )
 
 func main() {
@@ -194,7 +194,7 @@ func main() {
 ### 简单调用
 
 ```go
-import "com.litelake.litecore/cli/generator"
+import "github.com/lite-lake/litecore-go/cli/generator"
 
 // 使用默认配置
 err := generator.Run(generator.DefaultConfig())
@@ -203,7 +203,7 @@ err := generator.Run(generator.DefaultConfig())
 ### 自定义配置
 
 ```go
-import "com.litelake.litecore/cli/generator"
+import "github.com/lite-lake/litecore-go/cli/generator"
 
 cfg := &generator.Config{
     ProjectPath: ".",
@@ -217,7 +217,7 @@ err := generator.Run(cfg)
 ### MustRun（失败时 panic）
 
 ```go
-import "com.litelake.litecore/cli/generator"
+import "github.com/lite-lake/litecore-go/cli/generator"
 
 // 失败时 panic，适合 main 包
 generator.MustRun(generator.DefaultConfig())

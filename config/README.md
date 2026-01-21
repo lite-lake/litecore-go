@@ -19,7 +19,7 @@ package main
 import (
     "log"
 
-    "com.litelake.litecore/config"
+    "github.com/lite-lake/litecore-go/config"
 )
 
 func main() {
@@ -286,7 +286,7 @@ var (
 使用 `IsConfigKeyNotFound` 函数判断错误类型：
 
 ```go
-import "com.litelake.litecore/config"
+import "github.com/lite-lake/litecore-go/config"
 
 val, err := config.Get[string](provider, "database.host")
 if err != nil {

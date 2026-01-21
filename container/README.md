@@ -20,10 +20,10 @@ import (
     "log"
     "reflect"
 
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/config"
-    "com.litelake.litecore/container"
-    "com.litelake.litecore/manager/databasemgr"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/config"
+    "github.com/lite-lake/litecore-go/container"
+    "github.com/lite-lake/litecore-go/manager/databasemgr"
 )
 
 func main() {

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **LiteCore-Go** is a layered application framework for Go that provides dependency injection containers, lifecycle management, and infrastructure managers. Built on top of Gin, GORM, and Zap.
 
-**Module**: `com.litelake.litecore`
+**Module**: `github.com/lite-lake/litecore-go`
 **Go Version**: 1.25+
 **Architecture**: 7-tier layered dependency injection
 
@@ -144,7 +144,7 @@ import (
     "github.com/gin-gonic/gin"  // third-party second
     "github.com/stretchr/testify/assert"
 
-    "com.litelake.litecore/common"  // local modules last
+    "github.com/lite-lake/litecore-go/common"  // local modules last
 )
 ```
 

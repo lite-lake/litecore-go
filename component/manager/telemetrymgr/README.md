@@ -18,7 +18,7 @@
 ```go
 import (
     "context"
-    "com.litelake.litecore/manager/telemetrymgr"
+    "github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 func main() {
@@ -40,7 +40,7 @@ func main() {
 
 ```go
 import (
-    "com.litelake.litecore/manager/telemetrymgr"
+    "github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 func main() {

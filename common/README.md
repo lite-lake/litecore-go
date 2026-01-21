@@ -15,7 +15,7 @@
 ```go
 package main
 
-import "com.litelake.litecore/common"
+import "github.com/lite-lake/litecore-go/common"
 
 // 定义实体，实现 BaseEntity 接口
 type User struct {

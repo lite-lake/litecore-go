@@ -187,14 +187,14 @@ Middleware 层（依赖 Config、Manager、Service）
 
 ```bash
 # 1. 设置私有模块前缀
-export GOPRIVATE=com.litelake.litecore
+export GOPRIVATE=github.com/lite-lake/litecore-go
 
 # 2. 在新项目中引用指定版本
 go mod init com.litelake.myapp
-go get com.litelake.litecore@v0.0.1
+go get github.com/lite-lake/litecore-go@v0.0.1
 
 # 3. 或使用最新版本
-go get com.litelake.litecore@latest
+go get github.com/lite-lake/litecore-go@latest
 ```
 
 #### 方式二：使用 replace 指令
@@ -206,7 +206,7 @@ go get com.litelake.litecore@latest
 go mod init com.litelake.myapp
 
 # 2. 在 go.mod 中添加 replace 指令
-# replace com.litelake.litecore => /Users/kentzhu/Projects/lite-lake/litecore-go
+# replace github.com/lite-lake/litecore-go => /Users/kentzhu/Projects/lite-lake/litecore-go
 
 # 3. 执行依赖整理
 go mod tidy
@@ -222,10 +222,10 @@ go run ./cmd/server
 mkdir myapp && cd myapp
 
 # 初始化 Go 模块
-go mod init com.litelake.litecore/samples/myapp
+go mod init github.com/lite-lake/litecore-go/samples/myapp
 
 # 引用 LiteCore
-go get com.litelake.litecore@latest
+go get github.com/lite-lake/litecore-go@latest
 
 # 创建项目结构
 mkdir -p cmd/server cmd/generate configs data
@@ -305,7 +305,7 @@ package main
 import (
     "log"
 
-    app "com.litelake.litecore/samples/myapp/internal/application"
+    app "github.com/lite-lake/litecore-go/samples/myapp/internal/application"
 )
 
 func main() {
@@ -336,7 +336,7 @@ import (
     "fmt"
     "os"
 
-    "com.litelake.litecore/cli/generator"
+    "github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {
@@ -378,8 +378,8 @@ Config 层负责配置文件的加载和配置项的访问。
 package configproviders
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/config"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/config"
 )
 
 func NewConfigProvider() (common.IBaseConfigProvider, error) {
@@ -390,7 +390,7 @@ func NewConfigProvider() (common.IBaseConfigProvider, error) {
 #### 5.1.2 使用配置
 
 ```go
-import "com.litelake.litecore/config"
+import "github.com/lite-lake/litecore-go/config"
 
 // 获取字符串配置
 appName, err := config.Get[string](configProvider, "app.name")
@@ -444,7 +444,7 @@ import (
     "fmt"
     "time"
 
-    "com.litelake.litecore/common"
+    "github.com/lite-lake/litecore-go/common"
 )
 
 type User struct {
@@ -526,8 +526,8 @@ LiteCore 提供以下 Manager 组件：
 package managers
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/component/manager/databasemgr"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/manager/databasemgr"
 )
 
 type IDatabaseManager interface {
@@ -555,8 +555,8 @@ func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseMan
 package managers
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/component/manager/cachemgr"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/manager/cachemgr"
 )
 
 type ICacheManager interface {
@@ -584,8 +584,8 @@ func NewCacheManager(configProvider common.IBaseConfigProvider) (ICacheManager, 
 package managers
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/component/manager/loggermgr"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 type ILoggerManager interface {
@@ -677,9 +677,9 @@ Repository 层负责数据访问，提供 CRUD 操作和数据库交互。
 package repositories
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/samples/myapp/internal/entities"
-    "com.litelake.litecore/samples/myapp/internal/infras/managers"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/infras/managers"
 )
 
 type IUserRepository interface {
@@ -813,9 +813,9 @@ import (
     "errors"
     "fmt"
 
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/samples/myapp/internal/entities"
-    "com.litelake.litecore/samples/myapp/internal/repositories"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
 )
 
 type IUserService interface {
@@ -975,9 +975,9 @@ package controllers
 import (
     "net/http"
 
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/samples/myapp/internal/dtos"
-    "com.litelake.litecore/samples/myapp/internal/services"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/dtos"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
 
     "github.com/gin-gonic/gin"
 )
@@ -1126,8 +1126,8 @@ package middlewares
 import (
     "strings"
 
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/samples/myapp/internal/services"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
 
     "github.com/gin-gonic/gin"
 )
@@ -1250,7 +1250,7 @@ import (
     "fmt"
     "os"
 
-    "com.litelake.litecore/cli/generator"
+    "github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {
@@ -1435,7 +1435,7 @@ telemetry:
 ### 8.2 使用配置
 
 ```go
-import "com.litelake.litecore/config"
+import "github.com/lite-lake/litecore-go/config"
 
 // 获取配置值
 appName, _ := config.Get[string](configProvider, "app.name")
@@ -1481,7 +1481,7 @@ JWT 令牌生成、解析和验证。
 ```go
 import (
     "time"
-    "com.litelake.litecore/util/jwt"
+    "github.com/lite-lake/litecore-go/util/jwt"
 )
 
 // 生成 JWT Token
@@ -1506,7 +1506,7 @@ err = jwt.JWT.ValidateClaims(parsedClaims)
 常见哈希算法。
 
 ```go
-import "com.litelake.litecore/util/hash"
+import "github.com/lite-lake/litecore-go/util/hash"
 
 // MD5
 md5Hash := hash.Hash.MD5String("hello")
@@ -1520,7 +1520,7 @@ sha256Hash := hash.Hash.SHA256String("hello")
 密码加密、AES 加密。
 
 ```go
-import "com.litelake.litecore/util/crypt"
+import "github.com/lite-lake/litecore-go/util/crypt"
 
 // 密码加密
 hashedPassword, err := crypt.BcryptHash("password123")
@@ -1540,7 +1540,7 @@ decrypted, err := crypt.AESDecrypt(encrypted, "key")
 唯一 ID 生成。
 
 ```go
-import "com.litelake.litecore/util/id"
+import "github.com/lite-lake/litecore-go/util/id"
 
 // 雪花算法 ID
 snowflakeID := id.Snowflake.Generate()
@@ -1582,7 +1582,7 @@ ctx.JSON(500, gin.H{"error": err.Error()})
 ### 10.3 日志记录
 
 ```go
-import "com.litelake.litecore/common"
+import "github.com/lite-lake/litecore-go/common"
 
 // 在任意组件中使用
 logger := common.GetLogger(ctx)

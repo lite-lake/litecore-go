@@ -21,7 +21,7 @@ package main
 import (
     "log"
 
-    "com.litelake.litecore/samples/messageboard/internal/application"
+    "github.com/lite-lake/litecore-go/samples/messageboard/internal/application"
 )
 
 func main() {
@@ -44,11 +44,11 @@ func main() {
 package main
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/config"
-    "com.litelake.litecore/container"
-    "com.litelake.litecore/databasemgr"
-    "com.litelake.litecore/server"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/config"
+    "github.com/lite-lake/litecore-go/container"
+    "github.com/lite-lake/litecore-go/databasemgr"
+    "github.com/lite-lake/litecore-go/server"
 )
 
 func main() {

@@ -10,14 +10,14 @@ LiteCore 托管在私有 Git 仓库中，有两种方式在业务项目中使用
 
 ```bash
 # 1. 设置私有模块前缀
-export GOPRIVATE=com.litelake.litecore
+export GOPRIVATE=github.com/lite-lake/litecore-go
 
 # 2. 在新项目中引用指定版本
 go mod init com.litelake.myapp
-go get com.litelake.litecore@v0.0.1
+go get github.com/lite-lake/litecore-go@v0.0.1
 
 # 3. 或使用最新版本
-go get com.litelake.litecore@latest
+go get github.com/lite-lake/litecore-go@latest
 ```
 
 ### 方式二：使用 replace 指令
@@ -29,7 +29,7 @@ go get com.litelake.litecore@latest
 go mod init com.litelake.myapp
 
 # 2. 在 go.mod 中添加 replace 指令
-# replace com.litelake.litecore => /Users/kentzhu/Projects/lite-lake/litecore-go
+# replace github.com/lite-lake/litecore-go => /Users/kentzhu/Projects/lite-lake/litecore-go
 
 # 3. 执行依赖整理
 go mod tidy
@@ -45,10 +45,10 @@ go run ./cmd/server
 git -C /path/to/litecore-go tag
 
 # 切换到特定版本
-go get com.litelake.litecore@v0.0.1
+go get github.com/lite-lake/litecore-go@v0.0.1
 
 # 更新到最新版本
-go get com.litelake.litecore@latest
+go get github.com/lite-lake/litecore-go@latest
 ```
 
 ## 快速开始
@@ -57,8 +57,8 @@ go get com.litelake.litecore@latest
 
 ```bash
 mkdir myapp && cd myapp
-go mod init com.litelake.litecore/samples/myapp
-go get com.litelake.litecore@latest
+go mod init github.com/lite-lake/litecore-go/samples/myapp
+go get github.com/lite-lake/litecore-go@latest
 ```
 
 ### 2. 项目结构
@@ -131,7 +131,7 @@ package main
 import (
     "log"
 
-    app "com.litelake.litecore/samples/myapp/internal/application"
+    app "github.com/lite-lake/litecore-go/samples/myapp/internal/application"
 )
 
 func main() {
@@ -162,7 +162,7 @@ import (
     "fmt"
     "os"
 
-    "com.litelake.litecore/cli/generator"
+    "github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {
@@ -184,8 +184,8 @@ func main() {
 package configproviders
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/config"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/config"
 )
 
 func NewConfigProvider() (common.IBaseConfigProvider, error) {
@@ -217,8 +217,8 @@ go run ./cmd/server/main.go
 package configproviders
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/config"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/config"
 )
 
 func NewConfigProvider() (common.IBaseConfigProvider, error) {
@@ -247,7 +247,7 @@ package entities
 import (
     "fmt"
     "time"
-    "com.litelake.litecore/common"
+    "github.com/lite-lake/litecore-go/common"
 )
 
 type User struct {
@@ -276,8 +276,8 @@ var _ common.IBaseEntity = (*User)(nil)
 package managers
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/component/manager/databasemgr"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/manager/databasemgr"
 )
 
 type IDatabaseManager interface {
@@ -316,9 +316,9 @@ func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseMan
 package repositories
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/samples/myapp/internal/entities"
-    "com.litelake.litecore/samples/myapp/internal/infras/managers"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/infras/managers"
 )
 
 type IUserRepository interface {
@@ -370,9 +370,9 @@ var _ IUserRepository = (*userRepository)(nil)
 package services
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/samples/myapp/internal/entities"
-    "com.litelake.litecore/samples/myapp/internal/repositories"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
 )
 
 type IUserService interface {
@@ -422,8 +422,8 @@ var _ IUserService = (*userService)(nil)
 package controllers
 
 import (
-    "com.litelake.litecore/common"
-    "com.litelake.litecore/samples/myapp/internal/services"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
     "github.com/gin-gonic/gin"
 )
 
@@ -479,7 +479,7 @@ var _ IUserController = (*userController)(nil)
 package middlewares
 
 import (
-    "com.litelake.litecore/common"
+    "github.com/lite-lake/litecore-go/common"
     "github.com/gin-gonic/gin"
 )
 
@@ -616,7 +616,7 @@ timeout, err := config.Get[int](configProvider, "app.timeout")
 loggerManager, _ := infras.NewLoggerManager(configProvider)
 
 // 在 Service/Repository 层使用
-import "com.litelake.litecore/common"
+import "github.com/lite-lake/litecore-go/common"
 common.GetLogger(ctx).Info("operation completed")
 ```
 
@@ -700,7 +700,7 @@ return "/api/files/*filepath [GET]"
 ### 3. 如何使用框架提供的中间件？
 
 ```go
-import "com.litelake.litecore/component/middleware"
+import "github.com/lite-lake/litecore-go/component/middleware"
 
 type recoveryMiddleware struct {
     inner common.IBaseMiddleware
