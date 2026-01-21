@@ -12,27 +12,30 @@
 //	package main
 //
 //	import (
-//	    "log"
+//	    loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 //
 //	    "github.com/lite-lake/litecore-go/config"
 //	)
 //
 //	func main() {
+//	    loggerMgr := loggermgr.GetLoggerManager()
+//	    logger := loggerMgr.Logger("main")
+//
 //	    // 创建配置提供者
 //	    provider, err := config.NewConfigProvider("yaml", "./config.yaml")
 //	    if err != nil {
-//	        log.Fatal(err)
+//	        logger.Fatal("创建配置提供者失败", "error", err)
 //	    }
 //
 //	    // 获取配置值（类型安全）
 //	    host, err := config.Get[string](provider, "database.host")
 //	    if err != nil {
-//	        log.Fatal(err)
+//	        logger.Fatal("获取配置失败", "error", err)
 //	    }
 //
 //	    port, err := config.Get[int](provider, "database.port")
 //	    if err != nil {
-//	        log.Fatal(err)
+//	        logger.Fatal("获取配置失败", "error", err)
 //	    }
 //
 //	    // 使用默认值
@@ -69,7 +72,7 @@
 //	    // 键不存在
 //	} else if err != nil {
 //	    // 其他错误（类型不匹配等）
-//	    log.Printf("获取配置失败: %v", err)
+//	    logger.Error("获取配置失败", "error", err)
 //	}
 //
 // 线程安全：

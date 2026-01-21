@@ -25,7 +25,7 @@
 //	// 使用 Bcrypt 哈希密码（安全存储）
 //	hashedPassword, err := util.Hash.BcryptHash("mypassword")
 //	if err != nil {
-//	    log.Fatal(err)
+//	    logger.Fatal("密码哈希失败", "error", err)
 //	}
 //	// 验证密码
 //	isValid := util.Hash.BcryptVerify("mypassword", hashedPassword)
@@ -38,7 +38,7 @@
 //	defer file.Close()
 //	fileHash, err := hash.HashReaderStringGeneric(file, hash.SHA256Algorithm{})
 //	if err != nil {
-//	    log.Fatal(err)
+//	    logger.Fatal("文件哈希计算失败", "error", err)
 //	}
 //
 // 泛型支持：

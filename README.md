@@ -76,15 +76,16 @@ import (
 )
 
 func main() {
+    loggerMgr := loggermgr.GetLoggerManager()
+    logger := loggerMgr.Logger("main")
+    
     engine, err := app.NewEngine()
     if err != nil {
-        loggerMgr := loggermgr.GetLoggerManager()
-        loggerMgr.Logger("main").Fatal("Failed to create engine", "error", err)
+        logger.Fatal("Failed to create engine", "error", err)
     }
 
     if err := engine.Run(); err != nil {
-        loggerMgr := loggermgr.GetLoggerManager()
-        loggerMgr.Logger("main").Fatal("Engine run failed", "error", err)
+        logger.Fatal("Engine run failed", "error", err)
     }
 }
 SERVEREOF
@@ -319,16 +320,12 @@ loggerMgr, _ := loggermgr.Build("zap", &loggermgr.ZapConfig{
     Format: "json",
 })
 
-// 记录日志
-loggerMgr.Info("user login",
-    zap.String("user_id", "123"),
-    zap.String("ip", "127.0.0.1"),
-)
+logger := loggerMgr.Logger("service")
 
-loggerMgr.Error("database error",
-    zap.Error(err),
-    zap.String("query", sql),
-)
+// 记录日志
+logger.Info("user login", "user_id", "123", "ip", "127.0.0.1")
+
+logger.Error("database error", "error", err, "query", sql)
 ```
 
 ### 5. 遥测管理 (telemetrymgr)

@@ -15,34 +15,39 @@ Crypt 包提供了常用的加密解密功能，支持多种加密算法和编�
 
 	import "your-module-path/util/crypt"
 
-	// Base64 编码解码
-	encoded := crypt.Base64Encode("Hello, World!")
-	// 输出: "SGVsbG8sIFdvcmxkIQ=="
-	decoded, err := crypt.Base64Decode(encoded)
-	if err != nil {
-		log.Fatal(err)
-	}
+ 	import loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 
-	// AES 对称加密解密
-	key := []byte("32-byte-long-secret-key-1234567890")
-	ciphertext, err := crypt.AESEncrypt("sensitive data", key)
-	if err != nil {
-		log.Fatal(err)
-	}
-	plaintext, err := crypt.AESDecrypt(ciphertext, key)
-	if err != nil {
-		log.Fatal(err)
-	}
+ 	loggerMgr := loggermgr.GetLoggerManager()
+ 	logger := loggerMgr.Logger("main")
 
-	// Bcrypt 密码哈希
-	hashedPassword, err := crypt.BcryptHash("my-password", 10)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = crypt.BcryptVerify("my-password", hashedPassword)
-	if err != nil {
-		log.Println("密码验证失败")
-	}
+ 	// Base64 编码解码
+ 	encoded := crypt.Base64Encode("Hello, World!")
+ 	// 输出: "SGVsbG8sIFdvcmxkIQ=="
+ 	decoded, err := crypt.Base64Decode(encoded)
+ 	if err != nil {
+ 		logger.Fatal("Base64解码失败", "error", err)
+ 	}
+
+ 	// AES 对称加密解密
+ 	key := []byte("32-byte-long-secret-key-1234567890")
+ 	ciphertext, err := crypt.AESEncrypt("sensitive data", key)
+ 	if err != nil {
+ 		logger.Fatal("AES加密失败", "error", err)
+ 	}
+ 	plaintext, err := crypt.AESDecrypt(ciphertext, key)
+ 	if err != nil {
+ 		logger.Fatal("AES解密失败", "error", err)
+ 	}
+
+ 	// Bcrypt 密码哈希
+ 	hashedPassword, err := crypt.BcryptHash("my-password", 10)
+ 	if err != nil {
+ 		logger.Fatal("密码哈希失败", "error", err)
+ 	}
+ 	err = crypt.BcryptVerify("my-password", hashedPassword)
+ 	if err != nil {
+ 		logger.Error("密码验证失败", "error", err)
+ 	}
 
 	// HMAC 签名验证
 	secret := []byte("hmac-secret-key")

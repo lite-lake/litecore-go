@@ -12,27 +12,32 @@
 //
 // 基本用法：
 //
+//	loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
+//
+//	loggerMgr := loggermgr.GetLoggerManager()
+//	logger := loggerMgr.Logger("main")
+//
 //	// 创建应用引擎（由 CLI 工具生成）
 //	engine, err := app.NewEngine()
 //	if err != nil {
-//	    log.Fatalf("Failed to create engine: %v", err)
+//	    logger.Fatal("创建引擎失败", "error", err)
 //	}
 //
 //	// 启动服务
 //	if err := engine.Run(); err != nil {
-//	    log.Fatalf("Engine run failed: %v", err)
+//	    logger.Fatal("引擎启动失败", "error", err)
 //	}
 //
 // 分步启动（需要自定义初始化时）：
 //
 //	// 初始化引擎
 //	if err := engine.Initialize(); err != nil {
-//	    log.Fatalf("Failed to initialize engine: %v", err)
+//	    logger.Fatal("初始化引擎失败", "error", err)
 //	}
 //
 //	// 启动服务
 //	if err := engine.Start(); err != nil {
-//	    log.Fatalf("Failed to start engine: %v", err)
+//	    logger.Fatal("启动引擎失败", "error", err)
 //	}
 //
 //	// 等待关闭信号

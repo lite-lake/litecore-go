@@ -24,10 +24,12 @@ func Example_databasemgr_withFactory() {
 // Example_databasemgr_withConfigProvider 演示如何使用 ConfigProvider 创建 IDatabaseManager
 func Example_databasemgr_withConfigProvider() {
 	// 方式2: 使用 ConfigProvider（推荐用于依赖注入场景）
+	// import loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	// provider := config.NewYamlConfigProvider("config.yaml")
 	// dbMgr, err := databasemgr.BuildWithConfigProvider(provider)
 	// if err != nil {
-	//     log.Fatal(err)
+	//     loggerMgr := loggermgr.GetLoggerManager()
+	//     loggerMgr.Logger("main").Fatal("数据库管理器创建失败", "error", err)
 	// }
 	// defer dbMgr.Close()
 
@@ -130,7 +132,8 @@ func Example_databasemgr_advancedOperations() {
 
 	// 6. 健康检查
 	// if err := dbMgr.Health(); err != nil {
-	//     log.Error("database health check failed", err)
+	//     loggerMgr := loggermgr.GetLoggerManager()
+	//     loggerMgr.Logger("main").Error("数据库健康检查失败", "error", err)
 	// }
 
 	_ = dbMgr

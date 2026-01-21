@@ -134,20 +134,20 @@ import (
 )
 
 func main() {
+    loggerMgr := loggermgr.GetLoggerManager()
+    logger := loggerMgr.Logger("main")
+    
     engine, err := app.NewEngine()
     if err != nil {
-        loggerMgr := loggermgr.GetLoggerManager()
-        loggerMgr.Logger("main").Fatal("Failed to create engine", "error", err)
+        logger.Fatal("Failed to create engine", "error", err)
     }
 
     if err := engine.Initialize(); err != nil {
-        loggerMgr := loggermgr.GetLoggerManager()
-        loggerMgr.Logger("main").Fatal("Failed to initialize engine", "error", err)
+        logger.Fatal("Failed to initialize engine", "error", err)
     }
 
     if err := engine.Start(); err != nil {
-        loggerMgr := loggermgr.GetLoggerManager()
-        loggerMgr.Logger("main").Fatal("Failed to start engine", "error", err)
+        logger.Fatal("Failed to start engine", "error", err)
     }
 
     engine.WaitForShutdown()
@@ -611,13 +611,31 @@ timeout, err := config.Get[int](configProvider, "app.timeout")
 
 ### 4. 日志记录
 
-```go
-// 在 Manager 层初始化 Logger
-loggerManager, _ := infras.NewLoggerManager(configProvider)
+在业务层组件中通过依赖注入使用日志：
 
-// 在 Service/Repository 层使用
-import "github.com/lite-lake/litecore-go/common"
-common.GetLogger(ctx).Info("operation completed")
+```go
+type MyService struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+    logger     loggermgr.ILogger
+}
+
+func (s *MyService) initLogger() {
+    if s.LoggerMgr != nil {
+        s.logger = s.LoggerMgr.Logger("MyService")
+    }
+}
+
+func (s *MyService) SomeMethod() {
+    s.initLogger()
+    s.logger.Info("操作完成")
+}
+
+// 在main函数中使用
+func main() {
+    loggerMgr := loggermgr.GetLoggerManager()
+    logger := loggerMgr.Logger("main")
+    logger.Fatal("启动失败", "error", err)
+}
 ```
 
 ### 5. 数据库事务

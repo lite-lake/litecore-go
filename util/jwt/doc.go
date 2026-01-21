@@ -9,6 +9,13 @@
 //
 // 基本用法：
 //
+//	import (
+//	    loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
+//	)
+//
+//	loggerMgr := loggermgr.GetLoggerManager()
+//	logger := loggerMgr.Logger("main")
+//
 //	// 生成HS256令牌
 //	claims := &jwt.StandardClaims{
 //	    UserId:   "123456",
@@ -17,13 +24,13 @@
 //	}
 //	token, err := util.jwt.GenerateHS256Token(claims, "your-secret-key")
 //	if err != nil {
-//	    log.Fatalf("生成令牌失败: %v", err)
+//	    logger.Fatal("生成令牌失败", "error", err)
 //	}
 //
 //	// 解析HS256令牌
 //	parsedClaims, err := util.jwt.ParseHS256Token(token, "your-secret-key")
 //	if err != nil {
-//	    log.Fatalf("解析令牌失败: %v", err)
+//	    logger.Fatal("解析令牌失败", "error", err)
 //	}
 //	fmt.Printf("用户ID: %s, 用户名: %s\n", parsedClaims.UserId, parsedClaims.Username)
 //
@@ -31,19 +38,19 @@
 //	privateKey := []byte("-----BEGIN RSA PRIVATE KEY-----\n...")
 //	token, err = util.jwt.GenerateRS256Token(claims, privateKey)
 //	if err != nil {
-//	    log.Fatalf("生成令牌失败: %v", err)
+//	    logger.Fatal("生成令牌失败", "error", err)
 //	}
 //
 //	// 解析RS256令牌（使用公钥验证）
 //	publicKey := []byte("-----BEGIN PUBLIC KEY-----\n...")
 //	parsedClaims, err = util.jwt.ParseRS256Token(token, publicKey)
 //	if err != nil {
-//	    log.Fatalf("解析令牌失败: %v", err)
+//	    logger.Fatal("解析令牌失败", "error", err)
 //	}
 //
 //	// 验证Claims
 //	if err := util.jwt.ValidateClaims(parsedClaims); err != nil {
-//	    log.Fatalf("Claims验证失败: %v", err)
+//	    logger.Fatal("Claims验证失败", "error", err)
 //	}
 //
 // 支持的算法：
