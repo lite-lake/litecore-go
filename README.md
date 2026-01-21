@@ -1,10 +1,11 @@
 # LiteCore-Go
 
-基于 Gin + GORM + Zap 的 7 层分层架构企业级 Go Web 开发框架
+基于 Gin + GORM + Zap 的 5 层分层架构企业级 Go Web 开发框架
 
 ## 特性
 
-- **7 层分层架构** - Config → Entity → Manager → Repository → Service → Controller/Middleware，清晰的责任分离
+- **5 层分层架构** - Entity → Repository → Service → Controller/Middleware，清晰的责任分离
+- **内置组件** - Config 和 Manager 作为服务器内置组件，自动初始化和注入
 - **依赖注入容器** - 自动注入依赖，支持同层依赖、可选依赖、循环依赖检测
 - **统一配置管理** - 支持 YAML/JSON 配置文件，类型安全的配置读取
 - **多数据库支持** - 基于 GORM，支持 MySQL、PostgreSQL、SQLite
@@ -166,7 +167,7 @@ go run ./cmd/server
 
 ## 架构设计
 
-### 7 层分层架构
+### 5 层分层架构
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -175,14 +176,14 @@ go run ./cmd/server
 │  - 参数验证和转换                                    │
 │  - 调用 Service 层业务逻辑                           │
 └─────────────────────────────────────────────────────┘
-                        ↓ 依赖
+                         ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
 │  Service                           (服务层)         │
 │  - 编排业务逻辑                                          │
 │  - 事务管理                                             │
 │  - 调用 Repository 和其他 Service                      │
 └─────────────────────────────────────────────────────┘
-                        ↓ 依赖
+                         ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
 │  Repository                       (仓储层)           │
 │  - 数据访问抽象                                        │
@@ -191,17 +192,19 @@ go run ./cmd/server
 └─────────────────────────────────────────────────────┘
             ↓ 依赖              ↑ 使用
 ┌─────────────────────────┐    ┌──────────────────────┐
-│  Manager  (管理器层)     │    │  Entity    (实体层)   │
+│  Manager  (内置组件)     │    │  Entity    (实体层)   │
 │  - 数据库、缓存、日志等   │    │  - 数据模型定义        │
 │  - 外部资源管理           │    │  - 表映射和验证规则    │
 │  - 与外部系统交互         │    │                      │
+│  - 由引擎自动初始化       │    │                      │
 └─────────────────────────┘    └──────────────────────┘
             ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
-│  ConfigProvider                    (配置层)         │
+│  ConfigProvider                    (内置配置)       │
 │  - 统一配置加载                                         │
 │  - 类型安全的配置访问                                  │
 │  - 支持热重载                                          │
+│  - 由引擎自动初始化                                   │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -209,24 +212,28 @@ go run ./cmd/server
 
 - **向下依赖**：上层只能依赖下层
 - **单向依赖**：Config → Entity → Manager → Repository → Service → Controller/Middleware
-- **同层依赖**：Manager 和 Service 支持同层依赖，通过拓扑排序解决循环依赖
+- **同层依赖**：Service 支持同层依赖，通过拓扑排序解决循环依赖
+- **内置组件**：Config 和 Manager 作为服务器内置组件，由引擎自动初始化和注入
 
 ### 依赖注入
 
-使用 `inject:""` 标签声明依赖：
+使用 `inject:""` 标签声明依赖，Config 和 Manager 由引擎自动注入：
 
 ```go
 type UserServiceImpl struct {
-    // 必需依赖
+    // 内置组件（由引擎自动注入）
     Config    common.IBaseConfigProvider  `inject:""`
     DBMgr     databasemgr.IDatabaseManager `inject:""`
+    CacheMgr  cachemgr.ICacheManager      `inject:""`
+
+    // 业务依赖
     UserRepo  IUserRepository             `inject:""`
 
     // 同层依赖
     OrderSvc  IOrderService               `inject:""`
 
     // 可选依赖（不存在时不会报错）
-    CacheMgr  cachemgr.ICacheManager      `inject:"optional"`
+    OptionalService IOtherService         `inject:"optional"`
 }
 ```
 
@@ -471,7 +478,8 @@ go run ./cmd/server
 ```
 
 示例包含：
-- 完整的 7 层架构实现
+- 完整的 5 层架构实现
+- 内置组件自动初始化
 - 用户认证和会话管理
 - 留言审核流程
 - 数据库迁移
@@ -488,15 +496,13 @@ myapp/
 │   └── generate/          # 代码生成器入口
 │       └── main.go
 ├── internal/
-│   ├── application/       # 容器初始化代码（自动生成）
-│   │   ├── config_container.go
-│   │   ├── entity_container.go
-│   │   ├── manager_container.go
-│   │   ├── repository_container.go
-│   │   ├── service_container.go
-│   │   ├── controller_container.go
-│   │   ├── middleware_container.go
-│   │   └── engine.go
+ │   ├── application/       # 容器初始化代码（自动生成）
+ │   │   ├── entity_container.go
+ │   │   ├── repository_container.go
+ │   │   ├── service_container.go
+ │   │   ├── controller_container.go
+ │   │   ├── middleware_container.go
+ │   │   └── engine.go
 │   ├── entities/          # 实体层
 │   ├── repositories/      # 仓储层
 │   ├── services/          # 服务层
@@ -685,7 +691,7 @@ func (s *UserService) CreateUser(user *User) error {
 
 ## 许可证
 
-MIT License
+BSD 2-Clause License
 
 ## 文档
 

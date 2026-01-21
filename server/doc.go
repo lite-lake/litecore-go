@@ -1,7 +1,8 @@
 // Package server 提供统一的 HTTP 服务引擎，支持自动依赖注入、生命周期管理和中间件集成。
 //
 // 核心特性：
-//   - 七层容器管理：集成 Config、Entity、Manager、Repository、Service、Controller、Middleware
+//   - 五层容器管理：集成 Entity、Repository、Service、Controller、Middleware
+//   - 内置组件：Config 和 Manager 作为内置组件，由引擎自动初始化和注入
 //   - 自动依赖注入：按依赖顺序自动处理组件注入
 //   - 生命周期管理：统一管理各层组件的启动和停止
 //   - 中间件集成：自动排序并注册全局中间件到 Gin 引擎
@@ -39,11 +40,11 @@
 //
 // 依赖注入：
 //
-// 各层组件通过 inject:"" 标签声明依赖：
+// 各层组件通过 inject:"" 标签声明依赖，Config 和 Manager 由引擎自动注入：
 //
 //	type UserServiceImpl struct {
-//	    Config    common.IBaseConfigProvider  `inject:""`
-//	    DBManager databasemgr.IDatabaseManager `inject:""`
+//	    Config    common.IBaseConfigProvider  `inject:""`  // 内置组件
+//	    DBManager databasemgr.IDatabaseManager `inject:""`  // 内置组件
 //	    UserRepo  repository.IUserRepository `inject:""`
 //	}
 //

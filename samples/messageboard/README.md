@@ -4,7 +4,8 @@
 
 ## 项目特性
 
-- ✅ 清晰的分层架构（Entity → Repository → Service → Controller）
+- ✅ 清晰的 5 层分层架构（Entity → Repository → Service → Controller）
+- ✅ 内置组件（Config 和 Manager 自动初始化）
 - ✅ 依赖注入容器（自动注入）
 - ✅ 留言审核机制（待审核/已通过/已拒绝）
 - ✅ 管理员认证与会话管理
@@ -74,9 +75,7 @@ samples/messageboard/
 │   └── config.yaml             # 配置文件
 ├── internal/
 │   ├── application/            # 应用容器（CLI工具自动生成）
-│   │   ├── config_container.go
 │   │   ├── entity_container.go
-│   │   ├── manager_container.go
 │   │   ├── repository_container.go
 │   │   ├── service_container.go
 │   │   ├── controller_container.go
@@ -89,8 +88,6 @@ samples/messageboard/
 │   ├── repositories/           # 仓储层
 │   ├── services/               # 服务层
 │   └── infras/                 # 基础设施层
-│       ├── configproviders/    # 配置提供者
-│       │   └── config_provider.go
 │       └── managers/           # 管理器封装
 │           ├── database_manager.go
 │           ├── cache_manager.go
@@ -187,12 +184,15 @@ go run ./cmd/generate
 
 ### 依赖注入
 
-使用 `inject:"` 标签自动注入依赖：
+使用 `inject:"` 标签自动注入依赖，Config 和 Manager 由引擎自动注入：
 
 ```go
 type MyService struct {
+    // 内置组件（引擎自动注入）
     Config     common.BaseConfigProvider  `inject:""`
     DBMgr      databasemgr.DatabaseManager `inject:""`
+
+    // 业务依赖
     Repository *repositories.MyRepository `inject:""`
 }
 ```

@@ -1,10 +1,10 @@
 # Common - 公共基础接口
 
-定义七层架构的基础接口，规范各层的行为契约和生命周期管理。
+定义五层架构的基础接口，规范各层的行为契约和生命周期管理。
 
 ## 特性
 
-- **七层架构基础接口** - 定义 Entity、Manager、Repository、Service、Controller、Middleware、ConfigProvider 的标准接口
+- **五层架构基础接口** - 定义 Entity、Repository、Service、Controller、Middleware、ConfigProvider、Manager 的标准接口
 - **生命周期管理** - 提供统一的 OnStart 和 OnStop 钩子方法，管理组件启动和停止
 - **命名规范** - 每层接口要求实现对应的名称方法，便于调试、日志和监控
 - **行为契约** - 通过接口定义各层的核心行为，确保系统分层架构的一致性
@@ -346,22 +346,21 @@ type BaseConfigProvider interface {
 各层之间有明确的依赖关系，从低到高依次为：
 
 ```
-ConfigProvider (配置层)
-      ↓
 Entity (实体层)
-      ↓
-Manager (管理器层)
       ↓
 Repository (存储库层)
       ↓
 Service (服务层)
       ↓
 Controller (控制器层) / Middleware (中间件层)
+      ↑ 依赖（由引擎自动初始化和注入）
+ConfigProvider (配置层) / Manager (管理器层)
 ```
 
 - 上层可以依赖下层
 - 下层不能依赖上层
-- 同层之间可以相互依赖
+- 同层之间可以相互依赖（Service 层支持同层依赖）
+- Config 和 Manager 作为服务器内置组件，由引擎自动初始化和注入
 
 ## 生命周期管理
 
@@ -378,8 +377,11 @@ Controller (控制器层) / Middleware (中间件层)
 
 ```go
 type UserServiceImpl struct {
+    // 内置组件（由引擎自动注入）
     Config    common.BaseConfigProvider `inject:""`
     DBManager common.BaseManager        `inject:""`
+
+    // 业务依赖
     UserRepo  common.BaseRepository     `inject:""`
 }
 ```
