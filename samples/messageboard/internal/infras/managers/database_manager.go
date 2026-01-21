@@ -3,8 +3,8 @@ package managers
 import (
 	"fmt"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/component/manager/databasemgr"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/databasemgr"
 )
 
 type IDatabaseManager interface {

@@ -2,9 +2,9 @@
 package repositories
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/samples/messageboard/internal/entities"
-	"com.litelake.litecore/samples/messageboard/internal/infras/managers"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/infras/managers"
 )
 
 // IMessageRepository 留言仓储接口

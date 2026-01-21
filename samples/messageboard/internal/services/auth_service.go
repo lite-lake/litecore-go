@@ -4,10 +4,10 @@ package services
 import (
 	"fmt"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/config"
-	"com.litelake.litecore/samples/messageboard/internal/dtos"
-	"com.litelake.litecore/util/hash"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/config"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
+	"github.com/lite-lake/litecore-go/util/hash"
 )
 
 // IAuthService 认证服务接口

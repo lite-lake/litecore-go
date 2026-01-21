@@ -2,8 +2,8 @@
 package application
 
 import (
-	"com.litelake.litecore/container"
-	repositories "com.litelake.litecore/samples/messageboard/internal/repositories"
+	"github.com/lite-lake/litecore-go/container"
+	repositories "github.com/lite-lake/litecore-go/samples/messageboard/internal/repositories"
 )
 
 // InitRepositoryContainer 初始化仓储容器

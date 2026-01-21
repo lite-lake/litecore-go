@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // Build 创建观测管理器实例

@@ -1,8 +1,8 @@
 package managers
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/component/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/manager/cachemgr"
 )
 
 type ICacheManager interface {

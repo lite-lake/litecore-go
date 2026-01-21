@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 
 	"gopkg.in/yaml.v3"
 )

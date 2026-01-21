@@ -2,9 +2,9 @@
 package application
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/container"
-	entities "com.litelake.litecore/samples/messageboard/internal/entities"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
+	entities "github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
 )
 
 // InitEntityContainer 初始化实体容器

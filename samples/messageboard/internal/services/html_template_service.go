@@ -4,8 +4,8 @@ package services
 import (
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/component/service"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/service"
 )
 
 // IHTMLTemplateService HTML模板服务接口

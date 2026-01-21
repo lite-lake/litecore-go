@@ -2,8 +2,8 @@
 package application
 
 import (
-	"com.litelake.litecore/container"
-	controllers "com.litelake.litecore/samples/messageboard/internal/controllers"
+	"github.com/lite-lake/litecore-go/container"
+	controllers "github.com/lite-lake/litecore-go/samples/messageboard/internal/controllers"
 )
 
 // InitControllerContainer 初始化控制器容器

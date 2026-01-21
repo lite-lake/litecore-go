@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 	_ "github.com/mattn/go-sqlite3"
 )
 

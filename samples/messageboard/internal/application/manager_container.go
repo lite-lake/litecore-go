@@ -4,9 +4,9 @@ package application
 import (
 	"reflect"
 
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/container"
-	managers "com.litelake.litecore/samples/messageboard/internal/infras/managers"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
+	managers "github.com/lite-lake/litecore-go/samples/messageboard/internal/infras/managers"
 )
 
 // InitManagerContainer 初始化管理器容器

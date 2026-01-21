@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // RepositoryContainer 存储库层容器

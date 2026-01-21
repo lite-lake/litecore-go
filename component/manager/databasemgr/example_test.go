@@ -1,7 +1,7 @@
 package databasemgr_test
 
 import (
-	"com.litelake.litecore/component/manager/databasemgr"
+	"github.com/lite-lake/litecore-go/component/manager/databasemgr"
 )
 
 // Example_databasemgr_withFactory 演示如何使用工厂模式创建 IDatabaseManager

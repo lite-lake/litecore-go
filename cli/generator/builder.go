@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"com.litelake.litecore/cli/analyzer"
+	"github.com/lite-lake/litecore-go/cli/analyzer"
 )
 
 // Builder 代码生成器
@@ -283,9 +283,9 @@ func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Laye
 			if len(parts) > 1 {
 				pkg := parts[0]
 				if pkg != b.moduleName && pkg != "" && pkg != "common" && pkg != "config" {
-					fullPkg := "com.litelake.litecore/component/manager/" + pkg
+					fullPkg := "github.com/lite-lake/litecore-go/component/manager/" + pkg
 					if pkg == "telemetrymgr" {
-						fullPkg = "com.litelake.litecore/component/manager/telemetrymgr"
+						fullPkg = "github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
 					}
 					if _, exists := importMap[pkg]; !exists {
 						importMap[pkg] = fullPkg

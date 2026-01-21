@@ -1,4 +1,4 @@
-module com.litelake.litecore
+module github.com/lite-lake/litecore-go
 
 go 1.25.0
 

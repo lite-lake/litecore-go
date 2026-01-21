@@ -3,7 +3,7 @@ package databasemgr
 import (
 	"fmt"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // Build 创建数据库管理器实例

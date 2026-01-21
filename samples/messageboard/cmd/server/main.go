@@ -4,7 +4,7 @@ package main
 import (
 	"log"
 
-	messageboardapp "com.litelake.litecore/samples/messageboard/internal/application"
+	messageboardapp "github.com/lite-lake/litecore-go/samples/messageboard/internal/application"
 )
 
 func main() {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"com.litelake.litecore/util/hash"
+	"github.com/lite-lake/litecore-go/util/hash"
 )
 
 func TestGeneratePassword(t *testing.T) {

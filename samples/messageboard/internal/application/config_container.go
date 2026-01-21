@@ -2,9 +2,9 @@
 package application
 
 import (
-	"com.litelake.litecore/common"
-	"com.litelake.litecore/container"
-	configproviders "com.litelake.litecore/samples/messageboard/internal/infras/configproviders"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
+	configproviders "github.com/lite-lake/litecore-go/samples/messageboard/internal/infras/configproviders"
 )
 
 // InitConfigContainer 初始化配置容器

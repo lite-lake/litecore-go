@@ -1,7 +1,7 @@
 package server
 
 import (
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // registerMiddlewares 注册中间件

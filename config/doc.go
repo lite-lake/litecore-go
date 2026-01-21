@@ -14,7 +14,7 @@
 //	import (
 //	    "log"
 //
-//	    "com.litelake.litecore/config"
+//	    "github.com/lite-lake/litecore-go/config"
 //	)
 //
 //	func main() {
@@ -62,7 +62,7 @@
 //
 // 包提供两个错误变量用于错误判断：
 //
-//	import "com.litelake.litecore/config"
+//	import "github.com/lite-lake/litecore-go/config"
 //
 //	val, err := config.Get[string](provider, "some.key")
 //	if config.IsConfigKeyNotFound(err) {

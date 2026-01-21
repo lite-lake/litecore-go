@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // TestManagerContainer 测试 ManagerContainer（含依赖注入）

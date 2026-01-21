@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"com.litelake.litecore/util/hash"
+	"github.com/lite-lake/litecore-go/util/hash"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 func NewConfigProvider(driver string, filePath string) (common.IBaseConfigProvider, error) {

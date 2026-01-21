@@ -4,9 +4,9 @@ package middlewares
 import (
 	"github.com/gin-gonic/gin"
 
-	"com.litelake.litecore/common"
-	componentMiddleware "com.litelake.litecore/component/middleware"
-	"com.litelake.litecore/samples/messageboard/internal/infras/managers"
+	"github.com/lite-lake/litecore-go/common"
+	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
+	"github.com/lite-lake/litecore-go/samples/messageboard/internal/infras/managers"
 )
 
 // ITelemetryMiddleware 遥测中间件接口

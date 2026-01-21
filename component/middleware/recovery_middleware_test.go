@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"com.litelake.litecore/component/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 type mockLogger struct {

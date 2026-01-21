@@ -3,7 +3,7 @@ package cachemgr
 import (
 	"fmt"
 
-	"com.litelake.litecore/common"
+	"github.com/lite-lake/litecore-go/common"
 )
 
 // Build 创建缓存管理器实例
