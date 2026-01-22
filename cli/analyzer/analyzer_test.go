@@ -14,7 +14,7 @@ func TestLayerString(t *testing.T) {
 		layer Layer
 		want  string
 	}{
-		{LayerConfig, "config"},
+		{LayerConfig, "configmgr"},
 		{LayerEntity, "entity"},
 		{LayerManager, "manager"},
 		{LayerRepository, "repository"},
@@ -176,7 +176,7 @@ func TestDetectLayer(t *testing.T) {
 		{"服务层", "internal/services/service.go", "services", LayerService},
 		{"控制器层", "internal/controllers/controller.go", "controllers", LayerController},
 		{"中间件层", "internal/middlewares/middleware.go", "middlewares", LayerMiddleware},
-		{"配置层", "infras/config_provider.go", "configproviders", LayerConfig},
+		{"配置层", "infras/interface.go", "configproviders", LayerConfig},
 		{"管理器层", "infras/managers/manager.go", "managers", LayerManager},
 		{"未知层", "internal/unknown/unknown.go", "unknown", ""},
 	}

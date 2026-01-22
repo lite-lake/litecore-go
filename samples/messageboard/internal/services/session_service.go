@@ -9,10 +9,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/manager/cachemgr"
-	"github.com/lite-lake/litecore-go/config"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
-	"github.com/lite-lake/litecore-go/util/logger"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
 // ISessionService 会话服务接口
@@ -24,9 +23,9 @@ type ISessionService interface {
 }
 
 type sessionService struct {
-	Config   common.IBaseConfigProvider `inject:""`
-	CacheMgr cachemgr.ICacheManager     `inject:""`
-	Logger   logger.ILogger             `inject:""`
+	Config   configmgr.IConfigManager `inject:""`
+	CacheMgr cachemgr.ICacheManager   `inject:""`
+	Logger   common.ILogger           `inject:""`
 	timeout  time.Duration
 }
 
@@ -40,9 +39,9 @@ func (s *sessionService) ServiceName() string {
 }
 
 func (s *sessionService) OnStart() error {
-	timeout, err := config.Get[int](s.Config, "app.admin.session_timeout")
+	timeout, err := configmgr.Get[int](s.Config, "app.admin.session_timeout")
 	if err != nil {
-		return fmt.Errorf("failed to get session_timeout from config: %w", err)
+		return fmt.Errorf("failed to get session_timeout from configmgr: %w", err)
 	}
 	s.timeout = time.Duration(timeout) * time.Second
 	return nil

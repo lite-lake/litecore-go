@@ -71,7 +71,7 @@ go run ./cmd/generate -o internal/app
 go run ./cmd/generate -pkg myapp
 
 # 自定义配置文件
-go run ./cmd/generate -c config/dev.yaml
+go run ./cmd/generate -c configmgr/dev.yaml
 ```
 
 ### 完全自定义配置
@@ -92,7 +92,7 @@ func main() {
 		ProjectPath: ".",
 		OutputDir:   "internal/app",
 		PackageName: "myapp",
-		ConfigPath:  "config/config.yaml",
+		ConfigPath:  "configmgr/config.yaml",
 	}
 
 	if err := generator.Run(cfg); err != nil {

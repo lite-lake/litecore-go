@@ -2,12 +2,10 @@
 package controllers
 
 import (
+	"github.com/gin-gonic/gin"
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
-	"github.com/lite-lake/litecore-go/util/logger"
-
-	"github.com/gin-gonic/gin"
 )
 
 // IMsgAllController 获取所有留言控制器接口
@@ -17,7 +15,7 @@ type IMsgAllController interface {
 
 type msgAllControllerImpl struct {
 	MessageService services.IMessageService `inject:""`
-	Logger         logger.ILogger           `inject:""`
+	Logger         common.ILogger           `inject:""`
 }
 
 // NewMsgAllController 创建控制器实例

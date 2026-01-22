@@ -1,6 +1,9 @@
 package logger
 
-import "log"
+import (
+	"github.com/lite-lake/litecore-go/common"
+	"log"
+)
 
 type defaultLogger struct {
 	prefix string
@@ -34,9 +37,9 @@ func (l *defaultLogger) Fatal(msg string, args ...any) {
 	log.Fatal(args...)
 }
 
-func (l *defaultLogger) With(args ...any) ILogger {
+func (l *defaultLogger) With(args ...any) common.ILogger {
 	return l
 }
 
-func (l *defaultLogger) SetLevel(level LogLevel) {
+func (l *defaultLogger) SetLevel(level common.LogLevel) {
 }

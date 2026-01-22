@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // ResourceStaticConfig 静态文件配置
@@ -19,7 +18,7 @@ type ResourceStaticConfig struct {
 // 用于处理静态文件服务
 type ResourceStaticController struct {
 	config *ResourceStaticConfig
-	Logger logger.ILogger `inject:""`
+	Logger common.ILogger `inject:""`
 }
 
 // NewResourceStaticController 创建静态文件控制器

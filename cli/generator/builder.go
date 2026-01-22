@@ -238,7 +238,7 @@ func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Laye
 			parts := strings.Split(comp.InterfaceType, ".")
 			if len(parts) > 1 {
 				pkg := parts[0]
-				if pkg != b.moduleName && pkg != "" && pkg != "common" && pkg != "config" {
+				if pkg != b.moduleName && pkg != "" && pkg != "common" && pkg != "configmgr" {
 					fullPkg := "github.com/lite-lake/litecore-go/component/manager/" + pkg
 					if pkg == "telemetrymgr" {
 						fullPkg = "github.com/lite-lake/litecore-go/component/manager/telemetrymgr"

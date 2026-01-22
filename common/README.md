@@ -255,7 +255,7 @@ func (p *ConfigProvider) ConfigProviderName() string {
 func (p *ConfigProvider) Get(key string) (any, error) {
     value, exists := p.config[key]
     if !exists {
-        return nil, fmt.Errorf("config key not found: %s", key)
+        return nil, fmt.Errorf("configmgr key not found: %s", key)
     }
     return value, nil
 }

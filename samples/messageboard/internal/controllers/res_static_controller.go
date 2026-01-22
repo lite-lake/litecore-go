@@ -5,7 +5,6 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	componentControllers "github.com/lite-lake/litecore-go/component/controller"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IResStaticController 静态文件控制器接口
@@ -15,7 +14,7 @@ type IResStaticController interface {
 
 type resStaticControllerImpl struct {
 	componentController *componentControllers.ResourceStaticController
-	Logger              logger.ILogger `inject:""`
+	Logger              common.ILogger `inject:""`
 }
 
 func NewResStaticController() IResStaticController {

@@ -1,6 +1,7 @@
 package container
 
 import (
+	"github.com/lite-lake/litecore-go/common"
 	"reflect"
 	"strings"
 	"unsafe"
@@ -123,7 +124,7 @@ func NewGenericDependencyResolver(
 // ResolveDependency 解析字段类型对应的依赖实例
 // 按照sources的顺序依次尝试解析，找到第一个匹配的依赖
 func (r *GenericDependencyResolver) ResolveDependency(fieldType reflect.Type, structType reflect.Type, fieldName string) (interface{}, error) {
-	loggerType := reflect.TypeOf((*logger.ILogger)(nil)).Elem()
+	loggerType := reflect.TypeOf((*common.ILogger)(nil)).Elem()
 	if fieldType == loggerType || fieldType.Implements(loggerType) {
 		if r.loggerRegistry != nil {
 			loggerName := r.extractLoggerName(structType)

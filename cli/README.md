@@ -51,7 +51,7 @@ func main() {
 ./litecore-generate
 
 # 或指定参数
-./litecore-generate -project . -output internal/application -package application -config configs/config.yaml
+./litecore-generate -project . -output internal/application -package application -configmgr configs/config.yaml
 ```
 
 ### 方式二：在业务项目中自定义生成器入口
@@ -119,7 +119,7 @@ go run ./cmd/generate
 
 ```bash
 # 在任意目录生成
-./litecore-generate -project /path/to/project -output internal/application -package application -config configs/config.yaml
+./litecore-generate -project /path/to/project -output internal/application -package application -configmgr configs/config.yaml
 ```
 
 ### 业务项目入口使用

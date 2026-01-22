@@ -5,7 +5,6 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	componentControllers "github.com/lite-lake/litecore-go/component/controller"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // ISysMetricsController 指标控制器接口
@@ -15,7 +14,7 @@ type ISysMetricsController interface {
 
 type sysMetricsControllerImpl struct {
 	componentController componentControllers.IMetricsController
-	Logger              logger.ILogger `inject:""`
+	Logger              common.ILogger `inject:""`
 }
 
 func NewSysMetricsController() ISysMetricsController {

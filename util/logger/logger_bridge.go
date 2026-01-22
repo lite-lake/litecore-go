@@ -1,9 +1,11 @@
 package logger
 
+import "github.com/lite-lake/litecore-go/common"
+
 type LoggerBridge struct {
 	name      string
 	loggerMgr ILoggerManager
-	logger    ILogger
+	logger    common.ILogger
 }
 
 func NewLoggerBridge(name string) *LoggerBridge {
@@ -47,10 +49,10 @@ func (b *LoggerBridge) Fatal(msg string, args ...any) {
 	b.logger.Fatal(msg, args...)
 }
 
-func (b *LoggerBridge) With(args ...any) ILogger {
+func (b *LoggerBridge) With(args ...any) common.ILogger {
 	return b.logger.With(args...)
 }
 
-func (b *LoggerBridge) SetLevel(level LogLevel) {
+func (b *LoggerBridge) SetLevel(level common.LogLevel) {
 	b.logger.SetLevel(level)
 }

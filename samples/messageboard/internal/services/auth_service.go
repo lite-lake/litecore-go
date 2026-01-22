@@ -5,10 +5,9 @@ import (
 	"fmt"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/config"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"github.com/lite-lake/litecore-go/util/hash"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IAuthService 认证服务接口
@@ -21,9 +20,9 @@ type IAuthService interface {
 }
 
 type authService struct {
-	Config         common.IBaseConfigProvider `inject:""`
-	SessionService ISessionService            `inject:""`
-	Logger         logger.ILogger             `inject:""`
+	Config         configmgr.IConfigManager `inject:""`
+	SessionService ISessionService          `inject:""`
+	Logger         common.ILogger           `inject:""`
 }
 
 // NewAuthService 创建认证服务
@@ -44,7 +43,7 @@ func (s *authService) OnStop() error {
 }
 
 func (s *authService) VerifyPassword(password string) bool {
-	storedPassword, err := config.Get[string](s.Config, "app.admin.password")
+	storedPassword, err := configmgr.Get[string](s.Config, "app.admin.password")
 	if err != nil {
 		if s.Logger != nil {
 			s.Logger.Error("获取管理员密码失败", "error", err)

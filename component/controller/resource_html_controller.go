@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // ResourceHTMLConfig HTML模板配置
@@ -17,7 +16,7 @@ type ResourceHTMLConfig struct {
 type ResourceHTMLController struct {
 	config    *ResourceHTMLConfig
 	ginEngine *gin.Engine
-	Logger    logger.ILogger `inject:""`
+	Logger    common.ILogger `inject:""`
 }
 
 // NewResourceHTMLController 创建HTML模板控制器

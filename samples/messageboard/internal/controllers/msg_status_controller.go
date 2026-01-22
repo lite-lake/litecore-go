@@ -5,7 +5,6 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
-	"github.com/lite-lake/litecore-go/util/logger"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +17,7 @@ type IMsgStatusController interface {
 
 type msgStatusControllerImpl struct {
 	MessageService services.IMessageService `inject:""`
-	Logger         logger.ILogger           `inject:""`
+	Logger         common.ILogger           `inject:""`
 }
 
 // NewMsgStatusController 创建控制器实例

@@ -26,7 +26,7 @@ func main() {
 	flag.StringVar(&cfg.OutputDir, "o", cfg.OutputDir, "输出目录（简写）")
 	flag.StringVar(&cfg.PackageName, "package", cfg.PackageName, "包名")
 	flag.StringVar(&cfg.PackageName, "pkg", cfg.PackageName, "包名（简写）")
-	flag.StringVar(&cfg.ConfigPath, "config", cfg.ConfigPath, "配置文件路径")
+	flag.StringVar(&cfg.ConfigPath, "configmgr", cfg.ConfigPath, "配置文件路径")
 	flag.StringVar(&cfg.ConfigPath, "c", cfg.ConfigPath, "配置文件路径（简写）")
 
 	flag.Parse()

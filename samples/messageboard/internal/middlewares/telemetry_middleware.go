@@ -5,8 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
 	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 )
 
 // ITelemetryMiddleware 遥测中间件接口

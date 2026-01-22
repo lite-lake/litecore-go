@@ -1,14 +1,13 @@
 package middleware
 
 import (
+	"github.com/lite-lake/litecore-go/common"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 type mockLogger struct {
@@ -39,11 +38,11 @@ func (m *mockLogger) Fatal(msg string, args ...any) {
 	m.fatalMsgs = append(m.fatalMsgs, msg)
 }
 
-func (m *mockLogger) With(args ...any) logger.ILogger {
+func (m *mockLogger) With(args ...any) common.ILogger {
 	return m
 }
 
-func (m *mockLogger) SetLevel(level logger.LogLevel) {
+func (m *mockLogger) SetLevel(level common.LogLevel) {
 }
 
 func TestNewRecoveryMiddleware(t *testing.T) {

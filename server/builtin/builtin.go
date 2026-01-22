@@ -3,12 +3,12 @@ package builtin
 import (
 	"fmt"
 
-	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/manager/cachemgr"
-	"github.com/lite-lake/litecore-go/component/manager/databasemgr"
-	"github.com/lite-lake/litecore-go/component/manager/loggermgr"
-	"github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
-	"github.com/lite-lake/litecore-go/config"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
+
 	"github.com/lite-lake/litecore-go/util/logger"
 )
 
@@ -19,34 +19,36 @@ type Config struct {
 
 func (c *Config) Validate() error {
 	if c.Driver == "" {
-		return fmt.Errorf("config driver cannot be empty")
+		return fmt.Errorf("configmgr driver cannot be empty")
 	}
 	if c.FilePath == "" {
-		return fmt.Errorf("config file path cannot be empty")
+		return fmt.Errorf("configmgr file path cannot be empty")
 	}
 	return nil
 }
 
+// Components 内置组件
 type Components struct {
-	ConfigProvider common.IBaseConfigProvider
-	LoggerManager  loggermgr.ILoggerManager
-	LoggerRegistry *logger.LoggerRegistry
-	TelemetryMgr   telemetrymgr.ITelemetryManager
-	DatabaseMgr    databasemgr.IDatabaseManager
-	CacheMgr       cachemgr.ICacheManager
+	LoggerRegistry *logger.LoggerRegistry // 日志注册器
+
+	ConfigProvider configmgr.IConfigManager       // 配置管理器
+	LoggerManager  loggermgr.ILoggerManager       // 日志管理器
+	TelemetryMgr   telemetrymgr.ITelemetryManager // 追踪管理器
+	DatabaseMgr    databasemgr.IDatabaseManager   // 数据库管理器
+	CacheMgr       cachemgr.ICacheManager         // 缓存管理器
 }
 
 func Initialize(cfg *Config) (*Components, error) {
 	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
-	}
-
-	configProvider, err := config.NewConfigProvider(cfg.Driver, cfg.FilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create config provider: %w", err)
+		return nil, fmt.Errorf("invalid configmgr: %w", err)
 	}
 
 	loggerRegistry := logger.NewLoggerRegistry()
+
+	configProvider, err := configmgr.NewConfigManager(cfg.Driver, cfg.FilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create configmgr provider: %w", err)
+	}
 
 	loggerManager, err := loggermgr.BuildWithConfigProvider(configProvider)
 	if err != nil {
@@ -80,7 +82,7 @@ func Initialize(cfg *Config) (*Components, error) {
 	}, nil
 }
 
-func (c *Components) GetConfigProvider() common.IBaseConfigProvider {
+func (c *Components) GetConfigProvider() configmgr.IConfigManager {
 	return c.ConfigProvider
 }
 

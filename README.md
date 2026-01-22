@@ -379,7 +379,7 @@ go build -o litecore-generate ./cli
 ./litecore-generate
 
 # 或指定参数
-./litecore-generate -project . -output internal/application -package application -config configs/config.yaml
+./litecore-generate -project . -output internal/application -package application -configmgr configs/config.yaml
 ```
 
 ### 在业务项目中使用

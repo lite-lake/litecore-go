@@ -9,13 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // RequestLoggerMiddleware 请求日志中间件
 type RequestLoggerMiddleware struct {
 	order  int
-	Logger logger.ILogger `inject:""`
+	Logger common.ILogger `inject:""`
 }
 
 // NewRequestLoggerMiddleware 创建请求日志中间件
