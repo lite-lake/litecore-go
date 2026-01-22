@@ -3,6 +3,7 @@ package telemetrymgr
 import (
 	"context"
 
+	"github.com/lite-lake/litecore-go/common"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -14,18 +15,7 @@ import (
 // ITelemetryManager 观测管理器接口
 // 统一提供 Traces、Metrics、Logs 三大观测能力
 type ITelemetryManager interface {
-	// ========== 生命周期管理（符合 BaseManager 接口） ==========
-	// ManagerName 返回管理器名称
-	ManagerName() string
-
-	// Health 检查管理器健康状态
-	Health() error
-
-	// OnStart 在服务器启动时触发
-	OnStart() error
-
-	// OnStop 在服务器停止时触发
-	OnStop() error
+	common.IBaseManager
 
 	// ========== Tracing ==========
 	// Tracer 获取 Tracer 实例

@@ -57,6 +57,18 @@ func (m *MockConfigProvider) ManagerName() string {
 	return "mock"
 }
 
+func (m *MockConfigProvider) Health() error {
+	return nil
+}
+
+func (m *MockConfigProvider) OnStart() error {
+	return nil
+}
+
+func (m *MockConfigProvider) OnStop() error {
+	return nil
+}
+
 // TestBuild_NoneDriver 测试 none 驱动
 func TestBuild_NoneDriver(t *testing.T) {
 	mgr, err := Build("none", nil)

@@ -20,6 +20,22 @@ func (m *mockConfigProvider) Has(key string) bool {
 	return ok
 }
 
+func (m *mockConfigProvider) ManagerName() string {
+	return "mockConfigProvider"
+}
+
+func (m *mockConfigProvider) Health() error {
+	return nil
+}
+
+func (m *mockConfigProvider) OnStart() error {
+	return nil
+}
+
+func (m *mockConfigProvider) OnStop() error {
+	return nil
+}
+
 func TestBuildWithConfigProvider(t *testing.T) {
 	t.Run("zap_driver_with_config", func(t *testing.T) {
 		provider := &mockConfigProvider{

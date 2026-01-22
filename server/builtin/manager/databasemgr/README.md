@@ -1,6 +1,6 @@
 # Database Manager - 数据库管理器
 
-提供统一的数据库管理功能,基于 GORM 支持多种数据库驱动。
+提供统一的数据库管理功能，基于 GORM 支持多种数据库驱动。
 
 ## 特性
 
@@ -19,7 +19,7 @@ package main
 
 import (
     "log"
-    "github.com/lite-lake/litecore-go/manager/databasemgr"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
 )
 
 func main() {
@@ -97,13 +97,16 @@ dbMgr := databasemgr.Build("none", nil)
 
 ### 使用 BuildWithConfigProvider
 
-`BuildWithConfigProvider` 从配置提供者读取配置,适合依赖注入场景:
+`BuildWithConfigProvider` 从配置提供者读取配置，适合依赖注入场景：
 
 ```go
-import "github.com/lite-lake/litecore-go/common"
+import "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 
 // 创建配置提供者
-provider := config.NewYamlConfigProvider("config.yaml")
+provider, err := configmgr.Build("yaml", "config.yaml")
+if err != nil {
+    log.Fatal(err)
+}
 
 // 从配置创建数据库管理器
 dbMgr, err := databasemgr.BuildWithConfigProvider(provider)

@@ -25,15 +25,6 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// Components 内置组件
-type Components struct {
-	ConfigMgr    configmgr.IConfigManager       // 配置管理器
-	LoggerMgr    loggermgr.ILoggerManager       // 日志管理器
-	TelemetryMgr telemetrymgr.ITelemetryManager // 追踪管理器
-	DatabaseMgr  databasemgr.IDatabaseManager   // 数据库管理器
-	CacheMgr     cachemgr.ICacheManager         // 缓存管理器
-}
-
 func Initialize(cfg *Config) (*container.ManagerContainer, error) {
 
 	cntr := container.NewManagerContainer()
@@ -42,7 +33,7 @@ func Initialize(cfg *Config) (*container.ManagerContainer, error) {
 		return nil, fmt.Errorf("invalid configmgr: %w", err)
 	}
 
-	configManager, err := configmgr.NewConfigManager(cfg.Driver, cfg.FilePath)
+	configManager, err := configmgr.Build(cfg.Driver, cfg.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config manager: %w", err)
 	}
@@ -83,17 +74,4 @@ func Initialize(cfg *Config) (*container.ManagerContainer, error) {
 	}
 
 	return cntr, nil
-}
-
-func (c *Components) GetConfigProvider() configmgr.IConfigManager {
-	return c.ConfigMgr
-}
-
-func (c *Components) GetManagers() []interface{} {
-	return []interface{}{
-		c.LoggerMgr,
-		c.TelemetryMgr,
-		c.DatabaseMgr,
-		c.CacheMgr,
-	}
 }

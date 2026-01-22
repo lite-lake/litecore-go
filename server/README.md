@@ -45,11 +45,9 @@ func main() {
 package main
 
 import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/config"
-    "github.com/lite-lake/litecore-go/container"
-    "github.com/lite-lake/litecore-go/databasemgr"
     "github.com/lite-lake/litecore-go/server"
+    "github.com/lite-lake/litecore-go/server/builtin"
+    "github.com/lite-lake/litecore-go/container"
 )
 
 func main() {
@@ -66,6 +64,10 @@ func main() {
 
     // 创建并启动引擎
     engine := server.NewEngine(
+        &builtin.Config{
+            Driver:   "yaml",
+            FilePath: "config.yaml",
+        },
         entityContainer,
         repositoryContainer,
         serviceContainer,
@@ -92,10 +94,14 @@ if err != nil {
 }
 ```
 
-或手动创建（传入所有容器实例）：
+或手动创建（传入配置和所有容器实例）：
 
 ```go
 engine := server.NewEngine(
+    &builtin.Config{
+        Driver:   "yaml",
+        FilePath: "config.yaml",
+    },
     entityContainer,
     repositoryContainer,
     serviceContainer,
@@ -177,8 +183,9 @@ Engine 在初始化时自动按以下顺序执行依赖注入：
 ```go
 type UserServiceImpl struct {
     // 内置组件（引擎自动注入）
-    Config    common.BaseConfigProvider  `inject:""`
-    DBManager databasemgr.DatabaseManager `inject:""`
+    Config    configmgr.IConfigManager   `inject:""`
+    DBManager databasemgr.IDatabaseManager `inject:""`
+    LoggerMgr loggermgr.ILoggerManager   `inject:""`
 
     // 业务依赖
     UserRepo  repository.IUserRepository `inject:""`
@@ -266,6 +273,7 @@ func (ctrl *MessageListController) Handle(c *gin.Context) {
 
 ```go
 func NewEngine(
+    builtinConfig *builtin.Config,
     entity *container.EntityContainer,
     repository *container.RepositoryContainer,
     service *container.ServiceContainer,
@@ -333,7 +341,17 @@ func NewEngine() (*server.Engine, error) {
         return nil, err
     }
 
-    return server.NewEngine(entityContainer, repositoryContainer, serviceContainer, controllerContainer, middlewareContainer), nil
+    return server.NewEngine(
+        &builtin.Config{
+            Driver:   "yaml",
+            FilePath: "configs/config.yaml",
+        },
+        entityContainer,
+        repositoryContainer,
+        serviceContainer,
+        controllerContainer,
+        middlewareContainer,
+    ), nil
 }
 ```
 
@@ -506,14 +524,16 @@ Engine 自动处理以下信号，触发优雅关闭：
 
 ```go
 type MessageServiceImpl struct {
-    Config   config.BaseConfigProvider   `inject:""`
-    DBMgr    databasemgr.DatabaseManager `inject:""`
+    Config   configmgr.IConfigManager   `inject:""`
+    DBMgr    databasemgr.IDatabaseManager `inject:""`
+    LoggerMgr loggermgr.ILoggerManager   `inject:""`
     Messages repository.IMessageRepository `inject:""`
 }
 
 type AuthServiceImpl struct {
-    Config  config.BaseConfigProvider `inject:""`
-    DBMgr   databasemgr.DatabaseManager `inject:""`
+    Config  configmgr.IConfigManager `inject:""`
+    DBMgr   databasemgr.IDatabaseManager `inject:""`
+    LoggerMgr loggermgr.ILoggerManager   `inject:""`
     Sessions repository.ISessionRepository `inject:""`
 }
 ```
@@ -524,7 +544,7 @@ type AuthServiceImpl struct {
 
 ```go
 type HealthCheckController struct {
-    Config  config.BaseConfigProvider `inject:""`
+    Config  configmgr.IConfigManager `inject:""`
 }
 
 func (ctrl *HealthCheckController) GetRouter() string {

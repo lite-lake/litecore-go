@@ -2,6 +2,8 @@ package databasemgr
 
 import (
 	"fmt"
+
+	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
@@ -89,9 +91,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IDatabase
 		return nil, fmt.Errorf("failed to get database.driver: %w", err)
 	}
 
-	driverTypeStr, ok := driverType.(string)
-	if !ok {
-		return nil, fmt.Errorf("database.driver must be a string, got %T", driverType)
+	driverTypeStr, err := common.GetString(driverType)
+	if err != nil {
+		return nil, fmt.Errorf("database.driver: %w", err)
 	}
 
 	// 2. 根据驱动类型读取对应配置
@@ -103,9 +105,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IDatabase
 		if err != nil {
 			return nil, fmt.Errorf("failed to get database.mysql_config: %w", err)
 		}
-		driverConfig, ok = mysqlConfig.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("database.mysql_config must be a map, got %T", mysqlConfig)
+		driverConfig, err = common.GetMap(mysqlConfig)
+		if err != nil {
+			return nil, fmt.Errorf("database.mysql_config: %w", err)
 		}
 
 	case "postgresql":
@@ -113,9 +115,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IDatabase
 		if err != nil {
 			return nil, fmt.Errorf("failed to get database.postgresql_config: %w", err)
 		}
-		driverConfig, ok = postgresqlConfig.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("database.postgresql_config must be a map, got %T", postgresqlConfig)
+		driverConfig, err = common.GetMap(postgresqlConfig)
+		if err != nil {
+			return nil, fmt.Errorf("database.postgresql_config: %w", err)
 		}
 
 	case "sqlite":
@@ -123,9 +125,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IDatabase
 		if err != nil {
 			return nil, fmt.Errorf("failed to get database.sqlite_config: %w", err)
 		}
-		driverConfig, ok = sqliteConfig.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("database.sqlite_config must be a map, got %T", sqliteConfig)
+		driverConfig, err = common.GetMap(sqliteConfig)
+		if err != nil {
+			return nil, fmt.Errorf("database.sqlite_config: %w", err)
 		}
 
 	case "none":
