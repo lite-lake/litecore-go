@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// NewConfigManager 根据驱动类型创建配置管理器
 func NewConfigManager(driver string, filePath string) (IConfigManager, error) {
 	switch driver {
 	case "yaml":

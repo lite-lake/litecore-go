@@ -60,8 +60,6 @@ func GetWithDefault[T any](p IConfigManager, key string, defaultValue T) T {
 	return val
 }
 
-// ----------
-
 // convertType 使用 lancet 进行类型转换
 func convertType[T any](val any) (T, error) {
 	var zero T

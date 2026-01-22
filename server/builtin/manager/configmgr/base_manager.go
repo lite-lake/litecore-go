@@ -6,14 +6,14 @@ import (
 	"strconv"
 )
 
-// 预编译路径正则表达式，提升性能
+// 预编译路径正则表达式，用于解析路径中的键名和数组索引，提升性能
 var pathPattern = regexp.MustCompile(`([^\.\[\]]+)(?:\[(\d+)\])?`)
 
 // baseConfigManager 提供配置查询的公共实现
 // 配置数据在创建后不可变，因此可以安全地在多个 goroutine 之间共享使用
 type baseConfigManager struct {
-	managerName string
-	configData  map[string]any
+	managerName string         // 管理器名称
+	configData  map[string]any // 配置数据
 }
 
 // newBaseConfigManager 创建基础配置管理器
@@ -28,18 +28,22 @@ func newBaseConfigManager(managerName string, handler IConfigLoadHandler) (IConf
 	}, nil
 }
 
+// ManagerName 返回管理器名称
 func (p *baseConfigManager) ManagerName() string {
 	return p.managerName
 }
 
+// Health 健康检查，始终返回 nil
 func (p *baseConfigManager) Health() error {
 	return nil
 }
 
+// OnStart 启动钩子，无操作
 func (p *baseConfigManager) OnStart() error {
 	return nil
 }
 
+// OnStop 停止钩子，无操作
 func (p *baseConfigManager) OnStop() error {
 	return nil
 }
@@ -58,9 +62,9 @@ func (p *baseConfigManager) Get(key string) (any, error) {
 
 // pathPart 表示路径中的一个部分
 type pathPart struct {
-	key      string
-	index    int // 数组索引，-1 表示非数组
-	hasIndex bool
+	key      string // 键名
+	index    int    // 数组索引，-1 表示非数组
+	hasIndex bool   // 是否包含数组索引
 }
 
 // parsePath 解析路径字符串为路径部分列表
