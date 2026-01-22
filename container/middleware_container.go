@@ -7,18 +7,15 @@ import (
 )
 
 type MiddlewareContainer struct {
-	base             *injectableContainer[common.IBaseMiddleware]
-	managerContainer *ManagerContainer
+	*InjectableLayerContainer[common.IBaseMiddleware]
 	serviceContainer *ServiceContainer
 }
 
 func NewMiddlewareContainer(service *ServiceContainer) *MiddlewareContainer {
 	return &MiddlewareContainer{
-		base: &injectableContainer[common.IBaseMiddleware]{
-			container: NewTypedContainer(func(m common.IBaseMiddleware) string {
-				return m.MiddlewareName()
-			}),
-		},
+		InjectableLayerContainer: NewInjectableLayerContainer(func(m common.IBaseMiddleware) string {
+			return m.MiddlewareName()
+		}),
 		serviceContainer: service,
 	}
 }
@@ -41,39 +38,15 @@ func GetMiddleware[T common.IBaseMiddleware](m *MiddlewareContainer) (T, error) 
 	return impl.(T), nil
 }
 
-func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseMiddleware) error {
-	return m.base.container.Register(ifaceType, impl)
-}
-
 func (m *MiddlewareContainer) InjectAll() error {
-	if m.base.container.IsInjected() {
+	m.checkManagerContainer("Middleware")
+
+	if m.InjectableLayerContainer.base.container.IsInjected() {
 		return nil
 	}
 
-	m.base.sources = m.base.buildSources(m, m.managerContainer, m.serviceContainer)
-	return m.base.injectAll(m)
-}
-
-func (m *MiddlewareContainer) GetAll() []common.IBaseMiddleware {
-	return m.base.container.GetAll()
-}
-
-func (m *MiddlewareContainer) GetAllSorted() []common.IBaseMiddleware {
-	return getAllSorted(m.GetAll(), func(m common.IBaseMiddleware) string {
-		return m.MiddlewareName()
-	})
-}
-
-func (m *MiddlewareContainer) GetByType(ifaceType reflect.Type) common.IBaseMiddleware {
-	return m.base.container.GetByType(ifaceType)
-}
-
-func (m *MiddlewareContainer) Count() int {
-	return m.base.container.Count()
-}
-
-func (m *MiddlewareContainer) SetManagerContainer(container *ManagerContainer) {
-	m.managerContainer = container
+	m.InjectableLayerContainer.base.sources = m.InjectableLayerContainer.base.buildSources(m, m.managerContainer, m.serviceContainer)
+	return m.InjectableLayerContainer.base.injectAll(m)
 }
 
 func (m *MiddlewareContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {

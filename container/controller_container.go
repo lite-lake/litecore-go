@@ -7,18 +7,15 @@ import (
 )
 
 type ControllerContainer struct {
-	base             *injectableContainer[common.IBaseController]
-	managerContainer *ManagerContainer
+	*InjectableLayerContainer[common.IBaseController]
 	serviceContainer *ServiceContainer
 }
 
 func NewControllerContainer(service *ServiceContainer) *ControllerContainer {
 	return &ControllerContainer{
-		base: &injectableContainer[common.IBaseController]{
-			container: NewTypedContainer(func(ctrl common.IBaseController) string {
-				return ctrl.ControllerName()
-			}),
-		},
+		InjectableLayerContainer: NewInjectableLayerContainer(func(ctrl common.IBaseController) string {
+			return ctrl.ControllerName()
+		}),
 		serviceContainer: service,
 	}
 }
@@ -41,39 +38,15 @@ func GetController[T common.IBaseController](c *ControllerContainer) (T, error) 
 	return impl.(T), nil
 }
 
-func (c *ControllerContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseController) error {
-	return c.base.container.Register(ifaceType, impl)
-}
-
 func (c *ControllerContainer) InjectAll() error {
-	if c.base.container.IsInjected() {
+	c.checkManagerContainer("Controller")
+
+	if c.InjectableLayerContainer.base.container.IsInjected() {
 		return nil
 	}
 
-	c.base.sources = c.base.buildSources(c, c.managerContainer, c.serviceContainer)
-	return c.base.injectAll(c)
-}
-
-func (c *ControllerContainer) GetAll() []common.IBaseController {
-	return c.base.container.GetAll()
-}
-
-func (c *ControllerContainer) GetAllSorted() []common.IBaseController {
-	return getAllSorted(c.GetAll(), func(c common.IBaseController) string {
-		return c.ControllerName()
-	})
-}
-
-func (c *ControllerContainer) GetByType(ifaceType reflect.Type) common.IBaseController {
-	return c.base.container.GetByType(ifaceType)
-}
-
-func (c *ControllerContainer) Count() int {
-	return c.base.container.Count()
-}
-
-func (c *ControllerContainer) SetManagerContainer(container *ManagerContainer) {
-	c.managerContainer = container
+	c.InjectableLayerContainer.base.sources = c.InjectableLayerContainer.base.buildSources(c, c.managerContainer, c.serviceContainer)
+	return c.InjectableLayerContainer.base.injectAll(c)
 }
 
 func (c *ControllerContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {

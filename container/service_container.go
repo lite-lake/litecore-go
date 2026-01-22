@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/lite-lake/litecore-go/common"
 )
@@ -47,6 +48,10 @@ func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.IB
 }
 
 func (s *ServiceContainer) InjectAll() error {
+	if s.managerContainer == nil {
+		panic(&ManagerContainerNotSetError{Layer: "Service"})
+	}
+
 	if s.base.container.IsInjected() {
 		return nil
 	}
@@ -130,9 +135,11 @@ func (s *ServiceContainer) GetAll() []common.IBaseService {
 }
 
 func (s *ServiceContainer) GetAllSorted() []common.IBaseService {
-	return getAllSorted(s.GetAll(), func(s common.IBaseService) string {
-		return s.ServiceName()
+	items := s.GetAll()
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].ServiceName() < items[j].ServiceName()
 	})
+	return items
 }
 
 func (s *ServiceContainer) GetByType(ifaceType reflect.Type) common.IBaseService {
