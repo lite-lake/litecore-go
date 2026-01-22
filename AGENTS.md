@@ -7,7 +7,7 @@ Guidelines for agentic coding tools in this repository.
 - **Language**: Go 1.25+, Module: `github.com/lite-lake/litecore-go`
 - **Framework**: Gin, GORM, Zap
 - **Architecture**: 5-tier layered dependency injection (Entity → Repository → Service → Controller/Middleware)
-- **Built-in Components**: Config and Manager are server built-in components, auto-initialized and injected
+- **Built-in Components**: Manager components located at `server/builtin/manager/`, auto-initialized and injected
 
 ## Essential Commands
 
@@ -63,8 +63,8 @@ if err != nil {
 ### DI Pattern
 ```go
 type UserServiceImpl struct {
-	Config    BaseConfigProvider `inject:""`
-	DBManager DatabaseManager   `inject:""`
+	Config    configmgr.IConfigManager    `inject:""`
+	DBManager databasemgr.IDatabaseManager `inject:""`
 }
 ```
 
@@ -79,7 +79,7 @@ type UserServiceImpl struct {
 ## Architecture
 
 ### Dependency Rules
-- Config (no deps) → Entity (no deps)
+- Entity (no deps)
 - Manager → Config + other Managers
 - Repository → Config + Manager + Entity
 - Service → Config + Manager + Repository + other Services
@@ -94,9 +94,18 @@ serviceContainer := container.NewServiceContainer(repositoryContainer)
 controllerContainer := container.NewControllerContainer(serviceContainer)
 middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
-// Config and Manager are auto-initialized by the engine
-// Register and inject all layers, then create engine
-engine := server.NewEngine(entityContainer, repositoryContainer, serviceContainer, controllerContainer, middlewareContainer)
+// Managers are auto-initialized by the engine via builtin.Config
+engine := server.NewEngine(
+    &builtin.Config{
+        Driver:   "yaml",
+        FilePath: "configs/config.yaml",
+    },
+    entityContainer,
+    repositoryContainer,
+    serviceContainer,
+    controllerContainer,
+    middlewareContainer,
+)
 engine.Run()
 ```
 

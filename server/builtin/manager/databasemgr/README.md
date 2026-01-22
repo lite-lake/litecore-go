@@ -408,29 +408,29 @@ cfg := &databasemgr.DatabaseConfig{
 
 ```go
 // Build 创建数据库管理器实例
-func Build(driverType string, driverConfig map[string]any) (DatabaseManager, error)
+func Build(driverType string, driverConfig map[string]any) (IDatabaseManager, error)
 
 // BuildWithConfigProvider 从配置提供者创建数据库管理器实例
-func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (DatabaseManager, error)
+func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IDatabaseManager, error)
 ```
 
 ### 构造函数
 
 ```go
 // NewDatabaseManagerMySQLImpl 创建 MySQL 数据库管理器
-func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (DatabaseManager, error)
+func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (IDatabaseManager, error)
 
 // NewDatabaseManagerPostgreSQLImpl 创建 PostgreSQL 数据库管理器
-func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (DatabaseManager, error)
+func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (IDatabaseManager, error)
 
 // NewDatabaseManagerSQLiteImpl 创建 SQLite 数据库管理器
-func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (DatabaseManager, error)
+func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (IDatabaseManager, error)
 
 // NewDatabaseManagerNoneImpl 创建空数据库管理器
-func NewDatabaseManagerNoneImpl() DatabaseManager
+func NewDatabaseManagerNoneImpl() IDatabaseManager
 ```
 
-### DatabaseManager 接口
+### IDatabaseManager 接口
 
 #### 生命周期管理
 

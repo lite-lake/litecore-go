@@ -18,7 +18,7 @@
 ### 导入包
 
 ```go
-import "litecore-go/util/string"
+import "github.com/lite-lake/litecore-go/util/string"
 ```
 
 ### 基本使用

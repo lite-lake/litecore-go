@@ -22,7 +22,7 @@ import (
     "net/http"
 
     "github.com/gin-gonic/gin"
-    "yourproject/util/validator"
+    "github.com/lite-lake/litecore-go/util/validator"
 )
 
 // 定义请求结构体
@@ -186,7 +186,7 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/go-playground/validator/v10"
-    "yourproject/util/validator"
+    "github.com/lite-lake/litecore-go/util/validator"
 )
 
 // 自定义验证函数 - 验证用户名只包含小写字母和数字
@@ -238,7 +238,7 @@ import (
     "net/http"
 
     "github.com/gin-gonic/gin"
-    "yourproject/util/validator"
+    "github.com/lite-lake/litecore-go/util/validator"
 )
 
 func main() {
@@ -316,7 +316,7 @@ c.JSON(200, gin.H{
 #### 服务层密码验证
 
 ```go
-import "yourproject/util/validator"
+import "github.com/lite-lake/litecore-go/util/validator"
 
 func CreateUserService(email, password string) error {
     // 在服务层验证密码复杂度
@@ -529,6 +529,10 @@ func DefaultPasswordConfig() *PasswordConfig
 func ValidatePassword(password string, config *PasswordConfig) error
 ```
 
+**参数：**
+- `password`: 待验证的密码
+- `config`: 密码配置，为 nil 时使用默认配置
+
 **示例：**
 
 ```go
@@ -621,7 +625,7 @@ import (
     "net/http"
 
     "github.com/gin-gonic/gin"
-    "yourproject/util/validator"
+    "github.com/lite-lake/litecore-go/util/validator"
 )
 
 type RegisterRequest struct {
@@ -750,7 +754,7 @@ curl -X POST http://localhost:8080/api/v1/register \
 ```go
 package main
 
-import "yourproject/util/validator"
+import "github.com/lite-lake/litecore-go/util/validator"
 
 var GlobalValidator *validator.DefaultValidator
 

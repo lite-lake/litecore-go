@@ -16,7 +16,7 @@
 ### 安装
 
 ```bash
-go get litecore-go/util/id
+go get github.com/lite-lake/litecore-go/util/id
 ```
 
 ### 基础用法
@@ -26,20 +26,27 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/id"
+    "github.com/lite-lake/litecore-go/util/id"
 )
 
 func main() {
     // 生成一个 CUID2
-    cuid := id.NewCUID2()
+    cuid, err := id.NewCUID2()
+    if err != nil {
+        panic(err)
+    }
     fmt.Println("生成的 ID:", cuid)
     // 输出示例: 2j8c3qf9g4k5m6p7r8s9t0v1x
 
     // 批量生成多个 ID
     ids := make([]string, 5)
     for i := 0; i < 5; i++ {
-        ids[i] = id.NewCUID2()
-        fmt.Printf("ID %d: %s\n", i+1, ids[i])
+        uid, err := id.NewCUID2()
+        if err != nil {
+            panic(err)
+        }
+        ids[i] = uid
+        fmt.Printf("ID %d: %s\n", i+1, uid)
     }
 
     // 验证唯一性
@@ -58,7 +65,8 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/id"
+    "github.com/lite-lake/litecore-go/util/id"
+    "time"
 )
 
 // 数据库实体示例
@@ -70,8 +78,12 @@ type User struct {
 }
 
 func CreateUser(username, email string) *User {
+    uid, err := id.NewCUID2()
+    if err != nil {
+        panic(err)
+    }
     return &User{
-        ID:        id.NewCUID2(), // 使用 CUID2 作为主键
+        ID:        uid, // 使用 CUID2 作为主键
         Username:  username,
         Email:     email,
         CreatedAt: time.Now().Unix(),
@@ -86,10 +98,18 @@ type RequestContext struct {
 }
 
 func NewRequestContext(userID string) *RequestContext {
+    traceID, err := id.NewCUID2()
+    if err != nil {
+        panic(err)
+    }
+    requestID, err := id.NewCUID2()
+    if err != nil {
+        panic(err)
+    }
     return &RequestContext{
-        TraceID:   id.NewCUID2(), // 分布式追踪 ID
+        TraceID:   traceID, // 分布式追踪 ID
         UserID:    userID,
-        RequestID: id.NewCUID2(), // 单次请求 ID
+        RequestID: requestID, // 单次请求 ID
     }
 }
 
@@ -102,8 +122,12 @@ type Session struct {
 }
 
 func CreateSession(userID string, duration time.Duration) *Session {
+    sessionID, err := id.NewCUID2()
+    if err != nil {
+        panic(err)
+    }
     return &Session{
-        SessionID: id.NewCUID2(),
+        SessionID: sessionID,
         UserID:    userID,
         Data:      make(map[string]interface{}),
         ExpiresAt: time.Now().Add(duration),
@@ -232,10 +256,13 @@ wg.Add(goroutines)
 for i := 0; i < goroutines; i++ {
     go func() {
         defer wg.Done()
-        for j := 0; j < idsPerGoroutine; j++ {
-            id := id.NewCUID2()
-            ids <- id
+    for j := 0; j < idsPerGoroutine; j++ {
+        uid, err := id.NewCUID2()
+        if err != nil {
+            continue
         }
+        ids <- uid
+    }
     }()
 }
 
@@ -249,12 +276,13 @@ close(ids)
 
 ### 函数列表
 
-#### `func NewCUID2() string`
+#### `func NewCUID2() (string, error)`
 
 生成 CUID2 风格的唯一标识符。
 
 **返回值**
 - `string`: 25 个字符的小写字母数字字符串
+- `error`: 生成失败时返回错误
 
 **特性**
 - 时间有序：前缀包含时间戳
@@ -269,12 +297,15 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/id"
+    "github.com/lite-lake/litecore-go/util/id"
 )
 
 func main() {
     // 生成单个 ID
-    uid := id.NewCUID2()
+    uid, err := id.NewCUID2()
+    if err != nil {
+        panic(err)
+    }
     fmt.Println(uid) // 2j8c3qf9g4k5m6p7r8s9t0v1x
 
     // 验证格式
@@ -283,11 +314,24 @@ func main() {
     }
 
     // 作为数据库主键
+    uid, err := id.NewCUID2()
+    if err != nil {
+        panic(err)
+    }
     user := struct {
         ID   string
         Name string
     }{
-        ID:   id.NewCUID2(),
+        ID:   uid,
+        Name: "张三",
+    }
+    fmt.Printf("用户 ID: %s\n", user.ID)
+}
+    user := struct {
+        ID   string
+        Name string
+    }{
+        ID:   uid,
         Name: "张三",
     }
     fmt.Printf("用户 ID: %s\n", user.ID)
@@ -355,8 +399,12 @@ type User struct {
 }
 
 func CreateUser(name, email string) (*User, error) {
+    uid, err := id.NewCUID2()
+    if err != nil {
+        return nil, err
+    }
     user := &User{
-        ID:        id.NewCUID2(),
+        ID:        uid,
         Name:      name,
         Email:     email,
         CreatedAt: time.Now().Unix(),
@@ -375,7 +423,7 @@ func CreateUser(name, email string) (*User, error) {
 ```go
 import (
     "context"
-    "litecore-go/util/id"
+    "github.com/lite-lake/litecore-go/util/id"
 )
 
 type contextKey string
@@ -386,14 +434,22 @@ const (
 )
 
 func NewRequestContext(ctx context.Context) context.Context {
-    return context.WithValue(ctx, TraceIDKey, id.NewCUID2())
+    traceID, err := id.NewCUID2()
+    if err != nil {
+        panic(err)
+    }
+    return context.WithValue(ctx, TraceIDKey, traceID)
 }
 
 func GetTraceID(ctx context.Context) string {
     if traceID, ok := ctx.Value(TraceIDKey).(string); ok {
         return traceID
     }
-    return id.NewCUID2()
+    uid, err := id.NewCUID2()
+    if err != nil {
+        return ""
+    }
+    return uid
 }
 ```
 
@@ -401,7 +457,10 @@ func GetTraceID(ctx context.Context) string {
 
 ```go
 func ProcessRequest() error {
-    requestID := id.NewCUID2()
+    requestID, err := id.NewCUID2()
+    if err != nil {
+        return err
+    }
 
     // 记录日志时包含请求 ID
     log.Printf("[%s] 开始处理请求", requestID)
@@ -436,7 +495,12 @@ func GenerateBatchID(count int) []string {
         go func(start, end int) {
             defer wg.Done()
             for j := start; j < end; j++ {
-                ids[j] = id.NewCUID2()
+                uid, err := id.NewCUID2()
+                if err != nil {
+                    // 处理错误，可以选择记录日志或继续
+                    continue
+                }
+                ids[j] = uid
             }
         }(i, end)
     }

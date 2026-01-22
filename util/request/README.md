@@ -16,8 +16,7 @@ package main
 
 import (
     "github.com/gin-gonic/gin"
-
-    "github.com/lite-lake/litecore-go/util/request"
+    requestpkg "github.com/lite-lake/litecore-go/util/request"
 )
 
 // 1. 定义请求类型
@@ -35,11 +34,11 @@ func (v *GinValidator) Validate(ctx *gin.Context, obj interface{}) error {
 
 func main() {
     // 3. 设置默认验证器（应用启动时）
-    request.SetDefaultValidator(&GinValidator{})
+    requestpkg.SetDefaultValidator(&GinValidator{})
 
     // 4. 在 Handler 中使用
     handler := func(ctx *gin.Context) {
-        req, err := request.BindRequest[CreateUserRequest](ctx)
+        req, err := requestpkg.BindRequest[CreateUserRequest](ctx)
         if err != nil {
             ctx.JSON(400, gin.H{"error": err.Error()})
             return
@@ -153,7 +152,7 @@ func SetDefaultValidator(validator ValidatorInterface)
 
 ```go
 func init() {
-    request.SetDefaultValidator(&GinValidator{})
+    requestpkg.SetDefaultValidator(&GinValidator{})
 }
 ```
 
@@ -169,8 +168,8 @@ func GetDefaultValidator() ValidatorInterface
 func TestMyHandler(t *testing.T) {
     // 使用 mock 验证器进行测试
     mockValidator := &MockValidator{}
-    request.SetDefaultValidator(mockValidator)
-    defer request.SetDefaultValidator(originalValidator)
+    requestpkg.SetDefaultValidator(mockValidator)
+    defer requestpkg.SetDefaultValidator(originalValidator)
 
     // 运行测试...
 }
@@ -182,7 +181,7 @@ func TestMyHandler(t *testing.T) {
 
 ```go
 func CreateArticleHandler(ctx *gin.Context) {
-    req, err := request.BindRequest[CreateArticleRequest](ctx)
+    req, err := requestpkg.BindRequest[CreateArticleRequest](ctx)
     if err != nil {
         // 判断错误类型
         if e, ok := err.(apperrors.IAppError); ok {

@@ -18,7 +18,7 @@
 ```go
 import (
     "context"
-    "github.com/lite-lake/litecore-go/manager/telemetrymgr"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 )
 
 func main() {
@@ -40,7 +40,7 @@ func main() {
 
 ```go
 import (
-    "github.com/lite-lake/litecore-go/manager/telemetrymgr"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 )
 
 func main() {
@@ -113,7 +113,7 @@ resourceAttributes := []telemetrymgr.ResourceAttribute{
 #### Build() - 从直接配置创建
 
 ```go
-func Build(driverType string, driverConfig map[string]any) (TelemetryManager, error)
+func Build(driverType string, driverConfig map[string]any) (ITelemetryManager, error)
 ```
 
 参数：
@@ -123,7 +123,7 @@ func Build(driverType string, driverConfig map[string]any) (TelemetryManager, er
 #### BuildWithConfigProvider() - 从配置提供者创建
 
 ```go
-func BuildWithConfigProvider(configProvider common.BaseConfigProvider) (TelemetryManager, error)
+func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ITelemetryManager, error)
 ```
 
 配置路径：

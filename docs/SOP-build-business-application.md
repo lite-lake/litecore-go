@@ -71,9 +71,7 @@ myapp/
 ├── configs/config.yaml          # 配置文件
 ├── internal/
 │   ├── application/             # 自动生成的容器（DO NOT EDIT）
-│   │   ├── config_container.go
 │   │   ├── entity_container.go
-│   │   ├── manager_container.go
 │   │   ├── repository_container.go
 │   │   ├── service_container.go
 │   │   ├── controller_container.go
@@ -129,25 +127,26 @@ logger:
 package main
 
 import (
+    "fmt"
+    "os"
     app "github.com/lite-lake/litecore-go/samples/myapp/internal/application"
-    loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 func main() {
-    loggerMgr := loggermgr.GetLoggerManager()
-    logger := loggerMgr.Logger("main")
-    
     engine, err := app.NewEngine()
     if err != nil {
-        logger.Fatal("Failed to create engine", "error", err)
+        fmt.Fprintf(os.Stderr, "Failed to create engine: %v\n", err)
+        os.Exit(1)
     }
 
     if err := engine.Initialize(); err != nil {
-        logger.Fatal("Failed to initialize engine", "error", err)
+        fmt.Fprintf(os.Stderr, "Failed to initialize engine: %v\n", err)
+        os.Exit(1)
     }
 
     if err := engine.Start(); err != nil {
-        logger.Fatal("Failed to start engine", "error", err)
+        fmt.Fprintf(os.Stderr, "Failed to start engine: %v\n", err)
+        os.Exit(1)
     }
 
     engine.WaitForShutdown()
@@ -180,22 +179,7 @@ func main() {
 }
 ```
 
-### 6. 创建配置提供者（internal/infras/configproviders/config_provider.go）
-
-```go
-package configproviders
-
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/config"
-)
-
-func NewConfigProvider() (common.IBaseConfigProvider, error) {
-    return config.NewConfigProvider("yaml", "configs/config.yaml")
-}
-```
-
-### 7. 初始化应用
+### 6. 初始化应用
 
 ```bash
 # 创建配置目录和文件
@@ -257,7 +241,8 @@ package repositories
 import (
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
-    "github.com/lite-lake/litecore-go/samples/myapp/internal/infras/managers"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
 )
 
 type IUserRepository interface {
@@ -267,8 +252,8 @@ type IUserRepository interface {
 }
 
 type userRepository struct {
-    Config  common.IBaseConfigProvider     `inject:""`
-    Manager managers.IDatabaseManager      `inject:""`
+    Config  configmgr.IConfigManager     `inject:""`
+    Manager databasemgr.IDatabaseManager `inject:""`
 }
 
 func NewUserRepository() IUserRepository {
@@ -312,6 +297,7 @@ import (
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
 type IUserService interface {
@@ -321,8 +307,8 @@ type IUserService interface {
 }
 
 type userService struct {
-    Config     common.IBaseConfigProvider      `inject:""`
-    Repository repositories.IUserRepository   `inject:""`
+    Config     configmgr.IConfigManager    `inject:""`
+    Repository repositories.IUserRepository `inject:""`
 }
 
 func NewUserService() IUserService {
@@ -363,6 +349,7 @@ package controllers
 import (
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
     "github.com/gin-gonic/gin"
 )
 
@@ -371,7 +358,8 @@ type IUserController interface {
 }
 
 type userController struct {
-    UserService services.IUserService `inject:""`
+    Config      configmgr.IConfigManager `inject:""`
+    UserService services.IUserService    `inject:""`
 }
 
 func NewUserController() IUserController {
@@ -419,6 +407,7 @@ package middlewares
 
 import (
     "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
     "github.com/gin-gonic/gin"
 )
 
@@ -455,51 +444,18 @@ var _ ILoggerMiddleware = (*loggerMiddleware)(nil)
 
 ### Config（配置）
 
-Config 作为服务器内置组件，由引擎自动初始化。开发者只需提供配置提供者：
-
-```go
-// 框架会自动发现并调用此函数初始化 Config
-package configproviders
-
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/config"
-)
-
-func NewConfigProvider() (common.IBaseConfigProvider, error) {
-    return config.NewConfigProvider("yaml", "configs/config.yaml")
-}
-```
+Config 作为服务器内置组件，由引擎自动初始化。在创建引擎时通过 `builtin.Config` 指定配置文件，无需手动创建。
 
 ### Manager（管理器）
 
-Manager 组件也作为服务器内置组件，由引擎自动初始化。开发者只需提供管理器工厂：
+Manager 组件也作为服务器内置组件，由引擎自动初始化。无需手动创建，只需在代码中通过依赖注入使用即可。
 
-```go
-// 框架会自动发现并调用此函数初始化 DatabaseManager
-package managers
-
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/component/manager/databasemgr"
-)
-
-type IDatabaseManager interface {
-    databasemgr.IDatabaseManager
-}
-
-type databaseManagerImpl struct {
-    databasemgr.IDatabaseManager
-}
-
-func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseManager, error) {
-    mgr, err := databasemgr.BuildWithConfigProvider(configProvider)
-    if err != nil {
-        return nil, err
-    }
-    return &databaseManagerImpl{mgr}, nil
-}
-```
+框架自动初始化的 Manager：
+- `configmgr.IConfigManager` - 配置管理
+- `databasemgr.IDatabaseManager` - 数据库管理
+- `cachemgr.ICacheManager` - 缓存管理
+- `loggermgr.ILoggerManager` - 日志管理
+- `telemetrymgr.ITelemetryManager` - 遥测管理
 
 ### 可用的内置 Manager
 
@@ -545,15 +501,17 @@ go run ./cmd/generate -o internal/application -pkg application -c configs/config
 ### 注入语法
 
 ```go
+import "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+
 type myService struct {
     // 内置组件（引擎自动注入）
-    Config         common.IBaseConfigProvider      `inject:""`
-    DBMgr          infras.DatabaseManager          `inject:""`
-    CacheMgr       infras.CacheManager             `inject:""`
+    Config         configmgr.IConfigManager      `inject:""`
+    DBMgr          databasemgr.IDatabaseManager `inject:""`
+    CacheMgr       cachemgr.ICacheManager       `inject:""`
 
     // 业务依赖
-    Repository     repositories.IUserRepository    `inject:""`
-    OtherService   services.IOtherService          `inject:""`
+    Repository     repositories.IUserRepository  `inject:""`
+    OtherService   services.IOtherService       `inject:""`
 }
 ```
 
@@ -621,7 +579,7 @@ type MyService struct {
 
 func (s *MyService) initLogger() {
     if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Logger("MyService")
+        s.logger = s.LoggerMgr.Ins()
     }
 }
 
@@ -630,12 +588,8 @@ func (s *MyService) SomeMethod() {
     s.logger.Info("操作完成")
 }
 
-// 在main函数中使用
-func main() {
-    loggerMgr := loggermgr.GetLoggerManager()
-    logger := loggerMgr.Logger("main")
-    logger.Fatal("启动失败", "error", err)
-}
+// 注意：main函数中不要使用logger，因为LoggerMgr需要通过引擎初始化后才能使用
+// 直接使用fmt和os处理错误即可
 ```
 
 ### 5. 数据库事务
