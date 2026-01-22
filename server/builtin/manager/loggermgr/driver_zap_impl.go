@@ -23,6 +23,7 @@ type driverZapLoggerManager struct {
 	mu           sync.RWMutex
 }
 
+// NewDriverZapLoggerManager 创建 Zap 日志管理器
 func NewDriverZapLoggerManager(cfg *DriverZapConfig, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("DriverZapConfig cannot be nil")
@@ -196,6 +197,7 @@ func (l *zapLoggerImpl) sync() error {
 	return l.logger.Sync()
 }
 
+// argsToFields 将可变参数转换为 Zap 字段
 func argsToFields(args ...any) []zap.Field {
 	fields := make([]zap.Field, 0, len(args)/2)
 	for i := 0; i < len(args); i += 2 {
@@ -213,6 +215,7 @@ var (
 	colorChecked  bool
 )
 
+// buildConsoleCore 构建控制台日志输出核心
 func buildConsoleCore(cfg *LogLevelConfig) (zapcore.Core, error) {
 	level := parseLogLevel(cfg.Level)
 
@@ -244,6 +247,7 @@ func buildConsoleCore(cfg *LogLevelConfig) (zapcore.Core, error) {
 	return zapcore.NewTee(stdoutCore, stderrCore), nil
 }
 
+// buildFileCore 构建文件日志输出核心
 func buildFileCore(cfg *FileLogConfig) (zapcore.Core, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("file config is required")
@@ -302,6 +306,7 @@ func buildFileCore(cfg *FileLogConfig) (zapcore.Core, error) {
 	return zapcore.NewCore(encoder, zapcore.AddSync(lumberjackLogger), level), nil
 }
 
+// detectColorSupport 检测终端是否支持颜色输出
 func detectColorSupport() bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
@@ -323,6 +328,7 @@ func detectColorSupport() bool {
 	return true
 }
 
+// customLevelEncoder 自定义日志级别编码器，支持彩色输出
 func customLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	if !colorChecked {
 		supportsColor = detectColorSupport()
@@ -369,10 +375,12 @@ func customLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) 
 	}
 }
 
+// customTimeEncoder 自定义时间格式编码器
 func customTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
 }
 
+// parseLogLevel 解析日志级别字符串
 func parseLogLevel(level string) zapcore.Level {
 	if level == "" {
 		return zapcore.InfoLevel
@@ -388,6 +396,7 @@ type otelCore struct {
 	mu              sync.RWMutex
 }
 
+// buildOTELCore 构建 OpenTelemetry 日志核心
 func buildOTELCore(level zapcore.Level, telemetryMgr telemetrymgr.ITelemetryManager) zapcore.Core {
 	var telemetryLogger log.Logger
 	if telemetryMgr != nil {
@@ -499,6 +508,7 @@ var otelSeverityTextMap = map[zapcore.Level]string{
 	zapcore.FatalLevel:  "FATAL",
 }
 
+// fieldToKV 将 Zap 字段转换为 OpenTelemetry Key-Value
 func fieldToKV(field zapcore.Field) *log.KeyValue {
 	key := field.Key
 	switch field.Type {

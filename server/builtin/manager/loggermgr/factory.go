@@ -13,6 +13,7 @@ type IConfigProvider interface {
 	Has(key string) bool
 }
 
+// NewLoggerManager 创建日志管理器
 func NewLoggerManager(config *Config, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config cannot be nil")
@@ -30,6 +31,7 @@ func NewLoggerManager(config *Config, telemetryMgr telemetrymgr.ITelemetryManage
 
 }
 
+// BuildWithConfigProvider 通过配置提供者构建日志管理器
 func BuildWithConfigProvider(configProvider IConfigProvider, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")

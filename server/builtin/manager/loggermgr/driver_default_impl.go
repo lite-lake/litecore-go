@@ -6,6 +6,7 @@ type driverDefaultLoggerManager struct {
 	ins logger.ILogger
 }
 
+// NewDriverDefaultLoggerManager 创建默认日志管理器
 func NewDriverDefaultLoggerManager() ILoggerManager {
 	return &driverDefaultLoggerManager{
 		ins: logger.NewDefaultLogger("DefaultLogger"),
