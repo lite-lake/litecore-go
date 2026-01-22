@@ -281,3 +281,107 @@ func TestManagerLifecycle(t *testing.T) {
 		assert.NoError(t, mgr.OnStop())
 	})
 }
+
+func TestZapLoggerImpl_LevelFiltering(t *testing.T) {
+	t.Run("级别过滤", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig:  &LogLevelConfig{Level: "warn"},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+
+		log := mgr.Ins()
+
+		assert.NotPanics(t, func() {
+			log.Debug("debug message")
+			log.Info("info message")
+			log.Warn("warn message")
+			log.Error("error message")
+		})
+	})
+}
+
+func TestZapLoggerImpl_ConcurrentLogging(t *testing.T) {
+	t.Run("并发日志", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig:  &LogLevelConfig{Level: "debug"},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+
+		log := mgr.Ins()
+
+		done := make(chan bool)
+		for i := 0; i < 100; i++ {
+			go func(id int) {
+				log.Info("concurrent message", "id", id)
+				done <- true
+			}(i)
+		}
+
+		for i := 0; i < 100; i++ {
+			<-done
+		}
+	})
+}
+
+func TestZapLoggerImpl_WithChained(t *testing.T) {
+	t.Run("链式 With 调用", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig:  &LogLevelConfig{Level: "info"},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+
+		log := mgr.Ins()
+
+		log1 := log.With("service", "test")
+		log2 := log1.With("version", "1.0")
+		log3 := log2.With("env", "dev")
+
+		assert.NotPanics(t, func() {
+			log3.Info("message with chained context")
+		})
+	})
+}
+
+func TestBuildFileCore(t *testing.T) {
+	t.Run("创建文件核心", func(t *testing.T) {
+		cfg := &FileLogConfig{
+			Level: "info",
+			Path:  "/tmp/test_logger.log",
+			Rotation: &RotationConfig{
+				MaxSize:    10,
+				MaxAge:     7,
+				MaxBackups: 3,
+				Compress:   false,
+			},
+		}
+
+		core, err := buildFileCore(cfg)
+		assert.NoError(t, err)
+		assert.NotNil(t, core)
+	})
+
+	t.Run("空配置", func(t *testing.T) {
+		core, err := buildFileCore(nil)
+		assert.Error(t, err)
+		assert.Nil(t, core)
+	})
+
+	t.Run("默认路径", func(t *testing.T) {
+		cfg := &FileLogConfig{
+			Level: "info",
+		}
+
+		core, err := buildFileCore(cfg)
+		assert.NoError(t, err)
+		assert.NotNil(t, core)
+	})
+}

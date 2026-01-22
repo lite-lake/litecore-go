@@ -6,6 +6,7 @@ type driverNoneLoggerManager struct {
 	ins logger.ILogger
 }
 
+// NewDriverNoneLoggerManager 创建空日志管理器，不输出任何日志
 func NewDriverNoneLoggerManager() ILoggerManager {
 	return &driverNoneLoggerManager{
 		ins: &noneLogger{},
