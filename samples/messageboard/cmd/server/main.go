@@ -30,6 +30,4 @@ func main() {
 
 	// 等待关闭信号
 	engine.WaitForShutdown()
-
-	engine.GetLoggerRegistry().Logger("main").Info("Server exited")
 }

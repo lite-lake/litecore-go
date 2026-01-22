@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 
 	"github.com/lite-lake/litecore-go/common"
 	componentControllers "github.com/lite-lake/litecore-go/component/controller"
@@ -14,7 +15,7 @@ type IResStaticController interface {
 
 type resStaticControllerImpl struct {
 	componentController *componentControllers.ResourceStaticController
-	Logger              common.ILogger `inject:""`
+	LoggerMgr           loggermgr.ILoggerManager `inject:""`
 }
 
 func NewResStaticController() IResStaticController {

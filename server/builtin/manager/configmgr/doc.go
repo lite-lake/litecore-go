@@ -15,8 +15,8 @@
 //	}
 //
 //	// 获取配置值
-//	name := configmgr.Get[string](mgr, "app.name")
-//	port := configmgr.Get[int](mgr, "server.port")
+//	name := configmgr.Ins[string](mgr, "app.name")
+//	port := configmgr.Ins[int](mgr, "server.port")
 //
 //	// 带默认值的获取
 //	timeout := configmgr.GetWithDefault(mgr, "server.timeout", 30)

@@ -200,7 +200,7 @@ func BenchmarkBuild(b *testing.B) {
 	}
 }
 
-// TestBuildWithConfigProvider_NoneDriver 测试使用 ConfigProvider 构建 none 驱动
+// TestBuildWithConfigProvider_NoneDriver 测试使用 ConfigMgr 构建 none 驱动
 func TestBuildWithConfigProvider_NoneDriver(t *testing.T) {
 	provider := &MockConfigProvider{
 		data: map[string]any{
@@ -222,7 +222,7 @@ func TestBuildWithConfigProvider_NoneDriver(t *testing.T) {
 	}
 }
 
-// TestBuildWithConfigProvider_SQLite 测试使用 ConfigProvider 构建 SQLite
+// TestBuildWithConfigProvider_SQLite 测试使用 ConfigMgr 构建 SQLite
 func TestBuildWithConfigProvider_SQLite(t *testing.T) {
 	skipIfCGONotAvailable(t)
 

@@ -1,45 +1,62 @@
 package logger
 
 import (
-	"github.com/lite-lake/litecore-go/common"
 	"log"
 )
 
-type defaultLogger struct {
+type DefaultLogger struct {
 	prefix string
+	level  LogLevel
 }
 
-func newDefaultLogger(name string) *defaultLogger {
-	return &defaultLogger{
+func NewDefaultLogger(name string) *DefaultLogger {
+	return &DefaultLogger{
 		prefix: "[" + name + "] ",
 	}
 }
 
-func (l *defaultLogger) Debug(msg string, args ...any) {
+func (l *DefaultLogger) Debug(msg string, args ...any) {
+	if l.level >= DebugLevel {
+		return
+	}
 	log.Printf(l.prefix+"DEBUG: %s %v", msg, args)
 }
 
-func (l *defaultLogger) Info(msg string, args ...any) {
+func (l *DefaultLogger) Info(msg string, args ...any) {
+	if l.level >= InfoLevel {
+		return
+	}
 	log.Printf(l.prefix+"INFO: %s %v", msg, args)
 }
 
-func (l *defaultLogger) Warn(msg string, args ...any) {
+func (l *DefaultLogger) Warn(msg string, args ...any) {
+	if l.level >= WarnLevel {
+		return
+	}
 	log.Printf(l.prefix+"WARN: %s %v", msg, args)
 }
 
-func (l *defaultLogger) Error(msg string, args ...any) {
+func (l *DefaultLogger) Error(msg string, args ...any) {
+	if l.level >= ErrorLevel {
+		return
+	}
 	log.Printf(l.prefix+"ERROR: %s %v", msg, args)
 }
 
-func (l *defaultLogger) Fatal(msg string, args ...any) {
+func (l *DefaultLogger) Fatal(msg string, args ...any) {
+	if l.level >= FatalLevel {
+		return
+	}
 	log.Printf(l.prefix+"FATAL: %s %v", msg, args)
 	args = append([]any{l.prefix}, args...)
 	log.Fatal(args...)
 }
 
-func (l *defaultLogger) With(args ...any) common.ILogger {
+func (l *DefaultLogger) With(args ...any) ILogger {
 	return l
 }
 
-func (l *defaultLogger) SetLevel(level common.LogLevel) {
+func (l *DefaultLogger) SetLevel(level LogLevel) {
 }
+
+var _ ILogger = (*DefaultLogger)(nil)

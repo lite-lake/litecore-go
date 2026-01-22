@@ -28,7 +28,7 @@ func (d *driverNoneLoggerManager) OnStop() error {
 	return nil
 }
 
-func (d *driverNoneLoggerManager) GetLogger() logger.ILogger {
+func (d *driverNoneLoggerManager) Ins() logger.ILogger {
 	return d.ins
 }
 

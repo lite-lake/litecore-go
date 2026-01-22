@@ -1,237 +1,89 @@
 package container
 
 import (
-	"fmt"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"reflect"
-	"sort"
-	"sync"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
-type BuiltinProvider interface {
-	GetConfigProvider() configmgr.IConfigManager
-	GetManagers() []interface{}
-}
-
-// RepositoryContainer 存储库层容器
-// InjectAll 行为：
-// 1. 注入 BuiltinProvider（ConfigProvider、Managers）
-// 2. 注入 BaseEntity（从 EntityContainer 获取）
 type RepositoryContainer struct {
-	mu              sync.RWMutex
-	items           map[reflect.Type]common.IBaseRepository
-	entityContainer *EntityContainer
-	builtinProvider BuiltinProvider
-	loggerRegistry  *logger.LoggerRegistry
-	injected        bool
+	base             *injectableContainer[common.IBaseRepository]
+	managerContainer *ManagerContainer
+	entityContainer  *EntityContainer
 }
 
-// NewRepositoryContainer 创建新的存储库容器
-func NewRepositoryContainer(
-	entity *EntityContainer,
-) *RepositoryContainer {
+func NewRepositoryContainer(entity *EntityContainer) *RepositoryContainer {
 	return &RepositoryContainer{
-		items:           make(map[reflect.Type]common.IBaseRepository),
+		base: &injectableContainer[common.IBaseRepository]{
+			container: NewTypedContainer(func(repo common.IBaseRepository) string {
+				return repo.RepositoryName()
+			}),
+		},
 		entityContainer: entity,
 	}
 }
 
-// SetBuiltinProvider 设置内置组件提供者
-func (r *RepositoryContainer) SetBuiltinProvider(provider BuiltinProvider) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.builtinProvider = provider
-	r.loggerRegistry = nil
-}
-
-// SetLoggerRegistry 设置 LoggerRegistry
-func (r *RepositoryContainer) SetLoggerRegistry(registry *logger.LoggerRegistry) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.loggerRegistry = registry
-}
-
-// RegisterRepository 泛型注册函数，按接口类型注册
 func RegisterRepository[T common.IBaseRepository](r *RepositoryContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return r.RegisterByType(ifaceType, impl)
 }
 
-// RegisterByType 按接口类型注册
-func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseRepository) error {
-	implType := reflect.TypeOf(impl)
-
+func GetRepository[T common.IBaseRepository](r *RepositoryContainer) (T, error) {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	impl := r.GetByType(ifaceType)
 	if impl == nil {
-		return &DuplicateRegistrationError{Name: "nil"}
-	}
-
-	if !implType.Implements(ifaceType) {
-		return &ImplementationDoesNotImplementInterfaceError{
-			InterfaceType:  ifaceType,
-			Implementation: impl,
+		var zero T
+		return zero, &InstanceNotFoundError{
+			Name:  ifaceType.Name(),
+			Layer: "Repository",
 		}
 	}
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if _, exists := r.items[ifaceType]; exists {
-		return &InterfaceAlreadyRegisteredError{
-			InterfaceType: ifaceType,
-			ExistingImpl:  r.items[ifaceType],
-			NewImpl:       impl,
-		}
-	}
-
-	r.items[ifaceType] = impl
-	return nil
+	return impl.(T), nil
 }
 
-// InjectAll 注入所有依赖
+func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseRepository) error {
+	return r.base.container.Register(ifaceType, impl)
+}
+
 func (r *RepositoryContainer) InjectAll() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.injected {
+	if r.base.container.IsInjected() {
 		return nil
 	}
 
-	resolver := NewGenericDependencyResolver(r.loggerRegistry, r.entityContainer, r)
-	for ifaceType, repo := range r.items {
-		if err := injectDependencies(repo, resolver); err != nil {
-			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
-		}
-	}
-
-	r.injected = true
-	return nil
+	r.base.sources = r.base.buildSources(r, r.managerContainer, r.entityContainer)
+	return r.base.injectAll(r)
 }
 
-// GetAll 获取所有已注册的存储库
 func (r *RepositoryContainer) GetAll() []common.IBaseRepository {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	return r.base.container.GetAll()
+}
 
-	result := make([]common.IBaseRepository, 0, len(r.items))
-	for _, item := range r.items {
-		result = append(result, item)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].RepositoryName() < result[j].RepositoryName()
+func (r *RepositoryContainer) GetAllSorted() []common.IBaseRepository {
+	return getAllSorted(r.GetAll(), func(r common.IBaseRepository) string {
+		return r.RepositoryName()
 	})
-
-	return result
 }
 
-// GetByType 按接口类型获取（返回单例）
 func (r *RepositoryContainer) GetByType(ifaceType reflect.Type) common.IBaseRepository {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	impl, exists := r.items[ifaceType]
-	if !exists {
-		return nil
-	}
-	return impl
+	return r.base.container.GetByType(ifaceType)
 }
 
-// Count 返回已注册的存储库数量
 func (r *RepositoryContainer) Count() int {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return len(r.items)
+	return r.base.container.Count()
 }
 
-// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+func (r *RepositoryContainer) SetManagerContainer(container *ManagerContainer) {
+	r.managerContainer = container
+}
+
 func (r *RepositoryContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()
-	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
-		if r.builtinProvider == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-		impl := r.builtinProvider.GetConfigProvider()
-		if impl == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-		return impl, nil
+	if dep, err := resolveDependencyFromManager(fieldType, r.managerContainer); dep != nil || err != nil {
+		return dep, err
 	}
 
-	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
-	if fieldType.Implements(baseManagerType) {
-		if r.builtinProvider == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-
-		impl, err := r.getManagerByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		return impl, nil
-	}
-
-	baseEntityType := reflect.TypeOf((*common.IBaseEntity)(nil)).Elem()
-	if fieldType == baseEntityType || fieldType.Implements(baseEntityType) {
-		items, err := r.entityContainer.GetByType(fieldType)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Entity",
-			}
-		}
-		if len(items) > 1 {
-			var names []string
-			for _, item := range items {
-				names = append(names, item.EntityName())
-			}
-			return nil, &AmbiguousMatchError{
-				FieldType:  fieldType,
-				Candidates: names,
-			}
-		}
-		return items[0], nil
+	if dep, err := resolveDependencyFromEntity(fieldType, r.entityContainer); dep != nil || err != nil {
+		return dep, err
 	}
 
 	return nil, nil
-}
-
-// getManagerByType 根据类型获取内置管理器
-func (r *RepositoryContainer) getManagerByType(fieldType reflect.Type) (interface{}, error) {
-	if r.builtinProvider == nil {
-		return nil, &DependencyNotFoundError{
-			FieldType:     fieldType,
-			ContainerType: "Builtin",
-		}
-	}
-
-	managers := r.builtinProvider.GetManagers()
-	for _, impl := range managers {
-		if impl == nil {
-			continue
-		}
-		implType := reflect.TypeOf(impl)
-		if implType == fieldType || implType.Implements(fieldType) {
-			return impl, nil
-		}
-	}
-
-	return nil, &DependencyNotFoundError{
-		FieldType:     fieldType,
-		ContainerType: "Builtin",
-	}
 }

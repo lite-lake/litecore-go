@@ -7,6 +7,7 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/util/hash"
 )
 
@@ -21,8 +22,8 @@ type IAuthService interface {
 
 type authService struct {
 	Config         configmgr.IConfigManager `inject:""`
+	LoggerMgr      loggermgr.ILoggerManager `inject:""`
 	SessionService ISessionService          `inject:""`
-	Logger         common.ILogger           `inject:""`
 }
 
 // NewAuthService 创建认证服务
@@ -45,9 +46,7 @@ func (s *authService) OnStop() error {
 func (s *authService) VerifyPassword(password string) bool {
 	storedPassword, err := configmgr.Get[string](s.Config, "app.admin.password")
 	if err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("获取管理员密码失败", "error", err)
-		}
+		s.LoggerMgr.Ins().Error("获取管理员密码失败", "error", err)
 		return false
 	}
 	return hash.Hash.BcryptVerify(password, storedPassword)
@@ -55,31 +54,23 @@ func (s *authService) VerifyPassword(password string) bool {
 
 func (s *authService) Login(password string) (string, error) {
 	if !s.VerifyPassword(password) {
-		if s.Logger != nil {
-			s.Logger.Warn("登录失败：密码错误")
-		}
+		s.LoggerMgr.Ins().Warn("登录失败：密码错误")
 		return "", fmt.Errorf("invalid password")
 	}
 
 	token, err := s.SessionService.CreateSession()
 	if err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("登录失败：创建会话失败", "error", err)
-		}
+		s.LoggerMgr.Ins().Error("登录失败：创建会话失败", "error", err)
 		return "", fmt.Errorf("failed to create session: %w", err)
 	}
 
-	if s.Logger != nil {
-		s.Logger.Info("登录成功", "token", token)
-	}
+	s.LoggerMgr.Ins().Info("登录成功", "token", token)
 
 	return token, nil
 }
 
 func (s *authService) Logout(token string) error {
-	if s.Logger != nil {
-		s.Logger.Info("退出登录", "token", token)
-	}
+	s.LoggerMgr.Ins().Info("退出登录", "token", token)
 	return s.SessionService.DeleteSession(token)
 }
 

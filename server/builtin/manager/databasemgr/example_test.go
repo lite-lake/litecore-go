@@ -21,9 +21,9 @@ func Example_databasemgr_withFactory() {
 	_ = dbMgr
 }
 
-// Example_databasemgr_withConfigProvider 演示如何使用 ConfigProvider 创建 IDatabaseManager
+// Example_databasemgr_withConfigProvider 演示如何使用 ConfigMgr 创建 IDatabaseManager
 func Example_databasemgr_withConfigProvider() {
-	// 方式2: 使用 ConfigProvider（推荐用于依赖注入场景）
+	// 方式2: 使用 ConfigMgr（推荐用于依赖注入场景）
 	// import loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 	// provider := configmgr.NewYamlConfigProvider("config.yaml")
 	// dbMgr, err := databasemgr.BuildWithConfigProvider(provider)

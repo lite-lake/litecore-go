@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 
 	"github.com/lite-lake/litecore-go/common"
 )
@@ -23,7 +24,7 @@ type IHTMLTemplateService interface {
 type HTMLTemplateService struct {
 	config    *HTMLTemplateConfig
 	ginEngine *gin.Engine
-	Logger    common.ILogger `inject:""`
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
 }
 
 // NewHTMLTemplateService 创建HTML模板服务

@@ -20,7 +20,7 @@ func TestNewDriverZapLoggerManager(t *testing.T) {
 		assert.NotNil(t, mgr)
 		assert.Equal(t, "LoggerZapManager", mgr.ManagerName())
 
-		log := mgr.GetLogger()
+		log := mgr.Ins()
 		assert.NotNil(t, log)
 		log.Info("test message", "key", "value")
 	})
@@ -44,7 +44,7 @@ func TestNewDriverZapLoggerManager(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 
-		log := mgr.GetLogger()
+		log := mgr.Ins()
 		assert.NotNil(t, log)
 		log.Debug("debug message", "key", "value")
 	})
@@ -70,7 +70,7 @@ func TestNewDriverZapLoggerManager(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 
-		log := mgr.GetLogger()
+		log := mgr.Ins()
 		assert.NotNil(t, log)
 		log.Info("info message", "key", "value")
 	})
@@ -131,7 +131,7 @@ func TestNewDriverZapLoggerManager(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 
-		log := mgr.GetLogger()
+		log := mgr.Ins()
 		log.Info("test message", "key", "value")
 	})
 
@@ -156,7 +156,7 @@ func TestNewDriverZapLoggerManager(t *testing.T) {
 		mgr, err := NewDriverZapLoggerManager(cfg, nil)
 		assert.NoError(t, err)
 
-		log := mgr.GetLogger()
+		log := mgr.Ins()
 		log.Debug("debug message")
 		log.Info("info message")
 		log.Warn("warn message")
@@ -172,7 +172,7 @@ func TestNewDriverZapLoggerManager(t *testing.T) {
 		mgr, err := NewDriverZapLoggerManager(cfg, nil)
 		assert.NoError(t, err)
 
-		log := mgr.GetLogger()
+		log := mgr.Ins()
 		logWithCtx := log.With("service", "test-service", "version", "1.0.0")
 		logWithCtx.Info("message with context")
 	})
@@ -186,7 +186,7 @@ func TestNewDriverZapLoggerManager(t *testing.T) {
 		mgr, err := NewDriverZapLoggerManager(cfg, nil)
 		assert.NoError(t, err)
 
-		log := mgr.GetLogger()
+		log := mgr.Ins()
 		log.SetLevel(logger.DebugLevel)
 		log.Debug("debug message after set level")
 		log.SetLevel(logger.WarnLevel)
@@ -257,7 +257,7 @@ func TestZapLoggerImpl_With(t *testing.T) {
 	mgr, err := NewDriverZapLoggerManager(cfg, nil)
 	assert.NoError(t, err)
 
-	log := mgr.GetLogger()
+	log := mgr.Ins()
 	logWithCtx := log.With("service", "test-service", "version", "1.0.0")
 
 	logWithCtx.Info("message with context", "key", "value")

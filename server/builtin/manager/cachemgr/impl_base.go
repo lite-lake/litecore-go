@@ -3,7 +3,7 @@ package cachemgr
 import (
 	"context"
 	"fmt"
-	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/logger"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 	"time"
 
@@ -15,7 +15,7 @@ import (
 
 // cacheManagerBaseImpl 提供可观测性和工具函数
 type cacheManagerBaseImpl struct {
-	Logger            common.ILogger                 `inject:""`
+	Logger            logger.ILogger                 `inject:""`
 	telemetryMgr      telemetrymgr.ITelemetryManager `inject:""`
 	tracer            trace.Tracer
 	meter             metric.Meter

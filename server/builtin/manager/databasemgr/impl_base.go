@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/logger"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 	"math/rand"
 	"regexp"
@@ -21,7 +21,7 @@ import (
 
 // databaseManagerBaseImpl 数据库管理器基础实现
 type databaseManagerBaseImpl struct {
-	Logger       common.ILogger                 `inject:""`
+	Logger       logger.ILogger                 `inject:""`
 	telemetryMgr telemetrymgr.ITelemetryManager `inject:""`
 	tracer       trace.Tracer
 	meter        metric.Meter
@@ -150,7 +150,7 @@ func (b *databaseManagerBaseImpl) createQueryMetrics() {
 // ========== observabilityPlugin GORM 可观测性插件 ==========
 
 type observabilityPlugin struct {
-	logger             common.ILogger
+	logger             logger.ILogger
 	tracer             trace.Tracer
 	meter              metric.Meter
 	queryDuration      metric.Float64Histogram
@@ -175,7 +175,7 @@ func newObservabilityPlugin() *observabilityPlugin {
 
 // Setup 设置观测组件和指标
 func (p *observabilityPlugin) Setup(
-	logger common.ILogger,
+	logger logger.ILogger,
 	tracer trace.Tracer,
 	meter metric.Meter,
 	queryDuration metric.Float64Histogram,

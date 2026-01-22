@@ -2,14 +2,12 @@ package builtin
 
 import (
 	"fmt"
-
+	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
-
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 type Config struct {
@@ -29,66 +27,71 @@ func (c *Config) Validate() error {
 
 // Components 内置组件
 type Components struct {
-	LoggerRegistry *logger.LoggerRegistry // 日志注册器
-
-	ConfigProvider configmgr.IConfigManager       // 配置管理器
-	LoggerManager  loggermgr.ILoggerManager       // 日志管理器
-	TelemetryMgr   telemetrymgr.ITelemetryManager // 追踪管理器
-	DatabaseMgr    databasemgr.IDatabaseManager   // 数据库管理器
-	CacheMgr       cachemgr.ICacheManager         // 缓存管理器
+	ConfigMgr    configmgr.IConfigManager       // 配置管理器
+	LoggerMgr    loggermgr.ILoggerManager       // 日志管理器
+	TelemetryMgr telemetrymgr.ITelemetryManager // 追踪管理器
+	DatabaseMgr  databasemgr.IDatabaseManager   // 数据库管理器
+	CacheMgr     cachemgr.ICacheManager         // 缓存管理器
 }
 
-func Initialize(cfg *Config) (*Components, error) {
+func Initialize(cfg *Config) (*container.ManagerContainer, error) {
+
+	cntr := container.NewManagerContainer()
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configmgr: %w", err)
 	}
 
-	loggerRegistry := logger.NewLoggerRegistry()
-
-	configProvider, err := configmgr.NewConfigManager(cfg.Driver, cfg.FilePath)
+	configManager, err := configmgr.NewConfigManager(cfg.Driver, cfg.FilePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create configmgr provider: %w", err)
+		return nil, fmt.Errorf("failed to create config manager: %w", err)
+	}
+	if err := container.RegisterManager[configmgr.IConfigManager](cntr, configManager); err != nil {
+		return nil, fmt.Errorf("failed to register config manager: %w", err)
 	}
 
-	loggerManager, err := loggermgr.BuildWithConfigProvider(configProvider)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create logger manager: %w", err)
-	}
-
-	loggerRegistry.SetLoggerManager(loggerManager)
-
-	telemetryMgr, err := telemetrymgr.BuildWithConfigProvider(configProvider)
+	telemetryMgr, err := telemetrymgr.BuildWithConfigProvider(configManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create telemetry manager: %w", err)
 	}
+	if err := container.RegisterManager[telemetrymgr.ITelemetryManager](cntr, telemetryMgr); err != nil {
+		return nil, fmt.Errorf("failed to register telemetry manager: %w", err)
+	}
 
-	databaseMgr, err := databasemgr.BuildWithConfigProvider(configProvider)
+	loggerManager, err := loggermgr.BuildWithConfigProvider(configManager, telemetryMgr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create logger manager: %w", err)
+	}
+	if err := container.RegisterManager[loggermgr.ILoggerManager](cntr, loggerManager); err != nil {
+		return nil, fmt.Errorf("failed to register logger manager: %w", err)
+	}
+
+	databaseMgr, err := databasemgr.BuildWithConfigProvider(configManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create database manager: %w", err)
 	}
+	if err := container.RegisterManager[databasemgr.IDatabaseManager](cntr, databaseMgr); err != nil {
+		return nil, fmt.Errorf("failed to register database manager: %w", err)
+	}
 
-	cacheMgr, err := cachemgr.BuildWithConfigProvider(configProvider)
+	cacheMgr, err := cachemgr.BuildWithConfigProvider(configManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache manager: %w", err)
 	}
+	if err := container.RegisterManager[cachemgr.ICacheManager](cntr, cacheMgr); err != nil {
+		return nil, fmt.Errorf("failed to register cache manager: %w", err)
+	}
 
-	return &Components{
-		ConfigProvider: configProvider,
-		LoggerManager:  loggerManager,
-		LoggerRegistry: loggerRegistry,
-		TelemetryMgr:   telemetryMgr,
-		DatabaseMgr:    databaseMgr,
-		CacheMgr:       cacheMgr,
-	}, nil
+	return cntr, nil
 }
 
 func (c *Components) GetConfigProvider() configmgr.IConfigManager {
-	return c.ConfigProvider
+	return c.ConfigMgr
 }
 
 func (c *Components) GetManagers() []interface{} {
 	return []interface{}{
-		c.LoggerManager,
+		c.LoggerMgr,
 		c.TelemetryMgr,
 		c.DatabaseMgr,
 		c.CacheMgr,

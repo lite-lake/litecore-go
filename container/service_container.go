@@ -2,284 +2,154 @@ package container
 
 import (
 	"fmt"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"reflect"
-	"sort"
-	"sync"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
-// ServiceContainer 服务层容器
-// InjectAll 行为：
-// 1. 注入 BuiltinProvider（ConfigProvider、Managers）
-// 2. 注入 BaseRepository（从 RepositoryContainer 获取）
-// 3. 注入其他 BaseService（支持同层依赖，按拓扑顺序注入）
 type ServiceContainer struct {
-	mu                  sync.RWMutex
-	items               map[reflect.Type]common.IBaseService
+	base                *injectableContainer[common.IBaseService]
+	managerContainer    *ManagerContainer
 	repositoryContainer *RepositoryContainer
-	builtinProvider     BuiltinProvider
-	loggerRegistry      *logger.LoggerRegistry
-	injected            bool
 }
 
-// NewServiceContainer 创建新的服务容器
-func NewServiceContainer(
-	repository *RepositoryContainer,
-) *ServiceContainer {
+func NewServiceContainer(repository *RepositoryContainer) *ServiceContainer {
 	return &ServiceContainer{
-		items:               make(map[reflect.Type]common.IBaseService),
+		base: &injectableContainer[common.IBaseService]{
+			container: NewTypedContainer(func(svc common.IBaseService) string {
+				return svc.ServiceName()
+			}),
+		},
 		repositoryContainer: repository,
 	}
 }
 
-// SetBuiltinProvider 设置内置组件提供者
-func (s *ServiceContainer) SetBuiltinProvider(provider BuiltinProvider) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.builtinProvider = provider
-	s.loggerRegistry = nil
-}
-
-// SetLoggerRegistry 设置 LoggerRegistry
-func (s *ServiceContainer) SetLoggerRegistry(registry *logger.LoggerRegistry) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.loggerRegistry = registry
-}
-
-// RegisterService 泛型注册函数，按接口类型注册
 func RegisterService[T common.IBaseService](s *ServiceContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return s.RegisterByType(ifaceType, impl)
 }
 
-// RegisterByType 按接口类型注册
-func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseService) error {
-	implType := reflect.TypeOf(impl)
-
+func GetService[T common.IBaseService](s *ServiceContainer) (T, error) {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	impl := s.GetByType(ifaceType)
 	if impl == nil {
-		return &DuplicateRegistrationError{Name: "nil"}
-	}
-
-	if !implType.Implements(ifaceType) {
-		return &ImplementationDoesNotImplementInterfaceError{
-			InterfaceType:  ifaceType,
-			Implementation: impl,
+		var zero T
+		return zero, &InstanceNotFoundError{
+			Name:  ifaceType.Name(),
+			Layer: "Service",
 		}
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, exists := s.items[ifaceType]; exists {
-		return &InterfaceAlreadyRegisteredError{
-			InterfaceType: ifaceType,
-			ExistingImpl:  s.items[ifaceType],
-			NewImpl:       impl,
-		}
-	}
-
-	s.items[ifaceType] = impl
-	return nil
+	return impl.(T), nil
 }
 
-// InjectAll 注入所有依赖
-// 1. 构建依赖图（同层 Service 依赖）
-// 2. 拓扑排序确定注入顺序
-// 3. 按顺序注入跨层依赖和同层依赖
-func (s *ServiceContainer) InjectAll() error {
-	s.mu.Lock()
+func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseService) error {
+	return s.base.container.Register(ifaceType, impl)
+}
 
-	if s.injected {
-		s.mu.Unlock()
+func (s *ServiceContainer) InjectAll() error {
+	if s.base.container.IsInjected() {
 		return nil
 	}
 
 	graph, err := s.buildDependencyGraph()
 	if err != nil {
-		s.mu.Unlock()
 		return fmt.Errorf("build dependency graph failed: %w", err)
 	}
 
-	order, err := topologicalSortByInterfaceType(graph)
+	sortedTypes, err := topologicalSortByInterfaceType(graph)
 	if err != nil {
-		s.mu.Unlock()
 		return fmt.Errorf("topological sort failed: %w", err)
 	}
 
-	s.mu.Unlock()
+	s.base.sources = s.base.buildSources(s, s.managerContainer, s.repositoryContainer)
+	resolver := NewGenericDependencyResolver(s.base.sources...)
 
-	resolver := NewGenericDependencyResolver(s.loggerRegistry, s.repositoryContainer, s)
-	for _, ifaceType := range order {
-		s.mu.RLock()
-		svc := s.items[ifaceType]
-		s.mu.RUnlock()
-
-		if err := injectDependencies(svc, resolver); err != nil {
-			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
+	for _, ifaceType := range sortedTypes {
+		svc := s.GetByType(ifaceType)
+		if svc != nil {
+			if err := injectDependencies(svc, resolver); err != nil {
+				return err
+			}
+			verifyInjectTags(svc)
 		}
 	}
 
-	s.mu.Lock()
-	s.injected = true
-	s.mu.Unlock()
-
+	s.base.container.setInjected(true)
 	return nil
 }
 
-// buildDependencyGraph 构建服务之间的依赖图（按接口类型）
 func (s *ServiceContainer) buildDependencyGraph() (map[reflect.Type][]reflect.Type, error) {
 	graph := make(map[reflect.Type][]reflect.Type)
 
-	for ifaceType, item := range s.items {
-		deps, err := s.getSameLayerDependencies(item)
-		if err != nil {
-			return nil, fmt.Errorf("build graph for %v failed: %w", ifaceType, err)
+	s.base.container.RangeItems(func(ifaceType reflect.Type, svc common.IBaseService) bool {
+		val := reflect.ValueOf(svc)
+		if val.Kind() == reflect.Ptr {
+			val = val.Elem()
 		}
+
+		if val.Kind() != reflect.Struct {
+			return true
+		}
+
+		var deps []reflect.Type
+
+		typ := val.Type()
+		for i := 0; i < val.NumField(); i++ {
+			field := typ.Field(i)
+			tagValue, ok := field.Tag.Lookup("inject")
+			if !ok || tagValue == "optional" {
+				continue
+			}
+
+			fieldType := field.Type
+			if s.isBaseServiceType(fieldType) {
+				if s.GetByType(fieldType) == nil {
+					panic(&DependencyNotFoundError{
+						FieldType:     fieldType,
+						ContainerType: "Service",
+					})
+				}
+				deps = append(deps, fieldType)
+			}
+		}
+
 		graph[ifaceType] = deps
-	}
+		return true
+	})
 
 	return graph, nil
 }
 
-// getSameLayerDependencies 获取服务的同层依赖（其他 Service）
-func (s *ServiceContainer) getSameLayerDependencies(instance interface{}) ([]reflect.Type, error) {
-	val := reflect.ValueOf(instance)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-
-	if val.Kind() != reflect.Struct {
-		return nil, nil
-	}
-
-	typ := val.Type()
-	var deps []reflect.Type
-
-	for i := 0; i < val.NumField(); i++ {
-		field := typ.Field(i)
-
-		if field.Tag.Get("inject") == "" {
-			continue
-		}
-
-		fieldType := field.Type
-
-		if s.isBaseServiceType(fieldType) {
-			if _, exists := s.items[fieldType]; !exists {
-				return nil, &DependencyNotFoundError{
-					FieldType:     fieldType,
-					ContainerType: "Service",
-				}
-			}
-			deps = append(deps, fieldType)
-		}
-	}
-
-	return deps, nil
-}
-
-// isBaseServiceType 判断类型是否为 BaseService 或其子接口
 func (s *ServiceContainer) isBaseServiceType(typ reflect.Type) bool {
 	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	return typ.Implements(baseServiceType)
 }
 
-// GetAll 获取所有已注册的服务
 func (s *ServiceContainer) GetAll() []common.IBaseService {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	return s.base.container.GetAll()
+}
 
-	result := make([]common.IBaseService, 0, len(s.items))
-	for _, item := range s.items {
-		result = append(result, item)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].ServiceName() < result[j].ServiceName()
+func (s *ServiceContainer) GetAllSorted() []common.IBaseService {
+	return getAllSorted(s.GetAll(), func(s common.IBaseService) string {
+		return s.ServiceName()
 	})
-
-	return result
 }
 
-// GetByType 按接口类型获取（返回单例）
 func (s *ServiceContainer) GetByType(ifaceType reflect.Type) common.IBaseService {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	impl, exists := s.items[ifaceType]
-	if !exists {
-		return nil
-	}
-	return impl
+	return s.base.container.GetByType(ifaceType)
 }
 
-// Count 返回已注册的服务数量
 func (s *ServiceContainer) Count() int {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return len(s.items)
+	return s.base.container.Count()
 }
 
-// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+func (s *ServiceContainer) SetManagerContainer(container *ManagerContainer) {
+	s.managerContainer = container
+}
+
 func (s *ServiceContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()
-	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
-		if s.builtinProvider == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-		impl := s.builtinProvider.GetConfigProvider()
-		if impl == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-		return impl, nil
-	}
-
-	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
-	if fieldType.Implements(baseManagerType) {
-		if s.builtinProvider == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-
-		managers := s.builtinProvider.GetManagers()
-		for _, impl := range managers {
-			if impl == nil {
-				continue
-			}
-			implType := reflect.TypeOf(impl)
-			if implType == fieldType || implType.Implements(fieldType) {
-				return impl, nil
-			}
-		}
-
-		return nil, &DependencyNotFoundError{
-			FieldType:     fieldType,
-			ContainerType: "Builtin",
-		}
-	}
-
-	baseRepositoryType := reflect.TypeOf((*common.IBaseRepository)(nil)).Elem()
-	if fieldType == baseRepositoryType || fieldType.Implements(baseRepositoryType) {
-		impl := s.repositoryContainer.GetByType(fieldType)
-		if impl == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Repository",
-			}
-		}
-		return impl, nil
+	if dep, err := resolveDependencyFromManager(fieldType, s.managerContainer); dep != nil || err != nil {
+		return dep, err
 	}
 
 	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
@@ -289,6 +159,24 @@ func (s *ServiceContainer) GetDependency(fieldType reflect.Type) (interface{}, e
 			return nil, &DependencyNotFoundError{
 				FieldType:     fieldType,
 				ContainerType: "Service",
+			}
+		}
+		return impl, nil
+	}
+
+	baseRepositoryType := reflect.TypeOf((*common.IBaseRepository)(nil)).Elem()
+	if fieldType == baseRepositoryType || fieldType.Implements(baseRepositoryType) {
+		if s.repositoryContainer == nil {
+			return nil, &DependencyNotFoundError{
+				FieldType:     fieldType,
+				ContainerType: "Repository",
+			}
+		}
+		impl := s.repositoryContainer.GetByType(fieldType)
+		if impl == nil {
+			return nil, &DependencyNotFoundError{
+				FieldType:     fieldType,
+				ContainerType: "Repository",
 			}
 		}
 		return impl, nil

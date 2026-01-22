@@ -12,9 +12,7 @@ import (
 type Layer string
 
 const (
-	LayerConfig     Layer = "configmgr"
 	LayerEntity     Layer = "entity"
-	LayerManager    Layer = "manager"
 	LayerRepository Layer = "repository"
 	LayerService    Layer = "service"
 	LayerController Layer = "controller"
@@ -36,8 +34,6 @@ type ProjectInfo struct {
 	ModuleName  string
 	PackagePath string
 	ConfigPath  string
-	Configs     []*ComponentInfo
-	Managers    []*ComponentInfo
 	Layers      map[Layer][]*ComponentInfo
 }
 
@@ -160,15 +156,6 @@ func (a *Analyzer) detectLayer(filename, packageName string) Layer {
 		}
 		if strings.Contains(part, "middlewares") {
 			return LayerMiddleware
-		}
-		if strings.Contains(part, "infras") {
-			if strings.Contains(part, "configproviders") || strings.Contains(filename, "config_provider") {
-				return LayerConfig
-			}
-			if strings.Contains(part, "managers") {
-				return LayerManager
-			}
-			return LayerManager
 		}
 	}
 
@@ -295,8 +282,8 @@ func (a *Analyzer) getPackagePath(filename string) string {
 // IsLitecoreLayer 判断是否为 Litecore 标准层
 func IsLitecoreLayer(layer Layer) bool {
 	switch layer {
-	case LayerConfig, LayerEntity, LayerManager,
-		LayerRepository, LayerService, LayerController, LayerMiddleware:
+	case LayerEntity, LayerRepository, LayerService,
+		LayerController, LayerMiddleware:
 		return true
 	default:
 		return false
@@ -306,12 +293,8 @@ func IsLitecoreLayer(layer Layer) bool {
 // GetBaseInterface 获取层对应的基础接口
 func GetBaseInterface(layer Layer) string {
 	switch layer {
-	case LayerConfig:
-		return "BaseConfigProvider"
 	case LayerEntity:
 		return "BaseEntity"
-	case LayerManager:
-		return "BaseManager"
 	case LayerRepository:
 		return "BaseRepository"
 	case LayerService:
@@ -328,12 +311,8 @@ func GetBaseInterface(layer Layer) string {
 // GetContainerName 获取容器名称
 func GetContainerName(layer Layer) string {
 	switch layer {
-	case LayerConfig:
-		return "ConfigContainer"
 	case LayerEntity:
 		return "EntityContainer"
-	case LayerManager:
-		return "ManagerContainer"
 	case LayerRepository:
 		return "RepositoryContainer"
 	case LayerService:
@@ -350,12 +329,8 @@ func GetContainerName(layer Layer) string {
 // GetRegisterFunction 获取注册函数名
 func GetRegisterFunction(layer Layer) string {
 	switch layer {
-	case LayerConfig:
-		return "RegisterConfig"
 	case LayerEntity:
 		return "RegisterEntity"
-	case LayerManager:
-		return "RegisterManager"
 	case LayerRepository:
 		return "RegisterRepository"
 	case LayerService:

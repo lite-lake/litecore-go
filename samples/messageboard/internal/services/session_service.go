@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // ISessionService 会话服务接口
@@ -23,10 +25,10 @@ type ISessionService interface {
 }
 
 type sessionService struct {
-	Config   configmgr.IConfigManager `inject:""`
-	CacheMgr cachemgr.ICacheManager   `inject:""`
-	Logger   common.ILogger           `inject:""`
-	timeout  time.Duration
+	Config    configmgr.IConfigManager `inject:""`
+	CacheMgr  cachemgr.ICacheManager   `inject:""`
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
+	timeout   time.Duration
 }
 
 // NewSessionService 创建会话服务
@@ -61,15 +63,10 @@ func (s *sessionService) CreateSession() (string, error) {
 	ctx := context.Background()
 	sessionKey := fmt.Sprintf("session:%s", token)
 	if err := s.CacheMgr.Set(ctx, sessionKey, session, s.timeout); err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("创建会话失败", "token", token, "error", err)
-		}
+		s.LoggerMgr.Ins().Error("创建会话失败", "token", token, "error", err)
 		return "", fmt.Errorf("failed to store session: %w", err)
 	}
-
-	if s.Logger != nil {
-		s.Logger.Info("创建会话成功", "token", token, "expires_at", session.ExpiresAt)
-	}
+	s.LoggerMgr.Ins().Info("创建会话成功", "token", token, "expires_at", session.ExpiresAt)
 
 	return token, nil
 }
@@ -80,31 +77,23 @@ func (s *sessionService) ValidateSession(token string) (*dtos.AdminSession, erro
 
 	var session dtos.AdminSession
 	if err := s.CacheMgr.Get(ctx, sessionKey, &session); err != nil {
-		if s.Logger != nil {
-			s.Logger.Warn("验证会话失败：会话不存在", "token", token)
-		}
+		s.LoggerMgr.Ins().Warn("验证会话失败：会话不存在", "token", token)
 		return nil, errors.New("session not found")
 	}
 
 	if time.Now().After(session.ExpiresAt) {
-		if s.Logger != nil {
-			s.Logger.Warn("验证会话失败：会话已过期", "token", token)
-		}
+		s.LoggerMgr.Ins().Warn("验证会话失败：会话已过期", "token", token)
 		s.DeleteSession(token)
 		return nil, errors.New("session expired")
 	}
 
-	if s.Logger != nil {
-		s.Logger.Debug("验证会话成功", "token", token)
-	}
+	s.LoggerMgr.Ins().Debug("验证会话成功", "token", token)
 
 	return &session, nil
 }
 
 func (s *sessionService) DeleteSession(token string) error {
-	if s.Logger != nil {
-		s.Logger.Info("删除会话", "token", token)
-	}
+	s.LoggerMgr.Ins().Info("删除会话", "token", token)
 
 	ctx := context.Background()
 	sessionKey := fmt.Sprintf("session:%s", token)
