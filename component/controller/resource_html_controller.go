@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 
 	"github.com/lite-lake/litecore-go/common"
 )
@@ -16,7 +17,7 @@ type ResourceHTMLConfig struct {
 type ResourceHTMLController struct {
 	config    *ResourceHTMLConfig
 	ginEngine *gin.Engine
-	Logger    common.ILogger `inject:""`
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
 }
 
 // NewResourceHTMLController 创建HTML模板控制器

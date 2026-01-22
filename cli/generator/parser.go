@@ -387,28 +387,22 @@ func (p *Parser) parseMiddlewareFile(filename string) error {
 	return nil
 }
 
-// parseInfras 解析基础设施层（managers和config）
+// parseInfras 解析基础设施层
 func (p *Parser) parseInfras() error {
-	infrasDirs := []string{
-		filepath.Join(p.projectPath, "internal", "infras", "configproviders"),
-		filepath.Join(p.projectPath, "internal", "infras", "managers"),
-		filepath.Join(p.projectPath, "internal", "infras"),
+	dir := filepath.Join(p.projectPath, "internal", "infras")
+
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil
 	}
 
-	for _, dir := range infrasDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		}
+	files, err := p.findGoFiles(dir)
+	if err != nil {
+		return err
+	}
 
-		files, err := p.findGoFiles(dir)
-		if err != nil {
+	for _, file := range files {
+		if err := p.parseInfrasFile(file); err != nil {
 			return err
-		}
-
-		for _, file := range files {
-			if err := p.parseInfrasFile(file); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -437,12 +431,6 @@ func (p *Parser) parseInfrasFile(filename string) error {
 			}
 
 			typeName := strings.TrimPrefix(fn.Name.Name, "New")
-			layer := analyzer.LayerManager
-			if strings.Contains(filename, "configproviders") ||
-				strings.Contains(filename, "config_provider") ||
-				strings.Contains(fn.Name.Name, "ConfigProvider") {
-				layer = analyzer.LayerConfig
-			}
 
 			interfaceName := typeName
 			interfaceType := pkgName + "." + typeName
@@ -464,10 +452,10 @@ func (p *Parser) parseInfrasFile(filename string) error {
 				PackagePath:   packagePath,
 				FileName:      filename,
 				FactoryFunc:   fn.Name.Name,
-				Layer:         layer,
+				Layer:         analyzer.LayerService,
 			}
 
-			p.info.Layers[layer] = append(p.info.Layers[layer], comp)
+			p.info.Layers[analyzer.LayerService] = append(p.info.Layers[analyzer.LayerService], comp)
 		}
 		return true
 	})

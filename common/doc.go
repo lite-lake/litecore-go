@@ -1,4 +1,4 @@
-// Package common 提供七层架构的基础接口定义，规范 Entity、Manager、Repository、Service、Controller、Middleware 和 ConfigProvider 的行为契约。
+// Package common 提供七层架构的基础接口定义，规范 Entity、Manager、Repository、Service、Controller、Middleware 和 ConfigMgr 的行为契约。
 //
 // 核心特性：
 //   - 七层架构基础接口：定义各层的基础接口类型，确保架构一致性
@@ -29,6 +29,6 @@
 // 接口层次：
 //
 //	各层之间有明确的依赖关系，从低到高依次为：
-//	ConfigProvider → Entity → Manager → Repository → Service → Controller/Middleware
+//	ConfigMgr → Entity → Manager → Repository → Service → Controller/Middleware
 //	上层可以依赖下层，下层不能依赖上层。
 package common

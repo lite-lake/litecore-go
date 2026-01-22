@@ -61,7 +61,7 @@ func TestNoneManager_Get(t *testing.T) {
 
 	err := mgr.Get(ctx, "any_key", &result)
 	if err == nil {
-		t.Error("expected error from Get(), got nil")
+		t.Error("expected error from Ins(), got nil")
 	}
 }
 

@@ -7,16 +7,17 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 type pprofHandlerFunc func(http.ResponseWriter, *http.Request)
 
 type PprofController struct {
-	name   string
-	route  string
-	method string
-	handle pprofHandlerFunc
-	Logger common.ILogger `inject:""`
+	name      string
+	route     string
+	method    string
+	handle    pprofHandlerFunc
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
 }
 
 func (c *PprofController) ControllerName() string {

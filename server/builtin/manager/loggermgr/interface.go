@@ -9,6 +9,6 @@ import (
 type ILoggerManager interface {
 	common.IBaseManager
 
-	// GetLogger 获取日志实例
-	GetLogger() logger.ILogger
+	// Ins 获取日志实例
+	Ins() logger.ILogger
 }

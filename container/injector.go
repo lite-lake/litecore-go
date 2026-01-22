@@ -1,12 +1,9 @@
 package container
 
 import (
-	"github.com/lite-lake/litecore-go/common"
 	"reflect"
 	"strings"
 	"unsafe"
-
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IDependencyResolver 依赖解析器接口
@@ -44,7 +41,7 @@ func injectDependencies(instance interface{}, resolver IDependencyResolver) erro
 		fieldVal := val.Field(i)
 
 		// 检查是否有 inject 标签
-		// 注意：`inject:""` 会被 Tag.Get 返回为 ""，但我们需要区分"没有标签"和"空值标签"
+		// 注意：`inject:""` 会被 Tag.Ins 返回为 ""，但我们需要区分"没有标签"和"空值标签"
 		tagValue, ok := field.Tag.Lookup("inject")
 		if !ok {
 			// 没有 inject 标签，跳过
@@ -106,31 +103,21 @@ func toLowerCamelCase(s string) string {
 // GenericDependencyResolver 通用依赖解析器
 // 支持按优先级顺序从多个容器源解析依赖
 type GenericDependencyResolver struct {
-	sources        []ContainerSource
-	loggerRegistry *logger.LoggerRegistry
+	sources []ContainerSource
 }
 
 // NewGenericDependencyResolver 创建通用依赖解析器
 func NewGenericDependencyResolver(
-	loggerRegistry *logger.LoggerRegistry,
 	sources ...ContainerSource,
 ) *GenericDependencyResolver {
 	return &GenericDependencyResolver{
-		sources:        sources,
-		loggerRegistry: loggerRegistry,
+		sources: sources,
 	}
 }
 
 // ResolveDependency 解析字段类型对应的依赖实例
 // 按照sources的顺序依次尝试解析，找到第一个匹配的依赖
 func (r *GenericDependencyResolver) ResolveDependency(fieldType reflect.Type, structType reflect.Type, fieldName string) (interface{}, error) {
-	loggerType := reflect.TypeOf((*common.ILogger)(nil)).Elem()
-	if fieldType == loggerType || fieldType.Implements(loggerType) {
-		if r.loggerRegistry != nil {
-			loggerName := r.extractLoggerName(structType)
-			return r.loggerRegistry.GetLogger(loggerName), nil
-		}
-	}
 
 	for _, source := range r.sources {
 		dep, err := source.GetDependency(fieldType)

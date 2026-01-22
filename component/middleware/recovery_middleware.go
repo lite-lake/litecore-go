@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 	"runtime/debug"
 	"time"
 
@@ -11,8 +12,8 @@ import (
 
 // RecoveryMiddleware panic 恢复中间件
 type RecoveryMiddleware struct {
-	order  int
-	Logger common.ILogger `inject:""`
+	order     int
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
 }
 
 // NewRecoveryMiddleware 创建 panic 恢复中间件
@@ -48,20 +49,18 @@ func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
 				userAgent := c.Request.UserAgent()
 				query := c.Request.URL.RawQuery
 
-				if m.Logger != nil {
-					m.Logger.Error(
-						"PANIC recovered",
-						"panic", err,
-						"method", method,
-						"path", path,
-						"query", query,
-						"ip", clientIP,
-						"userAgent", userAgent,
-						"requestID", requestID,
-						"timestamp", time.Now().Format(time.RFC3339Nano),
-						"stack", string(stack),
-					)
-				}
+				m.LoggerMgr.Ins().Error(
+					"PANIC recovered",
+					"panic", err,
+					"method", method,
+					"path", path,
+					"query", query,
+					"ip", clientIP,
+					"userAgent", userAgent,
+					"requestID", requestID,
+					"timestamp", time.Now().Format(time.RFC3339Nano),
+					"stack", string(stack),
+				)
 
 				c.JSON(common.HTTPStatusInternalServerError, gin.H{
 					"error": "内部服务器错误",

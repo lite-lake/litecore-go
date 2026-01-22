@@ -3,6 +3,7 @@ package middleware
 import (
 	"bytes"
 	"fmt"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 	"io"
 	"time"
 
@@ -13,8 +14,8 @@ import (
 
 // RequestLoggerMiddleware 请求日志中间件
 type RequestLoggerMiddleware struct {
-	order  int
-	Logger common.ILogger `inject:""`
+	order     int
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
 }
 
 // NewRequestLoggerMiddleware 创建请求日志中间件
@@ -54,7 +55,7 @@ func (m *RequestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			for _, e := range c.Errors {
-				m.Logger.Error("请求处理错误",
+				m.LoggerMgr.Ins().Error("请求处理错误",
 					"request_id", requestID,
 					"method", method,
 					"path", path,
@@ -66,7 +67,7 @@ func (m *RequestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 				)
 			}
 		} else {
-			m.Logger.Info("请求处理完成",
+			m.LoggerMgr.Ins().Info("请求处理完成",
 				"request_id", requestID,
 				"method", method,
 				"path", path,

@@ -112,7 +112,7 @@ func (d *driverZapLoggerManager) OnStop() error {
 	return nil
 }
 
-func (d *driverZapLoggerManager) GetLogger() logger.ILogger {
+func (d *driverZapLoggerManager) Ins() logger.ILogger {
 	return d.ins
 }
 

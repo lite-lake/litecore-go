@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +18,8 @@ type ResourceStaticConfig struct {
 // ResourceStaticController 静态文件控制器
 // 用于处理静态文件服务
 type ResourceStaticController struct {
-	config *ResourceStaticConfig
-	Logger common.ILogger `inject:""`
+	config    *ResourceStaticConfig
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
 }
 
 // NewResourceStaticController 创建静态文件控制器

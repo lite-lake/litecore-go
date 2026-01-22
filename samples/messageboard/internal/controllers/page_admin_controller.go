@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
@@ -14,7 +15,7 @@ type IPageAdminController interface {
 
 type pageAdminControllerImpl struct {
 	HTMLTemplateService services.IHTMLTemplateService `inject:""`
-	Logger              common.ILogger                `inject:""`
+	LoggerMgr           loggermgr.ILoggerManager      `inject:""`
 }
 
 func NewPageAdminController() IPageAdminController {

@@ -1,196 +1,94 @@
 package container
 
 import (
-	"fmt"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"reflect"
-	"sort"
-	"sync"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
-// MiddlewareContainer 中间件层容器
-// InjectAll 行为：
-// 1. 注入 BuiltinProvider（ConfigProvider、Managers）
-// 2. 注入 BaseService（从 ServiceContainer 获取）
 type MiddlewareContainer struct {
-	mu               sync.RWMutex
-	items            map[reflect.Type]common.IBaseMiddleware
+	base             *injectableContainer[common.IBaseMiddleware]
+	managerContainer *ManagerContainer
 	serviceContainer *ServiceContainer
-	builtinProvider  BuiltinProvider
-	loggerRegistry   *logger.LoggerRegistry
-	injected         bool
 }
 
-// NewMiddlewareContainer 创建新的中间件容器
-func NewMiddlewareContainer(
-	service *ServiceContainer,
-) *MiddlewareContainer {
+func NewMiddlewareContainer(service *ServiceContainer) *MiddlewareContainer {
 	return &MiddlewareContainer{
-		items:            make(map[reflect.Type]common.IBaseMiddleware),
+		base: &injectableContainer[common.IBaseMiddleware]{
+			container: NewTypedContainer(func(m common.IBaseMiddleware) string {
+				return m.MiddlewareName()
+			}),
+		},
 		serviceContainer: service,
 	}
 }
 
-// SetBuiltinProvider 设置内置组件提供者
-func (m *MiddlewareContainer) SetBuiltinProvider(provider BuiltinProvider) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.builtinProvider = provider
-	m.loggerRegistry = nil
-}
-
-// SetLoggerRegistry 设置 LoggerRegistry
-func (m *MiddlewareContainer) SetLoggerRegistry(registry *logger.LoggerRegistry) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.loggerRegistry = registry
-}
-
-// RegisterMiddleware 泛型注册函数，按接口类型注册
 func RegisterMiddleware[T common.IBaseMiddleware](m *MiddlewareContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return m.RegisterByType(ifaceType, impl)
 }
 
-// RegisterByType 按接口类型注册
-func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseMiddleware) error {
-	implType := reflect.TypeOf(impl)
-
+func GetMiddleware[T common.IBaseMiddleware](m *MiddlewareContainer) (T, error) {
+	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
+	impl := m.GetByType(ifaceType)
 	if impl == nil {
-		return &DuplicateRegistrationError{Name: "nil"}
-	}
-
-	if !implType.Implements(ifaceType) {
-		return &ImplementationDoesNotImplementInterfaceError{
-			InterfaceType:  ifaceType,
-			Implementation: impl,
+		var zero T
+		return zero, &InstanceNotFoundError{
+			Name:  ifaceType.Name(),
+			Layer: "Middleware",
 		}
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if _, exists := m.items[ifaceType]; exists {
-		return &InterfaceAlreadyRegisteredError{
-			InterfaceType: ifaceType,
-			ExistingImpl:  m.items[ifaceType],
-			NewImpl:       impl,
-		}
-	}
-
-	m.items[ifaceType] = impl
-	return nil
+	return impl.(T), nil
 }
 
-// InjectAll 注入所有依赖
-// 1. 注入 BuiltinProvider（ConfigProvider、Managers）
-// 2. 注入 BaseService
+func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseMiddleware) error {
+	return m.base.container.Register(ifaceType, impl)
+}
+
 func (m *MiddlewareContainer) InjectAll() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.injected {
+	if m.base.container.IsInjected() {
 		return nil
 	}
 
-	resolver := NewGenericDependencyResolver(m.loggerRegistry, m.serviceContainer, m)
-	for ifaceType, mw := range m.items {
-		if err := injectDependencies(mw, resolver); err != nil {
-			return fmt.Errorf("inject %v failed: %w", ifaceType, err)
-		}
-	}
-
-	m.injected = true
-	return nil
+	m.base.sources = m.base.buildSources(m, m.managerContainer, m.serviceContainer)
+	return m.base.injectAll(m)
 }
 
-// GetAll 获取所有已注册的中间件
 func (m *MiddlewareContainer) GetAll() []common.IBaseMiddleware {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	return m.base.container.GetAll()
+}
 
-	result := make([]common.IBaseMiddleware, 0, len(m.items))
-	for _, item := range m.items {
-		result = append(result, item)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].MiddlewareName() < result[j].MiddlewareName()
+func (m *MiddlewareContainer) GetAllSorted() []common.IBaseMiddleware {
+	return getAllSorted(m.GetAll(), func(m common.IBaseMiddleware) string {
+		return m.MiddlewareName()
 	})
-
-	return result
 }
 
-// GetByType 按接口类型获取（返回单例）
 func (m *MiddlewareContainer) GetByType(ifaceType reflect.Type) common.IBaseMiddleware {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	impl, exists := m.items[ifaceType]
-	if !exists {
-		return nil
-	}
-	return impl
+	return m.base.container.GetByType(ifaceType)
 }
 
-// Count 返回已注册的中间件数量
 func (m *MiddlewareContainer) Count() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return len(m.items)
+	return m.base.container.Count()
 }
 
-// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
+func (m *MiddlewareContainer) SetManagerContainer(container *ManagerContainer) {
+	m.managerContainer = container
+}
+
 func (m *MiddlewareContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()
-	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
-		if m.builtinProvider == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-		impl := m.builtinProvider.GetConfigProvider()
-		if impl == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-		return impl, nil
-	}
-
-	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
-	if fieldType.Implements(baseManagerType) {
-		if m.builtinProvider == nil {
-			return nil, &DependencyNotFoundError{
-				FieldType:     fieldType,
-				ContainerType: "Builtin",
-			}
-		}
-
-		managers := m.builtinProvider.GetManagers()
-		for _, impl := range managers {
-			if impl == nil {
-				continue
-			}
-			implType := reflect.TypeOf(impl)
-			if implType == fieldType || implType.Implements(fieldType) {
-				return impl, nil
-			}
-		}
-
-		return nil, &DependencyNotFoundError{
-			FieldType:     fieldType,
-			ContainerType: "Builtin",
-		}
+	if dep, err := resolveDependencyFromManager(fieldType, m.managerContainer); dep != nil || err != nil {
+		return dep, err
 	}
 
 	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	if fieldType == baseServiceType || fieldType.Implements(baseServiceType) {
+		if m.serviceContainer == nil {
+			return nil, &DependencyNotFoundError{
+				FieldType:     fieldType,
+				ContainerType: "Service",
+			}
+		}
 		impl := m.serviceContainer.GetByType(fieldType)
 		if impl == nil {
 			return nil, &DependencyNotFoundError{

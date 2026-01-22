@@ -4,12 +4,13 @@ package services
 import (
 	"errors"
 	"fmt"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"time"
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/repositories"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // IMessageService 留言服务接口
@@ -26,7 +27,7 @@ type IMessageService interface {
 type messageService struct {
 	Config     configmgr.IConfigManager        `inject:""`
 	Repository repositories.IMessageRepository `inject:""`
-	Logger     common.ILogger                  `inject:""`
+	LoggerMgr  loggermgr.ILoggerManager        `inject:""`
 }
 
 // NewMessageService 创建留言服务
@@ -48,15 +49,12 @@ func (s *messageService) OnStop() error {
 
 func (s *messageService) CreateMessage(nickname, content string) (*entities.Message, error) {
 	if len(nickname) < 2 || len(nickname) > 20 {
-		if s.Logger != nil {
-			s.Logger.Warn("创建留言失败：昵称长度不符合要求", "nickname_length", len(nickname))
-		}
+		s.LoggerMgr.Ins().Warn("创建留言失败：昵称长度不符合要求", "nickname_length", len(nickname))
 		return nil, errors.New("昵称长度必须在 2-20 个字符之间")
 	}
 	if len(content) < 5 || len(content) > 500 {
-		if s.Logger != nil {
-			s.Logger.Warn("创建留言失败：内容长度不符合要求", "content_length", len(content))
-		}
+		s.LoggerMgr.Ins().Warn("创建留言失败：内容长度不符合要求", "content_length", len(content))
+
 		return nil, errors.New("留言内容长度必须在 5-500 个字符之间")
 	}
 
@@ -69,128 +67,92 @@ func (s *messageService) CreateMessage(nickname, content string) (*entities.Mess
 	}
 
 	if err := s.Repository.Create(message); err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("创建留言失败", "nickname", nickname, "error", err)
-		}
+		s.LoggerMgr.Ins().Error("创建留言失败", "nickname", nickname, "error", err)
+
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
 
-	if s.Logger != nil {
-		s.Logger.Info("创建留言成功", "id", message.ID, "nickname", message.Nickname, "status", message.Status)
-	}
+	s.LoggerMgr.Ins().Info("创建留言成功", "id", message.ID, "nickname", message.Nickname, "status", message.Status)
 
 	return message, nil
 }
 
 func (s *messageService) GetApprovedMessages() ([]*entities.Message, error) {
-	if s.Logger != nil {
-		s.Logger.Debug("获取已审核留言列表")
-	}
+
+	s.LoggerMgr.Ins().Debug("获取已审核留言列表")
 
 	messages, err := s.Repository.GetApprovedMessages()
 	if err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("获取已审核留言失败", "error", err)
-		}
+		s.LoggerMgr.Ins().Error("获取已审核留言失败", "error", err)
 		return nil, fmt.Errorf("failed to get approved messages: %w", err)
 	}
 
-	if s.Logger != nil {
-		s.Logger.Debug("获取已审核留言成功", "count", len(messages))
-	}
+	s.LoggerMgr.Ins().Debug("获取已审核留言成功", "count", len(messages))
 
 	return messages, nil
 }
 
 func (s *messageService) GetAllMessages() ([]*entities.Message, error) {
-	if s.Logger != nil {
-		s.Logger.Debug("获取所有留言列表")
-	}
+	s.LoggerMgr.Ins().Debug("获取所有留言列表")
 
 	messages, err := s.Repository.GetAllMessages()
 	if err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("获取所有留言失败", "error", err)
-		}
+		s.LoggerMgr.Ins().Error("获取所有留言失败", "error", err)
 		return nil, fmt.Errorf("failed to get all messages: %w", err)
 	}
 
-	if s.Logger != nil {
-		s.Logger.Debug("获取所有留言成功", "count", len(messages))
-	}
+	s.LoggerMgr.Ins().Debug("获取所有留言成功", "count", len(messages))
 
 	return messages, nil
 }
 
 func (s *messageService) UpdateMessageStatus(id uint, status string) error {
 	if status != "pending" && status != "approved" && status != "rejected" {
-		if s.Logger != nil {
-			s.Logger.Warn("更新留言状态失败：无效的状态值", "id", id, "status", status)
-		}
+		s.LoggerMgr.Ins().Warn("更新留言状态失败：无效的状态值", "id", id, "status", status)
 		return errors.New("invalid status value")
 	}
 
-	if s.Logger != nil {
-		s.Logger.Debug("准备更新留言状态", "id", id, "status", status)
-	}
+	s.LoggerMgr.Ins().Debug("准备更新留言状态", "id", id, "status", status)
 
 	message, err := s.Repository.GetByID(id)
 	if err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("更新留言状态失败：留言不存在", "id", id, "error", err)
-		}
+		s.LoggerMgr.Ins().Error("更新留言状态失败：留言不存在", "id", id, "error", err)
 		return fmt.Errorf("message not found: %w", err)
 	}
 	if message == nil {
-		if s.Logger != nil {
-			s.Logger.Warn("更新留言状态失败：留言不存在", "id", id)
-		}
+		s.LoggerMgr.Ins().Warn("更新留言状态失败：留言不存在", "id", id)
 		return errors.New("message not found")
 	}
 
 	if err := s.Repository.UpdateStatus(id, status); err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("更新留言状态失败", "id", id, "status", status, "error", err)
-		}
+		s.LoggerMgr.Ins().Error("更新留言状态失败", "id", id, "status", status, "error", err)
 		return fmt.Errorf("failed to update message status: %w", err)
 	}
 
-	if s.Logger != nil {
-		s.Logger.Info("更新留言状态成功", "id", id, "old_status", message.Status, "new_status", status)
-	}
+	s.LoggerMgr.Ins().Info("更新留言状态成功", "id", id, "old_status", message.Status, "new_status", status)
 
 	return nil
 }
 
 func (s *messageService) DeleteMessage(id uint) error {
-	if s.Logger != nil {
-		s.Logger.Debug("准备删除留言", "id", id)
-	}
+	s.LoggerMgr.Ins().Debug("准备删除留言", "id", id)
 
 	message, err := s.Repository.GetByID(id)
 	if err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("删除留言失败：留言不存在", "id", id, "error", err)
-		}
+		s.LoggerMgr.Ins().Error("删除留言失败：留言不存在", "id", id, "error", err)
 		return fmt.Errorf("message not found: %w", err)
 	}
 	if message == nil {
-		if s.Logger != nil {
-			s.Logger.Warn("删除留言失败：留言不存在", "id", id)
-		}
+		s.LoggerMgr.Ins().Warn("删除留言失败：留言不存在", "id", id)
 		return errors.New("message not found")
 	}
 
 	if err := s.Repository.Delete(id); err != nil {
-		if s.Logger != nil {
-			s.Logger.Error("删除留言失败", "id", id, "nickname", message.Nickname, "error", err)
-		}
+		s.LoggerMgr.Ins().Error("删除留言失败", "id", id, "nickname", message.Nickname, "error", err)
 		return fmt.Errorf("failed to delete message: %w", err)
 	}
 
-	if s.Logger != nil {
-		s.Logger.Info("删除留言成功", "id", id, "nickname", message.Nickname, "status", message.Status)
-	}
+	s.LoggerMgr.Ins().Info("删除留言成功", "id", id, "nickname", message.Nickname, "status", message.Status)
 
 	return nil
 }

@@ -68,7 +68,7 @@ func TestMemoryManager_SetAndGet(t *testing.T) {
 	var result any
 	err = mgr.Get(ctx, "key1", &result)
 	if err != nil {
-		t.Fatalf("Get() error = %v", err)
+		t.Fatalf("Ins() error = %v", err)
 	}
 
 	if result != "value1" {
@@ -147,7 +147,7 @@ func TestMemoryManager_SetNX(t *testing.T) {
 	var result any
 	err = mgr.Get(ctx, "key_nx", &result)
 	if err != nil {
-		t.Fatalf("Get() error = %v", err)
+		t.Fatalf("Ins() error = %v", err)
 	}
 	if result != "value1" {
 		t.Errorf("expected 'value1', got '%v'", result)
@@ -381,7 +381,7 @@ func TestMemoryManager_SetMultiple(t *testing.T) {
 		var result any
 		err := mgr.Get(ctx, key, &result)
 		if err != nil {
-			t.Errorf("Get() for key '%s' error = %v", key, err)
+			t.Errorf("Ins() for key '%s' error = %v", key, err)
 		}
 		if result != expectedValue {
 			t.Errorf("expected '%s' = '%v', got '%v'", key, expectedValue, result)
@@ -473,7 +473,7 @@ func TestMemoryManager_Increment(t *testing.T) {
 	var value any
 	err = mgr.Get(ctx, "counter", &value)
 	if err != nil {
-		t.Fatalf("Get() error = %v", err)
+		t.Fatalf("Ins() error = %v", err)
 	}
 	if value != int64(15) {
 		t.Errorf("expected value to be 15, got %v", value)
@@ -549,7 +549,7 @@ func TestMemoryManager_Expiration(t *testing.T) {
 	var result any
 	err = mgr.Get(ctx, "expire_test", &result)
 	if err != nil {
-		t.Errorf("Get() immediately after Set() failed: %v", err)
+		t.Errorf("Ins() immediately after Set() failed: %v", err)
 	}
 
 	// 等待过期
@@ -620,7 +620,7 @@ func TestMemoryManager_ComplexValues(t *testing.T) {
 	var mapResult any
 	err = mgr.Get(ctx, "map_key", &mapResult)
 	if err != nil {
-		t.Fatalf("Get() error = %v", err)
+		t.Fatalf("Ins() error = %v", err)
 	}
 
 	// 测试 slice
@@ -633,7 +633,7 @@ func TestMemoryManager_ComplexValues(t *testing.T) {
 	var sliceResult any
 	err = mgr.Get(ctx, "slice_key", &sliceResult)
 	if err != nil {
-		t.Fatalf("Get() error = %v", err)
+		t.Fatalf("Ins() error = %v", err)
 	}
 
 	// 测试 struct
@@ -650,7 +650,7 @@ func TestMemoryManager_ComplexValues(t *testing.T) {
 	var structResult any
 	err = mgr.Get(ctx, "struct_key", &structResult)
 	if err != nil {
-		t.Fatalf("Get() error = %v", err)
+		t.Fatalf("Ins() error = %v", err)
 	}
 }
 

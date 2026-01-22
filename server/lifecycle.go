@@ -11,7 +11,7 @@ import (
 // startManagers 启动所有管理器
 func (e *Engine) startManagers() error {
 	// 启动内置管理器
-	managers := e.builtin.GetManagers()
+	managers := e.Manager.GetAll()
 	for _, mgr := range managers {
 		if err := mgr.(common.IBaseManager).OnStart(); err != nil {
 			return fmt.Errorf("failed to start manager %s: %w", mgr.(common.IBaseManager).ManagerName(), err)
@@ -45,7 +45,7 @@ func (e *Engine) startServices() error {
 // stopManagers 停止所有管理器
 func (e *Engine) stopManagers() []error {
 	// 停止内置管理器（反向顺序）
-	managers := e.builtin.GetManagers()
+	managers := e.Manager.GetAll()
 	var errors []error
 	for i := len(managers) - 1; i >= 0; i-- {
 		if err := managers[i].(common.IBaseManager).OnStop(); err != nil {

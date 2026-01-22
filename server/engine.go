@@ -4,29 +4,29 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
+	"github.com/lite-lake/litecore-go/logger"
 	"github.com/lite-lake/litecore-go/server/builtin"
-	"github.com/lite-lake/litecore-go/util/logger"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // Engine 服务引擎
 type Engine struct {
 	// 内置配置（在 Initialize 时用于初始化内置组件）
 	builtinConfig *builtin.Config
-	// 内置组件（在 Initialize 时初始化）
-	builtin *builtin.Components
-
-	// LoggerRegistry（早期日志支持）
-	loggerRegistry *logger.LoggerRegistry
 
 	// 容器
+	Manager    *container.ManagerContainer // 内置组件（在 Initialize 时初始化）
 	Entity     *container.EntityContainer
 	Repository *container.RepositoryContainer
 	Service    *container.ServiceContainer
@@ -73,14 +73,12 @@ func NewEngine(
 	}
 }
 
-// GetBuiltin 获取内置组件
-func (e *Engine) GetBuiltin() *builtin.Components {
-	return e.builtin
-}
-
-// GetLoggerRegistry 获取 LoggerRegistry
-func (e *Engine) GetLoggerRegistry() *logger.LoggerRegistry {
-	return e.loggerRegistry
+func (e *Engine) logger() logger.ILogger {
+	mgr, err := container.GetManager[loggermgr.ILoggerManager](e.Manager)
+	if err != nil {
+		panic(fmt.Sprintf("failed to get logger manager: %v", err))
+	}
+	return mgr.Ins()
 }
 
 // Initialize 初始化引擎（实现 liteServer 接口）
@@ -93,18 +91,12 @@ func (e *Engine) Initialize() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// 1. 创建 LoggerRegistry（总是可用）
-	e.loggerRegistry = logger.NewLoggerRegistry()
-
-	// 2. 初始化内置组件
-	builtinComponents, err := builtin.Initialize(e.builtinConfig)
+	// 1. 初始化内置组件
+	builtInManagerContainer, err := builtin.Initialize(e.builtinConfig)
 	if err != nil {
 		return fmt.Errorf("failed to initialize builtin components: %w", err)
 	}
-	e.builtin = builtinComponents
-
-	// 3. 将 LoggerManager 设置给 LoggerRegistry
-	e.loggerRegistry.SetLoggerManager(e.builtin.LoggerManager)
+	e.Manager = builtInManagerContainer
 
 	// 4. 自动依赖注入
 	if err := e.autoInject(); err != nil {
@@ -124,7 +116,7 @@ func (e *Engine) Initialize() error {
 
 	// 添加 NoRoute 处理器
 	e.ginEngine.NoRoute(func(c *gin.Context) {
-		e.builtin.LoggerManager.Logger("server").Warn("Route not found", "path", c.Request.URL.Path, "method", c.Request.Method)
+		e.logger().Warn("Route not found", "path", c.Request.URL.Path, "method", c.Request.Method)
 		c.JSON(common.HTTPStatusNotFound, gin.H{
 			"error":  "route not found",
 			"path":   c.Request.URL.Path,
@@ -155,35 +147,28 @@ func (e *Engine) Initialize() error {
 // autoInject 自动依赖注入
 func (e *Engine) autoInject() error {
 	// 按依赖顺序自动注入
-	// 1. Entity 层（无依赖）
-	if err := e.Entity.InjectAll(); err != nil {
-		return fmt.Errorf("entity inject failed: %w", err)
-	}
+	// 1. Entity 层（无需依赖注入）
 
-	// 2. Repository 层（依赖 Builtin + Entity）
-	e.Repository.SetBuiltinProvider(e.builtin)
-	e.Repository.SetLoggerRegistry(e.loggerRegistry)
+	// 2. Repository 层（依赖 Manager + Entity）
+	e.Repository.SetManagerContainer(e.Manager)
 	if err := e.Repository.InjectAll(); err != nil {
 		return fmt.Errorf("repository inject failed: %w", err)
 	}
 
-	// 3. Service 层（依赖 Builtin + Repository + 同层）
-	e.Service.SetBuiltinProvider(e.builtin)
-	e.Service.SetLoggerRegistry(e.loggerRegistry)
+	// 3. Service 层（依赖 Manager + Repository + 同层）
+	e.Service.SetManagerContainer(e.Manager)
 	if err := e.Service.InjectAll(); err != nil {
 		return fmt.Errorf("service inject failed: %w", err)
 	}
 
-	// 4. Controller 层（依赖 Builtin + Service）
-	e.Controller.SetBuiltinProvider(e.builtin)
-	e.Controller.SetLoggerRegistry(e.loggerRegistry)
+	// 4. Controller 层（依赖 Manager + Service）
+	e.Controller.SetManagerContainer(e.Manager)
 	if err := e.Controller.InjectAll(); err != nil {
 		return fmt.Errorf("controller inject failed: %w", err)
 	}
 
-	// 5. Middleware 层（依赖 Builtin + Service）
-	e.Middleware.SetBuiltinProvider(e.builtin)
-	e.Middleware.SetLoggerRegistry(e.loggerRegistry)
+	// 5. Middleware 层（依赖 Manager + Service）
+	e.Middleware.SetManagerContainer(e.Manager)
 	if err := e.Middleware.InjectAll(); err != nil {
 		return fmt.Errorf("middleware inject failed: %w", err)
 	}
@@ -222,9 +207,9 @@ func (e *Engine) Start() error {
 	// 4. 启动 HTTP 服务器
 	errChan := make(chan error, 1)
 	go func() {
-		e.builtin.LoggerManager.Logger("server").Info("HTTP server listening", "addr", e.httpServer.Addr)
+		e.logger().Info("HTTP server listening", "addr", e.httpServer.Addr)
 		if err := e.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			e.builtin.LoggerManager.Logger("server").Error("HTTP server error", "error", err)
+			e.logger().Error("HTTP server error", "error", err)
 			errChan <- fmt.Errorf("HTTP server error: %w", err)
 			e.cancel()
 		}
@@ -269,13 +254,13 @@ func (e *Engine) registerControllers() error {
 
 		method, path, err := parseRoute(route)
 		if err != nil {
-			e.builtin.LoggerManager.Logger("server").Warn("Invalid route format", "controller", ctrl.ControllerName(), "error", err)
+			e.logger().Warn("Invalid route format", "controller", ctrl.ControllerName(), "error", err)
 			continue
 		}
 
 		handler := ctrl.Handle
 		e.registerRoute(method, path, handler)
-		e.builtin.LoggerManager.Logger("server").Info("Registered controller", "name", ctrl.ControllerName(), "method", method, "path", path)
+		e.logger().Info("Registered controller", "name", ctrl.ControllerName(), "method", method, "path", path)
 	}
 
 	return nil
@@ -312,5 +297,19 @@ func (e *Engine) initializeGinEngineServices() {
 		if ginEngineSetter, ok := svc.(interface{ SetGinEngine(*gin.Engine) }); ok {
 			ginEngineSetter.SetGinEngine(e.ginEngine)
 		}
+	}
+}
+
+// WaitForShutdown 等待关闭信号
+func (e *Engine) WaitForShutdown() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	sig := <-sigs
+	e.logger().Info("Received shutdown signal", "signal", sig)
+
+	if err := e.Stop(); err != nil {
+		e.logger().Fatal("Shutdown error", "error", err)
+		os.Exit(1)
 	}
 }
