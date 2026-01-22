@@ -3,78 +3,38 @@ package loggermgr
 import (
 	"fmt"
 	"strings"
+
+	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
+	"gopkg.in/yaml.v3"
 )
 
-// IConfigProvider 配置提供者接口
 type IConfigProvider interface {
-	// ConfigProviderName 返回当前配置提供者的类名
-	ManagerName() string
-	// Get 获取配置项 （key 支持 aaa.bbb.ccc 路径查询)
 	Get(key string) (any, error)
-	// Has 检查配置项是否存在
 	Has(key string) bool
 }
 
-// Build 创建日志管理器实例
-// driverType: 驱动类型 ("zap", "none")
-// driverConfig: 驱动配置 (根据驱动类型不同而不同)
-//   - zap: 传递给 ParseLoggerConfigFromMap 的 map[string]any
-//   - none: 忽略
-//
-// 返回 LoggerManager 接口实例和可能的错误
-func Build(
-	driverType string,
-	driverConfig map[string]any,
-) (ILoggerManager, error) {
-	// 标准化驱动类型（大小写不敏感，去除空格）
-	driverType = strings.ToLower(strings.TrimSpace(driverType))
-
-	switch driverType {
-	case "zap":
-		// 解析 Zap 配置
-		loggerConfig, err := ParseLoggerConfigFromMap(driverConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse zap configmgr: %w", err)
-		}
-
-		// 设置驱动类型
-		loggerConfig.Driver = driverType
-
-		// 验证配置
-		if err := loggerConfig.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid configmgr: %w", err)
-		}
-
-		// 创建 Zap 实现
-		mgr, err := NewLoggerManagerZapImpl(loggerConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create zap manager: %w", err)
-		}
-
-		return mgr, nil
-
-	case "none":
-		mgr := NewLoggerManagerNoneImpl()
-		return mgr, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported driver type: %s (must be zap or none)", driverType)
+func NewLoggerManager(config *Config, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
+	if config == nil {
+		return nil, fmt.Errorf("config cannot be nil")
 	}
+	switch config.Driver {
+	case "zap":
+		return NewDriverZapLoggerManager(config.ZapConfig, telemetryMgr)
+	case "default":
+		return NewDriverDefaultLoggerManager(), nil
+	case "none":
+		return NewDriverNoneLoggerManager(), nil
+	default:
+		return nil, fmt.Errorf("unknown logger driver: %s", config.Driver)
+	}
+
 }
 
-// BuildWithConfigProvider 从配置提供者创建日志管理器实例
-// 自动从配置提供者读取 logger.driver 和对应驱动配置
-// 配置路径：
-//   - logger.driver: 驱动类型 ("zap", "none")
-//   - logger.zap_config: Zap 驱动配置（当 driver=zap 时使用）
-//
-// 返回 LoggerManager 接口实例和可能的错误
-func BuildWithConfigProvider(configProvider IConfigProvider) (ILoggerManager, error) {
+func BuildWithConfigProvider(configProvider IConfigProvider, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}
 
-	// 1. 读取驱动类型 logger.driver
 	driverType, err := configProvider.Get("logger.driver")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logger.driver: %w", err)
@@ -85,38 +45,46 @@ func BuildWithConfigProvider(configProvider IConfigProvider) (ILoggerManager, er
 		return nil, fmt.Errorf("logger.driver must be a string, got %T", driverType)
 	}
 
-	// 标准化驱动类型（大小写不敏感，去除空格）
 	driverTypeStr = strings.ToLower(strings.TrimSpace(driverTypeStr))
 
-	// 2. 根据驱动类型读取对应配置
-	var driverConfig map[string]any
+	var cfg *Config
 
 	switch driverTypeStr {
 	case "zap":
-		// 读取 zap_config
 		zapConfig, err := configProvider.Get("logger.zap_config")
 		if err != nil {
 			return nil, fmt.Errorf("failed to get logger.zap_config: %w", err)
 		}
-		driverConfig, ok = zapConfig.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("logger.zap_config must be a map, got %T", zapConfig)
+
+		zapCfg := &DriverZapConfig{}
+		if zapConfig != nil {
+			data, err := yaml.Marshal(zapConfig)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal zap config: %w", err)
+			}
+			if err := yaml.Unmarshal(data, zapCfg); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal zap config: %w", err)
+			}
+		}
+
+		cfg = &Config{
+			Driver:    "zap",
+			ZapConfig: zapCfg,
+		}
+
+	case "default":
+		cfg = &Config{
+			Driver: "default",
 		}
 
 	case "none":
-		// none 驱动不需要配置
-		driverConfig = nil
+		cfg = &Config{
+			Driver: "none",
+		}
 
 	default:
-		return nil, fmt.Errorf("unsupported driver type: %s (must be zap or none)", driverTypeStr)
+		return nil, fmt.Errorf("unsupported driver type: %s (must be zap, default or none)", driverTypeStr)
 	}
 
-	// 3. 调用 Build 函数创建实例
-	return Build(driverTypeStr, driverConfig)
-}
-
-// Default 返回默认的日志实例
-func Default() ILogger {
-	mgr := NewLoggerManagerNoneImpl()
-	return mgr.Logger("default")
+	return NewLoggerManager(cfg, telemetryMgr)
 }
