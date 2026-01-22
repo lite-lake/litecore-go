@@ -114,8 +114,8 @@ type IUserRepository interface {
 }
 
 type UserRepository struct {
-    common.BaseRepository
-    DBMgr databasemgr.IDatabaseManager `inject:""`
+    Config  configmgr.IConfigManager    `inject:""`
+    Manager databasemgr.IDatabaseManager `inject:""`
 }
 
 func (r *UserRepository) List() ([]*User, error) {
@@ -131,8 +131,8 @@ type IUserService interface {
 }
 
 type UserService struct {
-    common.BaseService
-    Repo IUserRepository `inject:""`
+    Config configmgr.IConfigManager `inject:""`
+    Repo   IUserRepository          `inject:""`
 }
 
 func (s *UserService) List() ([]*User, error) {
@@ -141,8 +141,8 @@ func (s *UserService) List() ([]*User, error) {
 
 // 4. 创建控制器 (internal/controllers/user_controller.go)
 type UserController struct {
-    common.BaseController
-    Svc IUserService `inject:""`
+    Config configmgr.IConfigManager `inject:""`
+    Svc    IUserService             `inject:""`
 }
 
 func (ctrl *UserController) GetRouter() string {
@@ -178,53 +178,49 @@ go run ./cmd/server
 │  - 参数验证和转换                                    │
 │  - 调用 Service 层业务逻辑                           │
 └─────────────────────────────────────────────────────┘
-                         ↓ 依赖
+                          ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
 │  Service                           (服务层)         │
 │  - 编排业务逻辑                                          │
 │  - 事务管理                                             │
 │  - 调用 Repository 和其他 Service                      │
 └─────────────────────────────────────────────────────┘
-                         ↓ 依赖
+                          ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
 │  Repository                       (仓储层)           │
 │  - 数据访问抽象                                        │
 │  - 与 Manager 和 Entity 交互                          │
 │  - 封装数据查询逻辑                                    │
 └─────────────────────────────────────────────────────┘
-            ↓ 依赖              ↑ 使用
+             ↓ 依赖              ↑ 使用
 ┌─────────────────────────┐    ┌──────────────────────┐
 │  Manager  (内置组件)     │    │  Entity    (实体层)   │
-│  - 数据库、缓存、日志等   │    │  - 数据模型定义        │
-│  - 外部资源管理           │    │  - 表映射和验证规则    │
-│  - 与外部系统交互         │    │                      │
+│  - server/builtin/      │    │  - 数据模型定义        │
+│    manager/             │    │  - 表映射和验证规则    │
+│  - configmgr            │    │  - 无依赖              │
+│  - loggermgr            │    │                      │
+│  - databasemgr          │    │                      │
+│  - cachemgr             │    │                      │
+│  - telemetrymgr         │    │                      │
 │  - 由引擎自动初始化       │    │                      │
 └─────────────────────────┘    └──────────────────────┘
-            ↓ 依赖
-┌─────────────────────────────────────────────────────┐
-│  ConfigProvider                    (内置配置)       │
-│  - 统一配置加载                                         │
-│  - 类型安全的配置访问                                  │
-│  - 支持热重载                                          │
-│  - 由引擎自动初始化                                   │
-└─────────────────────────────────────────────────────┘
 ```
 
 ### 依赖规则
 
 - **向下依赖**：上层只能依赖下层
-- **单向依赖**：Config → Entity → Manager → Repository → Service → Controller/Middleware
+- **单向依赖**：Entity → Manager → Repository → Service → Controller/Middleware
 - **同层依赖**：Service 支持同层依赖，通过拓扑排序解决循环依赖
-- **内置组件**：Config 和 Manager 作为服务器内置组件，由引擎自动初始化和注入
+- **内置组件**：Manager 作为服务器内置组件（位于 server/builtin/manager/），由引擎自动初始化和注入
 
 ### 依赖注入
 
-使用 `inject:""` 标签声明依赖，Config 和 Manager 由引擎自动注入：
+使用 `inject:""` 标签声明依赖，Manager 由引擎自动注入：
 
 ```go
 type UserServiceImpl struct {
     // 内置组件（由引擎自动注入）
-    Config    common.IBaseConfigProvider  `inject:""`
+    Config    configmgr.IConfigManager    `inject:""`
     DBMgr     databasemgr.IDatabaseManager `inject:""`
     CacheMgr  cachemgr.ICacheManager      `inject:""`
 
@@ -241,21 +237,28 @@ type UserServiceImpl struct {
 
 ## 核心组件
 
-### 1. 配置管理 (config)
+### 1. 配置管理 (configmgr)
 
-支持 YAML/JSON 配置文件，类型安全的配置读取：
+支持 YAML/JSON 配置文件，内置组件自动加载配置：
 
 ```go
-// 读取配置
-configProvider := config.NewConfigProvider("yaml", "configs/config.yaml")
+// 配置由引擎自动初始化，通过依赖注入使用
+type MyService struct {
+    Config configmgr.IConfigManager `inject:""`
+}
 
-// 获取配置值
-port := configProvider.GetInt("server.port", 8080)
-mode := configProvider.GetString("server.mode", "debug")
+func (s *MyService) OnStart() error {
+    // 获取配置值
+    port := s.Config.GetInt("server.port", 8080)
+    mode := s.Config.GetString("server.mode", "debug")
 
-// 获取结构化配置
-var dbConfig databasemgr.MySQLConfig
-configProvider.Unmarshal("database.mysql_config", &dbConfig)
+    // 获取结构化配置
+    var dbConfig databasemgr.MySQLConfig
+    if err := s.Config.Unmarshal("database.mysql_config", &dbConfig); err != nil {
+        return err
+    }
+    return nil
+}
 ```
 
 ### 2. 数据库管理 (databasemgr)
@@ -263,10 +266,29 @@ configProvider.Unmarshal("database.mysql_config", &dbConfig)
 基于 GORM 的多数据库支持：
 
 ```go
-// 工厂函数创建
-dbMgr, _ := databasemgr.Build("mysql", &databasemgr.MySQLConfig{
-    DSN: "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4",
-})
+// 由引擎自动初始化，通过依赖注入使用
+type MyRepository struct {
+    Manager databasemgr.IDatabaseManager `inject:""`
+}
+
+func (r *MyRepository) OnStart() error {
+    // 自动迁移
+    return r.Manager.AutoMigrate(&User{})
+}
+
+func (r *MyRepository) FindUser(id uint) (*User, error) {
+    // 数据库操作
+    var user User
+    err := r.Manager.DB().First(&user, id).Error
+    return &user, err
+}
+
+// 健康检查
+err := r.Manager.Health()
+
+// 连接池统计
+stats := r.Manager.Stats()
+```
 
 // 自动迁移
 dbMgr.AutoMigrate(&User{})
@@ -290,63 +312,72 @@ stats := dbMgr.Stats()
 
 ### 3. 缓存管理 (cachemgr)
 
-统一缓存接口，支持 Redis 和内存缓存：
+统一缓存接口，由引擎自动初始化，通过依赖注入使用：
 
 ```go
-// Redis 缓存
-cacheMgr, _ := cachemgr.Build("redis", &cachemgr.RedisConfig{
-    Addr: "localhost:6379",
-    Password: "",
-    DB: 0,
-})
+// 由引擎自动初始化，通过依赖注入使用
+type MyService struct {
+    CacheMgr cachemgr.ICacheManager `inject:""`
+}
 
-// 设置值
-cacheMgr.Set(ctx, "key", "value", time.Hour)
+func (s *MyService) GetData(ctx context.Context, key string) (string, error) {
+    // 获取值
+    val, err := s.CacheMgr.Get(ctx, key)
+    return val, err
+}
 
-// 获取值
-val, err := cacheMgr.Get(ctx, "key")
+func (s *MyService) SetData(ctx context.Context, key, value string) error {
+    // 设置值
+    return s.CacheMgr.Set(ctx, key, value, time.Hour)
+}
 
-// 删除值
-cacheMgr.Delete(ctx, "key")
+func (s *MyService) DeleteData(ctx context.Context, key string) error {
+    // 删除值
+    return s.CacheMgr.Delete(ctx, key)
+}
 ```
 
 ### 4. 日志管理 (loggermgr)
 
-基于 Zap 的结构化日志：
+基于 Zap 的结构化日志，由引擎自动初始化，通过依赖注入使用：
 
 ```go
-loggerMgr, _ := loggermgr.Build("zap", &loggermgr.ZapConfig{
-    Level:  "info",
-    Format: "json",
-})
+// 由引擎自动初始化，通过依赖注入使用
+type MyService struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+}
 
-logger := loggerMgr.Logger("service")
-
-// 记录日志
-logger.Info("user login", "user_id", "123", "ip", "127.0.0.1")
-
-logger.Error("database error", "error", err, "query", sql)
+func (s *MyService) DoSomething() {
+    logger := s.LoggerMgr.Ins()
+    // 记录日志
+    logger.Info("user login", "user_id", "123", "ip", "127.0.0.1")
+    logger.Error("database error", "error", err, "query", sql)
+}
 ```
 
 ### 5. 遥测管理 (telemetrymgr)
 
-OpenTelemetry 集成：
+OpenTelemetry 集成，由引擎自动初始化，通过依赖注入使用：
 
 ```go
-telemetryMgr, _ := telemetrymgr.Build("otel", &telemetrymgr.OtelConfig{
-    ServiceName: "myapp",
-    Endpoint:    "http://localhost:4317",
-})
+// 由引擎自动初始化，通过依赖注入使用
+type MyService struct {
+    TelemetryMgr telemetrymgr.ITelemetryManager `inject:""`
+}
 
-// 创建 span
-ctx, span := telemetryMgr.Tracer().Start(ctx, "operation-name")
-defer span.End()
+func (s *MyService) DoSomething(ctx context.Context) error {
+    // 创建 span
+    ctx, span := s.TelemetryMgr.Tracer("MyService").Start(ctx, "operation-name")
+    defer span.End()
 
-// 记录属性
-span.SetAttributes(attribute.String("key", "value"))
+    // 记录属性
+    span.SetAttributes(attribute.String("key", "value"))
 
-// 记录事件
-span.AddEvent("event-name")
+    // 记录事件
+    span.AddEvent("event-name")
+
+    return nil
+}
 ```
 
 ### 6. HTTP 服务引擎 (server)
@@ -649,12 +680,11 @@ func (ctrl *UserController) GetRouter() string {
 
 ### 3. 配置管理
 
-使用统一的配置提供者：
+使用统一的配置管理器：
 
 ```go
 type MyService struct {
-    common.BaseService
-    Config common.IBaseConfigProvider `inject:""`
+    Config configmgr.IConfigManager `inject:""`
 }
 
 func (s *MyService) OnStart() error {

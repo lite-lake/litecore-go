@@ -20,7 +20,7 @@ import (
     "fmt"
     "log"
 
-    "yourproject/util/crypt"
+    "github.com/lite-lake/litecore-go/util/crypt"
 )
 
 func main() {
@@ -861,41 +861,8 @@ import (
     "fmt"
     "log"
 
-    "yourproject/util/crypt"
+    "github.com/lite-lake/litecore-go/util/crypt"
 )
-
-// User 用户结构
-type User struct {
-    Username     string
-    PasswordHash string
-}
-
-// Register 用户注册
-func Register(username, password string) (*User, error) {
-    // 生成密码哈希
-    hash, err := crypt.Crypt.BcryptHash(password, 12)
-    if err != nil {
-        return nil, fmt.Errorf("密码哈希失败: %w", err)
-    }
-
-    user := &User{
-        Username:     username,
-        PasswordHash: hash,
-    }
-
-    // 在实际应用中，这里应该保存到数据库
-    return user, nil
-}
-
-// Login 用户登录
-func Login(user *User, password string) error {
-    // 验证密码
-    if !crypt.Crypt.BcryptVerify(password, user.PasswordHash) {
-        return fmt.Errorf("用户名或密码错误")
-    }
-
-    return nil
-}
 
 func main() {
     // 注册用户
@@ -934,7 +901,7 @@ import (
     "log"
     "os"
 
-    "yourproject/util/crypt"
+    "github.com/lite-lake/litecore-go/util/crypt"
 )
 
 // EncryptData 加密数据
@@ -1021,7 +988,7 @@ import (
     "fmt"
     "log"
 
-    "yourproject/util/crypt"
+    "github.com/lite-lake/litecore-go/util/crypt"
 )
 
 // APIClient API 客户端

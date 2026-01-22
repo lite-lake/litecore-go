@@ -20,7 +20,7 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/rand"
+    "github.com/lite-lake/litecore-go/util/rand"
 )
 
 func main() {
@@ -59,7 +59,7 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/rand"
+    "github.com/lite-lake/litecore-go/util/rand"
 )
 
 func main() {

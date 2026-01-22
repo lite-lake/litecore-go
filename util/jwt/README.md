@@ -16,7 +16,7 @@ JWT (JSON Web Token) 令牌生成、解析和验证工具库，支持多种签�
 ### 安装
 
 ```bash
-go get github.com/your-repo/litecore-go/util/jwt
+go get github.com/lite-lake/litecore-go
 ```
 
 ### 基本使用
@@ -28,7 +28,7 @@ import (
     "fmt"
     "time"
 
-    "github.com/your-repo/litecore-go/util/jwt"
+    "github.com/lite-lake/litecore-go/util/jwt"
 )
 
 func main() {
@@ -85,7 +85,7 @@ import (
     "fmt"
     "time"
 
-    "github.com/your-repo/litecore-go/util/jwt"
+    "github.com/lite-lake/litecore-go/util/jwt"
 )
 
 func main() {
@@ -157,7 +157,7 @@ import (
     "crypto/rsa"
     "fmt"
 
-    "github.com/your-repo/litecore-go/util/jwt"
+    "github.com/lite-lake/litecore-go/util/jwt"
 )
 
 func main() {
@@ -230,7 +230,7 @@ import (
     "fmt"
     "time"
 
-    "github.com/your-repo/litecore-go/util/jwt"
+    "github.com/lite-lake/litecore-go/util/jwt"
 )
 
 func main() {
@@ -277,7 +277,7 @@ import (
     "fmt"
     "time"
 
-    "github.com/your-repo/litecore-go/util/jwt"
+    "github.com/lite-lake/litecore-go/util/jwt"
 )
 
 func main() {
@@ -358,7 +358,7 @@ import (
     "fmt"
     "time"
 
-    "github.com/your-repo/litecore-go/util/jwt"
+    "github.com/lite-lake/litecore-go/util/jwt"
 )
 
 func main() {
@@ -410,7 +410,7 @@ package main
 import (
     "time"
 
-    "github.com/your-repo/litecore-go/util/jwt"
+    "github.com/lite-lake/litecore-go/util/jwt"
 )
 
 // CustomClaims 自定义 Claims 结构

@@ -290,25 +290,26 @@ logger:
 package main
 
 import (
+    "fmt"
+    "os"
     app "github.com/lite-lake/litecore-go/samples/myapp/internal/application"
-    loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 )
 
 func main() {
-    loggerMgr := loggermgr.GetLoggerManager()
-    logger := loggerMgr.Logger("main")
-    
     engine, err := app.NewEngine()
     if err != nil {
-        logger.Fatal("Failed to create engine", "error", err)
+        fmt.Fprintf(os.Stderr, "Failed to create engine: %v\n", err)
+        os.Exit(1)
     }
 
     if err := engine.Initialize(); err != nil {
-        logger.Fatal("Failed to initialize engine", "error", err)
+        fmt.Fprintf(os.Stderr, "Failed to initialize engine: %v\n", err)
+        os.Exit(1)
     }
 
     if err := engine.Start(); err != nil {
-        logger.Fatal("Failed to start engine", "error", err)
+        fmt.Fprintf(os.Stderr, "Failed to start engine: %v\n", err)
+        os.Exit(1)
     }
 
     engine.WaitForShutdown()
@@ -357,15 +358,9 @@ go run ./cmd/server/main.go
 
 ### 5.1 Entity 层（实体层）
 
-Config 层负责配置文件的加载和配置项的访问。
-
 Entity 层定义数据实体，映射到数据库表结构。实体层无外部依赖，只包含纯数据定义。
 
 #### 5.1.1 实体示例
-
-Entity 层定义数据实体，映射到数据库表结构。实体层无外部依赖，只包含纯数据定义。
-
-#### 5.1.2 实体示例
 
 ```go
 package entities
@@ -459,8 +454,8 @@ type IUserRepository interface {
 }
 
 type userRepository struct {
-    Config  common.IBaseConfigProvider     `inject:""`
-    Manager managers.IDatabaseManager      `inject:""`
+    Config  configmgr.IConfigManager     `inject:""`
+    Manager databasemgr.IDatabaseManager `inject:""`
 }
 
 func NewUserRepository() IUserRepository {
@@ -580,6 +575,7 @@ import (
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
 type IUserService interface {
@@ -592,8 +588,8 @@ type IUserService interface {
 }
 
 type userService struct {
-    Config     common.IBaseConfigProvider      `inject:""`
-    Repository repositories.IUserRepository   `inject:""`
+    Config     configmgr.IConfigManager      `inject:""`
+    Repository repositories.IUserRepository  `inject:""`
 }
 
 func NewUserService() IUserService {
@@ -740,6 +736,7 @@ import (
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/dtos"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 
     "github.com/gin-gonic/gin"
 )
@@ -749,7 +746,8 @@ type IUserController interface {
 }
 
 type userController struct {
-    UserService services.IUserService `inject:""`
+    Config      configmgr.IConfigManager `inject:""`
+    UserService services.IUserService    `inject:""`
 }
 
 func NewUserController() IUserController {
@@ -886,6 +884,7 @@ import (
 
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 
     "github.com/gin-gonic/gin"
 )
@@ -895,7 +894,8 @@ type IAuthMiddleware interface {
 }
 
 type authMiddleware struct {
-    AuthService services.IAuthService `inject:""`
+    Config      configmgr.IConfigManager `inject:""`
+    AuthService services.IAuthService    `inject:""`
 }
 
 func NewAuthMiddleware() IAuthMiddleware {
@@ -996,49 +996,44 @@ func (m *TelemetryMiddleware) Order() int    { return 300 }  // 遥测中间件
 
 ### 6.1 Config（配置）
 
-Config 作为服务器内置组件，由引擎自动初始化。开发者只需提供配置提供者（由框架自动发现并初始化）：
+Config 作为服务器内置组件，由引擎自动初始化。在创建引擎时通过 `builtin.Config` 指定配置文件：
 
 ```go
-// 框架会自动发现并调用此函数初始化 Config
-package configproviders
-
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/config"
-)
-
-func NewConfigProvider() (common.IBaseConfigProvider, error) {
-    return config.NewConfigProvider("yaml", "configs/config.yaml")
+// 引擎自动生成的代码会创建 Config
+func NewEngine() (*server.Engine, error) {
+    // ...
+    return server.NewEngine(
+        &builtin.Config{
+            Driver:   "yaml",
+            FilePath: "configs/config.yaml",
+        },
+        entityContainer,
+        repositoryContainer,
+        serviceContainer,
+        controllerContainer,
+        middlewareContainer,
+    ), nil
 }
 ```
 
 ### 6.2 Manager（管理器）
 
-Manager 组件也作为服务器内置组件，由引擎自动初始化。开发者只需提供管理器工厂（由框架自动发现并初始化）：
+Manager 组件也作为服务器内置组件，由引擎自动初始化。在 `Initialize()` 时自动初始化所有 Manager：
 
 ```go
-// 框架会自动发现并调用此函数初始化 DatabaseManager
-package managers
+// 框架自动初始化的 Manager（按顺序）
+// 1. ConfigManager - 配置管理
+// 2. TelemetryManager - 遥测管理
+// 3. LoggerManager - 日志管理
+// 4. DatabaseManager - 数据库管理
+// 5. CacheManager - 缓存管理
+```
 
-import (
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/component/manager/databasemgr"
-)
+无需手动创建 Manager，只需在代码中通过依赖注入使用：
 
-type IDatabaseManager interface {
-    databasemgr.IDatabaseManager
-}
-
-type databaseManagerImpl struct {
-    databasemgr.IDatabaseManager
-}
-
-func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseManager, error) {
-    mgr, err := databasemgr.BuildWithConfigProvider(configProvider)
-    if err != nil {
-        return nil, err
-    }
-    return &databaseManagerImpl{mgr}, nil
+```go
+type userRepository struct {
+    Manager databasemgr.IDatabaseManager `inject:""`
 }
 ```
 
@@ -1058,12 +1053,12 @@ func NewDatabaseManager(configProvider common.IBaseConfigProvider) (IDatabaseMan
 ```go
 type UserServiceImpl struct {
     // 内置组件（由引擎自动注入）
-    Config    common.IBaseConfigProvider  `inject:""`
+    Config    configmgr.IConfigManager      `inject:""`
     DBManager databasemgr.IDatabaseManager `inject:""`
-    CacheMgr  cachemgr.ICacheManager      `inject:""`
+    CacheMgr  cachemgr.ICacheManager       `inject:""`
 
     // 业务依赖
-    UserRepo  IUserRepository             `inject:""`
+    UserRepo  IUserRepository              `inject:""`
 }
 ```
 
@@ -1153,12 +1148,12 @@ LiteCore 提供自动化的依赖注入容器，简化组件管理。
 ```go
 type userService struct {
     // 内置组件（引擎自动注入）
-    Config     common.IBaseConfigProvider      `inject:""`
-    DBManager  databasemgr.IDatabaseManager   `inject:""`
-    CacheMgr   infras.ICacheManager           `inject:""`
+    Config     configmgr.IConfigManager      `inject:""`
+    DBManager  databasemgr.IDatabaseManager  `inject:""`
+    CacheMgr   cachemgr.ICacheManager        `inject:""`
 
     // 业务依赖
-    Repository repositories.IUserRepository   `inject:""`
+    Repository repositories.IUserRepository  `inject:""`
 }
 ```
 
@@ -1178,8 +1173,8 @@ type userService struct {
 ```go
 type userRepository struct {
     // 内置组件（引擎自动注入）
-    Config  common.IBaseConfigProvider     `inject:""`
-    Manager managers.IDatabaseManager      `inject:""`
+    Config  configmgr.IConfigManager     `inject:""`
+    Manager databasemgr.IDatabaseManager `inject:""`
 
     // 业务依赖
 }
@@ -1190,13 +1185,13 @@ type userRepository struct {
 ```go
 type userService struct {
     // 内置组件（引擎自动注入）
-    Config     common.IBaseConfigProvider      `inject:""`
-    DBManager  databasemgr.IDatabaseManager   `inject:""`
-    CacheMgr   infras.ICacheManager           `inject:""`
+    Config     configmgr.IConfigManager      `inject:""`
+    DBManager  databasemgr.IDatabaseManager  `inject:""`
+    CacheMgr   cachemgr.ICacheManager       `inject:""`
 
     // 业务依赖
-    Repository   repositories.IUserRepository   `inject:""`
-    OtherService services.IOtherService         `inject:""`
+    Repository   repositories.IUserRepository  `inject:""`
+    OtherService services.IOtherService        `inject:""`
 }
 ```
 
@@ -1205,7 +1200,7 @@ type userService struct {
 ```go
 type userController struct {
     // 内置组件（引擎自动注入）
-    Config    common.IBaseConfigProvider  `inject:""`
+    Config    configmgr.IConfigManager `inject:""`
 
     // 业务依赖
     UserService services.IUserService `inject:""`
@@ -1217,7 +1212,7 @@ type userController struct {
 ```go
 type authMiddleware struct {
     // 内置组件（引擎自动注入）
-    Config    common.IBaseConfigProvider  `inject:""`
+    Config    configmgr.IConfigManager `inject:""`
 
     // 业务依赖
     AuthService services.IAuthService `inject:""`
@@ -1287,12 +1282,12 @@ telemetry:
 ### 8.2 使用配置
 
 ```go
-import "github.com/lite-lake/litecore-go/configmgr"
+import "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 
 // 获取配置值
-appName, _ := config.Get[string](configProvider, "app.name")
-port, _ := config.Get[int](configProvider, "server.port")
-enabled, _ := config.Get[bool](configProvider, "logger.console_enabled")
+appName, _ := configProvider.Get("app.name")
+port, _ := configProvider.Get("server.port")
+enabled, _ := configProvider.Get("logger.console_enabled")
 
 // 检查配置是否存在
 if configProvider.Has("database.mysql_config.dsn") {
@@ -1315,9 +1310,9 @@ database:
 
 访问方式：
 ```go
-config.Get[string](configProvider, "database.driver")
-config.Get[string](configProvider, "database.mysql_config.dsn")
-config.Get[int](configProvider, "database.mysql_config.pool_config.max_open_conns")
+configProvider.Get("database.driver")
+configProvider.Get("database.mysql_config.dsn")
+configProvider.Get("database.mysql_config.pool_config.max_open_conns")
 ```
 
 ---
@@ -1436,14 +1431,16 @@ ctx.JSON(500, gin.H{"error": err.Error()})
 在业务层组件中通过依赖注入使用日志：
 
 ```go
+import "github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
+
 type MyService struct {
     LoggerMgr loggermgr.ILoggerManager `inject:""`
-    logger     loggermgr.ILogger
+    logger     logger.ILogger
 }
 
 func (s *MyService) initLogger() {
     if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Logger("MyService")
+        s.logger = s.LoggerMgr.Ins()
     }
 }
 
@@ -1452,12 +1449,8 @@ func (s *MyService) SomeMethod(userID string) {
     s.logger.Info("操作开始", "user_id", userID)
 }
 
-// 在main函数中使用
-func main() {
-    loggerMgr := loggermgr.GetLoggerManager()
-    logger := loggerMgr.Logger("main")
-    logger.Fatal("启动失败", "error", err)
-}
+// 注意：main函数中不要使用logger，直接使用fmt和os处理错误即可
+// 因为LoggerMgr需要通过引擎初始化后才能使用
 ```
 
 ### 10.4 数据库事务

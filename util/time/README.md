@@ -18,9 +18,9 @@ package main
 
 import (
     "fmt"
-    stdtime "time"
+stdtime "time"
 
-    "litecore-go/util/time"
+    "github.com/lite-lake/litecore-go/util/time"
 )
 
 func main() {
@@ -83,7 +83,7 @@ func main() {
 ```go
 import (
     stdtime "time"
-    "litecore-go/util/time"
+    "github.com/lite-lake/litecore-go/util/time"
 )
 
 // 基本格式化
@@ -122,7 +122,7 @@ fmt.Println(actualValue)   // 2024-01-15
 提供灵活的时间解析方法，支持多种格式和错误处理策略。
 
 ```go
-import "litecore-go/util/time"
+import "github.com/lite-lake/litecore-go/util/time"
 
 // Java 风格解析
 parsed, err := time.Time.ParseWithJava("2024-01-15", "yyyy-MM-dd")
@@ -259,7 +259,7 @@ fmt.Printf("查询本月数据: %s - %s\n",
 提供常用格式的快捷方法，简化代码。
 
 ```go
-import "litecore-go/util/time"
+import "github.com/lite-lake/litecore-go/util/time"
 
 now := time.Time.Now()
 
@@ -336,7 +336,7 @@ londonTime := time.Time.InLocation(now, londonLoc)
 提供时间戳与时间的相互转换。
 
 ```go
-import "litecore-go/util/time"
+import "github.com/lite-lake/litecore-go/util/time"
 
 now := time.Time.Now()
 

@@ -16,7 +16,7 @@
 ### 安装
 
 ```bash
-go get litecore-go/util/hash
+go get github.com/lite-lake/litecore-go
 ```
 
 ### 基本使用
@@ -26,123 +26,10 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/hash"
+    "github.com/lite-lake/litecore-go/util/hash"
 )
 
 func main() {
-    // 计算 SHA256 哈希值
-    sha256Hash := hash.Hash.SHA256String("hello world")
-    fmt.Printf("SHA256: %s\n", sha256Hash)
-    // 输出: SHA256: b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
-
-    // 计算 HMAC-SHA256 签名
-    hmacHash := hash.Hash.HMACSHA256String("hello world", "secret-key")
-    fmt.Printf("HMAC-SHA256: %s\n", hmacHash)
-
-    // 计算 MD5 哈希值（16位短格式）
-    md5Short := hash.Hash.MD5String16("hello world")
-    fmt.Printf("MD5(16位): %s\n", md5Short)
-    // 输出: MD5(16位): 5eb63bbb
-}
-```
-
-## 功能说明
-
-### 哈希算法
-
-#### MD5 哈希
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-
-    // 返回原始字节数组
-    hashBytes := hash.Hash.MD5(data)
-    fmt.Printf("字节数组: %x\n", hashBytes)
-
-    // 返回完整 32 位十六进制字符串
-    hash32 := hash.Hash.MD5String(data)
-    fmt.Printf("32位: %s\n", hash32)
-    // 输出: 5eb63bbbe01eeed093cb22bb8f5acdc3
-
-    // 返回 16 位十六进制字符串（短格式）
-    hash16 := hash.Hash.MD5String16(data)
-    fmt.Printf("16位: %s\n", hash16)
-    // 输出: 5eb63bbb
-
-    // 返回 32 位十六进制字符串（与 MD5String 相同）
-    hash32Again := hash.Hash.MD5String32(data)
-    fmt.Printf("32位: %s\n", hash32Again)
-}
-```
-
-#### SHA1 哈希
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-
-    // 返回原始字节数组
-    hashBytes := hash.Hash.SHA1(data)
-    fmt.Printf("字节数组: %x\n", hashBytes)
-
-    // 返回完整 40 位十六进制字符串
-    hashString := hash.Hash.SHA1String(data)
-    fmt.Printf("SHA1: %s\n", hashString)
-    // 输出: 2aae6c35c94fcfb415dbe95f408b9ce91ee846ed
-}
-```
-
-#### SHA256 哈希
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-
-    // 返回原始字节数组
-    hashBytes := hash.Hash.SHA256(data)
-    fmt.Printf("字节数组长度: %d\n", len(hashBytes))
-
-    // 返回完整 64 位十六进制字符串
-    hashString := hash.Hash.SHA256String(data)
-    fmt.Printf("SHA256: %s\n", hashString)
-    // 输出: b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
-}
-```
-
-#### SHA512 哈希
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
 
     // 返回原始字节数组
     hashBytes := hash.Hash.SHA512(data)
@@ -163,275 +50,7 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-    key := "secret-key"
-
-    // 返回原始字节数组
-    hmacBytes := hash.Hash.HMACMD5(data, key)
-    fmt.Printf("字节数组: %x\n", hmacBytes)
-
-    // 返回完整十六进制字符串
-    hmacString := hash.Hash.HMACMD5String(data, key)
-    fmt.Printf("HMAC-MD5: %s\n", hmacString)
-}
-```
-
-#### HMAC-SHA1
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-    key := "secret-key"
-
-    // 返回原始字节数组
-    hmacBytes := hash.Hash.HMACSHA1(data, key)
-    fmt.Printf("字节数组长度: %d\n", len(hmacBytes))
-
-    // 返回完整十六进制字符串
-    hmacString := hash.Hash.HMACSHA1String(data, key)
-    fmt.Printf("HMAC-SHA1: %s\n", hmacString)
-}
-```
-
-#### HMAC-SHA256
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-    key := "secret-key"
-
-    // 返回原始字节数组
-    hmacBytes := hash.Hash.HMACSHA256(data, key)
-    fmt.Printf("字节数组长度: %d\n", len(hmacBytes))
-
-    // 返回完整十六进制字符串
-    hmacString := hash.Hash.HMACSHA256String(data, key)
-    fmt.Printf("HMAC-SHA256: %s\n", hmacString)
-}
-```
-
-#### HMAC-SHA512
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-    key := "secret-key"
-
-    // 返回原始字节数组
-    hmacBytes := hash.Hash.HMACSHA512(data, key)
-    fmt.Printf("字节数组长度: %d\n", len(hmacBytes))
-
-    // 返回完整十六进制字符串
-    hmacString := hash.Hash.HMACSHA512String(data, key)
-    fmt.Printf("HMAC-SHA512: %s\n", hmacString)
-}
-```
-
-### 泛型函数
-
-#### 基本泛型哈希
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-
-    // 使用泛型函数计算不同算法的哈希值
-    md5Hash := hash.HashGeneric(data, hash.MD5Algorithm{})
-    fmt.Printf("MD5: %x\n", md5Hash)
-
-    sha256Hash := hash.HashGeneric(data, hash.SHA256Algorithm{})
-    fmt.Printf("SHA256: %x\n", sha256Hash)
-
-    sha512Hash := hash.HashGeneric(data, hash.SHA512Algorithm{})
-    fmt.Printf("SHA512: %x\n", sha512Hash)
-}
-```
-
-#### 泛型函数返回十六进制字符串
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-
-    // 返回完整十六进制字符串
-    md5Hash := hash.HashStringGeneric(data, hash.MD5Algorithm{})
-    fmt.Printf("MD5: %s\n", md5Hash)
-
-    // 返回指定格式的十六进制字符串
-    md5Short := hash.HashHexGeneric(data, hash.MD5Algorithm{}, hash.FormatHexShort)
-    fmt.Printf("MD5 Short: %s\n", md5Short)
-
-    // 使用 SHA256 算法
-    sha256Hash := hash.HashStringGeneric(data, hash.SHA256Algorithm{})
-    fmt.Printf("SHA256: %s\n", sha256Hash)
-}
-```
-
-#### 处理字节数组
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := []byte("hello world")
-
-    // 计算字节数组的哈希值
-    hashBytes := hash.HashBytesGeneric(data, hash.SHA256Algorithm{})
-    fmt.Printf("字节数组哈希: %x\n", hashBytes)
-
-    // 计算字节数组的哈希值并返回十六进制字符串
-    hashString := hash.HashBytesHexGeneric(data, hash.SHA256Algorithm{}, hash.FormatHexFull)
-    fmt.Printf("十六进制字符串: %s\n", hashString)
-}
-```
-
-#### 从 io.Reader 计算哈希
-
-```go
-package main
-
-import (
-    "fmt"
-    "strings"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    reader := strings.NewReader("hello world")
-
-    // 从 Reader 计算哈希值（适合处理大文件）
-    hashBytes, err := hash.HashReaderGeneric(reader, hash.SHA256Algorithm{})
-    if err != nil {
-        fmt.Printf("计算哈希失败: %v\n", err)
-        return
-    }
-    fmt.Printf("哈希值: %x\n", hashBytes)
-
-    // 从 Reader 计算哈希值并返回十六进制字符串
-    reader2 := strings.NewReader("hello world")
-    hashString, err := hash.HashReaderStringGeneric(reader2, hash.SHA256Algorithm{})
-    if err != nil {
-        fmt.Printf("计算哈希失败: %v\n", err)
-        return
-    }
-    fmt.Printf("十六进制字符串: %s\n", hashString)
-}
-```
-
-#### 泛型 HMAC 函数
-
-```go
-package main
-
-import (
-    "fmt"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    data := "hello world"
-    key := "secret-key"
-
-    // 使用泛型函数计算 HMAC
-    hmacMD5 := hash.HMACGeneric(data, key, hash.MD5Algorithm{})
-    fmt.Printf("HMAC-MD5: %x\n", hmacMD5)
-
-    hmacSHA256 := hash.HMACGeneric(data, key, hash.SHA256Algorithm{})
-    fmt.Printf("HMAC-SHA256: %x\n", hmacSHA256)
-
-    // 返回十六进制字符串
-    hmacString := hash.HMACStringGeneric(data, key, hash.SHA256Algorithm{})
-    fmt.Printf("HMAC-SHA256 String: %s\n", hmacString)
-}
-```
-
-#### 从 io.Reader 计算 HMAC
-
-```go
-package main
-
-import (
-    "fmt"
-    "strings"
-    "litecore-go/util/hash"
-)
-
-func main() {
-    reader := strings.NewReader("hello world")
-    key := []byte("secret-key")
-
-    // 从 Reader 计算 HMAC
-    hmacBytes, err := hash.HMACReaderGeneric(reader, key, hash.SHA256Algorithm{})
-    if err != nil {
-        fmt.Printf("计算 HMAC 失败: %v\n", err)
-        return
-    }
-    fmt.Printf("HMAC 值: %x\n", hmacBytes)
-
-    // 从 Reader 计算 HMAC 并返回十六进制字符串
-    reader2 := strings.NewReader("hello world")
-    hmacString, err := hash.HMACReaderStringGeneric(reader2, key, hash.SHA256Algorithm{})
-    if err != nil {
-        fmt.Printf("计算 HMAC 失败: %v\n", err)
-        return
-    }
-    fmt.Printf("HMAC 字符串: %s\n", hmacString)
-}
-```
-
-### 处理大文件
-
-```go
-package main
-
-import (
-    "fmt"
-    "os"
-    "litecore-go/util/hash"
+    "github.com/lite-lake/litecore-go/util/hash"
 )
 
 func main() {
@@ -461,7 +80,7 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/hash"
+    "github.com/lite-lake/litecore-go/util/hash"
 )
 
 func main() {
@@ -671,7 +290,7 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/hash"
+    "github.com/lite-lake/litecore-go/util/hash"
 )
 
 func HashPassword(password string) string {
@@ -693,7 +312,7 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/hash"
+    "github.com/lite-lake/litecore-go/util/hash"
 )
 
 // 生成 API 签名
@@ -729,7 +348,7 @@ package main
 import (
     "fmt"
     "os"
-    "litecore-go/util/hash"
+    "github.com/lite-lake/litecore-go/util/hash"
 )
 
 // 计算文件的哈希值
@@ -777,7 +396,7 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/hash"
+    "github.com/lite-lake/litecorego/util/hash"
 )
 
 // 计算数据的唯一标识
@@ -821,7 +440,7 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/hash"
+    "github.com/lite-lake/litecore-go/util/hash"
 )
 
 // 生成缓存键

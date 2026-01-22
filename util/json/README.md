@@ -20,131 +20,11 @@ package main
 
 import (
     "fmt"
-    "litecore-go/util/json"
+    "github.com/lite-lake/litecore-go/util/json"
 )
 
-func main() {
-    // 获取 JSON 工具实例
-    j := json.New()
-
-    // 验证 JSON
-    jsonStr := `{"name":"Alice","age":30,"city":"Beijing"}`
-    if j.IsValid(jsonStr) {
-        fmt.Println("有效的 JSON")
-    }
-
-    // 格式化输出
-    formatted, _ := j.PrettyPrintWithIndent(jsonStr)
-    fmt.Println(formatted)
-
-    // 路径访问
-    name, _ := j.GetString(jsonStr, "name")
-    fmt.Printf("Name: %s\n", name)
-}
-```
-
-### 数据转换示例
-
-```go
 // JSON 转 Map
 jsonStr := `{"name":"Bob","age":25,"tags":["go","java"]}`
-dataMap, err := j.ToMap(jsonStr)
-if err == nil {
-    fmt.Printf("Name: %v\n", dataMap["name"])
-}
-
-// JSON 转 Struct
-type Person struct {
-    Name string `json:"name"`
-    Age  int    `json:"age"`
-}
-var p Person
-j.ToStruct(jsonStr, &p)
-fmt.Printf("Person: %+v\n", p)
-
-// Map 转 JSON
-m := map[string]interface{}{
-    "status": "success",
-    "data": map[string]string{
-        "message": "Hello",
-    },
-}
-jsonResult, _ := j.FromMap(m)
-fmt.Println(jsonResult)
-```
-
-## 功能详解
-
-### 1. JSON 验证
-
-使用 `IsValid` 方法验证 JSON 字符串的有效性。
-
-```go
-j := json.New()
-
-// 有效的 JSON
-validJSON := `{"name":"test","value":123}`
-fmt.Println(j.IsValid(validJSON)) // true
-
-// 无效的 JSON
-invalidJSON := `{name:"test"}`
-fmt.Println(j.IsValid(invalidJSON)) // false
-
-// 检查 JSON 类型
-objJSON := `{"data":"value"}`
-arrJSON := `[1,2,3]`
-fmt.Println(j.IsObject(objJSON))  // true
-fmt.Println(j.IsArray(arrJSON))   // true
-```
-
-### 2. 格式化输出
-
-提供多种 JSON 格式化选项，包括美化打印和压缩输出。
-
-```go
-j := json.New()
-
-jsonStr := `{"name":"Alice","age":30,"address":{"city":"Beijing"}}`
-
-// 自定义缩进（2 个空格）
-formatted, _ := j.PrettyPrint(jsonStr, "  ")
-fmt.Println(formatted)
-// 输出：
-// {
-//   "name": "Alice",
-//   "age": 30,
-//   "address": {
-//     "city": "Beijing"
-//   }
-// }
-
-// 使用默认缩进（2 个空格）
-formatted, _ = j.PrettyPrintWithIndent(jsonStr)
-
-// 压缩 JSON（移除所有空白字符）
-compacted, _ := j.Compact(jsonStr)
-fmt.Println(compacted)
-// 输出：{"name":"Alice","age":30,"address":{"city":"Beijing"}}
-```
-
-### 3. 数据转换
-
-支持 JSON 字符串与 Go 数据结构之间的双向转换。
-
-#### JSON 转 Map
-
-```go
-j := json.New()
-
-jsonStr := `{
-    "user": {
-        "name": "Alice",
-        "age": 30,
-        "tags": ["developer", "golang"]
-    }
-}`
-
-// 转换为 map[string]interface{}
 dataMap, err := j.ToMap(jsonStr)
 if err == nil {
     user := dataMap["user"].(map[string]interface{})
@@ -162,7 +42,7 @@ if err != nil {
 #### JSON 转 Struct
 
 ```go
-j := json.New()
+j := json.JSON
 
 type User struct {
     Name    string   `json:"name"`
@@ -197,7 +77,7 @@ if err == nil {
 #### Go 数据类型转 JSON
 
 ```go
-j := json.New()
+j := json.JSON
 
 // Map 转 JSON
 m := map[string]interface{}{
@@ -241,7 +121,7 @@ fmt.Println(jsonStr)
 #### 基本路径访问
 
 ```go
-j := json.New()
+j := json.JSON
 
 jsonStr := `{
     "status": "success",
@@ -293,7 +173,7 @@ fmt.Printf("Items: %v\n", items)
 #### 高级路径操作
 
 ```go
-j := json.New()
+j := json.JSON
 
 jsonStr := `{
     "configmgr": {
@@ -337,7 +217,7 @@ fmt.Printf("Has timeout: %v\n", hasTimeout) // false
 支持深度合并两个 JSON 对象，后者的值会覆盖前者。
 
 ```go
-j := json.New()
+j := json.JSON
 
 // 简单合并
 json1 := `{"name":"Alice","age":25}`
@@ -402,7 +282,7 @@ fmt.Println(merged)
 比较两个 JSON 字符串是否有差异。
 
 ```go
-j := json.New()
+j := json.JSON
 
 // 相同的对象
 json1 := `{"name":"Alice","age":30}`
@@ -447,24 +327,30 @@ fmt.Printf("转换后一致: %v\n", !hasDiff) // true
 处理 JSON 字符串中的特殊字符。
 
 ```go
-j := json.New()
+j := json.JSON
 
 // 转义特殊字符
 original := "Hello\nWorld\t!"
-escaped := j.Escape(original)
-fmt.Printf("Escaped: %s\n", escaped)
+escaped, err := j.Escape(original)
+if err == nil {
+    fmt.Printf("Escaped: %s\n", escaped)
+}
 // 输出：Hello\nWorld\t!
 
 // 转义引号
 quote := `He said "Hello"`
-escaped = j.Escape(quote)
-fmt.Printf("Escaped: %s\n", escaped)
+escaped, err = j.Escape(quote)
+if err == nil {
+    fmt.Printf("Escaped: %s\n", escaped)
+}
 // 输出：He said \"Hello\"
 
 // 转义反斜杠
 path := "C:\\Users\\test"
-escaped = j.Escape(path)
-fmt.Printf("Escaped: %s\n", escaped)
+escaped, err = j.Escape(path)
+if err == nil {
+    fmt.Printf("Escaped: %s\n", escaped)
+}
 // 输出：C:\\\\Users\\\\test
 
 // 反转义
@@ -495,7 +381,7 @@ if err == nil {
 | `PrettyPrint(jsonStr, indent string) (string, error)` | 使用指定缩进格式化 JSON |
 | `PrettyPrintWithIndent(jsonStr string) (string, error)` | 使用默认缩进（2 空格）格式化 |
 | `Compact(jsonStr string) (string, error)` | 压缩 JSON，移除所有空白字符 |
-| `Escape(str string) string` | 转义 JSON 字符串中的特殊字符 |
+| `Escape(str string) (string, error)` | 转义 JSON 字符串中的特殊字符 |
 | `Unescape(str string) (string, error)` | 反转义 JSON 字符串 |
 
 ### 数据转换
@@ -541,7 +427,7 @@ if err == nil {
 ### 配置文件管理
 
 ```go
-j := json.New()
+j := json.JSON
 
 // 合并默认配置和用户配置
 defaultConfig := `{
@@ -571,7 +457,7 @@ finalConfig, _ := j.Merge(defaultConfig, userConfig)
 ### API 响应处理
 
 ```go
-j := json.New()
+j := json.JSON
 
 apiResponse := `{
     "status": "success",
@@ -592,7 +478,7 @@ userRoles, _ := j.GetValue(apiResponse, "data.user.roles")
 ### 数据验证
 
 ```go
-j := json.New()
+j := json.JSON
 
 // 验证配置文件格式
 configData := readFile("configmgr.json")
@@ -612,7 +498,7 @@ if j.Contains(configData, "", "database") {
 ### 数据转换
 
 ```go
-j := json.New()
+j := json.JSON
 
 // 数据库记录转换为 JSON
 type User struct {
@@ -635,7 +521,7 @@ dataMap, _ := j.ToMap(jsonStr)
 所有可能失败的操作都返回 error，建议进行错误处理：
 
 ```go
-j := json.New()
+j := json.JSON
 
 jsonStr := `{"name":"Alice","age":30}`
 

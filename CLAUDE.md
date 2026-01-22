@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Module**: `github.com/lite-lake/litecore-go`
 **Go Version**: 1.25+
-**Architecture**: 7-tier layered dependency injection
+**Architecture**: 5-tier layered dependency injection (Entity → Repository → Service → Controller/Middleware)
+**Built-in Components**: Manager components at `server/builtin/manager/`, auto-initialized and injected
 
 ## Essential Commands
 
@@ -43,9 +44,9 @@ go mod tidy
 
 ## Architecture Overview
 
-### 7-Tier Layered Architecture
+### 5-Tier Layered Architecture
 
-The framework enforces strict layer boundaries with单向依赖 (unidirectional dependencies):
+The framework enforces strict layer boundaries with unidirectional dependencies:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -58,17 +59,15 @@ The framework enforces strict layer boundaries with单向依赖 (unidirectional 
 ├─────────────────────────────────────────────────────────────┤
 │  Entity Layer       (BaseEntity)                            │
 │  Manager Layer      (BaseManager)                           │
-├─────────────────────────────────────────────────────────────┤
-│  Config Layer       (BaseConfigProvider)                    │
+│  Location: server/builtin/manager/                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Dependency Rules**:
-- **Config** - No dependencies
 - **Entity** - No dependencies
-- **Manager** → Config, other Managers (同层依赖/same-layer dependencies)
+- **Manager** → Config, other Managers (same-layer dependencies)
 - **Repository** → Config, Manager, Entity
-- **Service** → Config, Manager, Repository, other Services (同层依赖)
+- **Service** → Config, Manager, Repository, other Services (same-layer)
 - **Controller** → Config, Manager, Service
 - **Middleware** → Config, Manager, Service
 
@@ -92,11 +91,11 @@ serviceContainer.RegisterByType(
 **Dependency Declaration**:
 ```go
 type UserServiceImpl struct {
-    Config    common.BaseConfigProvider `inject:""`
-    DBMgr     databasemgr.DatabaseManager `inject:""`
-    UserRepo  UserRepository  `inject:""`
-    OrderSvc  OrderService    `inject:""`  // Same-layer dependency
-    Cache     CacheManager    `inject:"optional"` // Optional dependency
+    Config    configmgr.IConfigManager    `inject:""`
+    DBMgr     databasemgr.IDatabaseManager `inject:""`
+    UserRepo  IUserRepository              `inject:""`
+    OrderSvc  IOrderService               `inject:""`  // Same-layer dependency
+    Cache     cachemgr.ICacheManager      `inject:"optional"` // Optional dependency
 }
 ```
 
@@ -149,11 +148,11 @@ import (
 ```
 
 ### Naming Conventions
-- **Interfaces**: `XxxManager` (no I prefix for managers), `XxxService` (no I prefix)
-- **Private structs**: `xxxManagerImpl`, `xxxServiceImpl` (lowercase impl)
-- **Public structs**: `ServerConfig`, `User` (PascalCase)
+- **Interfaces**: `I*` prefix (e.g., `IConfigManager`, `IDatabaseManager`, `IUserService`)
+- **Private structs**: lowercase (e.g., `messageService`, `messageRepository`)
+- **Public structs**: PascalCase (e.g., `ServerConfig`, `User`)
 - **Functions**: PascalCase exported, camelCase private
-- **Factory functions**: `Build()`, `BuildWithConfigProvider()`, `NewXxxImpl()`
+- **Factory functions**: `Build()`, `BuildWithConfigProvider()`, `NewXxx()`
 
 ### Comments and Documentation
 - Use **Chinese** for all user-facing documentation and code comments
@@ -171,9 +170,9 @@ if err != nil {
 ### Dependency Injection Tags
 ```go
 type MyService struct {
-    Config     common.BaseConfigProvider `inject:""`
-    DBMgr      databasemgr.DatabaseManager `inject:""`
-    Optional   CacheManager `inject:"optional"`
+    Config     configmgr.IConfigManager    `inject:""`
+    DBMgr      databasemgr.IDatabaseManager `inject:""`
+    Optional   cachemgr.ICacheManager      `inject:"optional"`
 }
 ```
 
@@ -202,17 +201,18 @@ func TestGenerateToken(t *testing.T) {
 
 ## Manager Implementation SOP
 
-When creating or modifying managers, follow the pattern in `docs/SOP-manager-refactoring.md`:
+When creating or modifying managers, they should be placed at `server/builtin/manager/`:
 
-1. **Flat structure** - No `internal/` subdirectories
+1. **Flat structure** - No subdirectories within manager package
 2. **File organization**:
-   - `interface.go` - Core interface
-   - `config.go` - Config structures
-   - `impl_base.go` - Base with observability
-   - `{driver}_impl.go` - Driver implementations
-   - `factory.go` - Build functions
+   - `interface.go` - Core interface (extends `common.IBaseManager`)
+   - `config.go` - Config structures and parsing
+   - `impl_base.go` - Base implementation with observability
+   - `{driver}_impl.go` - Driver-specific implementations
+   - `factory.go` - Factory functions for DI
 3. **DI tags** - Use `inject:""` for dependencies
 4. **Config paths** - Follow `{manager}.driver` convention
+5. **Auto-initialization** - Add to `server/builtin/builtin.go:Initialize()`
 
 ## Common Development Patterns
 
@@ -241,7 +241,7 @@ See `samples/messageboard/` for a complete working example demonstrating:
 
 ## Configuration
 
-All configuration uses YAML format with ConfigProvider:
+All configuration uses YAML format. Manager components follow this pattern:
 
 ```yaml
 # Manager configs follow pattern:
@@ -258,11 +258,19 @@ cache:
     host: localhost
     port: 6379
 
+logger:
+  driver: zap
+  zap_config:
+    level: "info"
+    format: "json"
+
 telemetry:
   driver: otel
   otel_config:
     endpoint: localhost:4317
 ```
+
+Built-in managers: `configmgr`, `loggermgr`, `databasemgr`, `cachemgr`, `telemetrymgr` at `server/builtin/manager/`
 
 ## Important Architecture Constraints
 

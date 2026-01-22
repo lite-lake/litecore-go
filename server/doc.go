@@ -45,10 +45,10 @@
 //
 // 依赖注入：
 //
-// 各层组件通过 inject:"" 标签声明依赖，Config 和 Manager 由引擎自动注入：
+// 各层组件通过 inject:"" 标签声明依赖，Manager 由引擎自动注入：
 //
 //	type UserServiceImpl struct {
-//	    Config    common.IBaseConfigProvider  `inject:""`  // 内置组件
+//	    Config    configmgr.IConfigManager    `inject:""`  // 内置组件
 //	    DBManager databasemgr.IDatabaseManager `inject:""`  // 内置组件
 //	    UserRepo  repository.IUserRepository `inject:""`
 //	}
