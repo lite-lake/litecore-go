@@ -6,7 +6,6 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/component/service"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IHTMLTemplateService HTML模板服务接口
@@ -18,7 +17,7 @@ type IHTMLTemplateService interface {
 
 type htmlTemplateService struct {
 	inner  *service.HTMLTemplateService
-	Logger logger.ILogger `inject:""`
+	Logger common.ILogger `inject:""`
 }
 
 // NewHTMLTemplateService 创建HTML模板服务

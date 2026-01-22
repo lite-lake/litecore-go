@@ -3,8 +3,9 @@ package repositories
 
 import (
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/manager/databasemgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
 )
 
 // IMessageRepository 留言仓储接口
@@ -20,7 +21,7 @@ type IMessageRepository interface {
 }
 
 type messageRepository struct {
-	Config  common.IBaseConfigProvider   `inject:""`
+	Config  configmgr.IConfigManager     `inject:""`
 	Manager databasemgr.IDatabaseManager `inject:""`
 }
 

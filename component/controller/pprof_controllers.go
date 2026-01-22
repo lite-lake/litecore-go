@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 type pprofHandlerFunc func(http.ResponseWriter, *http.Request)
@@ -17,7 +16,7 @@ type PprofController struct {
 	route  string
 	method string
 	handle pprofHandlerFunc
-	Logger logger.ILogger `inject:""`
+	Logger common.ILogger `inject:""`
 }
 
 func (c *PprofController) ControllerName() string {

@@ -7,13 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // RecoveryMiddleware panic 恢复中间件
 type RecoveryMiddleware struct {
 	order  int
-	Logger logger.ILogger `inject:""`
+	Logger common.ILogger `inject:""`
 }
 
 // NewRecoveryMiddleware 创建 panic 恢复中间件

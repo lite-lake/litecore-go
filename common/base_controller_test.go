@@ -6,14 +6,13 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lite-lake/litecore-go/util/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 type mockController struct {
 	name   string
 	router string
-	Logger logger.ILogger `inject:""`
+	Logger ILogger `inject:""`
 }
 
 func (m *mockController) ControllerName() string {
@@ -31,7 +30,7 @@ func (m *mockController) Handle(ctx *gin.Context) {
 }
 
 type testController struct {
-	Logger logger.ILogger `inject:""`
+	Logger ILogger `inject:""`
 }
 
 func (t *testController) ControllerName() string {

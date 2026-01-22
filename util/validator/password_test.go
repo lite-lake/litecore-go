@@ -245,7 +245,7 @@ func TestValidatePasswordWithCustomConfig(t *testing.T) {
 
 // TestGetPasswordRequirements 测试获取密码要求
 func TestGetPasswordRequirements(t *testing.T) {
-	t.Run("default config", func(t *testing.T) {
+	t.Run("default configmgr", func(t *testing.T) {
 		requirements := GetPasswordRequirements()
 		assert.Contains(t, requirements, "12 characters")
 		assert.Contains(t, requirements, "uppercase")
@@ -254,7 +254,7 @@ func TestGetPasswordRequirements(t *testing.T) {
 		assert.Contains(t, requirements, "special character")
 	})
 
-	t.Run("custom config", func(t *testing.T) {
+	t.Run("custom configmgr", func(t *testing.T) {
 		config := &PasswordConfig{
 			MinLength:      8,
 			RequireUpper:   true,

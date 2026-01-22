@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // HealthResponse 健康检查响应
@@ -24,7 +23,7 @@ type IHealthController interface {
 
 type HealthController struct {
 	ManagerContainer common.IBaseManager `inject:""`
-	Logger           logger.ILogger      `inject:""`
+	Logger           common.ILogger      `inject:""`
 }
 
 func NewHealthController() IHealthController {

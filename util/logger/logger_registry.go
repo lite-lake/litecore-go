@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"github.com/lite-lake/litecore-go/common"
 	"sync"
 )
 
@@ -17,7 +18,7 @@ func NewLoggerRegistry() *LoggerRegistry {
 	}
 }
 
-func (r *LoggerRegistry) GetLogger(name string) ILogger {
+func (r *LoggerRegistry) GetLogger(name string) common.ILogger {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -71,11 +72,11 @@ func (r *LoggerRegistry) OnStop() error {
 	return nil
 }
 
-func (r *LoggerRegistry) Logger(name string) ILogger {
+func (r *LoggerRegistry) Logger(name string) common.ILogger {
 	return r.GetLogger(name)
 }
 
-func (r *LoggerRegistry) SetGlobalLevel(level LogLevel) {
+func (r *LoggerRegistry) SetGlobalLevel(level common.LogLevel) {
 	if r.mgr != nil {
 		r.mgr.SetGlobalLevel(level)
 	}

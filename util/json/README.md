@@ -296,7 +296,7 @@ fmt.Printf("Items: %v\n", items)
 j := json.New()
 
 jsonStr := `{
-    "config": {
+    "configmgr": {
         "database": {
             "host": "localhost",
             "port": 3306,
@@ -313,22 +313,22 @@ jsonStr := `{
 }`
 
 // 获取类型信息
-typeName, _ := j.GetType(jsonStr, "config.database")
+typeName, _ := j.GetType(jsonStr, "configmgr.database")
 fmt.Printf("Type: %s\n", typeName) // "object"
 
 // 获取对象的所有键
-keys, _ := j.GetKeys(jsonStr, "config.database")
+keys, _ := j.GetKeys(jsonStr, "configmgr.database")
 fmt.Printf("Keys: %v\n", keys) // ["host", "port", "credentials"]
 
 // 获取对象或数组的大小
-size, _ := j.GetSize(jsonStr, "config.database")
+size, _ := j.GetSize(jsonStr, "configmgr.database")
 fmt.Printf("Size: %d\n", size) // 3
 
 // 检查是否包含某个键
-hasHost, _ := j.Contains(jsonStr, "config.database", "host")
+hasHost, _ := j.Contains(jsonStr, "configmgr.database", "host")
 fmt.Printf("Has host: %v\n", hasHost) // true
 
-hasTimeout, _ := j.Contains(jsonStr, "config.database", "timeout")
+hasTimeout, _ := j.Contains(jsonStr, "configmgr.database", "timeout")
 fmt.Printf("Has timeout: %v\n", hasTimeout) // false
 ```
 
@@ -595,9 +595,9 @@ userRoles, _ := j.GetValue(apiResponse, "data.user.roles")
 j := json.New()
 
 // 验证配置文件格式
-configData := readFile("config.json")
+configData := readFile("configmgr.json")
 if !j.IsValid(configData) {
-    log.Fatal("Invalid config file")
+    log.Fatal("Invalid configmgr file")
 }
 
 // 检查必需字段

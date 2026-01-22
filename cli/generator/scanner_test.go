@@ -106,7 +106,7 @@ func NewConfigProvider() *ConfigProvider {
 	return &ConfigProvider{}
 }
 `
-		os.WriteFile(filepath.Join(configsDir, "config.go"), []byte(configCode), 0644)
+		os.WriteFile(filepath.Join(configsDir, "configmgr.go"), []byte(configCode), 0644)
 
 		scanner := NewScanner(tempDir, "test.module")
 		scanner.scanConfig()
@@ -226,7 +226,7 @@ func NewConfigProvider() *ConfigProvider {
 	return &ConfigProvider{}
 }
 `
-	os.WriteFile(filepath.Join(tempDir, "configs", "config.go"), []byte(configCode), 0644)
+	os.WriteFile(filepath.Join(tempDir, "configs", "configmgr.go"), []byte(configCode), 0644)
 
 	managerCode := `package managers
 

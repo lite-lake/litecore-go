@@ -12,7 +12,7 @@ import (
 type Layer string
 
 const (
-	LayerConfig     Layer = "config"
+	LayerConfig     Layer = "configmgr"
 	LayerEntity     Layer = "entity"
 	LayerManager    Layer = "manager"
 	LayerRepository Layer = "repository"

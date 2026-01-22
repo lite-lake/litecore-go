@@ -290,7 +290,7 @@ func NewDatabaseManager() *DatabaseManager {
 
 	t.Run("解析基础设施文件-配置提供者", func(t *testing.T) {
 		tempDir := t.TempDir()
-		testFile := filepath.Join(tempDir, "config.go")
+		testFile := filepath.Join(tempDir, "configmgr.go")
 
 		code := `package configproviders
 

@@ -4,13 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/lite-lake/litecore-go/util/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 type mockService struct {
 	name   string
-	Logger logger.ILogger `inject:""`
+	Logger ILogger `inject:""`
 }
 
 func (m *mockService) ServiceName() string {
@@ -26,7 +25,7 @@ func (m *mockService) OnStop() error {
 }
 
 type failingService struct {
-	Logger logger.ILogger `inject:""`
+	Logger ILogger `inject:""`
 }
 
 func (f *failingService) ServiceName() string {

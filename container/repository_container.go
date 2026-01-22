@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"reflect"
 	"sort"
 	"sync"
@@ -11,7 +12,7 @@ import (
 )
 
 type BuiltinProvider interface {
-	GetConfigProvider() common.IBaseConfigProvider
+	GetConfigProvider() configmgr.IConfigManager
 	GetManagers() []interface{}
 }
 
@@ -147,7 +148,7 @@ func (r *RepositoryContainer) Count() int {
 
 // GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
 func (r *RepositoryContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
-	baseConfigType := reflect.TypeOf((*common.IBaseConfigProvider)(nil)).Elem()
+	baseConfigType := reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()
 	if fieldType == baseConfigType || fieldType.Implements(baseConfigType) {
 		if r.builtinProvider == nil {
 			return nil, &DependencyNotFoundError{

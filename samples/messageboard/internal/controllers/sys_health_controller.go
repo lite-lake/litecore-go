@@ -5,7 +5,6 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	componentControllers "github.com/lite-lake/litecore-go/component/controller"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // ISysHealthController 健康检查控制器接口
@@ -15,7 +14,7 @@ type ISysHealthController interface {
 
 type sysHealthControllerImpl struct {
 	componentController componentControllers.IHealthController
-	Logger              logger.ILogger `inject:""`
+	Logger              common.ILogger `inject:""`
 }
 
 func NewSysHealthController() ISysHealthController {

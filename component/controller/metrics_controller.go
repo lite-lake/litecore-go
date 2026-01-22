@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IMetricsController 指标控制器接口
@@ -17,7 +16,7 @@ type IMetricsController interface {
 type MetricsController struct {
 	ManagerContainer common.IBaseManager `inject:""`
 	ServiceContainer common.IBaseService `inject:""`
-	Logger           logger.ILogger      `inject:""`
+	Logger           common.ILogger      `inject:""`
 }
 
 func NewMetricsController() IMetricsController {

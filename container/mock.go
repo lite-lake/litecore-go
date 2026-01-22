@@ -2,9 +2,9 @@ package container
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IMockService Mock 服务接口
@@ -32,8 +32,20 @@ type MockConfigProvider struct {
 	name string
 }
 
-func (m *MockConfigProvider) ConfigProviderName() string {
+func (m *MockConfigProvider) ManagerName() string {
 	return m.name
+}
+
+func (m *MockConfigProvider) Health() error {
+	return nil
+}
+
+func (m *MockConfigProvider) OnStart() error {
+	return nil
+}
+
+func (m *MockConfigProvider) OnStop() error {
+	return nil
 }
 
 func (m *MockConfigProvider) Get(key string) (any, error) {
@@ -44,10 +56,12 @@ func (m *MockConfigProvider) Has(key string) bool {
 	return false
 }
 
+var _ configmgr.IConfigManager = (*MockConfigProvider)(nil)
+
 // MockManager Mock 管理器
 type MockManager struct {
 	name   string
-	Config common.IBaseConfigProvider `inject:""`
+	Config configmgr.IConfigManager `inject:""`
 }
 
 func (m *MockManager) ManagerName() string {
@@ -87,9 +101,9 @@ func (m *MockEntity) GetId() string {
 // MockRepository Mock 存储库
 type MockRepository struct {
 	name    string
-	Config  common.IBaseConfigProvider `inject:""`
-	Manager common.IBaseManager        `inject:""`
-	Entity  common.IBaseEntity         `inject:""`
+	Config  configmgr.IConfigManager `inject:""`
+	Manager common.IBaseManager      `inject:""`
+	Entity  common.IBaseEntity       `inject:""`
 }
 
 func (m *MockRepository) RepositoryName() string {
@@ -109,9 +123,9 @@ var _ IMockRepository = (*MockRepository)(nil)
 // MockService Mock 服务
 type MockService struct {
 	name   string
-	Config common.IBaseConfigProvider `inject:""`
-	Repo   common.IBaseRepository     `inject:""`
-	Logger logger.ILogger             `inject:"optional"`
+	Config configmgr.IConfigManager `inject:""`
+	Repo   common.IBaseRepository   `inject:""`
+	Logger common.ILogger           `inject:"optional"`
 }
 
 func (m *MockService) ServiceName() string {
@@ -132,7 +146,7 @@ var _ IMockService = (*MockService)(nil)
 type MockController struct {
 	name    string
 	Service common.IBaseService `inject:""`
-	Logger  logger.ILogger      `inject:"optional"`
+	Logger  common.ILogger      `inject:"optional"`
 }
 
 func (m *MockController) ControllerName() string {
@@ -179,11 +193,11 @@ var _ IMockMiddleware = (*MockMiddleware)(nil)
 
 // MockBuiltinProvider Mock 内置组件提供者
 type MockBuiltinProvider struct {
-	configProvider common.IBaseConfigProvider
+	configProvider configmgr.IConfigManager
 	managers       []interface{}
 }
 
-func (m *MockBuiltinProvider) GetConfigProvider() common.IBaseConfigProvider {
+func (m *MockBuiltinProvider) GetConfigProvider() configmgr.IConfigManager {
 	return m.configProvider
 }
 

@@ -5,7 +5,6 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IPageAdminController 管理页面控制器接口
@@ -15,7 +14,7 @@ type IPageAdminController interface {
 
 type pageAdminControllerImpl struct {
 	HTMLTemplateService services.IHTMLTemplateService `inject:""`
-	Logger              logger.ILogger                `inject:""`
+	Logger              common.ILogger                `inject:""`
 }
 
 func NewPageAdminController() IPageAdminController {

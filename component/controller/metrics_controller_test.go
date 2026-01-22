@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/lite-lake/litecore-go/common"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,7 +29,7 @@ func (s *mockService) OnStop() error {
 	return s.stopErr
 }
 
-func (s *mockService) Logger() logger.ILogger {
+func (s *mockService) Logger() common.ILogger {
 	return nil
 }
 

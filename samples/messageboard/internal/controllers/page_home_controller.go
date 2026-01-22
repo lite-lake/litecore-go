@@ -5,7 +5,6 @@ import (
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IPageHomeController 首页控制器接口
@@ -15,7 +14,7 @@ type IPageHomeController interface {
 
 type pageHomeControllerImpl struct {
 	HTMLTemplateService services.IHTMLTemplateService `inject:""`
-	Logger              logger.ILogger                `inject:""`
+	Logger              common.ILogger                `inject:""`
 }
 
 func NewPageHomeController() IPageHomeController {

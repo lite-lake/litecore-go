@@ -4,12 +4,12 @@ package services
 import (
 	"errors"
 	"fmt"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"time"
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/repositories"
-	"github.com/lite-lake/litecore-go/util/logger"
 )
 
 // IMessageService 留言服务接口
@@ -24,9 +24,9 @@ type IMessageService interface {
 }
 
 type messageService struct {
-	Config     common.IBaseConfigProvider      `inject:""`
+	Config     configmgr.IConfigManager        `inject:""`
 	Repository repositories.IMessageRepository `inject:""`
-	Logger     logger.ILogger                  `inject:""`
+	Logger     common.ILogger                  `inject:""`
 }
 
 // NewMessageService 创建留言服务

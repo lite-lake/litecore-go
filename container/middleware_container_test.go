@@ -43,7 +43,7 @@ func TestMiddlewareContainer(t *testing.T) {
 	}
 
 	// 设置 BuiltinProvider
-	config := &MockConfigProvider{name: "app-config"}
+	config := &MockConfigProvider{name: "app-configmgr"}
 	manager := &MockManager{name: "db-manager"}
 	builtinProvider := &MockBuiltinProvider{
 		configProvider: config,
