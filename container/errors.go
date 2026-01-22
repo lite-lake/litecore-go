@@ -95,3 +95,12 @@ type InterfaceNotRegisteredError struct {
 func (e *InterfaceNotRegisteredError) Error() string {
 	return fmt.Sprintf("interface %v not registered", e.InterfaceType)
 }
+
+// ManagerContainerNotSetError ManagerContainer 未设置错误
+type ManagerContainerNotSetError struct {
+	Layer string
+}
+
+func (e *ManagerContainerNotSetError) Error() string {
+	return "manager container not set before injection"
+}

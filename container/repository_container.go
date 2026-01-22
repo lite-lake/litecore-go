@@ -2,6 +2,7 @@ package container
 
 import (
 	"reflect"
+	"sort"
 
 	"github.com/lite-lake/litecore-go/common"
 )
@@ -46,6 +47,10 @@ func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common
 }
 
 func (r *RepositoryContainer) InjectAll() error {
+	if r.managerContainer == nil {
+		panic(&ManagerContainerNotSetError{Layer: "Repository"})
+	}
+
 	if r.base.container.IsInjected() {
 		return nil
 	}
@@ -59,9 +64,11 @@ func (r *RepositoryContainer) GetAll() []common.IBaseRepository {
 }
 
 func (r *RepositoryContainer) GetAllSorted() []common.IBaseRepository {
-	return getAllSorted(r.GetAll(), func(r common.IBaseRepository) string {
-		return r.RepositoryName()
+	items := r.GetAll()
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].RepositoryName() < items[j].RepositoryName()
 	})
+	return items
 }
 
 func (r *RepositoryContainer) GetByType(ifaceType reflect.Type) common.IBaseRepository {

@@ -1,10 +1,62 @@
 package container
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"unsafe"
+
+	"github.com/lite-lake/litecore-go/common"
 )
+
+// UninjectedFieldError 未注入字段错误
+type UninjectedFieldError struct {
+	InstanceName string
+	FieldName    string
+	FieldType    reflect.Type
+}
+
+func (e *UninjectedFieldError) Error() string {
+	return fmt.Sprintf("field %s.%s (type %s) marked with inject:\"\" is still nil after injection",
+		e.InstanceName, e.FieldName, e.FieldType)
+}
+
+// verifyInjectTags 验证所有 inject:"" 标签的字段是否已被注入
+func verifyInjectTags(instance interface{}) {
+	val := reflect.ValueOf(instance)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
+	if val.Kind() != reflect.Struct {
+		return
+	}
+
+	typ := val.Type()
+	instanceName := extractNameFromType(typ)
+
+	for i := 0; i < val.NumField(); i++ {
+		field := typ.Field(i)
+		fieldVal := val.Field(i)
+
+		tagValue, ok := field.Tag.Lookup("inject")
+		if !ok {
+			continue
+		}
+
+		if tagValue == "optional" {
+			continue
+		}
+
+		if !fieldVal.CanInterface() || fieldVal.IsZero() || fieldVal.IsNil() {
+			panic(&UninjectedFieldError{
+				InstanceName: instanceName,
+				FieldName:    field.Name,
+				FieldType:    field.Type,
+			})
+		}
+	}
+}
 
 // IDependencyResolver 依赖解析器接口
 // 各容器通过实现此接口提供自己的依赖解析逻辑
@@ -139,4 +191,63 @@ func (r *GenericDependencyResolver) ResolveDependency(fieldType reflect.Type, st
 func (r *GenericDependencyResolver) extractLoggerName(structType reflect.Type) string {
 	name := extractNameFromType(structType)
 	return name
+}
+
+// resolveDependencyFromManager 从管理器容器解析依赖
+func resolveDependencyFromManager(
+	fieldType reflect.Type,
+	managerContainer *ManagerContainer,
+) (interface{}, error) {
+	if managerContainer == nil {
+		return nil, nil
+	}
+
+	baseManagerType := reflect.TypeOf((*common.IBaseManager)(nil)).Elem()
+	if fieldType == baseManagerType || fieldType.Implements(baseManagerType) {
+		impl := managerContainer.GetByType(fieldType)
+		if impl == nil {
+			return nil, &DependencyNotFoundError{
+				FieldType:     fieldType,
+				ContainerType: "Manager",
+			}
+		}
+		return impl, nil
+	}
+	return nil, nil
+}
+
+// resolveDependencyFromEntity 从实体容器解析依赖
+func resolveDependencyFromEntity(
+	fieldType reflect.Type,
+	entityContainer *EntityContainer,
+) (interface{}, error) {
+	if entityContainer == nil {
+		return nil, nil
+	}
+
+	baseEntityType := reflect.TypeOf((*common.IBaseEntity)(nil)).Elem()
+	if fieldType == baseEntityType || fieldType.Implements(baseEntityType) {
+		items, err := entityContainer.GetByType(fieldType)
+		if err != nil {
+			return nil, err
+		}
+		if len(items) == 0 {
+			return nil, &DependencyNotFoundError{
+				FieldType:     fieldType,
+				ContainerType: "Entity",
+			}
+		}
+		if len(items) > 1 {
+			var names []string
+			for _, item := range items {
+				names = append(names, item.EntityName())
+			}
+			return nil, &AmbiguousMatchError{
+				FieldType:  fieldType,
+				Candidates: names,
+			}
+		}
+		return items[0], nil
+	}
+	return nil, nil
 }
