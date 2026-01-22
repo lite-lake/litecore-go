@@ -4,17 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 	"gopkg.in/yaml.v3"
 )
 
-type IConfigProvider interface {
-	Get(key string) (any, error)
-	Has(key string) bool
-}
-
-// NewLoggerManager 创建日志管理器
-func NewLoggerManager(config *Config, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
+// Build 创建日志管理器
+func Build(config *Config, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config cannot be nil")
 	}
@@ -32,7 +29,7 @@ func NewLoggerManager(config *Config, telemetryMgr telemetrymgr.ITelemetryManage
 }
 
 // BuildWithConfigProvider 通过配置提供者构建日志管理器
-func BuildWithConfigProvider(configProvider IConfigProvider, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
+func BuildWithConfigProvider(configProvider configmgr.IConfigManager, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}
@@ -42,9 +39,9 @@ func BuildWithConfigProvider(configProvider IConfigProvider, telemetryMgr teleme
 		return nil, fmt.Errorf("failed to get logger.driver: %w", err)
 	}
 
-	driverTypeStr, ok := driverType.(string)
-	if !ok {
-		return nil, fmt.Errorf("logger.driver must be a string, got %T", driverType)
+	driverTypeStr, err := common.GetString(driverType)
+	if err != nil {
+		return nil, fmt.Errorf("logger.driver: %w", err)
 	}
 
 	driverTypeStr = strings.ToLower(strings.TrimSpace(driverTypeStr))
@@ -88,5 +85,5 @@ func BuildWithConfigProvider(configProvider IConfigProvider, telemetryMgr teleme
 		return nil, fmt.Errorf("unsupported driver type: %s (must be zap, default or none)", driverTypeStr)
 	}
 
-	return NewLoggerManager(cfg, telemetryMgr)
+	return Build(cfg, telemetryMgr)
 }

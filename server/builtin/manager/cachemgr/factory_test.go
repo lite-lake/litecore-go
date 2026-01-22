@@ -38,6 +38,18 @@ func (m *MockConfigProvider) ManagerName() string {
 	return "mock"
 }
 
+func (m *MockConfigProvider) Health() error {
+	return nil
+}
+
+func (m *MockConfigProvider) OnStart() error {
+	return nil
+}
+
+func (m *MockConfigProvider) OnStop() error {
+	return nil
+}
+
 // TestBuild 测试 Build 函数
 func TestBuild(t *testing.T) {
 	tests := []struct {

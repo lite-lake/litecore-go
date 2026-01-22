@@ -2,8 +2,10 @@ package telemetrymgr
 
 import (
 	"fmt"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"strings"
+
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
 // Build 创建观测管理器实例
@@ -74,9 +76,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ITelemetr
 		return nil, fmt.Errorf("failed to get telemetry.driver: %w", err)
 	}
 
-	driverTypeStr, ok := driverType.(string)
-	if !ok {
-		return nil, fmt.Errorf("telemetry.driver must be a string, got %T", driverType)
+	driverTypeStr, err := common.GetString(driverType)
+	if err != nil {
+		return nil, fmt.Errorf("telemetry.driver: %w", err)
 	}
 
 	// 标准化驱动类型（大小写不敏感，去除空格）
@@ -92,9 +94,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ITelemetr
 		if err != nil {
 			return nil, fmt.Errorf("failed to get telemetry.otel_config: %w", err)
 		}
-		driverConfig, ok = otelConfig.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("telemetry.otel_config must be a map, got %T", otelConfig)
+		driverConfig, err = common.GetMap(otelConfig)
+		if err != nil {
+			return nil, fmt.Errorf("telemetry.otel_config: %w", err)
 		}
 
 	case "none":

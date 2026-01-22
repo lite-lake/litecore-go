@@ -126,7 +126,7 @@ jsonMgr, err := configmgr.NewConfigManager("json", "config.json")
 
 ### IConfigManager
 
-配置管理器基础接口，继承自 `common.IBaseManager`。
+配置管理器接口，继承自 `common.IBaseManager`。
 
 #### Get(key string) (any, error)
 

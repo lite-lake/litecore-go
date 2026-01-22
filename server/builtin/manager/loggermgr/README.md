@@ -29,7 +29,7 @@ cfg := &loggermgr.Config{
     },
 }
 
-mgr, err := loggermgr.NewLoggerManager(cfg, telemetryMgr)
+mgr, err := loggermgr.Build(cfg, telemetryMgr)
 if err != nil {
     panic(err)
 }
@@ -97,12 +97,12 @@ type ILoggerManager interface {
 
 ### 主要函数
 
-#### NewLoggerManager
+#### Build
 
 根据配置创建日志管理器。
 
 ```go
-func NewLoggerManager(config *Config, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error)
+func Build(config *Config, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error)
 ```
 
 #### BuildWithConfigProvider
@@ -266,7 +266,7 @@ cfg := &loggermgr.Config{
     },
 }
 
-mgr, err := loggermgr.NewLoggerManager(cfg, telemetryMgr)
+mgr, err := loggermgr.Build(cfg, telemetryMgr)
 ```
 
 ## 注意事项

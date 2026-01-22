@@ -193,7 +193,7 @@ func TestNewDriverZapLoggerManager(t *testing.T) {
 	})
 }
 
-func TestNewLoggerManager(t *testing.T) {
+func TestBuild(t *testing.T) {
 	t.Run("zap_driver", func(t *testing.T) {
 		cfg := &Config{
 			Driver: "zap",
@@ -203,7 +203,7 @@ func TestNewLoggerManager(t *testing.T) {
 			},
 		}
 
-		mgr, err := NewLoggerManager(cfg, nil)
+		mgr, err := Build(cfg, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.Equal(t, "LoggerZapManager", mgr.ManagerName())
@@ -214,7 +214,7 @@ func TestNewLoggerManager(t *testing.T) {
 			Driver: "default",
 		}
 
-		mgr, err := NewLoggerManager(cfg, nil)
+		mgr, err := Build(cfg, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.Equal(t, "LoggerDefaultManager", mgr.ManagerName())
@@ -225,7 +225,7 @@ func TestNewLoggerManager(t *testing.T) {
 			Driver: "none",
 		}
 
-		mgr, err := NewLoggerManager(cfg, nil)
+		mgr, err := Build(cfg, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.Equal(t, "LoggerNoneManager", mgr.ManagerName())
@@ -236,13 +236,13 @@ func TestNewLoggerManager(t *testing.T) {
 			Driver: "unknown",
 		}
 
-		mgr, err := NewLoggerManager(cfg, nil)
+		mgr, err := Build(cfg, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 	})
 
 	t.Run("nil_config", func(t *testing.T) {
-		mgr, err := NewLoggerManager(nil, nil)
+		mgr, err := Build(nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 	})

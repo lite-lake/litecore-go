@@ -2,6 +2,8 @@ package cachemgr
 
 import (
 	"fmt"
+
+	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
@@ -75,9 +77,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheMan
 		return nil, fmt.Errorf("failed to get cache.driver: %w", err)
 	}
 
-	driverTypeStr, ok := driverType.(string)
-	if !ok {
-		return nil, fmt.Errorf("cache.driver must be a string, got %T", driverType)
+	driverTypeStr, err := common.GetString(driverType)
+	if err != nil {
+		return nil, fmt.Errorf("cache.driver: %w", err)
 	}
 
 	// 2. 根据驱动类型读取对应配置
@@ -89,9 +91,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheMan
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cache.redis_config: %w", err)
 		}
-		driverConfig, ok = redisConfig.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("cache.redis_config must be a map, got %T", redisConfig)
+		driverConfig, err = common.GetMap(redisConfig)
+		if err != nil {
+			return nil, fmt.Errorf("cache.redis_config: %w", err)
 		}
 
 	case "memory":
@@ -99,9 +101,9 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheMan
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cache.memory_config: %w", err)
 		}
-		driverConfig, ok = memoryConfig.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("cache.memory_config must be a map, got %T", memoryConfig)
+		driverConfig, err = common.GetMap(memoryConfig)
+		if err != nil {
+			return nil, fmt.Errorf("cache.memory_config: %w", err)
 		}
 
 	case "none":

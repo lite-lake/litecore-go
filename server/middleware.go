@@ -1,6 +1,8 @@
 package server
 
 import (
+	"sort"
+
 	"github.com/lite-lake/litecore-go/common"
 )
 
@@ -22,14 +24,9 @@ func sortMiddlewares(middlewares []common.IBaseMiddleware) []common.IBaseMiddlew
 	sorted := make([]common.IBaseMiddleware, len(middlewares))
 	copy(sorted, middlewares)
 
-	n := len(sorted)
-	for i := 0; i < n-1; i++ {
-		for j := 0; j < n-i-1; j++ {
-			if sorted[j].Order() > sorted[j+1].Order() {
-				sorted[j], sorted[j+1] = sorted[j+1], sorted[j]
-			}
-		}
-	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Order() < sorted[j].Order()
+	})
 
 	return sorted
 }

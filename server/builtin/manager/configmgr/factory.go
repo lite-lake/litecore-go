@@ -4,8 +4,8 @@ import (
 	"fmt"
 )
 
-// NewConfigManager 根据驱动类型创建配置管理器
-func NewConfigManager(driver string, filePath string) (IConfigManager, error) {
+// Build 根据驱动类型创建配置管理器
+func Build(driver string, filePath string) (IConfigManager, error) {
 	switch driver {
 	case "yaml":
 		return newBaseConfigManager(
