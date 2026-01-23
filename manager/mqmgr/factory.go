@@ -2,9 +2,9 @@ package mqmgr
 
 import (
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
 // Build 根据驱动类型构建消息队列管理器

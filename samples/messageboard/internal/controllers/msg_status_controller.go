@@ -3,9 +3,9 @@ package controllers
 
 import (
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 	"strconv"
 
 	"github.com/gin-gonic/gin"

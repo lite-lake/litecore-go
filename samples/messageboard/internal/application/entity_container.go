@@ -2,8 +2,8 @@
 package application
 
 import (
-	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
+	"github.com/lite-lake/litecore-go/common"
 	entities "github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
 )
 

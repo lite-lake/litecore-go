@@ -3,9 +3,9 @@ package repositories
 
 import (
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/databasemgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
 )
 
 // IMessageRepository 留言仓储接口

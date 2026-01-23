@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,14 +17,12 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/logger"
-	"github.com/lite-lake/litecore-go/server/builtin"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // Engine 服务引擎
 type Engine struct {
 	// 内置配置（在 Initialize 时用于初始化内置组件）
-	builtinConfig *builtin.Config
+	builtinConfig *BuiltinConfig
 
 	// 容器
 	Manager    *container.ManagerContainer // 内置组件（在 Initialize 时初始化）
@@ -49,7 +48,7 @@ type Engine struct {
 }
 
 func NewEngine(
-	builtinConfig *builtin.Config,
+	builtinConfig *BuiltinConfig,
 	entity *container.EntityContainer,
 	repository *container.RepositoryContainer,
 	service *container.ServiceContainer,
@@ -82,7 +81,7 @@ func (e *Engine) logger() logger.ILogger {
 }
 
 // Initialize 初始化引擎（实现 liteServer 接口）
-// - 初始化内置组件（Config、Logger、Telemetry、Database、Cache）
+// - 初始化内置组件（BuiltinConfig、Logger、Telemetry、Database、Cache）
 // - 创建 Gin 引擎
 // - 注册全局中间件
 // - 注册系统路由
@@ -92,7 +91,7 @@ func (e *Engine) Initialize() error {
 	defer e.mu.Unlock()
 
 	// 1. 初始化内置组件
-	builtInManagerContainer, err := builtin.Initialize(e.builtinConfig)
+	builtInManagerContainer, err := Initialize(e.builtinConfig)
 	if err != nil {
 		return fmt.Errorf("failed to initialize builtin components: %w", err)
 	}

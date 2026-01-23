@@ -4,9 +4,9 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // IMsgAllController 获取所有留言控制器接口（管理员专用）

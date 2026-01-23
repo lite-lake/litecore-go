@@ -2,10 +2,10 @@ package telemetrymgr
 
 import (
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
 	"strings"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
 // Build 创建观测管理器实例

@@ -2,9 +2,9 @@ package limitermgr
 
 import (
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
 // Build 创建限流管理器实例

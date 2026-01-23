@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/container"
-	"github.com/lite-lake/litecore-go/server/builtin"
 )
 
 // TestNewEngine 测试创建引擎
@@ -21,7 +20,7 @@ func TestNewEngine(t *testing.T) {
 		controllerContainer := container.NewControllerContainer(serviceContainer)
 		middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
-		builtinConfig := &builtin.Config{
+		builtinConfig := &BuiltinConfig{
 			Driver:   "yaml",
 			FilePath: "test.yaml",
 		}
@@ -106,7 +105,7 @@ mq:
 			t.Fatalf("创建配置文件失败: %v", err)
 		}
 
-		builtinConfig := &builtin.Config{
+		builtinConfig := &BuiltinConfig{
 			Driver:   "yaml",
 			FilePath: configPath,
 		}
@@ -187,7 +186,7 @@ mq:
 			t.Fatalf("创建配置文件失败: %v", err)
 		}
 
-		builtinConfig := &builtin.Config{
+		builtinConfig := &BuiltinConfig{
 			Driver:   "yaml",
 			FilePath: configPath,
 		}
@@ -256,7 +255,7 @@ mq:
 			t.Fatalf("创建配置文件失败: %v", err)
 		}
 
-		builtinConfig := &builtin.Config{
+		builtinConfig := &BuiltinConfig{
 			Driver:   "yaml",
 			FilePath: configPath,
 		}
@@ -337,7 +336,7 @@ mq:
 			t.Fatalf("创建配置文件失败: %v", err)
 		}
 
-		builtinConfig := &builtin.Config{
+		builtinConfig := &BuiltinConfig{
 			Driver:   "yaml",
 			FilePath: configPath,
 		}

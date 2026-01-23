@@ -1,13 +1,13 @@
 package litecontroller
 
 import (
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"net/http"
 	"net/http/pprof"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // responseWriterWrapper 包装 gin.ResponseWriter 实现 http.ResponseWriter 接口

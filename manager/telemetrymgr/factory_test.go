@@ -3,7 +3,7 @@ package telemetrymgr
 import (
 	"context"
 	"errors"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
 	"testing"
 )
 

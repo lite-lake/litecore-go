@@ -2,11 +2,11 @@ package loggermgr
 
 import (
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"strings"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 	"gopkg.in/yaml.v3"
 )
 

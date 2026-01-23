@@ -1866,7 +1866,7 @@ air
 - [SOP - 快速实现业务服务](./SOP-build-business-application.md)
 - [SOP - 功能包文档撰写](./SOP-package-document.md)
 - [Common - 公共基础接口](../common/README.md)
-- [Database Manager - 数据库管理器](../server/builtin/manager/databasemgr/README.md)
+- [Database Manager - 数据库管理器](../manager/databasemgr/README.md)
 - [JWT 工具包](../util/jwt/README.md)
 
 ### C. 技术支持

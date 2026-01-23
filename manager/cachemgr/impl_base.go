@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/lite-lake/litecore-go/logger"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"

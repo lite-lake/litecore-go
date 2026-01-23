@@ -1,10 +1,10 @@
 package loggermgr
 
 import (
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"testing"
 
 	"github.com/lite-lake/litecore-go/logger"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 	"github.com/stretchr/testify/assert"
 )
 

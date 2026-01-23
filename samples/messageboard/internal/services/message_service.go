@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/repositories"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // IMessageService 留言服务接口

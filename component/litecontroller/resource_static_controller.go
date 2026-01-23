@@ -1,7 +1,7 @@
 package litecontroller
 
 import (
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

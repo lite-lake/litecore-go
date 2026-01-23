@@ -1,12 +1,12 @@
 package litecontroller
 
 import (
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // IMetricsController 指标控制器接口

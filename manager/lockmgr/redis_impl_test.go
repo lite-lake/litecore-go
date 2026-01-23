@@ -3,6 +3,7 @@ package lockmgr
 import (
 	"context"
 	"errors"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
 	"sync"
 	"testing"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lite-lake/litecore-go/logger"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
 )
 
 type mockCacheManager struct {

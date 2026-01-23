@@ -2,14 +2,14 @@ package litemiddleware
 
 import (
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/limitermgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/limitermgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 const (

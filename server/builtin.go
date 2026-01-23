@@ -1,27 +1,27 @@
-package builtin
+package server
 
 import (
 	"fmt"
 
 	"github.com/lite-lake/litecore-go/container"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/limitermgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/lockmgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/mqmgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/databasemgr"
+	"github.com/lite-lake/litecore-go/manager/limitermgr"
+	"github.com/lite-lake/litecore-go/manager/lockmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/mqmgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
-// Config 内置管理器配置结构体
-type Config struct {
+// BuiltinConfig 内置管理器配置结构体
+type BuiltinConfig struct {
 	Driver   string // 配置驱动类型（如：yaml、json 等）
 	FilePath string // 配置文件路径
 }
 
 // Validate 验证配置参数是否有效
-func (c *Config) Validate() error {
+func (c *BuiltinConfig) Validate() error {
 	if c.Driver == "" {
 		return fmt.Errorf("configmgr driver cannot be empty")
 	}
@@ -33,7 +33,7 @@ func (c *Config) Validate() error {
 
 // Initialize 初始化所有内置管理器并注册到容器中
 // 初始化顺序：config -> telemetry -> logger -> database -> cache -> lock -> limiter -> mq
-func Initialize(cfg *Config) (*container.ManagerContainer, error) {
+func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 
 	cntr := container.NewManagerContainer()
 

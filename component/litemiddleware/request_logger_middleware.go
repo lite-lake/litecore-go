@@ -3,13 +3,13 @@ package litemiddleware
 import (
 	"bytes"
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"io"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // RequestLoggerConfig 请求日志配置

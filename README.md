@@ -938,4 +938,4 @@ BSD 2-Clause License
 
 ## 联系方式
 
-- GitHub: https://github.com/litelake/litecore-go
+- GitHub: https://github.com/lite-lake/litecore-go
