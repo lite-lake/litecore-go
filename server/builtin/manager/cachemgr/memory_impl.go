@@ -4,25 +4,39 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/patrickmn/go-cache"
+	"github.com/dgraph-io/ristretto/v2"
 )
 
 // cacheManagerMemoryImpl 内存缓存实现
 type cacheManagerMemoryImpl struct {
 	*cacheManagerBaseImpl
-	cache *cache.Cache
-	name  string
-	mu    sync.RWMutex
+	cache     *ristretto.Cache[string, any]
+	name      string
+	itemCount atomic.Int64
 }
 
 // NewCacheManagerMemoryImpl 创建内存缓存实现
 func NewCacheManagerMemoryImpl(defaultExpiration, cleanupInterval time.Duration) ICacheManager {
+	numCounters := int64(1e6)
+	maxCost := int64(1e8)
+	bufferItems := int64(64)
+
+	cache, err := ristretto.NewCache(&ristretto.Config[string, any]{
+		NumCounters:            numCounters,
+		MaxCost:                maxCost,
+		BufferItems:            bufferItems,
+		TtlTickerDurationInSec: 1,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to create ristretto cache: %v", err))
+	}
+
 	impl := &cacheManagerMemoryImpl{
 		cacheManagerBaseImpl: newICacheManagerBaseImpl(),
-		cache:                cache.New(defaultExpiration, cleanupInterval),
+		cache:                cache,
 		name:                 "cacheManagerMemoryImpl",
 	}
 	impl.initObservability()
@@ -58,9 +72,6 @@ func (m *cacheManagerMemoryImpl) Get(ctx context.Context, key string, dest any) 
 		if err := ValidateKey(key); err != nil {
 			return err
 		}
-
-		m.mu.RLock()
-		defer m.mu.RUnlock()
 
 		value, found := m.cache.Get(key)
 		if !found {
@@ -111,10 +122,17 @@ func (m *cacheManagerMemoryImpl) Set(ctx context.Context, key string, value any,
 			return err
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
+		// 检查键是否已存在
+		_, existed := m.cache.Get(key)
 
-		m.cache.Set(key, value, expiration)
+		success := m.cache.SetWithTTL(key, value, 1, expiration)
+		if success {
+			m.cache.Wait()
+			// 只有键不存在时才增加计数
+			if !existed {
+				m.itemCount.Add(1)
+			}
+		}
 		return nil
 	})
 }
@@ -132,17 +150,20 @@ func (m *cacheManagerMemoryImpl) SetNX(ctx context.Context, key string, value an
 			return err
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
 		// 检查键是否存在
 		if _, found := m.cache.Get(key); found {
 			result = false
 			return nil
 		}
 
-		m.cache.Set(key, value, expiration)
-		result = true
+		success := m.cache.SetWithTTL(key, value, 1, expiration)
+		if success {
+			m.cache.Wait()
+			result = true
+			m.itemCount.Add(1)
+		} else {
+			result = false
+		}
 		return nil
 	})
 
@@ -159,10 +180,11 @@ func (m *cacheManagerMemoryImpl) Delete(ctx context.Context, key string) error {
 			return err
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
-		m.cache.Delete(key)
+		// 检查键是否存在
+		if _, found := m.cache.Get(key); found {
+			m.cache.Del(key)
+			m.itemCount.Add(-1)
+		}
 		return nil
 	})
 }
@@ -178,9 +200,6 @@ func (m *cacheManagerMemoryImpl) Exists(ctx context.Context, key string) (bool, 
 		if err := ValidateKey(key); err != nil {
 			return err
 		}
-
-		m.mu.RLock()
-		defer m.mu.RUnlock()
 
 		_, found := m.cache.Get(key)
 		result = found
@@ -200,17 +219,14 @@ func (m *cacheManagerMemoryImpl) Expire(ctx context.Context, key string, expirat
 			return err
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
-		// go-cache 不直接支持修改过期时间
-		// 需要先获取值，再重新设置
+		// Ristretto 需要先获取值，再重新设置
 		value, found := m.cache.Get(key)
 		if !found {
 			return fmt.Errorf("key not found: %s", key)
 		}
 
-		m.cache.Set(key, value, expiration)
+		m.cache.SetWithTTL(key, value, 1, expiration)
+		m.cache.Wait()
 		return nil
 	})
 }
@@ -227,13 +243,11 @@ func (m *cacheManagerMemoryImpl) TTL(ctx context.Context, key string) (time.Dura
 			return err
 		}
 
-		m.mu.RLock()
-		defer m.mu.RUnlock()
-
-		// go-cache 不直接提供 TTL 查询
-		// 返回 0 表示未知或永不过期
-		// 实际应用中可能需要维护额外的过期时间映射
-		result = 0
+		ttl, found := m.cache.GetTTL(key)
+		if !found {
+			return fmt.Errorf("key not found: %s", key)
+		}
+		result = ttl
 		return nil
 	})
 
@@ -247,10 +261,8 @@ func (m *cacheManagerMemoryImpl) Clear(ctx context.Context) error {
 			return err
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
-		m.cache.Flush()
+		m.cache.Clear()
+		m.itemCount.Store(0)
 		return nil
 	})
 }
@@ -270,9 +282,6 @@ func (m *cacheManagerMemoryImpl) GetMultiple(ctx context.Context, keys []string)
 		}
 
 		result = make(map[string]any)
-
-		m.mu.RLock()
-		defer m.mu.RUnlock()
 
 		for _, key := range keys {
 			if value, found := m.cache.Get(key); found {
@@ -304,12 +313,10 @@ func (m *cacheManagerMemoryImpl) SetMultiple(ctx context.Context, items map[stri
 			return nil
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
 		for key, value := range items {
-			m.cache.Set(key, value, expiration)
+			m.cache.SetWithTTL(key, value, 1, expiration)
 		}
+		m.cache.Wait()
 
 		return nil
 	})
@@ -331,11 +338,11 @@ func (m *cacheManagerMemoryImpl) DeleteMultiple(ctx context.Context, keys []stri
 			return nil
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
 		for _, key := range keys {
-			m.cache.Delete(key)
+			if _, found := m.cache.Get(key); found {
+				m.cache.Del(key)
+				m.itemCount.Add(-1)
+			}
 		}
 
 		return nil
@@ -354,9 +361,6 @@ func (m *cacheManagerMemoryImpl) Increment(ctx context.Context, key string, valu
 			return err
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
 		// 获取当前值
 		var currentValue int64 = 0
 		if val, found := m.cache.Get(key); found {
@@ -369,7 +373,8 @@ func (m *cacheManagerMemoryImpl) Increment(ctx context.Context, key string, valu
 
 		// 自增
 		newValue := currentValue + value
-		m.cache.Set(key, newValue, cache.DefaultExpiration)
+		m.cache.SetWithTTL(key, newValue, 1, 0)
+		m.cache.Wait()
 
 		result = newValue
 		return nil
@@ -390,9 +395,6 @@ func (m *cacheManagerMemoryImpl) Decrement(ctx context.Context, key string, valu
 			return err
 		}
 
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
 		// 获取当前值
 		var currentValue int64 = 0
 		if val, found := m.cache.Get(key); found {
@@ -405,7 +407,8 @@ func (m *cacheManagerMemoryImpl) Decrement(ctx context.Context, key string, valu
 
 		// 自减
 		newValue := currentValue - value
-		m.cache.Set(key, newValue, cache.DefaultExpiration)
+		m.cache.SetWithTTL(key, newValue, 1, 0)
+		m.cache.Wait()
 
 		result = newValue
 		return nil
@@ -416,14 +419,13 @@ func (m *cacheManagerMemoryImpl) Decrement(ctx context.Context, key string, valu
 
 // Close 关闭内存缓存
 func (m *cacheManagerMemoryImpl) Close() error {
+	m.cache.Close()
 	return nil
 }
 
 // ItemCount 返回缓存项数量
 func (m *cacheManagerMemoryImpl) ItemCount() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.cache.ItemCount()
+	return int(m.itemCount.Load())
 }
 
 // 确保 cacheManagerMemoryImpl 实现 ICacheManager 接口
