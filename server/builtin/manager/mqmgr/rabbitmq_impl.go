@@ -9,22 +9,27 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// rabbitMQMessage RabbitMQ 消息
 type rabbitMQMessage struct {
 	delivery *amqp.Delivery
 }
 
+// ID 获取消息 ID
 func (m *rabbitMQMessage) ID() string {
 	return fmt.Sprintf("%d", m.delivery.DeliveryTag)
 }
 
+// Body 获取消息体
 func (m *rabbitMQMessage) Body() []byte {
 	return m.delivery.Body
 }
 
+// Headers 获取消息头
 func (m *rabbitMQMessage) Headers() map[string]any {
 	return m.delivery.Headers
 }
 
+// messageQueueManagerRabbitMQImpl RabbitMQ 消息队列管理器实现
 type messageQueueManagerRabbitMQImpl struct {
 	*mqManagerBaseImpl
 	conn     *amqp.Connection
@@ -35,6 +40,7 @@ type messageQueueManagerRabbitMQImpl struct {
 	closed   atomic.Bool
 }
 
+// NewMessageQueueManagerRabbitMQImpl 创建 RabbitMQ 消息队列管理器
 func NewMessageQueueManagerRabbitMQImpl(config *RabbitMQConfig) (IMQManager, error) {
 	conn, err := amqp.Dial(config.URL)
 	if err != nil {
@@ -335,6 +341,7 @@ func (m *messageQueueManagerRabbitMQImpl) Close() error {
 	return nil
 }
 
+// getChannel 获取或创建通道
 func (m *messageQueueManagerRabbitMQImpl) getChannel(queue string) (*amqp.Channel, error) {
 	m.chanMu.RLock()
 	ch, ok := m.channels[queue]

@@ -7,6 +7,7 @@ import (
 	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 )
 
+// Build 根据驱动类型构建消息队列管理器
 func Build(
 	driverType string,
 	driverConfig map[string]any,
@@ -39,6 +40,7 @@ func Build(
 	}
 }
 
+// BuildWithConfigProvider 根据配置提供者构建消息队列管理器
 func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IMQManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
