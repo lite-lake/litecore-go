@@ -15,7 +15,10 @@ type DriverZapConfig struct {
 }
 
 type LogLevelConfig struct {
-	Level string `yaml:"level"` // 日志级别: debug, info, warn, error, fatal
+	Level      string `yaml:"level"`       // 日志级别: debug, info, warn, error, fatal
+	Format     string `yaml:"format"`      // 日志格式: gin | json | default
+	Color      bool   `yaml:"color"`       // 是否启用颜色输出（默认根据终端自动检测）
+	TimeFormat string `yaml:"time_format"` // 时间格式（默认：2006-01-02 15:04:05.000）
 }
 
 type FileLogConfig struct {

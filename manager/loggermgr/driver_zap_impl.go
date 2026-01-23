@@ -219,27 +219,72 @@ var (
 func buildConsoleCore(cfg *LogLevelConfig) (zapcore.Core, error) {
 	level := parseLogLevel(cfg.Level)
 
+	format := cfg.Format
+	if format == "" {
+		format = "gin"
+	}
+
 	if !colorChecked {
 		supportsColor = detectColorSupport()
 		colorChecked = true
 	}
 
-	encoderConfig := zapcore.EncoderConfig{
-		TimeKey:          "time",
-		LevelKey:         "level",
-		NameKey:          "logger",
-		CallerKey:        "caller",
-		MessageKey:       "msg",
-		StacktraceKey:    "stacktrace",
-		LineEnding:       zapcore.DefaultLineEnding,
-		EncodeLevel:      customLevelEncoder,
-		EncodeTime:       customTimeEncoder,
-		EncodeDuration:   zapcore.StringDurationEncoder,
-		EncodeCaller:     zapcore.ShortCallerEncoder,
-		ConsoleSeparator: " | ",
-	}
+	useColor := cfg.Color && supportsColor
 
-	encoder := zapcore.NewConsoleEncoder(encoderConfig)
+	var encoder zapcore.Encoder
+
+	switch format {
+	case "gin":
+		timeFormat := cfg.TimeFormat
+		if timeFormat == "" {
+			timeFormat = "2006-01-02 15:04:05.000"
+		}
+		encoderConfig := zapcore.EncoderConfig{
+			TimeKey:          "time",
+			LevelKey:         "level",
+			NameKey:          "logger",
+			CallerKey:        "caller",
+			MessageKey:       "msg",
+			StacktraceKey:    "stacktrace",
+			LineEnding:       zapcore.DefaultLineEnding,
+			EncodeTime:       customTimeEncoder,
+			EncodeDuration:   zapcore.StringDurationEncoder,
+			EncodeCaller:     zapcore.ShortCallerEncoder,
+			ConsoleSeparator: " | ",
+		}
+		encoder = NewGinConsoleEncoder(encoderConfig, useColor, timeFormat)
+	case "json":
+		encoderConfig := zapcore.EncoderConfig{
+			TimeKey:        "time",
+			LevelKey:       "level",
+			NameKey:        "logger",
+			CallerKey:      "caller",
+			MessageKey:     "msg",
+			StacktraceKey:  "stacktrace",
+			LineEnding:     zapcore.DefaultLineEnding,
+			EncodeLevel:    zapcore.CapitalLevelEncoder,
+			EncodeTime:     customTimeEncoder,
+			EncodeDuration: zapcore.StringDurationEncoder,
+			EncodeCaller:   zapcore.ShortCallerEncoder,
+		}
+		encoder = zapcore.NewJSONEncoder(encoderConfig)
+	default:
+		encoderConfig := zapcore.EncoderConfig{
+			TimeKey:          "time",
+			LevelKey:         "level",
+			NameKey:          "logger",
+			CallerKey:        "caller",
+			MessageKey:       "msg",
+			StacktraceKey:    "stacktrace",
+			LineEnding:       zapcore.DefaultLineEnding,
+			EncodeLevel:      customLevelEncoder,
+			EncodeTime:       customTimeEncoder,
+			EncodeDuration:   zapcore.StringDurationEncoder,
+			EncodeCaller:     zapcore.ShortCallerEncoder,
+			ConsoleSeparator: " | ",
+		}
+		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+	}
 
 	stdoutCore := zapcore.NewCore(encoder, zapcore.AddSync(os.Stdout), level)
 	stderrCore := zapcore.NewCore(encoder, zapcore.AddSync(os.Stderr), zapcore.ErrorLevel)

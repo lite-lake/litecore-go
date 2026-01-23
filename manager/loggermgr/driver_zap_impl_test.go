@@ -385,3 +385,311 @@ func TestBuildFileCore(t *testing.T) {
 		assert.NotNil(t, core)
 	})
 }
+
+func TestLoggerFormats(t *testing.T) {
+	t.Run("Gin格式输出", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig: &LogLevelConfig{
+				Level:      "debug",
+				Format:     "gin",
+				Color:      true,
+				TimeFormat: "2006-01-02 15:04:05.000",
+			},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, mgr)
+
+		log := mgr.Ins()
+		assert.NotNil(t, log)
+
+		assert.NotPanics(t, func() {
+			log.Debug("debug消息", "user_id", 1001, "action", "login")
+			log.Info("info消息", "request_id", "abc123", "path", "/api/users")
+			log.Warn("warn消息", "retry_count", 3, "max_retries", 5)
+			log.Error("error消息", "error_code", 500, "error_msg", "内部错误")
+		})
+
+		logWithCtx := log.With("service", "user-service", "version", "1.0.0")
+		assert.NotPanics(t, func() {
+			logWithCtx.Info("带上下文的消息", "status", "running")
+		})
+	})
+
+	t.Run("Json格式输出", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig: &LogLevelConfig{
+				Level:      "info",
+				Format:     "json",
+				Color:      false,
+				TimeFormat: "2006-01-02T15:04:05.000Z07:00",
+			},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, mgr)
+
+		log := mgr.Ins()
+		assert.NotNil(t, log)
+
+		assert.NotPanics(t, func() {
+			log.Info("info消息", "key1", "value1", "key2", 123)
+			log.Warn("warn消息", "warning", "something")
+			log.Error("error消息", "err", "错误详情")
+		})
+	})
+
+	t.Run("Default格式输出", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig: &LogLevelConfig{
+				Level:      "info",
+				Format:     "default",
+				Color:      false,
+				TimeFormat: "2006-01-02 15:04:05",
+			},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, mgr)
+
+		log := mgr.Ins()
+		assert.NotNil(t, log)
+
+		assert.NotPanics(t, func() {
+			log.Debug("debug消息")
+			log.Info("info消息", "data", "test")
+			log.Warn("warn消息")
+			log.Error("error消息", "error", "test error")
+		})
+	})
+
+	t.Run("颜色控制-开启颜色", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig: &LogLevelConfig{
+				Level:  "info",
+				Format: "gin",
+				Color:  true,
+			},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, mgr)
+
+		log := mgr.Ins()
+		assert.NotPanics(t, func() {
+			log.Info("info消息", "key", "value")
+			log.Warn("warn消息", "key", "value")
+			log.Error("error消息", "key", "value")
+		})
+	})
+
+	t.Run("颜色控制-关闭颜色", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig: &LogLevelConfig{
+				Level:  "info",
+				Format: "gin",
+				Color:  false,
+			},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, mgr)
+
+		log := mgr.Ins()
+		assert.NotPanics(t, func() {
+			log.Info("info消息", "key", "value")
+			log.Warn("warn消息", "key", "value")
+			log.Error("error消息", "key", "value")
+		})
+	})
+
+	t.Run("自定义时间格式", func(t *testing.T) {
+		timeFormats := []string{
+			"2006-01-02 15:04:05",
+			"2006/01/02 15:04:05",
+			"15:04:05.000",
+			"2006-01-02T15:04:05Z07:00",
+		}
+
+		for _, tf := range timeFormats {
+			t.Run(tf, func(t *testing.T) {
+				cfg := &DriverZapConfig{
+					ConsoleEnabled: true,
+					ConsoleConfig: &LogLevelConfig{
+						Level:      "info",
+						Format:     "gin",
+						Color:      false,
+						TimeFormat: tf,
+					},
+				}
+
+				mgr, err := NewDriverZapLoggerManager(cfg, nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, mgr)
+
+				log := mgr.Ins()
+				assert.NotPanics(t, func() {
+					log.Info("测试时间格式", "format", tf)
+				})
+			})
+		}
+	})
+
+	t.Run("文件日志与控制台日志并存", func(t *testing.T) {
+		tempDir := "/tmp/test_logger_integration"
+		logPath := tempDir + "/app.log"
+
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig: &LogLevelConfig{
+				Level:  "debug",
+				Format: "gin",
+				Color:  false,
+			},
+			FileEnabled: true,
+			FileConfig: &FileLogConfig{
+				Level: "debug",
+				Path:  logPath,
+				Rotation: &RotationConfig{
+					MaxSize:    1,
+					MaxAge:     1,
+					MaxBackups: 1,
+					Compress:   false,
+				},
+			},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, mgr)
+
+		log := mgr.Ins()
+		assert.NotNil(t, log)
+
+		assert.NotPanics(t, func() {
+			log.Debug("debug消息", "output", "both")
+			log.Info("info消息", "output", "both")
+			log.Warn("warn消息", "output", "both")
+			log.Error("error消息", "output", "both")
+		})
+
+		assert.NoError(t, mgr.OnStop())
+	})
+
+	t.Run("文件日志与控制台日志并存-不同级别", func(t *testing.T) {
+		tempDir := "/tmp/test_logger_integration_levels"
+		logPath := tempDir + "/app.log"
+
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig: &LogLevelConfig{
+				Level:  "info",
+				Format: "gin",
+				Color:  false,
+			},
+			FileEnabled: true,
+			FileConfig: &FileLogConfig{
+				Level: "warn",
+				Path:  logPath,
+				Rotation: &RotationConfig{
+					MaxSize:    1,
+					MaxAge:     1,
+					MaxBackups: 1,
+					Compress:   false,
+				},
+			},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, mgr)
+
+		log := mgr.Ins()
+		assert.NotNil(t, log)
+
+		assert.NotPanics(t, func() {
+			log.Debug("debug消息-仅文件")
+			log.Info("info消息-仅控制台")
+			log.Warn("warn消息-两者都输出")
+			log.Error("error消息-两者都输出")
+		})
+
+		assert.NoError(t, mgr.OnStop())
+	})
+
+	t.Run("多格式组合测试", func(t *testing.T) {
+		formats := []struct {
+			format string
+			name   string
+		}{
+			{"gin", "Gin格式"},
+			{"json", "Json格式"},
+			{"default", "Default格式"},
+		}
+
+		for _, f := range formats {
+			t.Run(f.name, func(t *testing.T) {
+				cfg := &DriverZapConfig{
+					ConsoleEnabled: true,
+					ConsoleConfig: &LogLevelConfig{
+						Level:  "info",
+						Format: f.format,
+						Color:  false,
+					},
+				}
+
+				mgr, err := NewDriverZapLoggerManager(cfg, nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, mgr)
+
+				log := mgr.Ins()
+				assert.NotPanics(t, func() {
+					log.Debug("debug")
+					log.Info("info", "format", f.format)
+					log.Warn("warn", "format", f.format)
+					log.Error("error", "format", f.format)
+				})
+
+				logWithCtx := log.With("test_field", "test_value")
+				assert.NotPanics(t, func() {
+					logWithCtx.Info("带上下文", "format", f.format)
+				})
+			})
+		}
+	})
+
+	t.Run("Gin格式-多种字段类型", func(t *testing.T) {
+		cfg := &DriverZapConfig{
+			ConsoleEnabled: true,
+			ConsoleConfig: &LogLevelConfig{
+				Level:      "debug",
+				Format:     "gin",
+				Color:      false,
+				TimeFormat: "2006-01-02 15:04:05.000",
+			},
+		}
+
+		mgr, err := NewDriverZapLoggerManager(cfg, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, mgr)
+
+		log := mgr.Ins()
+
+		assert.NotPanics(t, func() {
+			log.Info("字符串字段", "name", "张三", "email", "test@example.com")
+			log.Info("数字字段", "age", 25, "score", 98.5, "count", 1000)
+			log.Info("布尔字段", "enabled", true, "active", false)
+			log.Info("混合字段", "id", 123, "name", "李四", "active", true, "balance", 999.99)
+		})
+	})
+}
