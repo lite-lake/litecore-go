@@ -57,7 +57,7 @@ func TestGenerateEngine(t *testing.T) {
 	assert.Contains(t, code, "package application")
 	assert.Contains(t, code, "NewEngine")
 	assert.Contains(t, code, "server.NewEngine")
-	assert.Contains(t, code, "builtin.Config")
+	assert.Contains(t, code, "server.BuiltinConfig")
 	assert.Contains(t, code, "configs/config.yaml")
 }
 func TestGenerateEntityContainer(t *testing.T) {

@@ -3,13 +3,13 @@ package loggermgr
 import (
 	"context"
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/lite-lake/litecore-go/logger"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 	"go.opentelemetry.io/otel/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

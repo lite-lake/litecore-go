@@ -144,7 +144,6 @@ package {{.PackageName}}
 
 import (
 	"github.com/lite-lake/litecore-go/server"
-	"github.com/lite-lake/litecore-go/server/builtin"
 )
 
 // NewEngine 创建应用引擎
@@ -156,7 +155,7 @@ func NewEngine() (*server.Engine, error) {
 	middlewareContainer := InitMiddlewareContainer(serviceContainer)
 
 	return server.NewEngine(
-		&builtin.Config{
+		&server.BuiltinConfig{
 			Driver:   "yaml",
 			FilePath: "{{.ConfigPath}}",
 		},

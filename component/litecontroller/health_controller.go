@@ -1,13 +1,13 @@
 package litecontroller
 
 import (
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // HealthResponse 健康检查响应

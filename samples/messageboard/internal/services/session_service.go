@@ -10,10 +10,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // ISessionService 会话服务接口

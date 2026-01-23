@@ -3,9 +3,8 @@ package limitermgr
 import (
 	"context"
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
 	"time"
-
-	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
 )
 
 // limiterManagerRedisImpl Redis 限流管理器实现

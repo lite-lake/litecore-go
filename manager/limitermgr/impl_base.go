@@ -3,12 +3,11 @@ package limitermgr
 import (
 	"context"
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"time"
 
 	"github.com/lite-lake/litecore-go/logger"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"

@@ -3,6 +3,8 @@ package lockmgr
 import (
 	"context"
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -11,8 +13,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/lite-lake/litecore-go/logger"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 )
 
 // lockManagerBaseImpl 锁管理器基类实现

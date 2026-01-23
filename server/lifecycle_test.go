@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/container"
-	"github.com/lite-lake/litecore-go/server/builtin"
 )
 
 // TestLifecycleManagerStartStop 测试管理器启动和停止
@@ -52,7 +51,7 @@ mq:
 			t.Fatalf("创建配置文件失败: %v", err)
 		}
 
-		builtinConfig := &builtin.Config{
+		builtinConfig := &BuiltinConfig{
 			Driver:   "yaml",
 			FilePath: configPath,
 		}

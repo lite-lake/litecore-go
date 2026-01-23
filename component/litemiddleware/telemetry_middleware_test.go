@@ -2,6 +2,7 @@ package litemiddleware
 
 import (
 	"context"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
 	sdklog "go.opentelemetry.io/otel/sdk/log"

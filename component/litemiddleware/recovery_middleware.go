@@ -1,13 +1,13 @@
 package litemiddleware
 
 import (
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"runtime/debug"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
 // RecoveryConfig panic 恢复配置

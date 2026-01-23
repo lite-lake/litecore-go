@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // TelemetryConfig 遥测配置

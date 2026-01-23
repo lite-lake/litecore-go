@@ -2,9 +2,8 @@ package litecontroller
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
-
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 )
 
 // ResourceHTMLConfig HTML模板配置

@@ -1,7 +1,7 @@
 package databasemgr_test
 
 import (
-	databasemgr2 "github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
+	"github.com/lite-lake/litecore-go/manager/databasemgr"
 )
 
 // Example_databasemgr_withFactory 演示如何使用工厂模式创建 IDatabaseManager
@@ -10,7 +10,7 @@ func Example_databasemgr_withFactory() {
 	cfg := map[string]any{
 		"dsn": ":memory:",
 	}
-	dbMgr, _ := databasemgr2.Build("sqlite", cfg)
+	dbMgr, _ := databasemgr.Build("sqlite", cfg)
 	defer dbMgr.Close()
 
 	// 使用数据库
@@ -74,7 +74,7 @@ func Example_databasemgr_configuration() {
 // Example_databasemgr_basicOperations 演示基本的数据库操作
 func Example_databasemgr_basicOperations() {
 	// 假设已经创建了 dbMgr
-	var dbMgr databasemgr2.IDatabaseManager
+	var dbMgr databasemgr.IDatabaseManager
 
 	// 1. 简单查询
 	// type User struct {
@@ -108,7 +108,7 @@ func Example_databasemgr_basicOperations() {
 // Example_databasemgr_advancedOperations 演示高级数据库操作
 func Example_databasemgr_advancedOperations() {
 	// 假设已经创建了 dbMgr
-	var dbMgr databasemgr2.IDatabaseManager
+	var dbMgr databasemgr.IDatabaseManager
 
 	// 1. 自动迁移
 	// err := dbMgr.AutoMigrate(&User{}, &Product{}, &Order{})

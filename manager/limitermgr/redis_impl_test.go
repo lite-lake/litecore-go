@@ -2,11 +2,11 @@ package limitermgr
 
 import (
 	"context"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
 	"github.com/stretchr/testify/assert"
 )
 
