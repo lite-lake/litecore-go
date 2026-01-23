@@ -146,6 +146,13 @@ Engine 按以下顺序管理组件生命周期：
 
 **启动顺序：**
 1. Config 和 Manager（内置组件，自动初始化）
+   - ConfigManager
+   - DatabaseManager
+   - CacheManager
+   - LoggerManager
+   - LockManager
+   - LimiterManager
+   - TelemetryManager
 2. Entity 层（按注册顺序）
 3. Repository 层（按注册顺序）
 4. Service 层（按注册顺序）
@@ -172,6 +179,13 @@ if err := engine.Stop(); err != nil {
 Engine 在初始化时自动按以下顺序执行依赖注入：
 
 1. **Config 和 Manager**（内置组件，自动初始化）
+   - ConfigManager
+   - DatabaseManager
+   - CacheManager
+   - LoggerManager
+   - LockManager
+   - LimiterManager
+   - TelemetryManager
 2. **Entity 层**（无依赖）
 3. **Repository 层**（依赖 Config、Manager、Entity）
 4. **Service 层**（依赖 Config、Manager、Repository 和同层 Service）
@@ -183,12 +197,14 @@ Engine 在初始化时自动按以下顺序执行依赖注入：
 ```go
 type UserServiceImpl struct {
     // 内置组件（引擎自动注入）
-    Config    configmgr.IConfigManager   `inject:""`
-    DBManager databasemgr.IDatabaseManager `inject:""`
-    LoggerMgr loggermgr.ILoggerManager   `inject:""`
+    Config     configmgr.IConfigManager      `inject:""`
+    DBManager  databasemgr.IDatabaseManager  `inject:""`
+    LoggerMgr  loggermgr.ILoggerManager     `inject:""`
+    LockMgr    lockmgr.ILockManager         `inject:""`
+    LimiterMgr limitermgr.ILimiterManager    `inject:""`
 
     // 业务依赖
-    UserRepo  repository.IUserRepository `inject:""`
+    UserRepo   repository.IUserRepository   `inject:""`
 }
 ```
 
@@ -261,6 +277,275 @@ func (ctrl *MessageListController) Handle(c *gin.Context) {
 }
 ```
 
+### 锁和限流管理器使用
+
+#### LockMgr（锁管理器）
+
+LockMgr 提供分布式锁功能，支持 Redis 和 Memory 两种实现：
+
+**配置文件示例：**
+
+```yaml
+lock:
+  driver: "memory"              # redis, memory
+  redis_config:
+    host: "localhost"
+    port: 6379
+    password: ""
+    db: 0
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: 30s
+  memory_config:
+    max_backups: 1000
+```
+
+**Service 层使用示例：**
+
+```go
+type OrderService struct {
+    LockMgr    lockmgr.ILockManager `inject:""`
+    OrderRepo  repository.IOrderRepository `inject:""`
+}
+
+func (s *OrderService) CreateOrder(order *entities.Order) error {
+    ctx := context.Background()
+    lockKey := fmt.Sprintf("order:user:%d", order.UserID)
+
+    if err := s.LockMgr.Lock(ctx, lockKey, 10*time.Second); err != nil {
+        return fmt.Errorf("获取锁失败: %w", err)
+    }
+    defer s.LockMgr.Unlock(ctx, lockKey)
+
+    return s.OrderRepo.Create(order)
+}
+
+func (s *OrderService) TryProcessOrder(orderID uint) (bool, error) {
+    ctx := context.Background()
+    lockKey := fmt.Sprintf("order:process:%d", orderID)
+
+    locked, err := s.LockMgr.TryLock(ctx, lockKey, 5*time.Second)
+    if err != nil {
+        return false, err
+    }
+    if !locked {
+        return false, nil
+    }
+    defer s.LockMgr.Unlock(ctx, lockKey)
+
+    return true, s.OrderRepo.Process(orderID)
+}
+```
+
+#### LimiterMgr（限流管理器）
+
+LimiterMgr 提供限流功能，支持 Redis 和 Memory 两种实现：
+
+**配置文件示例：**
+
+```yaml
+limiter:
+  driver: "memory"              # redis, memory
+  redis_config:
+    host: "localhost"
+    port: 6379
+    password: ""
+    db: 0
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: 30s
+  memory_config:
+    max_backups: 1000
+```
+
+**Service 层使用示例：**
+
+```go
+type APIService struct {
+    LimiterMgr limitermgr.ILimiterManager `inject:""`
+}
+
+func (s *APIService) CallAPI(apiKey string) error {
+    ctx := context.Background()
+    key := fmt.Sprintf("api:%s", apiKey)
+
+    allowed, err := s.LimiterMgr.Allow(ctx, key, 100, time.Minute)
+    if err != nil {
+        return fmt.Errorf("限流检查失败: %w", err)
+    }
+    if !allowed {
+        remaining, _ := s.LimiterMgr.GetRemaining(ctx, key, 100, time.Minute)
+        return fmt.Errorf("请求过于频繁，剩余次数: %d", remaining)
+    }
+
+    return s.doAPICall(apiKey)
+}
+
+func (s *APIService) GetUserQuota(userID string) (int, error) {
+    ctx := context.Background()
+    key := fmt.Sprintf("user:%s:quota", userID)
+
+    remaining, err := s.LimiterMgr.GetRemaining(ctx, key, 1000, time.Hour)
+    if err != nil {
+        return 0, err
+    }
+    return remaining, nil
+}
+```
+
+### 限流器中间件集成
+
+#### 基本使用
+
+框架提供了限流器中间件，支持多种限流策略：
+
+**配置文件示例：**
+
+```yaml
+app:
+  name: "myapp"
+  version: "1.0.0"
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "debug"
+
+database:
+  driver: "sqlite"
+  sqlite_config:
+    dsn: "./data/myapp.db"
+
+cache:
+  driver: "memory"
+
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"
+
+lock:
+  driver: "memory"
+  memory_config:
+    max_backups: 1000
+
+limiter:
+  driver: "memory"
+  memory_config:
+    max_backups: 1000
+```
+
+#### 中间件实现
+
+**按 IP 限流：**
+
+```go
+package middlewares
+
+import (
+    "time"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/middleware"
+)
+
+type IRateLimiterMiddleware interface {
+    common.IBaseMiddleware
+}
+
+type rateLimiterMiddleware struct {
+    inner common.IBaseMiddleware
+}
+
+func NewRateLimiterMiddleware() IRateLimiterMiddleware {
+    return &rateLimiterMiddleware{
+        inner: middleware.NewRateLimiterByIP(100, time.Minute),
+    }
+}
+
+func (m *rateLimiterMiddleware) MiddlewareName() string { return "RateLimiterMiddleware" }
+func (m *rateLimiterMiddleware) Order() int              { return 90 }
+func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
+    return m.inner.Wrapper()
+}
+func (m *rateLimiterMiddleware) OnStart() error { return nil }
+func (m *rateLimiterMiddleware) OnStop() error  { return nil }
+
+var _ IRateLimiterMiddleware = (*rateLimiterMiddleware)(nil)
+```
+
+#### 其他限流策略
+
+**按路径限流：**
+
+```go
+func NewRateLimiterByPathMiddleware() common.IBaseMiddleware {
+    return middleware.NewRateLimiterByPath(1000, time.Minute)
+}
+```
+
+**按用户 ID 限流（需在认证中间件后执行）：**
+
+```go
+func NewRateLimiterByUserMiddleware() common.IBaseMiddleware {
+    return middleware.NewRateLimiterByUserID(50, time.Minute)
+}
+```
+
+**按 Header 限流：**
+
+```go
+func NewRateLimiterByAPIKeyMiddleware() common.IBaseMiddleware {
+    return middleware.NewRateLimiterByHeader(100, time.Minute, "X-API-Key")
+}
+```
+
+**自定义限流配置：**
+
+```go
+func NewCustomRateLimiterMiddleware() common.IBaseMiddleware {
+    return middleware.NewRateLimiter(&middleware.RateLimiterConfig{
+        Limit:     200,
+        Window:    time.Minute,
+        KeyPrefix: "custom",
+        KeyFunc: func(c *gin.Context) string {
+            return c.GetHeader("X-Tenant-ID")
+        },
+        SkipFunc: func(c *gin.Context) bool {
+            return c.Request.URL.Path == "/health"
+        },
+    })
+}
+```
+
+#### 响应头说明
+
+限流器中间件会在响应中添加以下头：
+
+| 响应头 | 说明 |
+|--------|------|
+| X-RateLimit-Limit | 时间窗口内的最大请求数 |
+| X-RateLimit-Remaining | 剩余可用次数 |
+| X-RateLimit-Reset | 限流窗口重置时间（秒） |
+| Retry-After | 被限流时建议的等待时间（秒） |
+
+#### 中间件 Order 建议
+
+限流器中间件建议使用 Order = 90，在认证中间件之前执行：
+
+```go
+const (
+    OrderRecovery  = 10
+    OrderLogger    = 20
+    OrderCors      = 30
+    OrderTelemetry = 40
+    OrderSecurity  = 50
+    OrderRateLimit = 90
+    OrderAuth      = 100
+)
+```
 
 
 ## API
@@ -399,11 +684,18 @@ func (m *SecurityHeadersMiddleware) Order() int {
     return 50
 }
 
+// 限流中间件
+func (m *RateLimiterMiddleware) Order() int {
+    return 90
+}
+
 // 认证中间件
 func (m *AuthMiddleware) Order() int {
     return 100
 }
 ```
+
+**限流器中间件 Order 建议值：** 90（在认证之前执行，避免无效请求消耗认证资源）
 
 ### 3. 路由命名规范
 

@@ -119,6 +119,26 @@ logger:
     console_enabled: true
     console_config:
       level: "info"
+
+lock:
+  driver: "memory"              # redis, memory
+  redis_config:
+    host: "localhost"
+    port: 6379
+    password: ""
+    db: 0
+  memory_config:
+    max_backups: 1000
+
+limiter:
+  driver: "memory"              # redis, memory
+  redis_config:
+    host: "localhost"
+    port: 6379
+    password: ""
+    db: 0
+  memory_config:
+    max_backups: 1000
 ```
 
 ### 4. 创建应用入口（cmd/server/main.go）
@@ -463,6 +483,118 @@ Manager 组件也作为服务器内置组件，由引擎自动初始化。无需
 - `cachemgr.CacheManager`: 缓存（Redis/Memory）
 - `loggermgr.LoggerManager`: 日志（Zap）
 - `telemetrymgr.TelemetryManager`: 遥测（OpenTelemetry）
+- `lockmgr.LockManager`: 分布式锁（Redis/Memory）
+- `limitermgr.LimiterManager`: 限流器（Redis/Memory）
+
+### LockMgr（锁管理器）
+
+LockMgr 提供分布式锁功能，支持 Redis 和 Memory 两种实现：
+
+**在 Service 层使用锁：**
+
+```go
+package services
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/lockmgr"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
+)
+
+type IUserService interface {
+    common.IBaseService
+    CreateUser(name string) error
+}
+
+type userService struct {
+    Repository repositories.IUserRepository `inject:""`
+    LockMgr    lockmgr.ILockManager        `inject:""`
+}
+
+func NewUserService() IUserService {
+    return &userService{}
+}
+
+func (s *userService) ServiceName() string { return "UserService" }
+func (s *userService) OnStart() error        { return nil }
+func (s *userService) OnStop() error         { return nil }
+
+func (s *userService) CreateUser(name string) error {
+    ctx := context.Background()
+    lockKey := fmt.Sprintf("user:create:%s", name)
+
+    if err := s.LockMgr.Lock(ctx, lockKey, 10*time.Second); err != nil {
+        return fmt.Errorf("获取锁失败: %w", err)
+    }
+    defer s.LockMgr.Unlock(ctx, lockKey)
+
+    return nil
+}
+
+var _ IUserService = (*userService)(nil)
+```
+
+### LimiterMgr（限流管理器）
+
+LimiterMgr 提供限流功能，支持 Redis 和 Memory 两种实现：
+
+**在 Service 层使用限流：**
+
+```go
+package services
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/limitermgr"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
+)
+
+type IUserService interface {
+    common.IBaseService
+    QueryData() error
+}
+
+type userService struct {
+    Repository  repositories.IUserRepository `inject:""`
+    LimiterMgr  limitermgr.ILimiterManager   `inject:""`
+}
+
+func NewUserService() IUserService {
+    return &userService{}
+}
+
+func (s *userService) ServiceName() string { return "UserService" }
+func (s *userService) OnStart() error        { return nil }
+func (s *userService) OnStop() error         { return nil }
+
+func (s *userService) QueryData() error {
+    ctx := context.Background()
+    key := "user:query:data"
+
+    allowed, err := s.LimiterMgr.Allow(ctx, key, 100, time.Minute)
+    if err != nil {
+        return fmt.Errorf("限流检查失败: %w", err)
+    }
+    if !allowed {
+        return fmt.Errorf("请求过于频繁，请稍后再试")
+    }
+
+    remaining, _ := s.LimiterMgr.GetRemaining(ctx, key, 100, time.Minute)
+    fmt.Printf("剩余可用次数: %d\n", remaining)
+
+    return nil
+}
+
+var _ IUserService = (*userService)(nil)
+```
 
 ## 代码生成器使用
 
@@ -640,7 +772,76 @@ func (m *AuthMiddleware) Order() int    { return 100 }
 func (m *LoggerMiddleware) Order() int  { return 200 }
 ```
 
-### 8. 测试建议
+### 8. 限流器中间件集成
+
+框架提供了限流器中间件，支持基于 IP、路径、用户 ID 等多种限流策略：
+
+**创建限流中间件：**
+
+```go
+package middlewares
+
+import (
+    "time"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/middleware"
+)
+
+type IRateLimiterMiddleware interface {
+    common.IBaseMiddleware
+}
+
+type rateLimiterMiddleware struct {
+    inner common.IBaseMiddleware
+}
+
+func NewRateLimiterMiddleware() IRateLimiterMiddleware {
+    return &rateLimiterMiddleware{
+        inner: middleware.NewRateLimiterByIP(100, time.Minute),
+    }
+}
+
+func (m *rateLimiterMiddleware) MiddlewareName() string { return "RateLimiterMiddleware" }
+func (m *rateLimiterMiddleware) Order() int              { return m.inner.Order() }
+func (m *rateLimiterMiddleware) Wrapper() func(c *gin.Context) {
+    return m.inner.Wrapper()
+}
+func (m *rateLimiterMiddleware) OnStart() error { return nil }
+func (m *rateLimiterMiddleware) OnStop() error  { return nil }
+
+var _ IRateLimiterMiddleware = (*rateLimiterMiddleware)(nil)
+```
+
+**其他限流策略：**
+
+```go
+// 按路径限流
+middleware.NewRateLimiterByPath(1000, time.Minute)
+
+// 按用户ID限流（需在认证中间件后执行）
+middleware.NewRateLimiterByUserID(50, time.Minute)
+
+// 按Header限流
+middleware.NewRateLimiterByHeader(100, time.Minute, "X-API-Key")
+
+// 自定义配置
+middleware.NewRateLimiter(&middleware.RateLimiterConfig{
+    Limit:     100,
+    Window:    time.Minute,
+    KeyPrefix: "custom",
+    KeyFunc: func(c *gin.Context) string {
+        return c.GetHeader("X-Custom-Header")
+    },
+    SkipFunc: func(c *gin.Context) bool {
+        return c.Request.URL.Path == "/health"
+    },
+})
+```
+
+**限流中间件 Order 建议值：** 90（在认证之前执行，避免认证后的请求过多）
+
+### 9. 测试建议
 
 ```go
 // 单元测试：使用 Mock 依赖
@@ -653,6 +854,44 @@ type mockUserRepository struct {
 sqlite_config:
   dsn: ":memory:"
 ```
+
+### 10. 锁和限流的使用建议
+
+**锁的使用场景：**
+
+1. **防止重复操作**：如用户创建时防止同名用户重复创建
+2. **资源竞争保护**：如库存扣减、订单生成等需要保证原子性的场景
+3. **分布式环境**：多实例部署时使用 Redis 锁，单实例可使用内存锁
+
+**限流的使用场景：**
+
+1. **API 保护**：防止恶意请求或突发流量导致服务崩溃
+2. **资源配额**：按用户、IP 等维度限制访问频率
+3. **服务降级**：在高负载时拒绝部分请求，保护核心功能
+
+**配置建议：**
+
+```yaml
+# 生产环境建议使用 Redis 实现锁和限流
+lock:
+  driver: "redis"
+  redis_config:
+    host: "redis.example.com"
+    port: 6379
+
+limiter:
+  driver: "redis"
+  redis_config:
+    host: "redis.example.com"
+    port: 6379
+```
+
+**性能建议：**
+
+1. 锁的 TTL 应合理设置，避免死锁
+2. 限流窗口不宜过小，避免性能损耗
+3. 高频接口建议使用限流器中间件，而非手动检查
+4. 热点数据使用 Redis 实现，避免内存限制
 
 ## 常见问题
 
