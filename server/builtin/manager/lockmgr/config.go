@@ -156,7 +156,9 @@ func parseRedisLockConfig(cfg map[string]any) (*RedisLockConfig, error) {
 	if port, ok := cfg["port"]; ok {
 		switch v := port.(type) {
 		case int:
-			config.Port = v
+			if v > 0 && v <= 65535 {
+				config.Port = v
+			}
 		case int64:
 			if v > 0 && v <= 65535 {
 				config.Port = int(v)
@@ -167,7 +169,7 @@ func parseRedisLockConfig(cfg map[string]any) (*RedisLockConfig, error) {
 			}
 		case string:
 			var portNum int
-			if _, err := fmt.Sscanf(v, "%d", &portNum); err == nil {
+			if _, err := fmt.Sscanf(v, "%d", &portNum); err == nil && portNum > 0 && portNum <= 65535 {
 				config.Port = portNum
 			}
 		}

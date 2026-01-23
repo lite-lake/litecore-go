@@ -8,12 +8,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// lockManagerRedisImpl Redis锁管理器实现
 type lockManagerRedisImpl struct {
-	*lockManagerBaseImpl
-	config *RedisLockConfig
-	name   string
+	*lockManagerBaseImpl                  // 基础锁管理器实现
+	config               *RedisLockConfig // Redis锁配置
+	name                 string           // 管理器名称
 }
 
+// NewLockManagerRedisImpl 创建Redis锁管理器实例
+// @param config Redis锁配置
+// @return ILockManager 锁管理器接口
 func NewLockManagerRedisImpl(config *RedisLockConfig) ILockManager {
 	impl := &lockManagerRedisImpl{
 		lockManagerBaseImpl: newLockManagerBaseImpl(),
@@ -24,10 +28,14 @@ func NewLockManagerRedisImpl(config *RedisLockConfig) ILockManager {
 	return impl
 }
 
+// ManagerName 返回管理器名称
+// @return string 管理器名称
 func (r *lockManagerRedisImpl) ManagerName() string {
 	return r.name
 }
 
+// Health 健康检查
+// @return error 健康状态，nil表示正常
 func (r *lockManagerRedisImpl) Health() error {
 	if r.cacheMgr == nil {
 		return fmt.Errorf("cache manager not injected")
@@ -35,6 +43,8 @@ func (r *lockManagerRedisImpl) Health() error {
 	return r.cacheMgr.Health()
 }
 
+// OnStart 启动时的初始化操作
+// @return error 初始化错误，nil表示成功
 func (r *lockManagerRedisImpl) OnStart() error {
 	if r.cacheMgr == nil {
 		return fmt.Errorf("cache manager not injected")
@@ -42,6 +52,8 @@ func (r *lockManagerRedisImpl) OnStart() error {
 	return r.cacheMgr.OnStart()
 }
 
+// OnStop 停止时的清理操作
+// @return error 清理错误，nil表示成功
 func (r *lockManagerRedisImpl) OnStop() error {
 	if r.cacheMgr == nil {
 		return nil
@@ -49,6 +61,11 @@ func (r *lockManagerRedisImpl) OnStop() error {
 	return r.cacheMgr.OnStop()
 }
 
+// Lock 获取锁，阻塞直到成功或上下文取消
+// @param ctx 上下文
+// @param key 锁的键
+// @param ttl 锁的存活时间，0表示不过期
+// @return error 错误信息
 func (r *lockManagerRedisImpl) Lock(ctx context.Context, key string, ttl time.Duration) error {
 	if err := ValidateContext(ctx); err != nil {
 		return err
@@ -93,6 +110,10 @@ func (r *lockManagerRedisImpl) Lock(ctx context.Context, key string, ttl time.Du
 	}
 }
 
+// Unlock 释放锁
+// @param ctx 上下文
+// @param key 锁的键
+// @return error 错误信息
 func (r *lockManagerRedisImpl) Unlock(ctx context.Context, key string) error {
 	return r.recordOperation(ctx, "redis", "unlock", key, func() error {
 		if err := ValidateContext(ctx); err != nil {
@@ -117,6 +138,12 @@ func (r *lockManagerRedisImpl) Unlock(ctx context.Context, key string) error {
 	})
 }
 
+// TryLock 尝试获取锁，不阻塞
+// @param ctx 上下文
+// @param key 锁的键
+// @param ttl 锁的存活时间，0表示不过期
+// @return bool 是否获取成功
+// @return error 错误信息
 func (r *lockManagerRedisImpl) TryLock(ctx context.Context, key string, ttl time.Duration) (bool, error) {
 	if err := ValidateContext(ctx); err != nil {
 		return false, err
