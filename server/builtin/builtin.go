@@ -2,10 +2,13 @@ package builtin
 
 import (
 	"fmt"
+
 	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/limitermgr"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/lockmgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 )
@@ -71,6 +74,22 @@ func Initialize(cfg *Config) (*container.ManagerContainer, error) {
 	}
 	if err := container.RegisterManager[cachemgr.ICacheManager](cntr, cacheMgr); err != nil {
 		return nil, fmt.Errorf("failed to register cache manager: %w", err)
+	}
+
+	lockMgr, err := lockmgr.BuildWithConfigProvider(configManager)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create lock manager: %w", err)
+	}
+	if err := container.RegisterManager[lockmgr.ILockManager](cntr, lockMgr); err != nil {
+		return nil, fmt.Errorf("failed to register lock manager: %w", err)
+	}
+
+	limiterMgr, err := limitermgr.BuildWithConfigProvider(configManager)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create limiter manager: %w", err)
+	}
+	if err := container.RegisterManager[limitermgr.ILimiterManager](cntr, limiterMgr); err != nil {
+		return nil, fmt.Errorf("failed to register limiter manager: %w", err)
 	}
 
 	return cntr, nil
