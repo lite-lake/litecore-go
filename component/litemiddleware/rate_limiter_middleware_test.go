@@ -73,49 +73,58 @@ func TestNewRateLimiter(t *testing.T) {
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		assert.NotNil(t, rlmw.config)
-		assert.Equal(t, 100, rlmw.config.Limit)
-		assert.Equal(t, time.Minute, rlmw.config.Window)
-		assert.Equal(t, "rate_limit", rlmw.config.KeyPrefix)
+		assert.Equal(t, 100, *rlmw.config.Limit)
+		assert.Equal(t, time.Minute, *rlmw.config.Window)
+		assert.Equal(t, "rate_limit", *rlmw.config.KeyPrefix)
 	})
 
 	t.Run("自定义配置", func(t *testing.T) {
+		limit := 10
+		window := time.Hour
+		keyPrefix := "custom"
 		customConfig := &RateLimiterConfig{
-			Limit:     10,
-			Window:    time.Hour,
-			KeyPrefix: "custom",
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
 		}
 		mw := NewRateLimiterMiddleware(customConfig)
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
-		assert.Equal(t, 10, rlmw.config.Limit)
-		assert.Equal(t, time.Hour, rlmw.config.Window)
-		assert.Equal(t, "custom", rlmw.config.KeyPrefix)
+		assert.Equal(t, 10, *rlmw.config.Limit)
+		assert.Equal(t, time.Hour, *rlmw.config.Window)
+		assert.Equal(t, "custom", *rlmw.config.KeyPrefix)
 	})
 
 	t.Run("按IP限流", func(t *testing.T) {
+		limit := 50
+		window := time.Minute
+		keyPrefix := "ip"
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-			Limit:     50,
-			Window:    time.Minute,
-			KeyPrefix: "ip",
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
 		})
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
-		assert.Equal(t, 50, rlmw.config.Limit)
-		assert.Equal(t, time.Minute, rlmw.config.Window)
-		assert.Equal(t, "ip", rlmw.config.KeyPrefix)
+		assert.Equal(t, 50, *rlmw.config.Limit)
+		assert.Equal(t, time.Minute, *rlmw.config.Window)
+		assert.Equal(t, "ip", *rlmw.config.KeyPrefix)
 	})
 
 	t.Run("按路径限流", func(t *testing.T) {
+		limit := 20
+		window := time.Hour
+		keyPrefix := "path"
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-			Limit:     20,
-			Window:    time.Hour,
-			KeyPrefix: "path",
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
 		})
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
-		assert.Equal(t, 20, rlmw.config.Limit)
-		assert.Equal(t, time.Hour, rlmw.config.Window)
-		assert.Equal(t, "path", rlmw.config.KeyPrefix)
+		assert.Equal(t, 20, *rlmw.config.Limit)
+		assert.Equal(t, time.Hour, *rlmw.config.Window)
+		assert.Equal(t, "path", *rlmw.config.KeyPrefix)
 	})
 }
 
@@ -125,10 +134,13 @@ func TestRateLimiterMiddleware_Allow(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(true, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(99, nil)
 
+		limit := 100
+		window := time.Minute
+		keyPrefix := "ip"
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-			Limit:     100,
-			Window:    time.Minute,
-			KeyPrefix: "ip",
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
 		})
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
@@ -156,10 +168,13 @@ func TestRateLimiterMiddleware_Reject(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(false, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(0, nil)
 
+		limit := 100
+		window := time.Minute
+		keyPrefix := "ip"
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-			Limit:     100,
-			Window:    time.Minute,
-			KeyPrefix: "ip",
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
 		})
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
@@ -185,10 +200,13 @@ func TestRateLimiterMiddleware_Error(t *testing.T) {
 		mockLimiter := new(MockLimiterManager)
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(false, errors.New("limiter error"))
 
+		limit := 100
+		window := time.Minute
+		keyPrefix := "ip"
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-			Limit:     100,
-			Window:    time.Minute,
-			KeyPrefix: "ip",
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
 		})
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
@@ -212,9 +230,11 @@ func TestRateLimiterMiddleware_Skip(t *testing.T) {
 	t.Run("跳过限流", func(t *testing.T) {
 		mockLimiter := new(MockLimiterManager)
 
+		limit := 100
+		window := time.Minute
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-			Limit:  100,
-			Window: time.Minute,
+			Limit:  &limit,
+			Window: &window,
 			SkipFunc: func(c *gin.Context) bool {
 				return c.GetHeader("X-Skip-Limit") == "true"
 			},
@@ -238,10 +258,13 @@ func TestRateLimiterMiddleware_Skip(t *testing.T) {
 
 func TestRateLimiterMiddleware_NilLimiter(t *testing.T) {
 	t.Run("限流管理器未初始化", func(t *testing.T) {
+		limit := 100
+		window := time.Minute
+		keyPrefix := "ip"
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-			Limit:     100,
-			Window:    time.Minute,
-			KeyPrefix: "ip",
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
 		})
 		router := setupRouter(mw)
 
@@ -260,10 +283,13 @@ func TestRateLimiterMiddleware_CustomKeyFunc(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, "custom:test-user", 50, time.Minute).Return(true, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, "custom:test-user", 50, time.Minute).Return(49, nil)
 
+		limit := 50
+		window := time.Minute
+		keyPrefix := "custom"
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-			Limit:     50,
-			Window:    time.Minute,
-			KeyPrefix: "custom",
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
 			KeyFunc: func(c *gin.Context) string {
 				return c.GetHeader("X-User-ID")
 			},
@@ -286,10 +312,13 @@ func TestRateLimiterMiddleware_CustomKeyFunc(t *testing.T) {
 }
 
 func TestRateLimiterMiddleware_BasicMethods(t *testing.T) {
+	limit := 100
+	window := time.Minute
+	keyPrefix := "ip"
 	mw := NewRateLimiterMiddleware(&RateLimiterConfig{
-		Limit:     100,
-		Window:    time.Minute,
-		KeyPrefix: "ip",
+		Limit:     &limit,
+		Window:    &window,
+		KeyPrefix: &keyPrefix,
 	})
 	rlmw, ok := mw.(*rateLimiterMiddleware)
 	assert.True(t, ok)

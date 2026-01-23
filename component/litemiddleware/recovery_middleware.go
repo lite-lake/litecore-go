@@ -12,24 +12,29 @@ import (
 
 // RecoveryConfig panic 恢复配置
 type RecoveryConfig struct {
-	Name            string // 中间件名称
-	Order           *int   // 执行顺序（指针类型用于判断是否设置）
-	PrintStack      bool   // 是否打印堆栈信息
-	CustomErrorBody bool   // 是否使用自定义错误响应
-	ErrorMessage    string // 自定义错误消息
-	ErrorCode       string // 自定义错误代码
+	Name            *string // 中间件名称
+	Order           *int    // 执行顺序
+	PrintStack      *bool   // 是否打印堆栈信息
+	CustomErrorBody *bool   // 是否使用自定义错误响应
+	ErrorMessage    *string // 自定义错误消息
+	ErrorCode       *string // 自定义错误代码
 }
 
 // DefaultRecoveryConfig 默认 panic 恢复配置
 func DefaultRecoveryConfig() *RecoveryConfig {
 	defaultOrder := OrderRecovery
+	name := "RecoveryMiddleware"
+	printStack := true
+	customErrorBody := true
+	errorMessage := "内部服务器错误"
+	errorCode := "INTERNAL_SERVER_ERROR"
 	return &RecoveryConfig{
-		Name:            "RecoveryMiddleware",
+		Name:            &name,
 		Order:           &defaultOrder,
-		PrintStack:      true,
-		CustomErrorBody: true,
-		ErrorMessage:    "内部服务器错误",
-		ErrorCode:       "INTERNAL_SERVER_ERROR",
+		PrintStack:      &printStack,
+		CustomErrorBody: &customErrorBody,
+		ErrorMessage:    &errorMessage,
+		ErrorCode:       &errorCode,
 	}
 }
 
@@ -41,10 +46,33 @@ type recoveryMiddleware struct {
 
 // NewRecoveryMiddleware 创建 panic 恢复中间件
 func NewRecoveryMiddleware(config *RecoveryConfig) common.IBaseMiddleware {
-	if config == nil {
-		config = DefaultRecoveryConfig()
+	cfg := config
+	if cfg == nil {
+		cfg = &RecoveryConfig{}
 	}
-	return &recoveryMiddleware{cfg: config}
+
+	defaultCfg := DefaultRecoveryConfig()
+
+	if cfg.Name == nil {
+		cfg.Name = defaultCfg.Name
+	}
+	if cfg.Order == nil {
+		cfg.Order = defaultCfg.Order
+	}
+	if cfg.PrintStack == nil {
+		cfg.PrintStack = defaultCfg.PrintStack
+	}
+	if cfg.CustomErrorBody == nil {
+		cfg.CustomErrorBody = defaultCfg.CustomErrorBody
+	}
+	if cfg.ErrorMessage == nil {
+		cfg.ErrorMessage = defaultCfg.ErrorMessage
+	}
+	if cfg.ErrorCode == nil {
+		cfg.ErrorCode = defaultCfg.ErrorCode
+	}
+
+	return &recoveryMiddleware{cfg: cfg}
 }
 
 // NewRecoveryMiddlewareWithDefaults 使用默认配置创建 panic 恢复中间件
@@ -54,8 +82,8 @@ func NewRecoveryMiddlewareWithDefaults() common.IBaseMiddleware {
 
 // MiddlewareName 返回中间件名称
 func (m *recoveryMiddleware) MiddlewareName() string {
-	if m.cfg.Name != "" {
-		return m.cfg.Name
+	if m.cfg.Name != nil && *m.cfg.Name != "" {
+		return *m.cfg.Name
 	}
 	return "RecoveryMiddleware"
 }
@@ -97,19 +125,19 @@ func (m *recoveryMiddleware) Wrapper() gin.HandlerFunc {
 					"timestamp", time.Now().Format(time.RFC3339Nano),
 				}
 
-				if m.cfg.PrintStack {
+				if m.cfg.PrintStack != nil && *m.cfg.PrintStack {
 					fields = append(fields, "stack", string(stack))
 				}
 
 				m.LoggerMgr.Ins().Error("PANIC recovered", fields...)
 
-				if m.cfg.CustomErrorBody {
+				if m.cfg.CustomErrorBody != nil && *m.cfg.CustomErrorBody {
 					c.JSON(common.HTTPStatusInternalServerError, gin.H{
-						"error": m.cfg.ErrorMessage,
-						"code":  m.cfg.ErrorCode,
+						"error": *m.cfg.ErrorMessage,
+						"code":  *m.cfg.ErrorCode,
 					})
 				} else {
-					c.String(common.HTTPStatusInternalServerError, m.cfg.ErrorMessage)
+					c.String(common.HTTPStatusInternalServerError, *m.cfg.ErrorMessage)
 				}
 				c.Abort()
 			}

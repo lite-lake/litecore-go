@@ -23,13 +23,13 @@ type KeyFunc func(c *gin.Context) string
 type SkipFunc func(c *gin.Context) bool
 
 type RateLimiterConfig struct {
-	Name      string        // 中间件名称
-	Order     *int          // 执行顺序（指针类型用于判断是否设置）
-	Limit     int           // 时间窗口内最大请求数
-	Window    time.Duration // 时间窗口大小
-	KeyFunc   KeyFunc       // 自定义key生成函数（可选，默认按IP）
-	SkipFunc  SkipFunc      // 跳过限流的条件（可选）
-	KeyPrefix string        // key前缀，默认 "rate_limit"
+	Name      *string        // 中间件名称
+	Order     *int           // 执行顺序
+	Limit     *int           // 时间窗口内最大请求数
+	Window    *time.Duration // 时间窗口大小
+	KeyFunc   KeyFunc        // 自定义key生成函数（可选，默认按IP）
+	SkipFunc  SkipFunc       // 跳过限流的条件（可选）
+	KeyPrefix *string        // key前缀
 }
 
 type rateLimiterMiddleware struct {
@@ -39,32 +39,52 @@ type rateLimiterMiddleware struct {
 }
 
 func NewRateLimiterMiddleware(config *RateLimiterConfig) common.IBaseMiddleware {
-	if config == nil {
-		config = DefaultRateLimiterConfig()
+	cfg := config
+	if cfg == nil {
+		cfg = &RateLimiterConfig{}
 	}
-	if config.KeyFunc == nil {
-		config.KeyFunc = func(c *gin.Context) string {
+
+	defaultCfg := DefaultRateLimiterConfig()
+
+	if cfg.Name == nil {
+		cfg.Name = defaultCfg.Name
+	}
+	if cfg.Order == nil {
+		cfg.Order = defaultCfg.Order
+	}
+	if cfg.Limit == nil {
+		cfg.Limit = defaultCfg.Limit
+	}
+	if cfg.Window == nil {
+		cfg.Window = defaultCfg.Window
+	}
+	if cfg.KeyPrefix == nil {
+		cfg.KeyPrefix = defaultCfg.KeyPrefix
+	}
+	if cfg.KeyFunc == nil {
+		cfg.KeyFunc = func(c *gin.Context) string {
 			return c.ClientIP()
 		}
 	}
-	if config.KeyPrefix == "" {
-		config.KeyPrefix = "rate_limit"
-	}
 
 	return &rateLimiterMiddleware{
-		config: config,
+		config: cfg,
 	}
 }
 
 // DefaultRateLimiterConfig 默认限流配置
 func DefaultRateLimiterConfig() *RateLimiterConfig {
 	defaultOrder := OrderRateLimiter
+	name := "RateLimiterMiddleware"
+	limit := 100
+	window := time.Minute
+	keyPrefix := "rate_limit"
 	return &RateLimiterConfig{
-		Name:      "RateLimiterMiddleware",
+		Name:      &name,
 		Order:     &defaultOrder,
-		Limit:     100,
-		Window:    time.Minute,
-		KeyPrefix: "rate_limit",
+		Limit:     &limit,
+		Window:    &window,
+		KeyPrefix: &keyPrefix,
 	}
 }
 
@@ -74,8 +94,8 @@ func NewRateLimiterMiddlewareWithDefaults() common.IBaseMiddleware {
 }
 
 func (m *rateLimiterMiddleware) MiddlewareName() string {
-	if m.config.Name != "" {
-		return m.config.Name
+	if m.config.Name != nil && *m.config.Name != "" {
+		return *m.config.Name
 	}
 	return "RateLimiterMiddleware"
 }
@@ -103,11 +123,11 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 		}
 
 		key := m.config.KeyFunc(c)
-		fullKey := fmt.Sprintf("%s:%s", m.config.KeyPrefix, key)
+		fullKey := fmt.Sprintf("%s:%s", *m.config.KeyPrefix, key)
 
 		ctx := c.Request.Context()
 
-		allowed, err := m.LimiterMgr.Allow(ctx, fullKey, m.config.Limit, m.config.Window)
+		allowed, err := m.LimiterMgr.Allow(ctx, fullKey, *m.config.Limit, *m.config.Window)
 		if err != nil {
 			if m.LoggerMgr != nil {
 				m.LoggerMgr.Ins().Error("限流检查失败", "error", err, "key", fullKey)
@@ -120,20 +140,20 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 			return
 		}
 
-		remaining, _ := m.LimiterMgr.GetRemaining(ctx, fullKey, m.config.Limit, m.config.Window)
+		remaining, _ := m.LimiterMgr.GetRemaining(ctx, fullKey, *m.config.Limit, *m.config.Window)
 
-		c.Header(RateLimitLimitHeader, fmt.Sprintf("%d", m.config.Limit))
+		c.Header(RateLimitLimitHeader, fmt.Sprintf("%d", *m.config.Limit))
 		c.Header(RateLimitRemainingHeader, fmt.Sprintf("%d", remaining))
 
 		if !allowed {
 			if m.LoggerMgr != nil {
-				m.LoggerMgr.Ins().Warn("请求被限流", "key", fullKey, "limit", m.config.Limit, "window", m.config.Window)
+				m.LoggerMgr.Ins().Warn("请求被限流", "key", fullKey, "limit", *m.config.Limit, "window", *m.config.Window)
 			}
 
 			c.Header("Retry-After", fmt.Sprintf("%d", int(m.config.Window.Seconds())))
 
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error": fmt.Sprintf("请求过于频繁，请 %v 后再试", m.config.Window),
+				"error": fmt.Sprintf("请求过于频繁，请 %v 后再试", *m.config.Window),
 				"code":  "RATE_LIMIT_EXCEEDED",
 			})
 			c.Abort()
