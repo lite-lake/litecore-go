@@ -14,7 +14,8 @@ type IRateLimiterMiddleware interface {
 }
 
 type rateLimiterMiddleware struct {
-	order int
+	wrapperFunc func(c *gin.Context)
+	order       int
 }
 
 func NewRateLimiterMiddleware() IRateLimiterMiddleware {
@@ -30,7 +31,11 @@ func (m *rateLimiterMiddleware) Order() int {
 }
 
 func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
-	return middlewarepkg.NewRateLimiterByIP(100, time.Minute).Wrapper()
+	if m.wrapperFunc == nil {
+		// 创建限流中间件并缓存
+		m.wrapperFunc = middlewarepkg.NewRateLimiterByIP(100, time.Minute).Wrapper()
+	}
+	return m.wrapperFunc
 }
 
 func (m *rateLimiterMiddleware) OnStart() error {

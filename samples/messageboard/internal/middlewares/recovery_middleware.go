@@ -2,8 +2,6 @@
 package middlewares
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"github.com/lite-lake/litecore-go/common"
 	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
 )
@@ -13,37 +11,8 @@ type IRecoveryMiddleware interface {
 	common.IBaseMiddleware
 }
 
-type recoveryMiddleware struct {
-	inner common.IBaseMiddleware
-	order int
-}
-
 // NewRecoveryMiddleware 创建 panic 恢复中间件
 func NewRecoveryMiddleware() IRecoveryMiddleware {
-	return &recoveryMiddleware{
-		inner: componentMiddleware.NewRecoveryMiddleware(),
-		order: 10,
-	}
+	// 直接返回 component 的中间件，让依赖注入自动处理
+	return componentMiddleware.NewRecoveryMiddleware()
 }
-
-func (m *recoveryMiddleware) MiddlewareName() string {
-	return m.inner.MiddlewareName()
-}
-
-func (m *recoveryMiddleware) Order() int {
-	return m.order
-}
-
-func (m *recoveryMiddleware) Wrapper() gin.HandlerFunc {
-	return m.inner.Wrapper()
-}
-
-func (m *recoveryMiddleware) OnStart() error {
-	return m.inner.OnStart()
-}
-
-func (m *recoveryMiddleware) OnStop() error {
-	return m.inner.OnStop()
-}
-
-var _ IRecoveryMiddleware = (*recoveryMiddleware)(nil)

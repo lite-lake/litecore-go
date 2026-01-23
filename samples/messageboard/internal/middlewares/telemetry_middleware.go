@@ -3,9 +3,7 @@ package middlewares
 
 import (
 	"github.com/gin-gonic/gin"
-
 	"github.com/lite-lake/litecore-go/common"
-	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
 )
 
@@ -15,7 +13,7 @@ type ITelemetryMiddleware interface {
 }
 
 type telemetryMiddleware struct {
-	inner            common.IBaseMiddleware
+	wrapperFunc      func(c *gin.Context)
 	order            int
 	TelemetryManager telemetrymgr.ITelemetryManager `inject:""`
 }
@@ -23,13 +21,12 @@ type telemetryMiddleware struct {
 // NewTelemetryMiddleware 创建遥测中间件
 func NewTelemetryMiddleware() ITelemetryMiddleware {
 	return &telemetryMiddleware{
-		inner: componentMiddleware.NewTelemetryMiddleware(nil),
 		order: 50,
 	}
 }
 
 func (m *telemetryMiddleware) MiddlewareName() string {
-	return m.inner.MiddlewareName()
+	return "TelemetryMiddleware"
 }
 
 func (m *telemetryMiddleware) Order() int {
@@ -37,27 +34,33 @@ func (m *telemetryMiddleware) Order() int {
 }
 
 func (m *telemetryMiddleware) Wrapper() gin.HandlerFunc {
+	if m.wrapperFunc != nil {
+		return m.wrapperFunc
+	}
+	// 如果 TelemetryManager 为空，返回空中间件
 	if m.TelemetryManager == nil {
-		return func(c *gin.Context) {
+		m.wrapperFunc = func(c *gin.Context) {
+			c.Next()
+		}
+		return m.wrapperFunc
+	}
+	// 使用 TelemetryManager 的 GinMiddleware
+	if ginMiddleware, ok := m.TelemetryManager.(interface{ GinMiddleware() gin.HandlerFunc }); ok {
+		m.wrapperFunc = ginMiddleware.GinMiddleware()
+	} else {
+		m.wrapperFunc = func(c *gin.Context) {
 			c.Next()
 		}
 	}
-	m.inner = componentMiddleware.NewTelemetryMiddleware(m.TelemetryManager)
-	return m.inner.Wrapper()
+	return m.wrapperFunc
 }
 
 func (m *telemetryMiddleware) OnStart() error {
-	if m.inner == nil {
-		return nil
-	}
-	return m.inner.OnStart()
+	return nil
 }
 
 func (m *telemetryMiddleware) OnStop() error {
-	if m.inner == nil {
-		return nil
-	}
-	return m.inner.OnStop()
+	return nil
 }
 
 var _ ITelemetryMiddleware = (*telemetryMiddleware)(nil)

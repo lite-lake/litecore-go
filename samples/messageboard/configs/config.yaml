@@ -83,3 +83,15 @@ limiter:
   driver: "memory"              # redis, memory
   memory_config:
     max_backups: 1000           # 最大备份项数
+
+# 锁配置
+lock:
+  driver: "memory"              # redis, memory
+  memory_config:
+    max_backups: 1000           # 最大备份项数
+
+# 消息队列配置
+mq:
+  driver: "memory"              # rabbitmq, memory
+  memory_config:
+    max_backups: 1000           # 最大备份项数
