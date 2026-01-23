@@ -2,96 +2,150 @@
 
 # 应用配置
 app:
-  name: "litecore-messageboard"
-  version: "1.0.0"
+  name: "litecore-messageboard"                 # 应用名称
+  version: "1.0.0"                              # 应用版本
   admin:
-    password: "$2a$10$OzRRxaA.5Njv.o0d6VuHdec2190L0zSD5OA11oUfEjJruMfXhYkVK"  # 管理员密码（bcrypt加密）
-    session_timeout: 3600       # 会话超时时间（秒）
+    password: "$2a$10$OzRRxaA.5Njv.o0d6VuHdec2190L0zSD5OA11oUfEjJruMfXhYkVK" # 管理员密码（bcrypt加密）
+    session_timeout: 3600                       # 会话超时时间（秒）
 
 # 服务器配置
 server:
-  host: "0.0.0.0"
-  port: 8080
-  mode: "debug"                 # debug, release, test
-  read_timeout: "10s"
-  write_timeout: "10s"
-  idle_timeout: "60s"
-  enable_recovery: true
-  shutdown_timeout: "30s"
+  host: "0.0.0.0"                               # 监听主机地址
+  port: 8080                                    # 监听端口
+  mode: "debug"                                 # 运行模式：debug, release, test
+  read_timeout: "10s"                           # 读取超时时间
+  write_timeout: "10s"                          # 写入超时时间
+  idle_timeout: "60s"                           # 空闲超时时间
+  enable_recovery: true                         # 是否启用panic恢复
+  shutdown_timeout: "30s"                       # 优雅关闭超时时间
 
 # 数据库配置
 database:
-  driver: "sqlite"              # mysql, postgresql, sqlite, none
+  driver: "sqlite"                              # 驱动类型：mysql, postgresql, sqlite, none
+  # MySQL 配置示例
+  # mysql_config:
+  #   dsn: "root:password@tcp(localhost:3306)/messageboard?charset=utf8mb4&parseTime=True&loc=Local" # 数据源名称
+  #   pool_config:                             # 连接池配置
+  #     max_open_conns: 10                     # 最大打开连接数
+  #     max_idle_conns: 5                      # 最大空闲连接数
+  #     conn_max_lifetime: "30s"               # 连接最大存活时间
+  #     conn_max_idle_time: "5m"               # 连接最大空闲时间
+  # PostgreSQL 配置示例
+  # postgresql_config:
+  #   dsn: "host=localhost port=5432 user=postgres password= dbname=messageboard sslmode=disable" # 数据源名称
+  #   pool_config:                             # 连接池配置
+  #     max_open_conns: 10                     # 最大打开连接数
+  #     max_idle_conns: 5                      # 最大空闲连接数
+  #     conn_max_lifetime: "30s"               # 连接最大存活时间
+  #     conn_max_idle_time: "5m"               # 连接最大空闲时间
   sqlite_config:
-    dsn: "./data/messageboard.db"
-    pool_config:
-      max_open_conns: 1         # SQLite 通常设置为 1
-      max_idle_conns: 1
-      conn_max_lifetime: "30s"
-      conn_max_idle_time: "5m"
-  observability_config:
-    slow_query_threshold: "1s"  # 慢查询阈值
-    log_sql: false              # 是否记录完整 SQL（生产环境建议关闭）
-    sample_rate: 1.0            # 采样率（0.0-1.0）
+    dsn: "./data/messageboard.db"               # SQLite 数据库文件路径
+    pool_config:                                # 连接池配置
+      max_open_conns: 1                         # 最大打开连接数（SQLite通常设置为1）
+      max_idle_conns: 1                         # 最大空闲连接数
+      conn_max_lifetime: "30s"                  # 连接最大存活时间
+      conn_max_idle_time: "5m"                  # 连接最大空闲时间
+  observability_config:                         # 可观测性配置
+    slow_query_threshold: "1s"                  # 慢查询阈值
+    log_sql: false                              # 是否记录完整SQL（生产环境建议关闭）
+    sample_rate: 1.0                            # 采样率（0.0-1.0）
 
 # 缓存配置
 cache:
-  driver: "memory"              # redis, memory, none
+  driver: "memory"                              # 驱动类型：redis, memory, none
+  # Redis 配置示例
+  # redis_config:
+  #   host: "localhost"                         # Redis主机地址
+  #   port: 6379                                # Redis端口
+  #   password: ""                              # Redis密码
+  #   db: 0                                    # Redis数据库编号
+  #   max_idle_conns: 10                        # 最大空闲连接数
+  #   max_open_conns: 100                       # 最大打开连接数
+  #   conn_max_lifetime: "30s"                  # 连接最大存活时间
   memory_config:
-    max_size: 100               # 最大缓存大小（MB）
-    max_age: "720h"             # 最大缓存时间（30天）
-    max_backups: 1000           # 最大备份项数
-    compress: false             # 是否压缩
+    max_size: 100                               # 最大缓存大小（MB）
+    max_age: "720h"                             # 最大缓存时间（30天）
+    max_backups: 1000                           # 最大备份项数
+    compress: false                             # 是否压缩
 
 # 日志配置
 logger:
-  driver: "zap"                 # zap, none
+  driver: "zap"                                 # 驱动类型：zap, default, none
   zap_config:
-    telemetry_enabled: false
-    telemetry_config:
-      level: "info"
-    console_enabled: true
-    console_config:
-      level: "info"
-    file_enabled: false
-    file_config:
-      level: "info"
-      path: "./logs/messageboard.log"
-      rotation:
-        max_size: 100           # MB
-        max_age: 30             # days
-        max_backups: 10
-        compress: true
+    telemetry_enabled: false                    # 是否启用观测日志
+    telemetry_config:                           # 观测日志配置
+      level: "info"                             # 日志级别：debug, info, warn, error, fatal
+    console_enabled: true                       # 是否启用控制台日志
+    console_config:                             # 控制台日志配置
+      level: "info"                             # 日志级别：debug, info, warn, error, fatal
+    file_enabled: false                         # 是否启用文件日志
+    file_config:                                # 文件日志配置
+      level: "info"                             # 日志级别：debug, info, warn, error, fatal
+      path: "./logs/messageboard.log"           # 日志文件路径
+      rotation:                                 # 日志轮转配置
+        max_size: 100                           # 单个日志文件最大大小（MB）
+        max_age: 30                             # 日志文件保留天数
+        max_backups: 10                         # 保留的旧日志文件最大数量
+        compress: true                          # 是否压缩旧日志文件
 
 # 遥测配置
 telemetry:
-  driver: "none"                # none, otel
-  otel_config:
-    endpoint: "localhost:4317"
-    insecure: false
-    headers: {}
-    resource_attributes: []
-    traces:
-      enabled: false
-    metrics:
-      enabled: false
-    logs:
-      enabled: false
+  driver: "none"                               # 驱动类型：none, otel
+  # OTEL 配置示例
+  # otel_config:
+  #   endpoint: "localhost:4317"               # OTLP端点地址
+  #   insecure: false                           # 是否使用不安全连接（默认false，使用TLS）
+  #   headers:                                 # 请求头（用于认证）
+  #     Authorization: "Bearer your-token"
+  #   resource_attributes:                     # 资源属性
+  #     - key: "service.name"
+  #       value: "messageboard"
+  #     - key: "service.version"
+  #       value: "1.0.0"
+  #   traces:                                  # 链路追踪配置
+  #     enabled: false                         # 是否启用链路追踪
+  #   metrics:                                 # 指标配置
+  #     enabled: false                         # 是否启用指标
+  #   logs:                                    # 日志配置
+  #     enabled: false                         # 是否启用日志观测
 
 # 限流配置
 limiter:
-  driver: "memory"              # redis, memory
+  driver: "memory"                              # 驱动类型：redis, memory
+  # Redis 配置示例
+  # redis_config:
+  #   host: "localhost"                         # Redis主机地址
+  #   port: 6379                                # Redis端口
+  #   password: ""                              # Redis密码
+  #   db: 0                                    # Redis数据库编号
+  #   max_idle_conns: 10                        # 最大空闲连接数
+  #   max_open_conns: 100                       # 最大打开连接数
+  #   conn_max_lifetime: "30s"                  # 连接最大存活时间
   memory_config:
-    max_backups: 1000           # 最大备份项数
+    max_backups: 1000                           # 最大备份项数（清理策略相关）
 
 # 锁配置
 lock:
-  driver: "memory"              # redis, memory
+  driver: "memory"                              # 驱动类型：redis, memory
+  # Redis 配置示例
+  # redis_config:
+  #   host: "localhost"                         # Redis主机地址
+  #   port: 6379                                # Redis端口
+  #   password: ""                              # Redis密码
+  #   db: 0                                    # Redis数据库编号
+  #   max_idle_conns: 10                        # 最大空闲连接数
+  #   max_open_conns: 100                       # 最大打开连接数
+  #   conn_max_lifetime: "30s"                  # 连接最大存活时间
   memory_config:
-    max_backups: 1000           # 最大备份项数
+    max_backups: 1000                           # 最大备份项数（清理策略相关）
 
 # 消息队列配置
 mq:
-  driver: "memory"              # rabbitmq, memory
+  driver: "memory"                              # 驱动类型：rabbitmq, memory
+  # RabbitMQ 配置示例
+  # rabbitmq_config:
+  #   url: "amqp://guest:guest@localhost:5672/" # RabbitMQ连接地址
+  #   durable: true                             # 是否持久化队列
   memory_config:
-    max_backups: 1000           # 最大备份项数
+    max_queue_size: 10000                       # 最大队列大小
+    channel_buffer: 100                         # 通道缓冲区大小
