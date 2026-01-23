@@ -16,6 +16,7 @@ type UninjectedFieldError struct {
 	FieldType    reflect.Type
 }
 
+// Error 返回错误信息
 func (e *UninjectedFieldError) Error() string {
 	return fmt.Sprintf("field %s.%s (type %s) marked with inject:\"\" is still nil after injection",
 		e.InstanceName, e.FieldName, e.FieldType)
@@ -61,15 +62,12 @@ func verifyInjectTags(instance interface{}) {
 // IDependencyResolver 依赖解析器接口
 // 各容器通过实现此接口提供自己的依赖解析逻辑
 type IDependencyResolver interface {
-	// ResolveDependency 解析字段类型对应的依赖实例
 	ResolveDependency(fieldType reflect.Type, structType reflect.Type, fieldName string) (interface{}, error)
 }
 
 // ContainerSource 容器依赖源接口
 // 容器实现此接口后，可以通过通用依赖解析器解析依赖
 type ContainerSource interface {
-	// GetDependency 根据类型获取依赖实例
-	// 返回nil表示类型不匹配，返回error表示类型匹配但查找失败
 	GetDependency(fieldType reflect.Type) (interface{}, error)
 }
 
@@ -81,7 +79,6 @@ func injectDependencies(instance interface{}, resolver IDependencyResolver) erro
 		val = val.Elem()
 	}
 
-	// 如果不是结构体，无法注入
 	if val.Kind() != reflect.Struct {
 		return nil
 	}
@@ -92,17 +89,12 @@ func injectDependencies(instance interface{}, resolver IDependencyResolver) erro
 		field := typ.Field(i)
 		fieldVal := val.Field(i)
 
-		// 检查是否有 inject 标签
-		// 注意：`inject:""` 会被 Tag.Ins 返回为 ""，但我们需要区分"没有标签"和"空值标签"
 		tagValue, ok := field.Tag.Lookup("inject")
 		if !ok {
-			// 没有 inject 标签，跳过
 			continue
 		}
 
-		// 检查是否为可选依赖
 		if tagValue == "optional" {
-			// 可选依赖，如果找不到也不报错
 			if dep, err := resolver.ResolveDependency(field.Type, typ, field.Name); err == nil && dep != nil {
 				if fieldVal.CanSet() {
 					fieldVal.Set(reflect.ValueOf(dep))
@@ -111,7 +103,6 @@ func injectDependencies(instance interface{}, resolver IDependencyResolver) erro
 			continue
 		}
 
-		// 必需依赖（包括 tagValue == "" 的情况）
 		dependency, err := resolver.ResolveDependency(field.Type, typ, field.Name)
 		if err != nil {
 			return err
