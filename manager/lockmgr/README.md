@@ -20,7 +20,7 @@ import (
     "fmt"
     "time"
 
-    "github.com/lite-lake/litecore-go/server/builtin/manager/lockmgr"
+    "github.com/lite-lake/litecore-go/manager/lockmgr"
 )
 
 func main() {

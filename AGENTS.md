@@ -94,9 +94,9 @@ serviceContainer := container.NewServiceContainer(repositoryContainer)
 controllerContainer := container.NewControllerContainer(serviceContainer)
 middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
-// Managers are auto-initialized by the engine via builtin.Config
+// Managers are auto-initialized by the engine via server.BuiltinConfig
 engine := server.NewEngine(
-    &builtin.Config{
+    &server.BuiltinConfig{
         Driver:   "yaml",
         FilePath: "configs/config.yaml",
     },

@@ -1,10 +1,12 @@
 # 中间件配置指南
 
+本目录提供了开箱即用的内置中间件组件，所有中间件都支持灵活的配置方式。配置属性使用指针类型，支持可选配置，未配置的属性自动使用默认值。
+
+## 目录变更说明
+
+> **v1.0.0 (2026-01-24)**：中间件目录从 `component/middleware` 重构为 `component/litemiddleware`，包名从 `middleware` 变更为 `litemiddleware`。
+
 ## 配置设计
-
-所有内置中间件都支持灵活的配置方式。配置属性使用指针类型，支持可选配置，未配置的属性自动使用默认值。
-
-## 核心特性
 
 ### 1. 可选配置（指针类型）
 
@@ -396,6 +398,7 @@ func NewConfigurableCorsMiddleware(cfg config.CorsConfig) ICorsMiddleware {
 | SecurityHeaders | 150 | 安全头 |
 | RateLimiter | 200 | 限流 |
 | Telemetry | 250 | 遥测 |
+| Auth | 300 | 认证（预留） |
 
 业务自定义中间件建议从 Order 350 开始。
 
@@ -432,6 +435,10 @@ go test ./component/litemiddleware/... -v
 - `security_headers_middleware_test.go` - SecurityHeaders 测试
 - `telemetry_middleware_test.go` - Telemetry 测试
 - `example_test.go` - 使用示例
+
+### 配置文件
+- `constants.go` - 中间件执行顺序常量
+- `README.md` - 本文档
 
 ### 示例项目
 - `samples/messageboard/internal/middlewares/` - 示例项目中间件封装
@@ -489,8 +496,21 @@ request_logger:
 1. ✅ 所有配置属性都使用指针类型（可选配置）
 2. ✅ 未配置的属性自动使用默认值
 3. ✅ 支持依赖注入机制
-4. ✅ CORS 支持灵活的跨域配置
-5. ✅ RequestLogger 支持性能优化配置
-6. ✅ 所有中间件都有完整的单元测试
+4. ✅ 支持通过配置自定义 Name 和 Order
+5. ✅ CORS 支持灵活的跨域配置
+6. ✅ RequestLogger 支持性能优化配置
+7. ✅ RateLimiter 支持多种限流策略（按 IP/用户/路径等）
+8. ✅ 所有中间件都有完整的单元测试和示例
 
 业务系统可以灵活地根据环境（开发/测试/生产）配置不同的中间件参数，支持任意属性组合。
+
+## 版本历史
+
+### v1.0.0 (2026-01-24)
+
+- **目录重构**：`component/middleware` → `component/litemiddleware`
+- **包名变更**：`middleware` → `litemiddleware`
+- **配置增强**：所有中间件支持通过配置自定义 Name 和 Order
+- **配置重构**：配置属性改为指针类型，支持可选配置
+- **新增功能**：RateLimiter 限流中间件
+- **示例完善**：添加了完整的使用示例和测试用例

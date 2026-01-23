@@ -58,6 +58,8 @@ defer mgr.Close()
 
 ctx := context.Background()
 
+ctx := context.Background()
+
 // 检查是否允许通过（100次/分钟）
 allowed, err := mgr.Allow(ctx, "user:123", 100, time.Minute)
 if err != nil {

@@ -12,7 +12,7 @@
 ## 快速开始
 
 ```go
-import "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+import "github.com/lite-lake/litecore-go/manager/configmgr"
 
 // 创建配置管理器
 mgr, err := configmgr.NewConfigManager("yaml", "config.yaml")

@@ -5,19 +5,21 @@
 ## 特性
 
 - **多驱动支持** - 支持 zap（高性能）、default（简单）、none（空实现）三种日志驱动
+- **多格式支持** - 控制台输出支持 Gin 风格、JSON、默认三种格式
+- **彩色输出** - 控制台输出支持彩色分级显示，可配置开关
 - **OpenTelemetry 集成** - 支持将日志输出到观测平台
 - **多输出支持** - 同时支持控制台、文件和观测日志输出
 - **日志轮转** - 支持按大小、时间轮转日志文件，并可压缩旧日志
 - **级别过滤** - 支持动态调整日志级别
 - **线程安全** - 支持并发日志写入
-- **彩色输出** - 控制台输出支持彩色分级显示
+- **时间格式化** - 支持自定义日志时间格式
 
 ## 快速开始
 
 ```go
 import (
-    "github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
+    "github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // 创建 Zap 日志管理器
@@ -62,6 +64,9 @@ zap_config:
   console_enabled: true
   console_config:
     level: info  # debug, info, warn, error, fatal
+    format: gin  # 格式: gin | json | default
+    color: true  # 是否启用颜色（默认自动检测）
+    time_format: "2006-01-24 15:04:05.000"  # 时间格式
 
   # 文件输出配置
   file_enabled: true
@@ -78,7 +83,35 @@ zap_config:
   telemetry_enabled: true
   telemetry_config:
     level: info
+    format: json  # 观测日志使用 JSON 格式
 ```
+
+### 日志格式说明
+
+控制台输出支持三种格式：
+
+| 格式 | 说明 | 示例 |
+|------|------|------|
+| `gin` | Gin 风格格式，竖线分隔符，适合控制台输出（默认） | `2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23` |
+| `json` | JSON 格式，适合日志分析和监控 | `{"time":"2026-01-24T15:04:05.123Z","level":"INFO","msg":"开始依赖注入","count":23}` |
+| `default` | 默认 ConsoleEncoder 格式 | `{"level":"info","time":"2026-01-24T15:04:05.123Z","msg":"开始依赖注入","count":23}` |
+
+**Gin 格式特点**：
+- 统一格式：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
+- 时间固定宽度 23 字符
+- 级别固定宽度 5 字符，右对齐，带颜色
+- 字段格式：`key=value`，字符串值用引号包裹
+
+**颜色配置**：
+- `color: true`（默认）：根据终端自动检测
+- `color: false`：关闭彩色输出
+
+**日志级别颜色**：
+- DEBUG：灰色
+- INFO：绿色
+- WARN：黄色
+- ERROR：红色
+- FATAL：红色+粗体
 
 ## API
 
@@ -171,7 +204,10 @@ type DriverZapConfig struct {
 
 ```go
 type LogLevelConfig struct {
-    Level string // 日志级别: debug, info, warn, error, fatal
+    Level      string // 日志级别: debug, info, warn, error, fatal
+    Format     string // 日志格式: gin | json | default
+    Color      bool   // 是否启用颜色输出（默认根据终端自动检测）
+    TimeFormat string // 时间格式（默认：2006-01-02 15:04:05.000）
 }
 ```
 
