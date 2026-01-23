@@ -173,6 +173,8 @@ func main() {
 }
 ```
 
+**注意**: `NewEngine()` 函数由代码生成器自动生成，位于 `internal/application/engine.go`。
+
 ### 5. 配置代码生成器（cmd/generate/main.go）
 
 ```go
@@ -214,6 +216,15 @@ go run ./cmd/server/main.go
 ```
 
 ## 5层架构使用规范
+
+### 层级关系与依赖注入
+
+依赖注入规则（由框架自动管理）：
+- Entity: 无依赖
+- Repository: Entity + Config + Manager（内置）
+- Service: Repository + Config + Manager（内置） + Service
+- Controller: Service + Config + Manager（内置）
+- Middleware: Service + Config + Manager（内置）
 
 ### 1. Entity 层（实体）
 
@@ -367,26 +378,30 @@ var _ IUserService = (*userService)(nil)
 package controllers
 
 import (
+    "github.com/gin-gonic/gin"
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-    "github.com/gin-gonic/gin"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
+// IUserController 用户控制器接口
 type IUserController interface {
     common.IBaseController
 }
 
 type userController struct {
-    Config      configmgr.IConfigManager `inject:""`
-    UserService services.IUserService    `inject:""`
+    UserService services.IUserService `inject:""`
+    LoggerMgr   loggermgr.ILoggerManager `inject:""`
 }
 
+// NewUserController 创建控制器实例
 func NewUserController() IUserController {
     return &userController{}
 }
 
-func (c *userController) ControllerName() string { return "userController" }
+func (c *userController) ControllerName() string {
+    return "userController"
+}
 
 func (c *userController) GetRouter() string {
     return "/api/users [POST]"
@@ -397,17 +412,33 @@ func (c *userController) Handle(ctx *gin.Context) {
         Name string `json:"name" binding:"required"`
     }
     if err := ctx.ShouldBindJSON(&req); err != nil {
-        ctx.JSON(400, gin.H{"error": err.Error()})
+        if c.LoggerMgr != nil {
+            c.LoggerMgr.Ins().Error("创建用户失败：参数绑定失败", "error", err)
+        }
+        ctx.JSON(common.HTTPStatusBadRequest, gin.H{
+            "code":    common.HTTPStatusBadRequest,
+            "message": err.Error(),
+        })
         return
     }
 
     user, err := c.UserService.CreateUser(req.Name)
     if err != nil {
-        ctx.JSON(500, gin.H{"error": err.Error()})
+        if c.LoggerMgr != nil {
+            c.LoggerMgr.Ins().Error("创建用户失败", "error", err)
+        }
+        ctx.JSON(common.HTTPStatusInternalServerError, gin.H{
+            "code":    common.HTTPStatusInternalServerError,
+            "message": err.Error(),
+        })
         return
     }
 
-    ctx.JSON(200, user)
+    if c.LoggerMgr != nil {
+        c.LoggerMgr.Ins().Info("创建用户成功", "id", user.ID, "name", user.Name)
+    }
+
+    ctx.JSON(common.HTTPStatusOK, user)
 }
 
 var _ IUserController = (*userController)(nil)
@@ -422,49 +453,119 @@ var _ IUserController = (*userController)(nil)
 - 使用 `Order()` 定义执行顺序
 - 使用 `Wrapper()` 返回 gin.HandlerFunc
 
+#### 自定义中间件
+
+```go
+package middlewares
+
+import (
+    "github.com/gin-gonic/gin"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
+)
+
+// IAuthMiddleware 认证中间件接口
+type IAuthMiddleware interface {
+    common.IBaseMiddleware
+}
+
+type authMiddleware struct {
+    AuthService services.IAuthService `inject:""`
+}
+
+func NewAuthMiddleware() IAuthMiddleware {
+    return &authMiddleware{}
+}
+
+func (m *authMiddleware) MiddlewareName() string {
+    return "AuthMiddleware"
+}
+
+func (m *authMiddleware) Order() int {
+    return 100
+}
+
+func (m *authMiddleware) Wrapper() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        authHeader := c.GetHeader("Authorization")
+        if authHeader == "" {
+            c.JSON(common.HTTPStatusUnauthorized, gin.H{
+                "code":    common.HTTPStatusUnauthorized,
+                "message": "未提供认证令牌",
+            })
+            c.Abort()
+            return
+        }
+
+        session, err := m.AuthService.ValidateToken(authHeader)
+        if err != nil {
+            c.JSON(common.HTTPStatusUnauthorized, gin.H{
+                "code":    common.HTTPStatusUnauthorized,
+                "message": "认证令牌无效或已过期",
+            })
+            c.Abort()
+            return
+        }
+
+        c.Set("session", session)
+        c.Next()
+    }
+}
+
+func (m *authMiddleware) OnStart() error { return nil }
+func (m *authMiddleware) OnStop() error  { return nil }
+
+var _ IAuthMiddleware = (*authMiddleware)(nil)
+```
+
+#### 封装框架中间件
+
+对于 `component/litemiddleware` 中的中间件，使用简洁封装方式：
+
 ```go
 package middlewares
 
 import (
     "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-    "github.com/gin-gonic/gin"
+    "github.com/lite-lake/litecore-go/component/litemiddleware"
 )
 
-type ILoggerMiddleware interface {
+// ICorsMiddleware CORS 跨域中间件接口
+type ICorsMiddleware interface {
     common.IBaseMiddleware
 }
 
-type loggerMiddleware struct {
-    order int
+// NewCorsMiddleware 使用默认配置创建 CORS 中间件
+func NewCorsMiddleware() ICorsMiddleware {
+    return litemiddleware.NewCorsMiddlewareWithDefaults()
 }
 
-func NewLoggerMiddleware() ILoggerMiddleware {
-    return &loggerMiddleware{order: 100}
+// IRequestLoggerMiddleware 请求日志中间件接口
+type IRequestLoggerMiddleware interface {
+    common.IBaseMiddleware
 }
 
-func (m *loggerMiddleware) MiddlewareName() string { return "LoggerMiddleware" }
-func (m *loggerMiddleware) Order() int              { return m.order }
-
-func (m *loggerMiddleware) Wrapper() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        // 前置处理
-        c.Next()
-        // 后置处理
-    }
+// NewRequestLoggerMiddleware 使用默认配置创建请求日志中间件
+func NewRequestLoggerMiddleware() IRequestLoggerMiddleware {
+    return litemiddleware.NewRequestLoggerMiddlewareWithDefaults()
 }
 
-func (m *loggerMiddleware) OnStart() error { return nil }
-func (m *loggerMiddleware) OnStop() error  { return nil }
+// IRecoveryMiddleware panic 恢复中间件接口
+type IRecoveryMiddleware interface {
+    common.IBaseMiddleware
+}
 
-var _ ILoggerMiddleware = (*loggerMiddleware)(nil)
+// NewRecoveryMiddleware 使用默认配置创建 panic 恢复中间件
+func NewRecoveryMiddleware() IRecoveryMiddleware {
+    return litemiddleware.NewRecoveryMiddlewareWithDefaults()
+}
 ```
 
 ## 内置组件
 
 ### Config（配置）
 
-Config 作为服务器内置组件，由引擎自动初始化。在创建引擎时通过 `builtin.Config` 指定配置文件，无需手动创建。
+Config 作为服务器内置组件，由引擎自动初始化。在创建引擎时通过 `builtin.Config` 指定配置文件路径，无需手动创建。
 
 ### Manager（管理器）
 
@@ -479,12 +580,15 @@ Manager 组件也作为服务器内置组件，由引擎自动初始化。无需
 
 ### 可用的内置 Manager
 
-- `databasemgr.DatabaseManager`: 数据库（MySQL/PostgreSQL/SQLite）
-- `cachemgr.CacheManager`: 缓存（Redis/Memory）
-- `loggermgr.LoggerManager`: 日志（Zap）
-- `telemetrymgr.TelemetryManager`: 遥测（OpenTelemetry）
-- `lockmgr.LockManager`: 分布式锁（Redis/Memory）
-- `limitermgr.LimiterManager`: 限流器（Redis/Memory）
+所有 Manager 都通过依赖注入自动初始化，在代码中通过 `inject:""` 标签使用：
+
+- `configmgr.IConfigManager`: 配置管理
+- `databasemgr.IDatabaseManager`: 数据库（MySQL/PostgreSQL/SQLite）
+- `cachemgr.ICacheManager`: 缓存（Redis/Memory）
+- `loggermgr.ILoggerManager`: 日志（Zap）
+- `telemetrymgr.ITelemetryManager`: 遥测（OpenTelemetry）
+- `lockmgr.ILockManager`: 分布式锁（Redis/Memory）
+- `limitermgr.ILimiterManager`: 限流器（Redis/Memory）
 
 ### LockMgr（锁管理器）
 
@@ -626,24 +730,21 @@ go run ./cmd/generate -o internal/application -pkg application -c configs/config
 
 **重要**: 生成的文件头部标记 `// Code generated by litecore/cli. DO NOT EDIT.`，请勿手动修改。
 
-**重要**: 生成的文件头部标记 `// Code generated by litecore/cli. DO NOT EDIT.`，请勿手动修改。
-
 ## 依赖注入规则
 
 ### 注入语法
 
 ```go
-import "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-
 type myService struct {
-    // 内置组件（引擎自动注入）
-    Config         configmgr.IConfigManager      `inject:""`
-    DBMgr          databasemgr.IDatabaseManager `inject:""`
-    CacheMgr       cachemgr.ICacheManager       `inject:""`
+    // 内置 Manager 组件（引擎自动注入）
+    ConfigMgr   configmgr.IConfigManager      `inject:""`
+    DBMgr       databasemgr.IDatabaseManager `inject:""`
+    CacheMgr    cachemgr.ICacheManager       `inject:""`
+    LoggerMgr   loggermgr.ILoggerManager     `inject:""`
 
     // 业务依赖
-    Repository     repositories.IUserRepository  `inject:""`
-    OtherService   services.IOtherService       `inject:""`
+    Repository   repositories.IUserRepository  `inject:""`
+    OtherService services.IOtherService      `inject:""`
 }
 ```
 
@@ -651,34 +752,51 @@ type myService struct {
 
 | 层级 | 可注入的依赖 |
 |------|-------------|
-| Repository | Entity, Config, Manager（内置） |
-| Service | Repository, Config, Manager（内置）, Service |
-| Controller | Service, Config, Manager（内置） |
-| Middleware | Service, Config, Manager（内置） |
+| Entity | 无 |
+| Repository | Config + Manager（内置） |
+| Service | Repository + Config + Manager（内置） + Service |
+| Controller | Service + Config + Manager（内置） |
+| Middleware | Service + Config + Manager（内置） |
 
 ### 注意事项
 
 1. **不要跨层注入**: 例如 Controller 不能直接注入 Repository
 2. **接口注入**: 优先注入接口，而非具体实现
 3. **空标签**: `inject:""` 表示自动注入，无需指定名称
-4. **内置组件**: Config 和 Manager 由引擎自动初始化和注入，无需手动创建
+4. **内置组件**: 所有 Manager 组件由引擎自动初始化和注入，无需手动创建
+5. **空值检查**: 使用 Manager 前应检查是否为 nil，避免 panic
+
+```go
+if m.LoggerMgr != nil {
+    m.LoggerMgr.Ins().Info("处理请求")
+}
+```
 
 ## 最佳实践
 
 ### 1. 目录组织
 
 ```
-internal/
-├── application/         # 自动生成，不要手动修改
-├── entities/           # 纯数据实体，无业务逻辑
-├── repositories/       # 数据访问层，仅 CRUD
-├── services/           # 业务逻辑层，验证、事务、业务规则
-├── controllers/        # HTTP 层，仅请求响应处理
-├── middlewares/        # 中间件，横切关注点
-├── dtos/               # 请求/响应对象
-└── infras/             # 基础设施，封装框架组件
-    ├── configproviders/ # 配置提供者
-    └── managers/        # 管理器封装
+myapp/
+├── cmd/
+│   ├── server/main.go          # 应用入口
+│   └── generate/main.go         # 代码生成器
+├── configs/config.yaml          # 配置文件
+├── internal/
+│   ├── application/             # 自动生成的容器（DO NOT EDIT）
+│   │   ├── entity_container.go
+│   │   ├── repository_container.go
+│   │   ├── service_container.go
+│   │   ├── controller_container.go
+│   │   ├── middleware_container.go
+│   │   └── engine.go
+│   ├── entities/                # 实体层（无依赖）
+│   ├── repositories/            # 仓储层（依赖 Manager）
+│   ├── services/                # 服务层（依赖 Repository）
+│   ├── controllers/             # 控制器层（依赖 Service）
+│   ├── middlewares/             # 中间件层（依赖 Service）
+│   └── dtos/                    # 数据传输对象
+└── go.mod
 ```
 
 ### 2. 错误处理
@@ -773,6 +891,69 @@ func (m *LoggerMiddleware) Order() int  { return 200 }
 ```
 
 ### 8. 限流器中间件集成
+
+框架提供了限流器中间件，支持基于 IP、路径、用户 ID 等多种限流策略：
+
+**创建限流中间件：**
+
+```go
+package middlewares
+
+import (
+    "time"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/litemiddleware"
+)
+
+type IRateLimiterMiddleware interface {
+    common.IBaseMiddleware
+}
+
+func NewRateLimiterMiddleware() IRateLimiterMiddleware {
+    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+        Limit:     100,
+        Window:    time.Minute,
+        KeyPrefix: "ip",
+    })
+}
+```
+
+**自定义限流策略：**
+
+```go
+// 自定义 KeyFunc
+func NewRateLimiterByUserID() IRateLimiterMiddleware {
+    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+        Limit:     50,
+        Window:    time.Minute,
+        KeyPrefix: "user",
+        KeyFunc: func(c *gin.Context) string {
+            // 从上下文获取用户ID（需要认证中间件先执行）
+            if session, exists := c.Get("session"); exists {
+                if s, ok := session.(*Session); ok {
+                    return s.UserID
+                }
+            }
+            return c.ClientIP() // 回退到IP
+        },
+    })
+}
+
+// 跳过某些路径
+func NewRateLimiterWithSkip() IRateLimiterMiddleware {
+    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+        Limit:     100,
+        Window:    time.Minute,
+        KeyPrefix: "ip",
+        SkipFunc: func(c *gin.Context) bool {
+            return c.Request.URL.Path == "/health" || c.Request.URL.Path == "/metrics"
+        },
+    })
+}
+```
+
+**限流中间件 Order 建议值：** 200（OrderRateLimiter）
 
 框架提供了限流器中间件，支持基于 IP、路径、用户 ID 等多种限流策略：
 
@@ -897,7 +1078,7 @@ limiter:
 
 ### 1. 如何添加新的 Manager？
 
-在 `internal/infras/managers/` 创建新的 Manager 文件，然后运行 `go run ./cmd/generate`。
+所有 Manager 由框架提供，无需手动创建。在代码中通过 `inject:""` 标签直接使用即可。
 
 ### 2. 如何自定义路由？
 
@@ -910,17 +1091,24 @@ return "/api/files/*filepath [GET]"
 
 ### 3. 如何使用框架提供的中间件？
 
-```go
-import "github.com/lite-lake/litecore-go/component/middleware"
+框架中间件已封装在 `component/litemiddleware` 中，直接使用 `WithDefaults` 函数：
 
-type recoveryMiddleware struct {
-    inner common.IBaseMiddleware
+```go
+package middlewares
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/litemiddleware"
+)
+
+// IRecoveryMiddleware panic 恢复中间件接口
+type IRecoveryMiddleware interface {
+    common.IBaseMiddleware
 }
 
+// NewRecoveryMiddleware 使用默认配置创建 panic 恢复中间件
 func NewRecoveryMiddleware() IRecoveryMiddleware {
-    return &recoveryMiddleware{
-        inner: middleware.NewRecoveryMiddleware(),
-    }
+    return litemiddleware.NewRecoveryMiddlewareWithDefaults()
 }
 ```
 
