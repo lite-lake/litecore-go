@@ -12,13 +12,20 @@ import (
 )
 
 // cacheManagerRedisImpl Redis 缓存实现
+// 基于 Redis 客户端实现的分布式缓存
 type cacheManagerRedisImpl struct {
 	*cacheManagerBaseImpl
+	// client Redis 客户端
 	client *redis.Client
-	name   string
+	// name 管理器名称
+	name string
 }
 
 // NewCacheManagerRedisImpl 创建 Redis 实现
+// 参数：
+//   - cfg: Redis 配置
+//
+// 返回 ICacheManager 接口实例和可能的错误
 func NewCacheManagerRedisImpl(cfg *RedisConfig) (ICacheManager, error) {
 	// 创建 Redis 客户端
 	client := redis.NewClient(&redis.Options{
@@ -30,7 +37,7 @@ func NewCacheManagerRedisImpl(cfg *RedisConfig) (ICacheManager, error) {
 		ConnMaxLifetime: cfg.ConnMaxLifetime,
 	})
 
-	// 测试连接
+	// 测试连接，确保 Redis 可达
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -54,6 +61,7 @@ func (r *cacheManagerRedisImpl) ManagerName() string {
 }
 
 // Health 检查管理器健康状态
+// 通过 PING 命令检查 Redis 连接
 func (r *cacheManagerRedisImpl) Health() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -61,11 +69,13 @@ func (r *cacheManagerRedisImpl) Health() error {
 }
 
 // OnStart 在服务器启动时触发
+// Redis 已在构造时连接，无需额外操作
 func (r *cacheManagerRedisImpl) OnStart() error {
-	return nil // Redis 已在构造时连接
+	return nil
 }
 
 // OnStop 在服务器停止时触发
+// 关闭 Redis 连接
 func (r *cacheManagerRedisImpl) OnStop() error {
 	return r.Close()
 }
@@ -404,6 +414,7 @@ func (r *cacheManagerRedisImpl) Decrement(ctx context.Context, key string, value
 }
 
 // Close 关闭 Redis 连接
+// 释放 Redis 客户端资源
 func (r *cacheManagerRedisImpl) Close() error {
 	if r.client != nil {
 		return r.client.Close()
@@ -411,7 +422,8 @@ func (r *cacheManagerRedisImpl) Close() error {
 	return nil
 }
 
-// serialize 使用Gob编码序列化数据
+// serialize 使用 Gob 编码序列化数据
+// 将任意类型转换为字节数组
 func serialize(value any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -421,7 +433,8 @@ func serialize(value any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// deserialize 使用Gob解码反序列化数据
+// deserialize 使用 Gob 解码反序列化数据
+// 将字节数组转换为目标类型
 func deserialize(data []byte, dest any) error {
 	buf := bytes.NewReader(data)
 	dec := gob.NewDecoder(buf)
@@ -431,7 +444,8 @@ func deserialize(data []byte, dest any) error {
 	return nil
 }
 
-// serializeWithPool 使用sync.Pool优化的序列化函数，减少内存分配
+// serializeWithPool 使用 sync.Pool 优化的序列化函数
+// 通过对象池重用缓冲区，减少内存分配和 GC 压力
 func serializeWithPool(value any) ([]byte, error) {
 	buf := gobPool.Get().(*bytes.Buffer)
 	defer gobPool.Put(buf)
@@ -444,7 +458,8 @@ func serializeWithPool(value any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// deserializeWithPool 使用sync.Pool优化的反序列化函数，减少内存分配
+// deserializeWithPool 使用 sync.Pool 优化的反序列化函数
+// 通过对象池重用缓冲区，减少内存分配和 GC 压力
 func deserializeWithPool(data []byte, dest any) error {
 	buf := gobPool.Get().(*bytes.Buffer)
 	defer gobPool.Put(buf)
@@ -454,7 +469,8 @@ func deserializeWithPool(data []byte, dest any) error {
 	return dec.Decode(dest)
 }
 
-// gobPool用于重用Gob编码和解码的缓冲区，减少内存分配
+// gobPool 用于重用 Gob 编码和解码的缓冲区
+// 通过对象池模式减少内存分配，提高性能
 var gobPool = sync.Pool{
 	New: func() interface{} {
 		return &bytes.Buffer{}

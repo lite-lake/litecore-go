@@ -11,24 +11,35 @@ import (
 )
 
 // cacheManagerMemoryImpl 内存缓存实现
+// 基于 Ristretto 库实现的高性能内存缓存
 type cacheManagerMemoryImpl struct {
 	*cacheManagerBaseImpl
-	cache     *ristretto.Cache[string, any]
-	name      string
+	// cache Ristretto 缓存实例
+	cache *ristretto.Cache[string, any]
+	// name 管理器名称
+	name string
+	// itemCount 缓存项数量计数器（原子操作）
 	itemCount atomic.Int64
 }
 
 // NewCacheManagerMemoryImpl 创建内存缓存实现
+// 参数：
+//   - defaultExpiration: 默认过期时间（仅用于配置参考）
+//   - cleanupInterval: 清理间隔（仅用于配置参考）
+//
+// 返回 ICacheManager 接口实例
 func NewCacheManagerMemoryImpl(defaultExpiration, cleanupInterval time.Duration) ICacheManager {
-	numCounters := int64(1e6)
-	maxCost := int64(1e8)
-	bufferItems := int64(64)
+	// 配置 Ristretto 缓存参数
+	numCounters := int64(1e6) // 统计计数器数量
+	maxCost := int64(1e8)     // 最大缓存成本
+	bufferItems := int64(64)  // 缓冲区大小
 
+	// 创建 Ristretto 缓存实例
 	cache, err := ristretto.NewCache(&ristretto.Config[string, any]{
 		NumCounters:            numCounters,
 		MaxCost:                maxCost,
 		BufferItems:            bufferItems,
-		TtlTickerDurationInSec: 1,
+		TtlTickerDurationInSec: 1, // TTL 检查间隔（秒）
 	})
 	if err != nil {
 		panic(fmt.Sprintf("failed to create ristretto cache: %v", err))
@@ -49,16 +60,19 @@ func (m *cacheManagerMemoryImpl) ManagerName() string {
 }
 
 // Health 检查管理器健康状态
+// 内存缓存总是健康的
 func (m *cacheManagerMemoryImpl) Health() error {
 	return nil
 }
 
 // OnStart 在服务器启动时触发
+// 内存缓存无需额外初始化
 func (m *cacheManagerMemoryImpl) OnStart() error {
 	return nil
 }
 
 // OnStop 在服务器停止时触发
+// 内存缓存无需额外清理
 func (m *cacheManagerMemoryImpl) OnStop() error {
 	return nil
 }
@@ -418,12 +432,14 @@ func (m *cacheManagerMemoryImpl) Decrement(ctx context.Context, key string, valu
 }
 
 // Close 关闭内存缓存
+// 释放 Ristretto 缓存资源
 func (m *cacheManagerMemoryImpl) Close() error {
 	m.cache.Close()
 	return nil
 }
 
 // ItemCount 返回缓存项数量
+// 使用原子操作确保并发安全
 func (m *cacheManagerMemoryImpl) ItemCount() int {
 	return int(m.itemCount.Load())
 }

@@ -6,13 +6,16 @@ import (
 	"time"
 )
 
-// cacheManagerNoneImpl 空缓存实现（降级）
+// cacheManagerNoneImpl 空缓存实现（降级模式）
+// 当缓存不可用或需要禁用缓存时使用，所有操作都是空操作或返回默认值
 type cacheManagerNoneImpl struct {
 	*cacheManagerBaseImpl
+	// name 管理器名称
 	name string
 }
 
 // NewCacheManagerNoneImpl 创建空缓存实现
+// 返回一个不存储任何数据的缓存管理器
 func NewCacheManagerNoneImpl() ICacheManager {
 	impl := &cacheManagerNoneImpl{
 		cacheManagerBaseImpl: newICacheManagerBaseImpl(),
@@ -28,16 +31,19 @@ func (n *cacheManagerNoneImpl) ManagerName() string {
 }
 
 // Health 检查管理器健康状态
+// 空缓存总是健康的
 func (n *cacheManagerNoneImpl) Health() error {
 	return nil
 }
 
 // OnStart 在服务器启动时触发
+// 空缓存无需额外初始化
 func (n *cacheManagerNoneImpl) OnStart() error {
 	return nil
 }
 
 // OnStop 在服务器停止时触发
+// 空缓存无需额外清理
 func (n *cacheManagerNoneImpl) OnStop() error {
 	return nil
 }
@@ -183,6 +189,7 @@ func (n *cacheManagerNoneImpl) Decrement(ctx context.Context, key string, value 
 }
 
 // Close 关闭空缓存
+// 空缓存无需释放资源
 func (n *cacheManagerNoneImpl) Close() error {
 	return nil
 }
