@@ -37,4 +37,5 @@ go.work
 # Config overrides (keep defaults, ignore local overrides)
 configs/local.*
 configs/*.local
+!cmd/server/
 server

@@ -37,7 +37,8 @@ func Run(cfg *Config) error {
 		return fmt.Errorf("获取项目绝对路径失败: %w", err)
 	}
 
-	absOutputDir, err := filepath.Abs(cfg.OutputDir)
+	absOutputDir := filepath.Join(absProjectPath, cfg.OutputDir)
+	absOutputDir, err = filepath.Abs(absOutputDir)
 	if err != nil {
 		return fmt.Errorf("获取输出目录绝对路径失败: %w", err)
 	}
