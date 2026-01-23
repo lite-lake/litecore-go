@@ -50,16 +50,23 @@ func TestCorsMiddleware_自定义配置(t *testing.T) {
 		expectedOrig string
 	}{
 		{
-			name:         "自定义源",
-			config:       &CorsConfig{AllowOrigins: []string{"https://example.com"}},
+			name: "自定义源",
+			config: func() *CorsConfig {
+				allowOrigins := []string{"https://example.com"}
+				return &CorsConfig{AllowOrigins: &allowOrigins}
+			}(),
 			expectedOrig: "https://example.com",
 		},
 		{
 			name: "自定义多个源",
-			config: &CorsConfig{
-				AllowOrigins:     []string{"https://example.com", "https://test.com"},
-				AllowCredentials: false,
-			},
+			config: func() *CorsConfig {
+				allowOrigins := []string{"https://example.com", "https://test.com"}
+				allowCredentials := false
+				return &CorsConfig{
+					AllowOrigins:     &allowOrigins,
+					AllowCredentials: &allowCredentials,
+				}
+			}(),
 			expectedOrig: "https://example.com",
 		},
 	}

@@ -15,9 +15,12 @@ type IRateLimiterMiddleware interface {
 // NewRateLimiterMiddleware 创建限流中间件
 // 配置：每 IP 每分钟最多 100 次请求
 func NewRateLimiterMiddleware() IRateLimiterMiddleware {
+	limit := 100
+	window := time.Minute
+	keyPrefix := "ip"
 	return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
-		Limit:     100,
-		Window:    time.Minute,
-		KeyPrefix: "ip",
+		Limit:     &limit,
+		Window:    &window,
+		KeyPrefix: &keyPrefix,
 	})
 }

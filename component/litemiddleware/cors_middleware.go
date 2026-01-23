@@ -12,27 +12,33 @@ import (
 
 // CorsConfig CORS 配置
 type CorsConfig struct {
-	Name             string        // 中间件名称
-	Order            *int          // 执行顺序（指针类型用于判断是否设置）
-	AllowOrigins     []string      // 允许的源
-	AllowMethods     []string      // 允许的 HTTP 方法
-	AllowHeaders     []string      // 允许的请求头
-	ExposeHeaders    []string      // 暴露的响应头
-	AllowCredentials bool          // 是否允许携带凭证
-	MaxAge           time.Duration // 预检请求缓存时间
+	Name             *string        // 中间件名称
+	Order            *int           // 执行顺序
+	AllowOrigins     *[]string      // 允许的源
+	AllowMethods     *[]string      // 允许的 HTTP 方法
+	AllowHeaders     *[]string      // 允许的请求头
+	ExposeHeaders    *[]string      // 暴露的响应头
+	AllowCredentials *bool          // 是否允许携带凭证
+	MaxAge           *time.Duration // 预检请求缓存时间
 }
 
 // DefaultCorsConfig 默认 CORS 配置
 func DefaultCorsConfig() *CorsConfig {
 	defaultOrder := OrderCORS
+	name := "CorsMiddleware"
+	allowOrigins := []string{"*"}
+	allowMethods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}
+	allowHeaders := []string{"Origin", "Content-Type", "Authorization", "X-Requested-With", "Accept", "Cache-Control"}
+	allowCredentials := true
+	maxAge := 12 * time.Hour
 	return &CorsConfig{
-		Name:             "CorsMiddleware",
+		Name:             &name,
 		Order:            &defaultOrder,
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Requested-With", "Accept", "Cache-Control"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
+		AllowOrigins:     &allowOrigins,
+		AllowMethods:     &allowMethods,
+		AllowHeaders:     &allowHeaders,
+		AllowCredentials: &allowCredentials,
+		MaxAge:           &maxAge,
 	}
 }
 
@@ -48,10 +54,39 @@ type corsMiddleware struct {
 
 // NewCorsMiddleware 创建 CORS 中间件
 func NewCorsMiddleware(config *CorsConfig) common.IBaseMiddleware {
-	if config == nil {
-		config = DefaultCorsConfig()
+	cfg := config
+	if cfg == nil {
+		cfg = &CorsConfig{}
 	}
-	return &corsMiddleware{cfg: config}
+
+	defaultCfg := DefaultCorsConfig()
+
+	if cfg.Name == nil {
+		cfg.Name = defaultCfg.Name
+	}
+	if cfg.Order == nil {
+		cfg.Order = defaultCfg.Order
+	}
+	if cfg.AllowOrigins == nil {
+		cfg.AllowOrigins = defaultCfg.AllowOrigins
+	}
+	if cfg.AllowMethods == nil {
+		cfg.AllowMethods = defaultCfg.AllowMethods
+	}
+	if cfg.AllowHeaders == nil {
+		cfg.AllowHeaders = defaultCfg.AllowHeaders
+	}
+	if cfg.ExposeHeaders == nil {
+		cfg.ExposeHeaders = defaultCfg.ExposeHeaders
+	}
+	if cfg.AllowCredentials == nil {
+		cfg.AllowCredentials = defaultCfg.AllowCredentials
+	}
+	if cfg.MaxAge == nil {
+		cfg.MaxAge = defaultCfg.MaxAge
+	}
+
+	return &corsMiddleware{cfg: cfg}
 }
 
 // NewCorsMiddlewareWithDefaults 使用默认配置创建 CORS 中间件
@@ -61,8 +96,8 @@ func NewCorsMiddlewareWithDefaults() common.IBaseMiddleware {
 
 // MiddlewareName 返回中间件名称
 func (m *corsMiddleware) MiddlewareName() string {
-	if m.cfg.Name != "" {
-		return m.cfg.Name
+	if m.cfg.Name != nil && *m.cfg.Name != "" {
+		return *m.cfg.Name
 	}
 	return "CorsMiddleware"
 }
@@ -80,8 +115,8 @@ func (m *corsMiddleware) Wrapper() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 
-		if len(m.cfg.AllowOrigins) > 0 {
-			for _, allowedOrigin := range m.cfg.AllowOrigins {
+		if m.cfg.AllowOrigins != nil && len(*m.cfg.AllowOrigins) > 0 {
+			for _, allowedOrigin := range *m.cfg.AllowOrigins {
 				if allowedOrigin == "*" || allowedOrigin == origin {
 					c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 					break
@@ -89,26 +124,26 @@ func (m *corsMiddleware) Wrapper() gin.HandlerFunc {
 			}
 		}
 
-		if m.cfg.AllowCredentials {
+		if m.cfg.AllowCredentials != nil && *m.cfg.AllowCredentials {
 			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 
-		if len(m.cfg.AllowHeaders) > 0 {
-			headers := joinStrings(m.cfg.AllowHeaders, ", ")
+		if m.cfg.AllowHeaders != nil && len(*m.cfg.AllowHeaders) > 0 {
+			headers := joinStrings(*m.cfg.AllowHeaders, ", ")
 			c.Writer.Header().Set("Access-Control-Allow-Headers", headers)
 		}
 
-		if len(m.cfg.AllowMethods) > 0 {
-			methods := joinStrings(m.cfg.AllowMethods, ", ")
+		if m.cfg.AllowMethods != nil && len(*m.cfg.AllowMethods) > 0 {
+			methods := joinStrings(*m.cfg.AllowMethods, ", ")
 			c.Writer.Header().Set("Access-Control-Allow-Methods", methods)
 		}
 
-		if len(m.cfg.ExposeHeaders) > 0 {
-			headers := joinStrings(m.cfg.ExposeHeaders, ", ")
+		if m.cfg.ExposeHeaders != nil && len(*m.cfg.ExposeHeaders) > 0 {
+			headers := joinStrings(*m.cfg.ExposeHeaders, ", ")
 			c.Writer.Header().Set("Access-Control-Expose-Headers", headers)
 		}
 
-		if m.cfg.MaxAge > 0 {
+		if m.cfg.MaxAge != nil && *m.cfg.MaxAge > 0 {
 			c.Writer.Header().Set("Access-Control-Max-Age", fmt.Sprintf("%d", int(m.cfg.MaxAge.Seconds())))
 		}
 
