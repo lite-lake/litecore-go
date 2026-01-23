@@ -104,14 +104,25 @@ server:
   host: "0.0.0.0"
   port: 8080
   mode: "debug"
+  startup_log:
+    enabled: true
+    async: true
+    buffer: 100
 
 database:
   driver: "sqlite"              # mysql, postgresql, sqlite, none
   sqlite_config:
     dsn: "./data/myapp.db"
+  observability_config:
+    slow_query_threshold: "1s"
+    log_sql: false
+    sample_rate: 1.0
 
 cache:
   driver: "memory"              # redis, memory, none
+  memory_config:
+    max_size: 100               # 最大缓存大小（MB）
+    max_age: "720h"             # 最大缓存时间（30天）
 
 logger:
   driver: "zap"
@@ -119,6 +130,21 @@ logger:
     console_enabled: true
     console_config:
       level: "info"
+      format: "gin"             # gin | json | default
+      color: true
+      time_format: "2006-01-24 15:04:05.000"
+    file_enabled: false
+    file_config:
+      level: "info"
+      path: "./logs/app.log"
+      rotation:
+        max_size: 100
+        max_age: 30
+        max_backups: 10
+        compress: true
+
+telemetry:
+  driver: "none"               # none, otel
 
 lock:
   driver: "memory"              # redis, memory
@@ -139,6 +165,15 @@ limiter:
     db: 0
   memory_config:
     max_backups: 1000
+
+mq:
+  driver: "memory"              # rabbitmq, memory
+  rabbitmq_config:
+    url: "amqp://guest:guest@localhost:5672/"
+    durable: true
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
 ```
 
 ### 4. 创建应用入口（cmd/server/main.go）
@@ -272,8 +307,8 @@ package repositories
 import (
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/databasemgr"
+    "github.com/lite-lake/litecore-go/manager/configmgr"
+    "github.com/lite-lake/litecore-go/manager/databasemgr"
 )
 
 type IUserRepository interface {
@@ -328,7 +363,7 @@ import (
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/entities"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+    "github.com/lite-lake/litecore-go/manager/configmgr"
 )
 
 type IUserService interface {
@@ -381,10 +416,9 @@ import (
     "github.com/gin-gonic/gin"
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
 )
 
-// IUserController 用户控制器接口
 type IUserController interface {
     common.IBaseController
 }
@@ -394,7 +428,6 @@ type userController struct {
     LoggerMgr   loggermgr.ILoggerManager `inject:""`
 }
 
-// NewUserController 创建控制器实例
 func NewUserController() IUserController {
     return &userController{}
 }
@@ -464,7 +497,6 @@ import (
     "github.com/lite-lake/litecore-go/samples/myapp/internal/services"
 )
 
-// IAuthMiddleware 认证中间件接口
 type IAuthMiddleware interface {
     common.IBaseMiddleware
 }
@@ -530,34 +562,81 @@ import (
     "github.com/lite-lake/litecore-go/component/litemiddleware"
 )
 
-// ICorsMiddleware CORS 跨域中间件接口
 type ICorsMiddleware interface {
     common.IBaseMiddleware
 }
 
-// NewCorsMiddleware 使用默认配置创建 CORS 中间件
 func NewCorsMiddleware() ICorsMiddleware {
     return litemiddleware.NewCorsMiddlewareWithDefaults()
 }
 
-// IRequestLoggerMiddleware 请求日志中间件接口
 type IRequestLoggerMiddleware interface {
     common.IBaseMiddleware
 }
 
-// NewRequestLoggerMiddleware 使用默认配置创建请求日志中间件
 func NewRequestLoggerMiddleware() IRequestLoggerMiddleware {
     return litemiddleware.NewRequestLoggerMiddlewareWithDefaults()
 }
 
-// IRecoveryMiddleware panic 恢复中间件接口
 type IRecoveryMiddleware interface {
     common.IBaseMiddleware
 }
 
-// NewRecoveryMiddleware 使用默认配置创建 panic 恢复中间件
 func NewRecoveryMiddleware() IRecoveryMiddleware {
     return litemiddleware.NewRecoveryMiddlewareWithDefaults()
+}
+```
+
+#### 限流中间件
+
+限流中间件支持多种策略，可通过配置灵活自定义：
+
+```go
+package middlewares
+
+import (
+    "time"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/litemiddleware"
+)
+
+type IRateLimiterMiddleware interface {
+    common.IBaseMiddleware
+}
+
+func NewRateLimiterMiddleware() IRateLimiterMiddleware {
+    limit := 100
+    window := time.Minute
+    keyPrefix := "ip"
+    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+        Limit:     &limit,
+        Window:    &window,
+        KeyPrefix: &keyPrefix,
+    })
+}
+```
+
+**自定义限流策略：**
+
+```go
+func NewRateLimiterByUserID() IRateLimiterMiddleware {
+    limit := 50
+    window := time.Minute
+    keyPrefix := "user"
+    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+        Limit:     &limit,
+        Window:    &window,
+        KeyPrefix: &keyPrefix,
+        KeyFunc: func(c *gin.Context) string {
+            if session, exists := c.Get("session"); exists {
+                if s, ok := session.(*Session); ok {
+                    return s.UserID
+                }
+            }
+            return c.ClientIP()
+        },
+    })
 }
 ```
 
@@ -571,24 +650,18 @@ Config 作为服务器内置组件，由引擎自动初始化。在创建引擎�
 
 Manager 组件也作为服务器内置组件，由引擎自动初始化。无需手动创建，只需在代码中通过依赖注入使用即可。
 
-框架自动初始化的 Manager：
-- `configmgr.IConfigManager` - 配置管理
-- `databasemgr.IDatabaseManager` - 数据库管理
-- `cachemgr.ICacheManager` - 缓存管理
-- `loggermgr.ILoggerManager` - 日志管理
-- `telemetrymgr.ITelemetryManager` - 遥测管理
-
-### 可用的内置 Manager
+#### 可用的内置 Manager
 
 所有 Manager 都通过依赖注入自动初始化，在代码中通过 `inject:""` 标签使用：
 
 - `configmgr.IConfigManager`: 配置管理
 - `databasemgr.IDatabaseManager`: 数据库（MySQL/PostgreSQL/SQLite）
-- `cachemgr.ICacheManager`: 缓存（Redis/Memory）
-- `loggermgr.ILoggerManager`: 日志（Zap）
+- `cachemgr.ICacheManager`: 缓存（Redis/Memory，基于 Ristretto）
+- `loggermgr.ILoggerManager`: 日志（Zap，支持 Gin 格式）
 - `telemetrymgr.ITelemetryManager`: 遥测（OpenTelemetry）
 - `lockmgr.ILockManager`: 分布式锁（Redis/Memory）
 - `limitermgr.ILimiterManager`: 限流器（Redis/Memory）
+- `mqmgr.IMQManager`: 消息队列（RabbitMQ/Memory）
 
 ### LockMgr（锁管理器）
 
@@ -605,7 +678,7 @@ import (
     "time"
 
     "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/lockmgr"
+    "github.com/lite-lake/litecore-go/manager/lockmgr"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
 )
 
@@ -657,7 +730,7 @@ import (
     "time"
 
     "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/limitermgr"
+    "github.com/lite-lake/litecore-go/manager/limitermgr"
     "github.com/lite-lake/litecore-go/samples/myapp/internal/repositories"
 )
 
@@ -698,6 +771,54 @@ func (s *userService) QueryData() error {
 }
 
 var _ IUserService = (*userService)(nil)
+```
+
+### MQMgr（消息队列管理器）
+
+MQMgr 提供消息队列功能，支持 RabbitMQ 和 Memory 两种实现：
+
+**在 Service 层使用消息队列：**
+
+```go
+package services
+
+import (
+    "context"
+    "fmt"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/manager/mqmgr"
+)
+
+type INotificationService interface {
+    common.IBaseService
+    PublishNotification(message string) error
+}
+
+type notificationService struct {
+    MQMgr mqmgr.IMQManager `inject:""`
+}
+
+func NewNotificationService() INotificationService {
+    return &notificationService{}
+}
+
+func (s *notificationService) ServiceName() string { return "NotificationService" }
+func (s *notificationService) OnStart() error {
+    s.MQMgr.Subscribe("notifications", func(msg []byte) error {
+        fmt.Printf("收到通知: %s\n", string(msg))
+        return nil
+    })
+    return nil
+}
+func (s *notificationService) OnStop() error { return nil }
+
+func (s *notificationService) PublishNotification(message string) error {
+    ctx := context.Background()
+    return s.MQMgr.Publish(ctx, "notifications", []byte(message))
+}
+
+var _ INotificationService = (*notificationService)(nil)
 ```
 
 ## 代码生成器使用
@@ -741,6 +862,9 @@ type myService struct {
     DBMgr       databasemgr.IDatabaseManager `inject:""`
     CacheMgr    cachemgr.ICacheManager       `inject:""`
     LoggerMgr   loggermgr.ILoggerManager     `inject:""`
+    LimiterMgr  limitermgr.ILimiterManager   `inject:""`
+    LockMgr     lockmgr.ILockManager        `inject:""`
+    MQMgr       mqmgr.IMQManager            `inject:""`
 
     // 业务依赖
     Repository   repositories.IUserRepository  `inject:""`
@@ -784,12 +908,6 @@ myapp/
 ├── configs/config.yaml          # 配置文件
 ├── internal/
 │   ├── application/             # 自动生成的容器（DO NOT EDIT）
-│   │   ├── entity_container.go
-│   │   ├── repository_container.go
-│   │   ├── service_container.go
-│   │   ├── controller_container.go
-│   │   ├── middleware_container.go
-│   │   └── engine.go
 │   ├── entities/                # 实体层（无依赖）
 │   ├── repositories/            # 仓储层（依赖 Manager）
 │   ├── services/                # 服务层（依赖 Repository）
@@ -883,18 +1001,19 @@ s.CacheMgr.Set(ctx, cacheKey, user, time.Hour)
 // 0-49: 系统级（Recovery, CORS）
 // 50-99: 认证授权（Auth, RBAC）
 // 100-199: 日志监控（Logger, Metrics）
-// 200+: 业务级（限流、自定义）
+// 200-299: 限流、安全（RateLimiter, Security）
+// 300+: 业务级（自定义）
 
-func (m *RecoveryMiddleware) Order() int { return 10 }
-func (m *AuthMiddleware) Order() int    { return 100 }
-func (m *LoggerMiddleware) Order() int  { return 200 }
+func (m *RecoveryMiddleware) Order() int    { return 0 }
+func (m *CORSMiddleware) Order() int         { return 50 }
+func (m *AuthMiddleware) Order() int        { return 100 }
+func (m *RequestLoggerMiddleware) Order() int { return 150 }
+func (m *RateLimiterMiddleware) Order() int { return 200 }
 ```
 
-### 8. 限流器中间件集成
+### 8. 中间件配置支持
 
-框架提供了限流器中间件，支持基于 IP、路径、用户 ID 等多种限流策略：
-
-**创建限流中间件：**
+所有中间件支持通过配置自定义 Name 和 Order：
 
 ```go
 package middlewares
@@ -902,125 +1021,25 @@ package middlewares
 import (
     "time"
 
-    "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/component/litemiddleware"
 )
 
-type IRateLimiterMiddleware interface {
-    common.IBaseMiddleware
-}
+func NewCustomRateLimiterMiddleware() IRateLimiterMiddleware {
+    name := "CustomRateLimiter"
+    order := 250
+    limit := 50
+    window := time.Minute
+    keyPrefix := "user"
 
-func NewRateLimiterMiddleware() IRateLimiterMiddleware {
     return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
-        Limit:     100,
-        Window:    time.Minute,
-        KeyPrefix: "ip",
+        Name:      &name,
+        Order:     &order,
+        Limit:     &limit,
+        Window:    &window,
+        KeyPrefix: &keyPrefix,
     })
 }
 ```
-
-**自定义限流策略：**
-
-```go
-// 自定义 KeyFunc
-func NewRateLimiterByUserID() IRateLimiterMiddleware {
-    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
-        Limit:     50,
-        Window:    time.Minute,
-        KeyPrefix: "user",
-        KeyFunc: func(c *gin.Context) string {
-            // 从上下文获取用户ID（需要认证中间件先执行）
-            if session, exists := c.Get("session"); exists {
-                if s, ok := session.(*Session); ok {
-                    return s.UserID
-                }
-            }
-            return c.ClientIP() // 回退到IP
-        },
-    })
-}
-
-// 跳过某些路径
-func NewRateLimiterWithSkip() IRateLimiterMiddleware {
-    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
-        Limit:     100,
-        Window:    time.Minute,
-        KeyPrefix: "ip",
-        SkipFunc: func(c *gin.Context) bool {
-            return c.Request.URL.Path == "/health" || c.Request.URL.Path == "/metrics"
-        },
-    })
-}
-```
-
-**限流中间件 Order 建议值：** 200（OrderRateLimiter）
-
-框架提供了限流器中间件，支持基于 IP、路径、用户 ID 等多种限流策略：
-
-**创建限流中间件：**
-
-```go
-package middlewares
-
-import (
-    "time"
-
-    "github.com/lite-lake/litecore-go/common"
-    "github.com/lite-lake/litecore-go/component/middleware"
-)
-
-type IRateLimiterMiddleware interface {
-    common.IBaseMiddleware
-}
-
-type rateLimiterMiddleware struct {
-    inner common.IBaseMiddleware
-}
-
-func NewRateLimiterMiddleware() IRateLimiterMiddleware {
-    return &rateLimiterMiddleware{
-        inner: middleware.NewRateLimiterByIP(100, time.Minute),
-    }
-}
-
-func (m *rateLimiterMiddleware) MiddlewareName() string { return "RateLimiterMiddleware" }
-func (m *rateLimiterMiddleware) Order() int              { return m.inner.Order() }
-func (m *rateLimiterMiddleware) Wrapper() func(c *gin.Context) {
-    return m.inner.Wrapper()
-}
-func (m *rateLimiterMiddleware) OnStart() error { return nil }
-func (m *rateLimiterMiddleware) OnStop() error  { return nil }
-
-var _ IRateLimiterMiddleware = (*rateLimiterMiddleware)(nil)
-```
-
-**其他限流策略：**
-
-```go
-// 按路径限流
-middleware.NewRateLimiterByPath(1000, time.Minute)
-
-// 按用户ID限流（需在认证中间件后执行）
-middleware.NewRateLimiterByUserID(50, time.Minute)
-
-// 按Header限流
-middleware.NewRateLimiterByHeader(100, time.Minute, "X-API-Key")
-
-// 自定义配置
-middleware.NewRateLimiter(&middleware.RateLimiterConfig{
-    Limit:     100,
-    Window:    time.Minute,
-    KeyPrefix: "custom",
-    KeyFunc: func(c *gin.Context) string {
-        return c.GetHeader("X-Custom-Header")
-    },
-    SkipFunc: func(c *gin.Context) bool {
-        return c.Request.URL.Path == "/health"
-    },
-})
-```
-
-**限流中间件 Order 建议值：** 90（在认证之前执行，避免认证后的请求过多）
 
 ### 9. 测试建议
 
@@ -1074,6 +1093,72 @@ limiter:
 3. 高频接口建议使用限流器中间件，而非手动检查
 4. 热点数据使用 Redis 实现，避免内存限制
 
+### 11. 日志格式配置
+
+日志管理器支持多种输出格式，推荐 Gin 格式用于开发环境：
+
+**Gin 格式（推荐用于控制台）：**
+- 统一格式：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
+- 时间固定宽度 23 字符
+- 级别固定宽度 5 字符，右对齐，带颜色
+- 字段格式：`key=value`
+
+```yaml
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"                               # 日志级别：debug, info, warn, error, fatal
+      format: "gin"                                # 格式：gin | json | default
+      color: true                                  # 是否启用颜色
+      time_format: "2006-01-24 15:04:05.000"     # 时间格式
+```
+
+**输出示例：**
+```
+2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23
+2026-01-24 15:04:05.456 | WARN  | 慢查询检测 | duration=1.2s
+2026-01-24 15:04:05.789 | ERROR | 数据库连接失败 | error="connection refused"
+```
+
+**JSON 格式（推荐用于日志分析）：**
+
+```yaml
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: false
+    file_enabled: true
+    file_config:
+      level: "info"
+      path: "./logs/app.log"
+      rotation:
+        max_size: 100
+        max_age: 30
+        max_backups: 10
+        compress: true
+```
+
+### 12. 启动日志配置
+
+引擎支持启动日志，可配置是否启用和是否异步：
+
+```yaml
+server:
+  startup_log:
+    enabled: true    # 是否启用启动日志
+    async: true      # 是否异步日志
+    buffer: 100      # 日志缓冲区大小
+```
+
+启动时会输出以下阶段信息：
+- 配置加载
+- 管理器初始化
+- 依赖注入
+- 路由注册
+- 服务启动
+
 ## 常见问题
 
 ### 1. 如何添加新的 Manager？
@@ -1101,12 +1186,10 @@ import (
     "github.com/lite-lake/litecore-go/component/litemiddleware"
 )
 
-// IRecoveryMiddleware panic 恢复中间件接口
 type IRecoveryMiddleware interface {
     common.IBaseMiddleware
 }
 
-// NewRecoveryMiddleware 使用默认配置创建 panic 恢复中间件
 func NewRecoveryMiddleware() IRecoveryMiddleware {
     return litemiddleware.NewRecoveryMiddlewareWithDefaults()
 }
@@ -1161,3 +1244,68 @@ go build -o myapp ./cmd/server/main.go
 # 运行
 ./myapp
 ```
+
+## 示例项目：Messageboard
+
+框架提供了一个完整的留言板示例项目 `samples/messageboard`，展示了如何使用所有核心功能：
+
+### 功能特性
+
+- 用户留言（支持昵称和内容验证）
+- 留言审核（pending/approved/rejected）
+- 管理员登录（基于 session）
+- 限流中间件（按 IP 限流）
+- 数据库自动迁移
+- 日志记录（Gin 格式）
+- 静态资源服务
+
+### 运行示例项目
+
+```bash
+cd samples/messageboard
+
+# 创建数据目录
+mkdir -p data
+
+# 运行应用
+go run ./cmd/server/main.go
+```
+
+访问 http://localhost:8080 查看留言板。
+
+### 示例项目结构
+
+```
+samples/messageboard/
+├── cmd/
+│   ├── server/main.go          # 应用入口
+│   ├── generate/main.go         # 代码生成器
+│   └── genpasswd/main.go       # 密码生成工具
+├── configs/config.yaml          # 配置文件
+├── internal/
+│   ├── application/             # 自动生成的容器
+│   ├── entities/                # 实体层
+│   │   └── message_entity.go
+│   ├── repositories/            # 仓储层
+│   │   └── message_repository.go
+│   ├── services/                # 服务层
+│   │   ├── message_service.go
+│   │   ├── auth_service.go
+│   │   └── session_service.go
+│   ├── controllers/             # 控制器层
+│   │   ├── msg_create_controller.go
+│   │   ├── msg_list_controller.go
+│   │   ├── page_home_controller.go
+│   │   └── ...
+│   ├── middlewares/             # 中间件层
+│   │   ├── auth_middleware.go
+│   │   ├── rate_limiter_middleware.go
+│   │   ├── cors_middleware.go
+│   │   └── ...
+│   └── dtos/                    # 数据传输对象
+│       ├── message_dto.go
+│       └── session_dto.go
+└── go.mod
+```
+
+通过学习示例项目，可以更好地理解如何构建基于 LiteCore 的业务应用。

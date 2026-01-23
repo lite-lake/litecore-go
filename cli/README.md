@@ -9,6 +9,28 @@ LiteCore CLI 是一个代码生成工具，用于自动生成 LiteCore 框架的
  - 每个容器生成一个独立的 Go 文件
  - 支持自定义配置路径、输出目录和包名
 
+## 项目结构说明
+
+LiteCore 采用 5 层分层架构：
+
+```
+项目根目录/
+├── entity/           # 实体层（无依赖）
+├── repository/       # 仓储层（依赖 Entity + Config + Manager）
+├── service/          # 服务层（依赖 Repository + Config + Manager）
+├── controller/       # 控制器层（依赖 Service + Config + Manager）
+└── middleware/       # 中间件层（依赖 Service + Config + Manager）
+```
+
+Manager 组件位置：
+- 所有 Manager 位于 `manager/` 目录下
+- 包括：`configmgr`, `databasemgr`, `loggermgr`, `cachemgr`, `lockmgr`, `limitermgr`, `mqmgr`, `telemetrymgr`
+
+内置组件位置：
+- 控制器：`component/litecontroller/`
+- 中间件：`component/litemiddleware/`
+- 服务：`component/liteservice/`
+
 ## 安装
 
 ### 方式一：作为独立命令行工具
@@ -51,7 +73,7 @@ func main() {
 ./litecore-generate
 
 # 或指定参数
-./litecore-generate -project . -output internal/application -package application -configmgr configs/config.yaml
+./litecore-generate -project . -output internal/application -package application -config configs/config.yaml
 ```
 
 ### 方式二：在业务项目中自定义生成器入口
@@ -113,13 +135,42 @@ go run ./cmd/generate
 | `-config` | `-c` | `configs/config.yaml` | 配置文件路径 |
 | `-version` | `-v` | - | 显示版本信息 |
 
+## 配置文件
+
+生成的代码使用配置文件来初始化内置 Manager 组件。配置文件示例（`configs/config.yaml`）：
+
+```yaml
+# 日志配置
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"                               # 日志级别：debug, info, warn, error, fatal
+      format: "gin"                                # 格式：gin | json | default
+      color: true                                  # 是否启用颜色
+      time_format: "2006-01-24 15:04:05.000"     # 时间格式
+
+# 数据库配置
+database:
+  driver: "sqlite"
+  sqlite_config:
+    dsn: "./data/app.db"
+
+# 缓存配置
+cache:
+  driver: "memory"
+
+# 其他 Manager 配置...
+```
+
 ## 示例
 
 ### 独立工具使用
 
 ```bash
 # 在任意目录生成
-./litecore-generate -project /path/to/project -output internal/application -package application -configmgr configs/config.yaml
+./litecore-generate -project /path/to/project -output internal/application -package application -config configs/config.yaml
 ```
 
 ### 业务项目入口使用
@@ -174,10 +225,43 @@ func main() {
 }
 ```
 
+## 生成的代码说明
+
+### 引擎初始化
+
+生成的 `NewEngine` 函数会按照以下顺序初始化组件：
+
+1. 创建各层容器（Entity → Repository → Service → Controller → Middleware）
+2. 使用配置文件初始化内置 Manager 组件（通过 `server.BuiltinConfig`）
+3. 内置 Manager 包括：
+   - ConfigManager（配置管理）
+   - TelemetryManager（遥测）
+   - LoggerManager（日志）
+   - DatabaseManager（数据库）
+   - CacheManager（缓存）
+   - LockManager（分布式锁）
+   - LimiterManager（限流）
+   - MQManager（消息队列）
+
+### 依赖注入
+
+容器会自动识别并注入以下标记的依赖：
+
+```go
+type MyService struct {
+    Config    configmgr.IConfigManager    `inject:""`
+    DBManager databasemgr.IDatabaseManager `inject:""`
+    LoggerMgr loggermgr.ILoggerManager    `inject:""`
+    Repo      repository.IMyRepository    `inject:""`
+}
+```
+
 ## 注意事项
 
 1. 生成的代码不应手动修改，因为每次运行生成器都会覆盖这些文件
 2. 如果需要自定义容器的初始化逻辑，可以在生成后手动修改相关文件
+3. 配置文件必须存在且格式正确，否则无法启动
+4. Manager 组件会根据配置文件中的 `driver` 字段自动选择实现
 
 ## 工作原理
 
@@ -218,6 +302,49 @@ import "github.com/lite-lake/litecore-go/cli/generator"
 
 // 失败时 panic，适合 main 包
 generator.MustRun(generator.DefaultConfig())
+```
+
+## 日志配置
+
+LiteCore 支持三种日志格式，可在配置文件中设置：
+
+### Gin 格式（推荐用于控制台）
+
+```yaml
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"
+      format: "gin"           # Gin 风格：竖线分隔，带颜色
+      color: true
+      time_format: "2006-01-24 15:04:05.000"
+```
+
+Gin 格式输出示例：
+```
+2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23
+2026-01-24 15:04:05.456 | WARN  | 慢查询检测 | duration=1.2s
+2026-01-24 15:04:05.789 | ERROR | 数据库连接失败 | error="connection refused"
+```
+
+### JSON 格式（适合日志分析）
+
+```yaml
+logger:
+  zap_config:
+    console_config:
+      format: "json"          # JSON 格式
+```
+
+### Default 格式
+
+```yaml
+logger:
+  zap_config:
+    console_config:
+      format: "default"       # 默认 ConsoleEncoder 格式
 ```
 
 ## 版本

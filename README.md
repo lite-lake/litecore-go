@@ -5,15 +5,19 @@
 ## 特性
 
 - **5 层分层架构** - Entity → Repository → Service → Controller/Middleware，清晰的责任分离
-- **内置组件** - Config 和 Manager 作为服务器内置组件，自动初始化和注入
+- **内置 Manager 组件** - Config、Logger、Database、Cache、Telemetry、Lock、Limiter、MQ 等管理器，自动初始化和注入
 - **依赖注入容器** - 自动注入依赖，支持同层依赖、可选依赖、循环依赖检测
 - **统一配置管理** - 支持 YAML/JSON 配置文件，类型安全的配置读取
 - **多数据库支持** - 基于 GORM，支持 MySQL、PostgreSQL、SQLite
-- **内置中间件** - 日志、CORS、安全头、认证、Recovery 等开箱即用
+- **内置中间件** - 日志、CORS、安全头、认证、Recovery、限流等开箱即用
 - **可观测性** - 集成 OpenTelemetry、结构化日志、健康检查、指标采集
 - **CLI 代码生成** - 自动生成容器初始化代码，简化项目搭建
 - **生命周期管理** - 统一的启动/停止机制，优雅关闭
-- **限流器** - 支持 Redis 和内存两种驱动的分布式限流
+- **分布式锁** - 支持 Redis 和 Memory 两种驱动的分布式锁
+- **限流器** - 支持 Redis 和 Memory 两种驱动的分布式限流
+- **消息队列** - 支持 RabbitMQ 和 Memory 两种驱动的消息队列
+- **Gin 风格日志** - 支持可配置日志格式（gin/json/default），彩色输出，结构化记录
+- **高性能缓存** - 基于 Ristretto 的高性能内存缓存
 
 ## 快速开始
 
@@ -36,20 +40,26 @@ mkdir -p internal/{entities,repositories,services,controllers,middlewares,infras
 mkdir -p cmd/{server,generate}
 mkdir -p {configs,templates,static}
 
-# 3. 创建配置文件
-cat > configs/config.yaml <<EOF
-server:
-  port: 8080
-  mode: "debug"
+ # 3. 创建配置文件
+ cat > configs/config.yaml <<EOF
+ server:
+   port: 8080
+   mode: "debug"
 
-database:
-  driver: "sqlite"
-  sqlite_config:
-    dsn: "./data/myapp.db"
+ database:
+   driver: "sqlite"
+   sqlite_config:
+     dsn: "./data/myapp.db"
 
-logger:
-  driver: "zap"
-EOF
+ logger:
+   driver: "zap"
+   zap_config:
+     console_enabled: true
+     console_config:
+       level: "info"
+       format: "gin"
+       color: true
+ EOF
 
 # 4. 创建生成器入口
 cat > cmd/generate/main.go <<'MAINEOF'
@@ -67,29 +77,45 @@ MAINEOF
 # 5. 运行生成器
 go run ./cmd/generate
 
-# 6. 创建应用入口
-cat > cmd/server/main.go <<'SERVEREOF'
-package main
+ # 6. 创建应用入口
+ cat > cmd/server/main.go <<'SERVEREOF'
+ package main
 
-import (
-    app "com.litelake.myapp/internal/application"
-    loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
-)
+ import (
+     "os"
 
-func main() {
-    loggerMgr := loggermgr.GetLoggerManager()
-    logger := loggerMgr.Logger("main")
-    
-    engine, err := app.NewEngine()
-    if err != nil {
-        logger.Fatal("Failed to create engine", "error", err)
-    }
+     "github.com/lite-lake/litecore-go/server"
+     builtin "github.com/lite-lake/litecore-go/server/builtin"
+     "github.com/lite-lake/litecore-go/container"
+ )
 
-    if err := engine.Run(); err != nil {
-        logger.Fatal("Engine run failed", "error", err)
-    }
-}
-SERVEREOF
+ func main() {
+     // 创建容器
+     entityContainer := container.NewEntityContainer()
+     repositoryContainer := container.NewRepositoryContainer(entityContainer)
+     serviceContainer := container.NewServiceContainer(repositoryContainer)
+     controllerContainer := container.NewControllerContainer(serviceContainer)
+     middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
+
+     // 创建引擎（Manager 组件会自动初始化）
+     engine := server.NewEngine(
+         &builtin.Config{
+             Driver:   "yaml",
+             FilePath: "configs/config.yaml",
+         },
+         entityContainer,
+         repositoryContainer,
+         serviceContainer,
+         controllerContainer,
+         middlewareContainer,
+     )
+
+     // 启动引擎
+     if err := engine.Run(); err != nil {
+         os.Exit(1)
+     }
+ }
+ SERVEREOF
 
 # 7. 运行应用
 go run ./cmd/server
@@ -116,7 +142,7 @@ type IUserRepository interface {
 
 type UserRepository struct {
     Config  configmgr.IConfigManager    `inject:""`
-    Manager databasemgr.IDatabaseManager `inject:""`
+    DBMgr   databasemgr.IDatabaseManager `inject:""`
 }
 
 func (r *UserRepository) List() ([]*User, error) {
@@ -178,33 +204,36 @@ go run ./cmd/server
 │  - 处理 HTTP 请求和响应                               │
 │  - 参数验证和转换                                    │
 │  - 调用 Service 层业务逻辑                           │
+│  - 内置组件：component/litecontroller/*              │
+│  - 内置组件：component/litemiddleware/*              │
 └─────────────────────────────────────────────────────┘
-                          ↓ 依赖
+                           ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
 │  Service                           (服务层)         │
 │  - 编排业务逻辑                                          │
 │  - 事务管理                                             │
 │  - 调用 Repository 和其他 Service                      │
+│  - 内置组件：component/liteservice/*                   │
 └─────────────────────────────────────────────────────┘
-                          ↓ 依赖
+                           ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
 │  Repository                       (仓储层)           │
 │  - 数据访问抽象                                        │
 │  - 与 Manager 和 Entity 交互                          │
 │  - 封装数据查询逻辑                                    │
 └─────────────────────────────────────────────────────┘
-             ↓ 依赖              ↑ 使用
+              ↓ 依赖              ↑ 使用
 ┌─────────────────────────┐    ┌──────────────────────┐
-│  Manager  (内置组件)     │    │  Entity    (实体层)   │
-│  - server/builtin/      │    │  - 数据模型定义        │
-│    manager/             │    │  - 表映射和验证规则    │
-│  - configmgr            │    │  - 无依赖              │
-│  - loggermgr            │    │                      │
+│  Manager  (管理器层)     │    │  Entity    (实体层)   │
+│  - manager/             │    │  - 数据模型定义        │
+│  - configmgr            │    │  - 表映射和验证规则    │
+│  - loggermgr            │    │  - 无依赖              │
 │  - databasemgr          │    │                      │
 │  - cachemgr             │    │                      │
 │  - telemetrymgr         │    │                      │
 │  - lockmgr              │    │                      │
 │  - limitermgr           │    │                      │
+│  - mqmgr                │    │                      │
 │  - 由引擎自动初始化       │    │                      │
 └─────────────────────────┘    └──────────────────────┘
 ```
@@ -214,7 +243,7 @@ go run ./cmd/server
 - **向下依赖**：上层只能依赖下层
 - **单向依赖**：Entity → Manager → Repository → Service → Controller/Middleware
 - **同层依赖**：Service 支持同层依赖，通过拓扑排序解决循环依赖
-- **内置组件**：Manager 作为服务器内置组件（位于 server/builtin/manager/），由引擎自动初始化和注入
+- **内置组件**：Manager 作为独立的管理器层（位于 manager/），由引擎自动初始化和注入
 
 ### 依赖注入
 
@@ -271,26 +300,26 @@ func (s *MyService) OnStart() error {
 ```go
 // 由引擎自动初始化，通过依赖注入使用
 type MyRepository struct {
-    Manager databasemgr.IDatabaseManager `inject:""`
+    DBMgr databasemgr.IDatabaseManager `inject:""`
 }
 
 func (r *MyRepository) OnStart() error {
     // 自动迁移
-    return r.Manager.AutoMigrate(&User{})
+    return r.DBMgr.AutoMigrate(&User{})
 }
 
 func (r *MyRepository) FindUser(id uint) (*User, error) {
     // 数据库操作
     var user User
-    err := r.Manager.DB().First(&user, id).Error
+    err := r.DBMgr.DB().First(&user, id).Error
     return &user, err
 }
 
 // 健康检查
-err := r.Manager.Health()
+err := r.DBMgr.Health()
 
 // 连接池统计
-stats := r.Manager.Stats()
+stats := r.DBMgr.Stats()
 ```
 
 // 自动迁移
@@ -315,7 +344,7 @@ stats := dbMgr.Stats()
 
 ### 3. 缓存管理 (cachemgr)
 
-统一缓存接口，由引擎自动初始化，通过依赖注入使用：
+统一缓存接口，支持 Redis、Memory（基于 Ristretto）和 None 三种驱动，由引擎自动初始化，通过依赖注入使用：
 
 ```go
 // 由引擎自动初始化，通过依赖注入使用
@@ -325,7 +354,8 @@ type MyService struct {
 
 func (s *MyService) GetData(ctx context.Context, key string) (string, error) {
     // 获取值
-    val, err := s.CacheMgr.Get(ctx, key)
+    var val string
+    err := s.CacheMgr.Get(ctx, key, &val)
     return val, err
 }
 
@@ -340,9 +370,25 @@ func (s *MyService) DeleteData(ctx context.Context, key string) error {
 }
 ```
 
+支持的驱动：
+- Redis（分布式缓存）
+- Memory（本地内存缓存，基于 Ristretto 高性能实现）
+- None（空实现，用于测试）
+
+配置示例：
+```yaml
+cache:
+  driver: "memory"  # 或 "redis", "none"
+  memory_config:
+    max_size: 100      # 最大缓存大小（MB）
+    max_age: "720h"   # 最大缓存时间
+    max_backups: 1000 # 最大备份项数
+    compress: false    # 是否压缩
+```
+
 ### 4. 日志管理 (loggermgr)
 
-基于 Zap 的结构化日志，由引擎自动初始化，通过依赖注入使用：
+基于 Zap 的结构化日志，支持 Gin/JSON/Default 三种格式，由引擎自动初始化，通过依赖注入使用：
 
 ```go
 // 由引擎自动初始化，通过依赖注入使用
@@ -356,6 +402,32 @@ func (s *MyService) DoSomething() {
     logger.Info("user login", "user_id", "123", "ip", "127.0.0.1")
     logger.Error("database error", "error", err, "query", sql)
 }
+```
+
+**日志格式配置**：
+
+```yaml
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"                               # 日志级别：debug, info, warn, error, fatal
+      format: "gin"                                # 格式：gin | json | default
+      color: true                                  # 是否启用颜色
+      time_format: "2006-01-24 15:04:05.000"     # 时间格式
+```
+
+**格式说明**：
+- **gin**：Gin 风格，竖线分隔符，适合控制台输出（默认格式）
+- **json**：JSON 格式，适合日志分析和监控
+- **default**：默认 ConsoleEncoder 格式
+
+**Gin 格式输出示例**：
+```
+2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23
+2026-01-24 15:04:05.456 | WARN  | 慢查询检测 | duration=1.2s
+2026-01-24 15:04:05.789 | ERROR | 数据库连接失败 | error="connection refused"
 ```
 
 ### 5. 遥测管理 (telemetrymgr)
@@ -476,7 +548,71 @@ func (s *MyService) GetUserRemaining(ctx context.Context, userID string) (int, e
 - Memory（本地内存限流）
 - None（无限流，用于测试）
 
-### 8. HTTP 服务引擎 (server)
+### 8. 消息队列管理 (mqmgr)
+
+支持 RabbitMQ 和 Memory 两种驱动的消息队列，由引擎自动初始化，通过依赖注入使用：
+
+```go
+// 由引擎自动初始化，通过依赖注入使用
+type MyService struct {
+    MQMgr mqmgr.IMQManager `inject:""`
+}
+
+func (s *MyService) SendMessage(ctx context.Context, queue string, data []byte) error {
+    // 发布消息
+    return s.MQMgr.Publish(ctx, queue, data)
+}
+
+func (s *MyService) ConsumeMessages(ctx context.Context, queue string) error {
+    // 订阅消息（使用回调）
+    return s.MQMgr.SubscribeWithCallback(ctx, queue, func(ctx context.Context, msg mqmgr.Message) error {
+        // 处理消息
+        fmt.Printf("Received message: %s\n", string(msg.Body()))
+        // 确认消息
+        return s.MQMgr.Ack(ctx, msg)
+    })
+}
+
+func (s *MyService) ConsumeMessagesWithChannel(ctx context.Context, queue string) {
+    // 订阅消息（使用通道）
+    msgChan, err := s.MQMgr.Subscribe(ctx, queue)
+    if err != nil {
+        return
+    }
+
+    for msg := range msgChan {
+        // 处理消息
+        fmt.Printf("Received message: %s\n", string(msg.Body()))
+        // 确认消息
+        s.MQMgr.Ack(ctx, msg)
+    }
+}
+```
+
+使用场景：
+- 异步任务处理
+- 事件驱动架构
+- 解耦服务依赖
+- 削峰填谷
+
+支持的驱动：
+- RabbitMQ（分布式消息队列）
+- Memory（本地内存队列）
+- None（空实现，用于测试）
+
+配置示例：
+```yaml
+mq:
+  driver: "rabbitmq"  # 或 "memory"
+  rabbitmq_config:
+    url: "amqp://guest:guest@localhost:5672/"
+    durable: true
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
+```
+
+### 9. HTTP 服务引擎 (server)
 
 统一的服务启动和生命周期管理：
 
@@ -511,7 +647,7 @@ middlewareContainer.Register(recovery)
 
 ```go
 // 在中间件容器中注册
-requestLogger := middleware.NewRequestLoggerMiddleware()
+requestLogger := litemiddleware.NewRequestLoggerMiddleware()
 middlewareContainer.Register(requestLogger)
 ```
 
@@ -520,7 +656,7 @@ middlewareContainer.Register(requestLogger)
 处理跨域请求：
 
 ```go
-cors := middleware.NewCorsMiddleware(&middleware.CorsConfig{
+cors := litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
     AllowOrigins:     []string{"*"},
     AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
     AllowHeaders:     []string{"Origin", "Content-Type"},
@@ -536,7 +672,7 @@ middlewareContainer.Register(cors)
 添加安全相关的 HTTP 头：
 
 ```go
-securityHeaders := middleware.NewSecurityHeadersMiddleware()
+securityHeaders := litemiddleware.NewSecurityHeadersMiddleware()
 middlewareContainer.Register(securityHeaders)
 ```
 
@@ -545,7 +681,7 @@ middlewareContainer.Register(securityHeaders)
 集成 OpenTelemetry 追踪：
 
 ```go
-telemetry := middleware.NewTelemetryMiddleware()
+telemetry := litemiddleware.NewTelemetryMiddleware()
 middlewareContainer.Register(telemetry)
 ```
 
@@ -554,24 +690,21 @@ middlewareContainer.Register(telemetry)
 基于 IP、路径、Header 或用户 ID 的限流：
 
 ```go
+import "github.com/lite-lake/litecore-go/component/litemiddleware"
+
 // 基于 IP 限流（100次/分钟）
-rateLimiter := middleware.NewRateLimiterByIP(100, time.Minute)
-middlewareContainer.Register(rateLimiter)
-
-// 基于路径限流（1000次/分钟）
-rateLimiter := middleware.NewRateLimiterByPath(1000, time.Minute)
-middlewareContainer.Register(rateLimiter)
-
-// 基于 Header 限流（500次/分钟）
-rateLimiter := middleware.NewRateLimiterByHeader(500, time.Minute, "X-User-ID")
-middlewareContainer.Register(rateLimiter)
-
-// 基于用户 ID 限流（200次/分钟）
-rateLimiter := middleware.NewRateLimiterByUserID(200, time.Minute)
+rateLimiter := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+    Limit:     100,
+    Window:    time.Minute,
+    KeyPrefix: "rate_limit",
+    KeyFunc: func(c *gin.Context) string {
+        return c.ClientIP()
+    },
+})
 middlewareContainer.Register(rateLimiter)
 
 // 自定义配置
-rateLimiter := middleware.NewRateLimiter(&middleware.RateLimiterConfig{
+rateLimiter := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
     Limit:     100,
     Window:    time.Minute,
     KeyPrefix: "custom",
@@ -716,11 +849,12 @@ go run ./cmd/server
 
 示例包含：
 - 完整的 5 层架构实现
-- 内置组件自动初始化
+- 内置 Manager 组件自动初始化（Config、Logger、Database、Cache、Lock、Limiter、MQ）
 - 用户认证和会话管理
 - 留言审核流程
 - 数据库迁移
-- 中间件集成
+- 中间件集成（限流、CORS、安全头等）
+- Gin 风格日志输出
 - 前端界面
 
 ## 目录结构规范
@@ -733,20 +867,20 @@ myapp/
 │   └── generate/          # 代码生成器入口
 │       └── main.go
 ├── internal/
- │   ├── application/       # 容器初始化代码（自动生成）
- │   │   ├── entity_container.go
- │   │   ├── repository_container.go
- │   │   ├── service_container.go
- │   │   ├── controller_container.go
- │   │   ├── middleware_container.go
- │   │   └── engine.go
-│   ├── entities/          # 实体层
-│   ├── repositories/      # 仓储层
-│   ├── services/          # 服务层
-│   ├── controllers/       # 控制器层
-│   ├── middlewares/       # 中间件层
-│   ├── dtos/              # 数据传输对象
-│   └── infras/            # 基础设施（Manager 实现）
+  │   ├── application/       # 容器初始化代码（自动生成）
+  │   │   ├── entity_container.go
+  │   │   ├── repository_container.go
+  │   │   ├── service_container.go
+  │   │   ├── controller_container.go
+  │   │   ├── middleware_container.go
+  │   │   └── engine.go
+  │   ├── entities/          # 实体层
+  │   ├── repositories/      # 仓储层
+  │   ├── services/          # 服务层
+  │   ├── controllers/       # 控制器层
+  │   ├── middlewares/       # 中间件层
+  │   ├── dtos/              # 数据传输对象
+  │   └── infras/            # 基础设施（自定义 Manager 实现）
 ├── configs/               # 配置文件
 │   └── config.yaml
 ├── templates/             # HTML 模板

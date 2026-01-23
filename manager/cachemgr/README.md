@@ -5,6 +5,7 @@
 ## 特性
 
 - **多驱动支持** - 支持 Redis（分布式）、Memory（高性能内存）、None（降级）三种缓存驱动
+- **高性能内存缓存** - 内存驱动基于 Ristretto 库实现，具有极高的性能和内存效率
 - **统一接口** - 提供统一的 ICacheManager 接口，便于切换缓存实现
 - **可观测性** - 内置日志、指标和链路追踪支持
 - **连接池管理** - Redis 驱动支持连接池配置和自动管理
@@ -19,7 +20,7 @@
 import (
     "context"
     "time"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/cachemgr"
+    "github.com/lite-lake/litecore-go/manager/cachemgr"
 )
 
 // 创建内存缓存管理器
@@ -223,6 +224,14 @@ type MemoryConfig struct {
 }
 ```
 
+**注意**：内存驱动基于 Ristretto 库实现，内部配置了以下参数：
+- `NumCounters`: 1e6（统计计数器数量）
+- `MaxCost`: 1e8（最大缓存成本）
+- `BufferItems`: 64（缓冲区大小）
+- `TtlTickerDurationInSec`: 1（TTL 检查间隔，秒）
+
+Ristretto 使用基于 TinyLFU 的淘汰策略，具有极高的命中率和并发性能。
+
 ### 工厂函数
 
 #### Build
@@ -283,7 +292,8 @@ func NewCacheManagerNoneImpl() ICacheManager
 
 ### 内存缓存
 
-- 基于 Ristretto 库，高性能
+- 基于 Ristretto 库，高性能、高并发
+- 使用 TinyLFU 淘汰策略，命中率高
 - 支持自动清理过期项
 - 适合单机应用或开发测试环境
 

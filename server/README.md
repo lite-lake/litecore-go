@@ -4,13 +4,48 @@
 
 ## 特性
 
-- **容器管理** - 集成 Entity、Repository、Service、Controller、Middleware 五层容器
-- **内置组件** - Config 和 Manager 作为内置组件，由引擎自动初始化和注入
-- **自动注入** - 按依赖顺序自动处理组件注入（Entity → Repository → Service → Controller/Middleware）
+- **容器管理** - 集成 Manager、Entity、Repository、Service、Controller、Middleware 六层容器
+- **内置组件** - Manager 作为内置组件（位于 `manager/` 目录），由引擎自动初始化和注入
+- **自动注入** - 按依赖顺序自动处理组件注入（Manager → Entity → Repository → Service → Controller/Middleware）
 - **生命周期管理** - 统一管理各层组件的启动和停止，支持健康检查
-- **中间件集成** - 自动排序并注册全局中间件到 Gin 引擎
+- **中间件集成** - 自动排序并注册全局中间件到 Gin 引擎，支持通过配置自定义名称和执行顺序
 - **路由管理** - 自动注册控制器路由，通过 BaseController 统一管理
 - **优雅关闭** - 支持信号处理，超时控制的安全关闭机制
+- **启动日志** - 支持异步启动日志，记录各阶段启动状态和耗时
+
+## 模块结构
+
+```
+litecore-go/
+├── server/                    # Server 模块
+│   ├── builtin.go             # 内置组件初始化（Manager 自动注入）
+│   ├── config.go              # 服务器配置
+│   ├── engine.go              # 引擎核心
+│   ├── lifecycle.go           # 生命周期管理
+│   ├── middleware.go          # 中间件管理
+│   ├── router.go              # 路由管理
+│   ├── async_startup_logger.go # 异步启动日志
+│   └── startup_phase.go       # 启动阶段定义
+│
+├── manager/                   # Manager 组件（独立模块）
+│   ├── configmgr/             # 配置管理器
+│   ├── databasemgr/           # 数据库管理器
+│   ├── cachemgr/              # 缓存管理器
+│   ├── loggermgr/             # 日志管理器
+│   ├── lockmgr/               # 锁管理器
+│   ├── limitermgr/            # 限流管理器
+│   ├── telemetrymgr/          # 遥测管理器
+│   └── mqmgr/                 # 消息队列管理器
+│
+└── component/
+    └── litemiddleware/        # 内置中间件组件
+        ├── rate_limiter_middleware.go   # 限流中间件
+        ├── cors_middleware.go           # CORS 中间件
+        ├── recovery_middleware.go       # 恢复中间件
+        ├── request_logger_middleware.go # 请求日志中间件
+        ├── security_headers_middleware.go # 安全头中间件
+        └── telemetry_middleware.go      # 遥测中间件
+```
 
 ## 快速开始
 
@@ -46,7 +81,6 @@ package main
 
 import (
     "github.com/lite-lake/litecore-go/server"
-    "github.com/lite-lake/litecore-go/server/builtin"
     "github.com/lite-lake/litecore-go/container"
 )
 
@@ -60,11 +94,11 @@ func main() {
 
     // 注册其他组件（实体、仓储、服务、控制器、中间件）...
 
-    // Config 和 Manager 由引擎自动初始化和注入
+    // Manager 由引擎自动初始化和注入（位于 manager/ 目录）
 
     // 创建并启动引擎
     engine := server.NewEngine(
-        &builtin.Config{
+        &server.BuiltinConfig{
             Driver:   "yaml",
             FilePath: "config.yaml",
         },
@@ -123,6 +157,39 @@ if err := engine.Run(); err != nil {
 }
 ```
 
+**启动日志：**
+
+Engine 支持启动日志功能，记录各阶段的启动状态和耗时：
+
+| 启动阶段 | 说明 |
+|---------|------|
+| 配置加载 | 加载配置文件 |
+| 管理器初始化 | 初始化所有 Manager |
+| 依赖注入 | 执行各层组件的依赖注入 |
+| 路由注册 | 注册中间件和控制器路由 |
+| 组件启动 | 启动各层组件 |
+| 运行中 | HTTP 服务器运行 |
+| 关闭中 | 优雅关闭各层组件 |
+
+日志格式（Gin 风格）：
+```
+2026-01-24 15:04:05.123 | INFO  | 开始初始化内置组件
+2026-01-24 15:04:05.456 | INFO  | 初始化完成: ConfigManager
+2026-01-24 15:04:05.789 | INFO  | 管理器初始化完成 | count=8 | duration=1.2s
+2026-01-24 15:04:06.123 | INFO  | 注册中间件 | middleware=RecoveryMiddleware | type=全局
+2026-01-24 15:04:06.456 | INFO  | 中间件注册完成 | middleware_count=6
+2026-01-24 15:04:06.789 | INFO  | HTTP 服务器启动成功 | address=0.0.0.0:8080
+```
+
+启动日志配置（通过 BuiltinConfig）：
+```go
+type StartupLogConfig struct {
+    Enabled bool // 是否启用启动日志
+    Async   bool // 是否异步输出（默认 true）
+    Buffer  int  // 缓冲区大小（默认 100）
+}
+```
+
 **方式二：分步启动（需要自定义初始化时）**
 
 ```go
@@ -145,14 +212,15 @@ engine.WaitForShutdown()
 Engine 按以下顺序管理组件生命周期：
 
 **启动顺序：**
-1. Config 和 Manager（内置组件，自动初始化）
+1. Manager 层（内置组件，由 `server.Initialize()` 自动初始化）
    - ConfigManager
+   - TelemetryManager
+   - LoggerManager
    - DatabaseManager
    - CacheManager
-   - LoggerManager
    - LockManager
    - LimiterManager
-   - TelemetryManager
+   - MQManager
 2. Entity 层（按注册顺序）
 3. Repository 层（按注册顺序）
 4. Service 层（按注册顺序）
@@ -165,7 +233,7 @@ Engine 按以下顺序管理组件生命周期：
 3. Service 层（反转顺序）
 4. Repository 层（反转顺序）
 5. Entity 层（反转顺序）
-6. Manager 和 Config（内置组件，自动清理）
+6. Manager 层（反转顺序，自动清理）
 
 ```go
 // 手动停止
@@ -178,25 +246,26 @@ if err := engine.Stop(); err != nil {
 
 Engine 在初始化时自动按以下顺序执行依赖注入：
 
-1. **Config 和 Manager**（内置组件，自动初始化）
-   - ConfigManager
-   - DatabaseManager
-   - CacheManager
-   - LoggerManager
-   - LockManager
-   - LimiterManager
-   - TelemetryManager
+1. **Manager 层**（由 `server.Initialize()` 自动初始化并注入）
+   - ConfigManager（最先初始化，其他 Manager 依赖它）
+   - TelemetryManager（依赖 ConfigManager）
+   - LoggerManager（依赖 ConfigManager、TelemetryManager）
+   - DatabaseManager（依赖 ConfigManager）
+   - CacheManager（依赖 ConfigManager）
+   - LockManager（依赖 ConfigManager）
+   - LimiterManager（依赖 ConfigManager）
+   - MQManager（依赖 ConfigManager）
 2. **Entity 层**（无依赖）
-3. **Repository 层**（依赖 Config、Manager、Entity）
-4. **Service 层**（依赖 Config、Manager、Repository 和同层 Service）
-5. **Controller 层**（依赖 Config、Manager、Service）
-6. **Middleware 层**（依赖 Config、Manager、Service）
+3. **Repository 层**（依赖 Manager、Entity）
+4. **Service 层**（依赖 Manager、Repository 和同层 Service）
+5. **Controller 层**（依赖 Manager、Service）
+6. **Middleware 层**（依赖 Manager、Service）
 
-各层组件通过 `inject:""` 标签声明依赖，Config 和 Manager 由引擎自动注入：
+各层组件通过 `inject:""` 标签声明依赖，Manager 由引擎自动注入：
 
 ```go
 type UserServiceImpl struct {
-    // 内置组件（引擎自动注入）
+    // 内置组件（引擎自动注入，来自 manager 包）
     Config     configmgr.IConfigManager      `inject:""`
     DBManager  databasemgr.IDatabaseManager  `inject:""`
     LoggerMgr  loggermgr.ILoggerManager     `inject:""`
@@ -210,15 +279,20 @@ type UserServiceImpl struct {
 
 ### 中间件管理
 
-中间件按 `Order()` 排序后自动注册到 Gin 引擎：
+中间件按 `Order()` 排序后自动注册到 Gin 引擎。内置中间件支持通过配置自定义名称和执行顺序：
 
 ```go
 type AuthMiddleware struct {
+    Name  string
     Order int // 越小越先执行
 }
 
+func (m *AuthMiddleware) MiddlewareName() string {
+    return m.Name
+}
+
 func (m *AuthMiddleware) Order() int {
-    return 10
+    return m.Order
 }
 
 func (m *AuthMiddleware) Wrapper() gin.HandlerFunc {
@@ -228,6 +302,43 @@ func (m *AuthMiddleware) Wrapper() gin.HandlerFunc {
     })
 }
 ```
+
+#### 使用内置中间件
+
+内置中间件位于 `component/litemiddleware` 包，支持灵活配置：
+
+```go
+import "github.com/lite-lake/litecore-go/component/litemiddleware"
+
+// 使用默认配置（按 IP 限流）
+rateLimiter := litemiddleware.NewRateLimiterMiddleware(nil)
+
+// 自定义配置
+limit := 200
+window := time.Minute
+order := 90
+name := "APILimiter"
+customLimiter := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+    Name:      &name,
+    Order:     &order,
+    Limit:     &limit,
+    Window:    &window,
+})
+```
+
+#### 预定义的中间件 Order
+
+| 中间件 | Order | 说明 |
+|--------|-------|------|
+| Recovery | 0 | panic 恢复（最先执行） |
+| RequestLogger | 50 | 请求日志 |
+| CORS | 100 | 跨域处理 |
+| SecurityHeaders | 150 | 安全头 |
+| RateLimiter | 200 | 限流（认证前执行） |
+| Telemetry | 250 | 遥测 |
+| Auth | 300 | 认证（预留） |
+
+业务自定义中间件建议从 Order 350 开始。
 
 ### 路由管理
 
@@ -395,9 +506,38 @@ func (s *APIService) GetUserQuota(userID string) (int, error) {
 
 ### 限流器中间件集成
 
+框架提供了 `rate_limiter_middleware` 中间件（位于 `component/litemiddleware` 包），支持灵活的限流配置。
+
 #### 基本使用
 
-框架提供了限流器中间件，支持多种限流策略：
+```go
+import "github.com/lite-lake/litecore-go/component/litemiddleware"
+
+// 使用默认配置（按 IP 限流，100 次/分钟）
+rateLimiter := litemiddleware.NewRateLimiterMiddleware(nil)
+
+// 自定义配置
+limit := 200
+window := time.Minute
+order := 90
+name := "APILimiter"
+keyPrefix := "api"
+customLimiter := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+    Name:      &name,
+    Order:     &order,
+    Limit:     &limit,
+    Window:    &window,
+    KeyPrefix: &keyPrefix,
+    KeyFunc: func(c *gin.Context) string {
+        // 按 Header 中的 X-User-ID 限流
+        return c.GetHeader("X-User-ID")
+    },
+    SkipFunc: func(c *gin.Context) bool {
+        // 跳过健康检查
+        return c.Request.URL.Path == "/health"
+    },
+})
+```
 
 **配置文件示例：**
 
@@ -476,49 +616,17 @@ func (m *rateLimiterMiddleware) OnStop() error  { return nil }
 var _ IRateLimiterMiddleware = (*rateLimiterMiddleware)(nil)
 ```
 
-#### 其他限流策略
+#### 配置参数
 
-**按路径限流：**
-
-```go
-func NewRateLimiterByPathMiddleware() common.IBaseMiddleware {
-    return middleware.NewRateLimiterByPath(1000, time.Minute)
-}
-```
-
-**按用户 ID 限流（需在认证中间件后执行）：**
-
-```go
-func NewRateLimiterByUserMiddleware() common.IBaseMiddleware {
-    return middleware.NewRateLimiterByUserID(50, time.Minute)
-}
-```
-
-**按 Header 限流：**
-
-```go
-func NewRateLimiterByAPIKeyMiddleware() common.IBaseMiddleware {
-    return middleware.NewRateLimiterByHeader(100, time.Minute, "X-API-Key")
-}
-```
-
-**自定义限流配置：**
-
-```go
-func NewCustomRateLimiterMiddleware() common.IBaseMiddleware {
-    return middleware.NewRateLimiter(&middleware.RateLimiterConfig{
-        Limit:     200,
-        Window:    time.Minute,
-        KeyPrefix: "custom",
-        KeyFunc: func(c *gin.Context) string {
-            return c.GetHeader("X-Tenant-ID")
-        },
-        SkipFunc: func(c *gin.Context) bool {
-            return c.Request.URL.Path == "/health"
-        },
-    })
-}
-```
+| 参数 | 类型 | 说明 | 默认值 |
+|------|------|------|--------|
+| Name | *string | 中间件名称 | "RateLimiterMiddleware" |
+| Order | *int | 执行顺序 | 200 |
+| Limit | *int | 时间窗口内最大请求数 | 100 |
+| Window | *time.Duration | 时间窗口大小 | time.Minute |
+| KeyFunc | KeyFunc | 自定义 key 生成函数 | 按 IP 生成 |
+| SkipFunc | SkipFunc | 跳过限流的条件 | 无 |
+| KeyPrefix | *string | key 前缀 | "rate_limit" |
 
 #### 响应头说明
 
@@ -533,17 +641,17 @@ func NewCustomRateLimiterMiddleware() common.IBaseMiddleware {
 
 #### 中间件 Order 建议
 
-限流器中间件建议使用 Order = 90，在认证中间件之前执行：
+限流器中间件建议使用 Order = 200，在认证中间件之前执行：
 
 ```go
 const (
-    OrderRecovery  = 10
-    OrderLogger    = 20
-    OrderCors      = 30
-    OrderTelemetry = 40
-    OrderSecurity  = 50
-    OrderRateLimit = 90
-    OrderAuth      = 100
+    OrderRecovery        = 0   // panic 恢复
+    OrderRequestLogger   = 50  // 请求日志
+    OrderCORS            = 100 // CORS
+    OrderSecurityHeaders = 150 // 安全头
+    OrderRateLimiter     = 200 // 限流
+    OrderTelemetry       = 250 // 遥测
+    OrderAuth            = 300 // 认证
 )
 ```
 
@@ -558,13 +666,22 @@ const (
 
 ```go
 func NewEngine(
-    builtinConfig *builtin.Config,
+    builtinConfig *BuiltinConfig,
     entity *container.EntityContainer,
     repository *container.RepositoryContainer,
     service *container.ServiceContainer,
     controller *container.ControllerContainer,
     middleware *container.MiddlewareContainer,
 ) *Engine
+```
+
+**BuiltinConfig 配置：**
+
+```go
+type BuiltinConfig struct {
+    Driver   string // 配置驱动类型（如：yaml、json 等）
+    FilePath string // 配置文件路径
+}
 ```
 
 #### 生命周期方法
@@ -627,7 +744,7 @@ func NewEngine() (*server.Engine, error) {
     }
 
     return server.NewEngine(
-        &builtin.Config{
+        &server.BuiltinConfig{
             Driver:   "yaml",
             FilePath: "configs/config.yaml",
         },
@@ -646,13 +763,13 @@ func NewEngine() (*server.Engine, error) {
 
 ```go
 const (
-    OrderRecovery    = 10  // panic 恢复
-    OrderLogger      = 20  // 日志记录
-    OrderCors        = 30  // 跨域处理
-    OrderTelemetry   = 40  // 遥测监控
-    OrderSecurity    = 50  // 安全头
-    OrderRateLimit   = 90  // 限流
-    OrderAuth        = 100 // 认证
+    OrderRecovery        = 0   // panic 恢复
+    OrderRequestLogger   = 50  // 日志记录
+    OrderCORS            = 100 // 跨域处理
+    OrderSecurityHeaders = 150 // 安全头
+    OrderRateLimiter     = 200 // 限流
+    OrderTelemetry       = 250 // 遥测监控
+    OrderAuth            = 300 // 认证
 )
 ```
 
@@ -661,41 +778,53 @@ const (
 ```go
 // Recovery 中间件
 func (m *RecoveryMiddleware) Order() int {
-    return 10
+    return litemiddleware.OrderRecovery
 }
 
 // 请求日志中间件
 func (m *RequestLoggerMiddleware) Order() int {
-    return 20
+    return litemiddleware.OrderRequestLogger
 }
 
 // CORS 中间件
 func (m *CorsMiddleware) Order() int {
-    return 30
+    return litemiddleware.OrderCORS
 }
 
 // 遥测中间件
 func (m *TelemetryMiddleware) Order() int {
-    return 40
+    return litemiddleware.OrderTelemetry
 }
 
 // 安全头中间件
 func (m *SecurityHeadersMiddleware) Order() int {
-    return 50
+    return litemiddleware.OrderSecurityHeaders
 }
 
 // 限流中间件
 func (m *RateLimiterMiddleware) Order() int {
-    return 90
+    return litemiddleware.OrderRateLimiter
 }
 
 // 认证中间件
 func (m *AuthMiddleware) Order() int {
-    return 100
+    return litemiddleware.OrderAuth
 }
 ```
 
-**限流器中间件 Order 建议值：** 90（在认证之前执行，避免无效请求消耗认证资源）
+**限流器中间件 Order 建议值：** 200（在认证之前执行，避免无效请求消耗认证资源）
+
+#### 通过配置自定义 Order
+
+所有内置中间件都支持通过配置自定义 Order：
+
+```go
+// 修改限流中间件的执行顺序为 90
+order := 90
+rateLimiter := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+    Order: &order,
+})
+```
 
 ### 3. 路由命名规范
 
@@ -805,10 +934,12 @@ Engine 自动处理以下信号，触发优雅关闭：
 ## 注意事项
 
 1. **依赖注入**：确保组件使用 `inject:""` 标签声明依赖
-2. **线程安全**：Engine 使用读写锁保护内部状态，外部访问需加锁
-3. **重入保护**：Start 方法已实现重入保护，重复调用返回错误
-4. **路由定义**：所有路由必须通过 BaseController 的 `GetRouter()` 方法定义
-5. **中间件顺序**：中间件按 Order 升序排序，越小的值越先执行
+2. **Manager 引用**：Manager 组件位于 `manager/` 目录，导入路径为 `github.com/lite-lake/litecore-go/manager/xxxmgr`
+3. **线程安全**：Engine 使用读写锁保护内部状态，外部访问需加锁
+4. **重入保护**：Start 方法已实现重入保护，重复调用返回错误
+5. **路由定义**：所有路由必须通过 BaseController 的 `GetRouter()` 方法定义
+6. **中间件顺序**：中间件按 Order 升序排序，越小的值越先执行
+7. **中间件配置**：内置中间件支持通过配置自定义名称和执行顺序
 
 来自 messageboard 的实际注意事项示例：
 
@@ -846,4 +977,27 @@ func (ctrl *HealthCheckController) GetRouter() string {
 func (ctrl *HealthCheckController) Handle(c *gin.Context) {
     c.JSON(200, gin.H{"status": "ok"})
 }
+```
+
+**内置中间件使用**
+
+内置中间件位于 `component/litemiddleware` 包：
+
+```go
+import "github.com/lite-lake/litecore-go/component/litemiddleware"
+
+// 使用默认配置
+rateLimiter := litemiddleware.NewRateLimiterMiddleware(nil)
+
+// 自定义配置
+order := 90
+name := "APILimiter"
+limit := 200
+window := time.Minute
+customLimiter := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+    Name:   &name,
+    Order:  &order,
+    Limit:  &limit,
+    Window: &window,
+})
 ```

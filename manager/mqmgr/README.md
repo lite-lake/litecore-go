@@ -15,7 +15,7 @@
 ```go
 import (
     "context"
-    "github.com/lite-lake/litecore-go/server/builtin/manager/mqmgr"
+    "github.com/lite-lake/litecore-go/manager/mqmgr"
 )
 
 // 创建内存队列管理器

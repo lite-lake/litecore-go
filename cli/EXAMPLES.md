@@ -71,7 +71,7 @@ go run ./cmd/generate -o internal/app
 go run ./cmd/generate -pkg myapp
 
 # 自定义配置文件
-go run ./cmd/generate -c configmgr/dev.yaml
+go run ./cmd/generate -c config/dev.yaml
 ```
 
 ### 完全自定义配置
@@ -92,7 +92,7 @@ func main() {
 		ProjectPath: ".",
 		OutputDir:   "internal/app",
 		PackageName: "myapp",
-		ConfigPath:  "configmgr/config.yaml",
+		ConfigPath:  "configs/config.yaml",
 	}
 
 	if err := generator.Run(cfg); err != nil {
@@ -164,3 +164,96 @@ func MustRun(cfg *Config)
 ## 实际项目示例
 
 参考 `samples/messageboard/cmd/generate/main.go` 的实现。
+
+## 配置文件示例
+
+生成器生成的代码会读取配置文件来初始化内置 Manager 组件。典型的配置文件结构：
+
+```yaml
+# 日志配置（支持 Gin 格式）
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"
+      format: "gin"                    # gin | json | default
+      color: true
+      time_format: "2006-01-24 15:04:05.000"
+
+# 数据库配置
+database:
+  driver: "sqlite"
+  sqlite_config:
+    dsn: "./data/app.db"
+
+# 缓存配置
+cache:
+  driver: "memory"
+
+# 限流配置
+limiter:
+  driver: "memory"
+
+# 锁配置
+lock:
+  driver: "memory"
+
+# 遥测配置
+telemetry:
+  driver: "none"
+
+# 消息队列配置
+mq:
+  driver: "memory"
+```
+
+## 生成的代码使用
+
+生成器会在指定的输出目录创建以下文件：
+
+- `entity_container.go` - 实体容器初始化
+- `repository_container.go` - 仓储容器初始化
+- `service_container.go` - 服务容器初始化
+- `controller_container.go` - 控制器容器初始化
+- `middleware_container.go` - 中间件容器初始化
+- `engine.go` - 引擎创建函数
+
+在 `main.go` 中使用：
+
+```go
+package main
+
+import (
+    "log"
+
+    myapp "myproject/internal/application"
+)
+
+func main() {
+    // 创建引擎
+    engine, err := myapp.NewEngine()
+    if err != nil {
+        log.Fatalf("Failed to create engine: %v", err)
+    }
+
+    // 初始化
+    if err := engine.Initialize(); err != nil {
+        log.Fatalf("Failed to initialize engine: %v", err)
+    }
+
+    // 启动
+    if err := engine.Start(); err != nil {
+        log.Fatalf("Failed to start engine: %v", err)
+    }
+
+    // 等待关闭信号
+    engine.WaitForShutdown()
+}
+```
+
+## 注意事项
+
+1. 生成的代码会覆盖同名文件，请确保不要手动修改生成的文件
+2. 配置文件路径必须是相对于项目根目录的路径
+3. Manager 组件会根据配置文件中的 `driver` 字段自动选择对应的实现
