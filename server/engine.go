@@ -45,6 +45,22 @@ type Engine struct {
 	cancel  context.CancelFunc
 	started bool
 	mu      sync.RWMutex
+
+	// 启动日志配置
+	startupLogConfig *StartupLogConfig
+
+	// 启动时间统计
+	startupStartTime time.Time
+	phaseDurations   map[StartupPhase]time.Duration
+	phaseStartTimes  map[StartupPhase]time.Time
+
+	// 日志器（统一使用 logger.ILogger）
+	internalLogger logger.ILogger
+	isStartup      bool         // 标识是否处于启动阶段
+	loggerMu       sync.RWMutex // 保护日志器的并发访问
+
+	// 异步日志器
+	asyncLogger *AsyncStartupLogger
 }
 
 func NewEngine(
@@ -59,25 +75,38 @@ func NewEngine(
 	defaultConfig := defaultServerConfig()
 
 	return &Engine{
-		Entity:          entity,
-		Repository:      repository,
-		Service:         service,
-		Controller:      controller,
-		Middleware:      middleware,
-		serverConfig:    defaultConfig,
-		shutdownTimeout: defaultConfig.ShutdownTimeout,
-		ctx:             ctx,
-		cancel:          cancel,
-		builtinConfig:   builtinConfig,
+		Entity:           entity,
+		Repository:       repository,
+		Service:          service,
+		Controller:       controller,
+		Middleware:       middleware,
+		serverConfig:     defaultConfig,
+		shutdownTimeout:  defaultConfig.ShutdownTimeout,
+		ctx:              ctx,
+		cancel:           cancel,
+		builtinConfig:    builtinConfig,
+		startupLogConfig: defaultConfig.StartupLog,
+		phaseDurations:   make(map[StartupPhase]time.Duration),
+		phaseStartTimes:  make(map[StartupPhase]time.Time),
 	}
 }
 
 func (e *Engine) logger() logger.ILogger {
-	mgr, err := container.GetManager[loggermgr.ILoggerManager](e.Manager)
-	if err != nil {
-		panic(fmt.Sprintf("failed to get logger manager: %v", err))
-	}
-	return mgr.Ins()
+	return e.getLogger()
+}
+
+// setLogger 设置日志器（线程安全）
+func (e *Engine) setLogger(logger logger.ILogger) {
+	e.loggerMu.Lock()
+	defer e.loggerMu.Unlock()
+	e.internalLogger = logger
+}
+
+// getLogger 获取日志器（线程安全）
+func (e *Engine) getLogger() logger.ILogger {
+	e.loggerMu.RLock()
+	defer e.loggerMu.RUnlock()
+	return e.internalLogger
 }
 
 // Initialize 初始化引擎（实现 liteServer 接口）
@@ -90,12 +119,33 @@ func (e *Engine) Initialize() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	// 初始化启动时间统计
+	e.startupStartTime = time.Now()
+
+	// 初始化前使用默认日志器
+	e.setLogger(logger.NewDefaultLogger("Engine"))
+	e.isStartup = true
+
 	// 1. 初始化内置组件
 	builtInManagerContainer, err := Initialize(e.builtinConfig)
 	if err != nil {
 		return fmt.Errorf("failed to initialize builtin components: %w", err)
 	}
 	e.Manager = builtInManagerContainer
+
+	// 切换到结构化日志
+	if loggerMgr, err := container.GetManager[loggermgr.ILoggerManager](e.Manager); err == nil {
+		e.setLogger(loggerMgr.Ins())
+		e.isStartup = false
+		e.getLogger().Info("切换到结构化日志系统")
+
+		// 初始化异步日志器
+		if e.startupLogConfig.Async {
+			e.asyncLogger = NewAsyncStartupLogger(e.getLogger(), e.startupLogConfig.Buffer)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "Failed to get logger manager: %v, using default logger\n", err)
+	}
 
 	// 4. 自动依赖注入
 	if err := e.autoInject(); err != nil {
@@ -145,7 +195,8 @@ func (e *Engine) Initialize() error {
 
 // autoInject 自动依赖注入
 func (e *Engine) autoInject() error {
-	// 按依赖顺序自动注入
+	e.logPhaseStart(PhaseInjection, "开始依赖注入")
+
 	// 1. Entity 层（无需依赖注入）
 
 	// 2. Repository 层（依赖 Manager + Entity）
@@ -153,11 +204,19 @@ func (e *Engine) autoInject() error {
 	if err := e.Repository.InjectAll(); err != nil {
 		return fmt.Errorf("repository inject failed: %w", err)
 	}
+	repos := e.Repository.GetAll()
+	for _, repo := range repos {
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Repository", repo.RepositoryName()))
+	}
 
 	// 3. Service 层（依赖 Manager + Repository + 同层）
 	e.Service.SetManagerContainer(e.Manager)
 	if err := e.Service.InjectAll(); err != nil {
 		return fmt.Errorf("service inject failed: %w", err)
+	}
+	svcs := e.Service.GetAll()
+	for _, svc := range svcs {
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Service", svc.ServiceName()))
 	}
 
 	// 4. Controller 层（依赖 Manager + Service）
@@ -165,12 +224,23 @@ func (e *Engine) autoInject() error {
 	if err := e.Controller.InjectAll(); err != nil {
 		return fmt.Errorf("controller inject failed: %w", err)
 	}
+	ctrls := e.Controller.GetAll()
+	for _, ctrl := range ctrls {
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Controller", ctrl.ControllerName()))
+	}
 
 	// 5. Middleware 层（依赖 Manager + Service）
 	e.Middleware.SetManagerContainer(e.Manager)
 	if err := e.Middleware.InjectAll(); err != nil {
 		return fmt.Errorf("middleware inject failed: %w", err)
 	}
+	mws := e.Middleware.GetAll()
+	for _, mw := range mws {
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Middleware", mw.MiddlewareName()))
+	}
+
+	totalCount := len(repos) + len(svcs) + len(ctrls) + len(mws)
+	e.logPhaseEnd(PhaseInjection, "依赖注入完成", logger.F("count", totalCount))
 
 	return nil
 }
@@ -209,16 +279,29 @@ func (e *Engine) Start() error {
 		return fmt.Errorf("start middlewares failed: %w", err)
 	}
 
+	// 停止异步日志器
+	if e.asyncLogger != nil {
+		e.asyncLogger.Stop()
+		e.asyncLogger = nil
+	}
+
 	// 5. 启动 HTTP 服务器
+	e.logger().Info("HTTP server listening", "addr", e.httpServer.Addr)
+
 	errChan := make(chan error, 1)
 	go func() {
-		e.logger().Info("HTTP server listening", "addr", e.httpServer.Addr)
 		if err := e.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			e.logger().Error("HTTP server error", "error", err)
 			errChan <- fmt.Errorf("HTTP server error: %w", err)
 			e.cancel()
 		}
 	}()
+
+	// 记录启动完成汇总
+	totalDuration := time.Since(e.startupStartTime)
+	e.logPhaseStart(PhaseStartup, "服务启动完成，开始对外提供服务",
+		logger.F("addr", e.httpServer.Addr),
+		logger.F("total_duration", totalDuration.String()))
 
 	e.started = true
 	return nil
@@ -250,7 +333,11 @@ func (e *Engine) getGinEngine() *gin.Engine {
 
 // registerControllers 注册所有控制器路由
 func (e *Engine) registerControllers() error {
+	e.logPhaseStart(PhaseRouter, "开始注册路由")
+
 	controllers := e.Controller.GetAll()
+	registeredCount := 0
+
 	for _, ctrl := range controllers {
 		route := ctrl.GetRouter()
 		if route == "" {
@@ -259,14 +346,25 @@ func (e *Engine) registerControllers() error {
 
 		method, path, err := parseRoute(route)
 		if err != nil {
-			e.logger().Warn("Invalid route format", "controller", ctrl.ControllerName(), "error", err)
+			e.getLogger().Warn("Invalid route format",
+				logger.F("controller", ctrl.ControllerName()),
+				logger.F("error", err))
 			continue
 		}
 
 		handler := ctrl.Handle
 		e.registerRoute(method, path, handler)
-		e.logger().Info("Registered controller", "name", ctrl.ControllerName(), "method", method, "path", path)
+
+		e.logStartup(PhaseRouter, "注册路由",
+			logger.F("method", method),
+			logger.F("path", path),
+			logger.F("controller", ctrl.ControllerName()))
+		registeredCount++
 	}
+
+	e.logPhaseEnd(PhaseRouter, "路由注册完成",
+		logger.F("route_count", registeredCount),
+		logger.F("controller_count", len(controllers)))
 
 	return nil
 }
