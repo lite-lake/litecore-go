@@ -498,10 +498,10 @@ engine.WaitForShutdown()
 自动恢复 panic，防止服务崩溃：
 
 ```go
-import "github.com/lite-lake/litecore-go/component/middleware"
+import "github.com/lite-lake/litecore-go/component/litemiddleware"
 
 // 在中间件容器中注册
-recovery := middleware.NewRecoveryMiddleware()
+recovery := litemiddleware.NewRecoveryMiddleware()
 middlewareContainer.Register(recovery)
 ```
 

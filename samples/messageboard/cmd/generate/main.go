@@ -9,6 +9,7 @@ import (
 	"github.com/lite-lake/litecore-go/cli/generator"
 )
 
+// main 主函数，解析命令行参数并运行代码生成器
 func main() {
 	cfg := generator.DefaultConfig()
 

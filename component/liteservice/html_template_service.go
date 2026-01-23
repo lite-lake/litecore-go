@@ -1,4 +1,4 @@
-package service
+package liteservice
 
 import (
 	"github.com/gin-gonic/gin"

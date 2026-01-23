@@ -16,8 +16,8 @@ type IMsgListController interface {
 }
 
 type msgListControllerImpl struct {
-	MessageService services.IMessageService `inject:""`
-	LoggerMgr      loggermgr.ILoggerManager `inject:""`
+	MessageService services.IMessageService `inject:""` // 留言服务
+	LoggerMgr      loggermgr.ILoggerManager `inject:""` // 日志管理器
 }
 
 // NewMsgListController 创建控制器实例
@@ -25,14 +25,17 @@ func NewMsgListController() IMsgListController {
 	return &msgListControllerImpl{}
 }
 
+// ControllerName 返回控制器名称
 func (c *msgListControllerImpl) ControllerName() string {
 	return "msgListControllerImpl"
 }
 
+// GetRouter 返回路由信息
 func (c *msgListControllerImpl) GetRouter() string {
 	return "/api/messages [GET]"
 }
 
+// Handle 处理获取已审核留言列表请求（隐藏状态信息）
 func (c *msgListControllerImpl) Handle(ctx *gin.Context) {
 	c.LoggerMgr.Ins().Debug("开始获取已审核留言列表")
 

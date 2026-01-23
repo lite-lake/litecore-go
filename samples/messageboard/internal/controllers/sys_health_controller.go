@@ -5,7 +5,7 @@ import (
 	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 
 	"github.com/lite-lake/litecore-go/common"
-	componentControllers "github.com/lite-lake/litecore-go/component/controller"
+	"github.com/lite-lake/litecore-go/component/litecontroller"
 )
 
 // ISysHealthController 健康检查控制器接口
@@ -14,24 +14,28 @@ type ISysHealthController interface {
 }
 
 type sysHealthControllerImpl struct {
-	componentController componentControllers.IHealthController
-	LoggerMgr           loggermgr.ILoggerManager `inject:""`
+	componentController litecontroller.IHealthController // 内置健康检查控制器
+	LoggerMgr           loggermgr.ILoggerManager         `inject:""` // 日志管理器
 }
 
+// NewSysHealthController 创建控制器实例
 func NewSysHealthController() ISysHealthController {
 	return &sysHealthControllerImpl{
-		componentController: componentControllers.NewHealthController(),
+		componentController: litecontroller.NewHealthController(),
 	}
 }
 
+// ControllerName 返回控制器名称
 func (c *sysHealthControllerImpl) ControllerName() string {
 	return "sysHealthControllerImpl"
 }
 
+// GetRouter 返回路由信息
 func (c *sysHealthControllerImpl) GetRouter() string {
 	return c.componentController.GetRouter()
 }
 
+// Handle 处理健康检查请求
 func (c *sysHealthControllerImpl) Handle(ctx *gin.Context) {
 	c.componentController.Handle(ctx)
 }

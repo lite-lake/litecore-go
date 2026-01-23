@@ -10,12 +10,12 @@ import (
 
 // Message 留言实体
 type Message struct {
-	ID        uint      `gorm:"primarykey" json:"id"`
-	Nickname  string    `gorm:"type:varchar(20);not null" json:"nickname"`
-	Content   string    `gorm:"type:varchar(500);not null" json:"content"`
-	Status    string    `gorm:"type:varchar(20);default:'pending'" json:"status"` // pending, approved, rejected
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint      `gorm:"primarykey" json:"id"`                             // 留言 ID
+	Nickname  string    `gorm:"type:varchar(20);not null" json:"nickname"`        // 昵称
+	Content   string    `gorm:"type:varchar(500);not null" json:"content"`        // 留言内容
+	Status    string    `gorm:"type:varchar(20);default:'pending'" json:"status"` // 状态：pending 待审核，approved 已通过，rejected 已拒绝
+	CreatedAt time.Time `json:"created_at"`                                       // 创建时间
+	UpdatedAt time.Time `json:"updated_at"`                                       // 更新时间
 }
 
 // EntityName 实现 BaseEntity 接口

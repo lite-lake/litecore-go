@@ -7,6 +7,7 @@ import (
 	"github.com/lite-lake/litecore-go/util/hash"
 )
 
+// TestGeneratePassword 测试密码生成功能
 func TestGeneratePassword(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -3,7 +3,7 @@ package middlewares
 
 import (
 	"github.com/lite-lake/litecore-go/common"
-	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
+	"github.com/lite-lake/litecore-go/component/litemiddleware"
 )
 
 // IRequestLoggerMiddleware 请求日志中间件接口
@@ -13,5 +13,5 @@ type IRequestLoggerMiddleware interface {
 
 // NewRequestLoggerMiddleware 使用默认配置创建请求日志中间件
 func NewRequestLoggerMiddleware() IRequestLoggerMiddleware {
-	return componentMiddleware.NewRequestLoggerMiddlewareWithDefaults()
+	return litemiddleware.NewRequestLoggerMiddlewareWithDefaults()
 }

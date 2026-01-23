@@ -3,7 +3,7 @@ package middlewares
 
 import (
 	"github.com/lite-lake/litecore-go/common"
-	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
+	"github.com/lite-lake/litecore-go/component/litemiddleware"
 )
 
 // IRecoveryMiddleware panic 恢复中间件接口
@@ -13,5 +13,5 @@ type IRecoveryMiddleware interface {
 
 // NewRecoveryMiddleware 使用默认配置创建 panic 恢复中间件
 func NewRecoveryMiddleware() IRecoveryMiddleware {
-	return componentMiddleware.NewRecoveryMiddlewareWithDefaults()
+	return litemiddleware.NewRecoveryMiddlewareWithDefaults()
 }

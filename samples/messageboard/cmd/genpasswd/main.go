@@ -10,6 +10,7 @@ import (
 	"github.com/lite-lake/litecore-go/util/hash"
 )
 
+// main 主函数，交互式地生成管理员密码的 Bcrypt 哈希值
 func main() {
 	fmt.Println("=== 留言板管理员密码生成工具 ===")
 	fmt.Println()
