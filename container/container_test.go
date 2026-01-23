@@ -56,7 +56,9 @@ func TestTypedContainer(t *testing.T) {
 	t.Run("注册不实现接口的实现", func(t *testing.T) {
 		container := NewTypedContainer(func(item testInterface) string { return "" })
 
-		type otherInterface interface{}
+		type otherInterface interface {
+			otherMethod() string
+		}
 		otherType := reflect.TypeOf((*otherInterface)(nil)).Elem()
 
 		impl := &testImplementation{name: "test"}
@@ -187,7 +189,7 @@ func TestNamedContainer(t *testing.T) {
 	})
 
 	t.Run("注册空名称", func(t *testing.T) {
-		container := NewNamedContainer(func(item testInterface) string { return "" })
+		container := NewNamedContainer(func(item testInterface) string { return item.testMethod() })
 		impl := &testImplementation{name: ""}
 
 		err := container.Register(impl)
@@ -197,7 +199,7 @@ func TestNamedContainer(t *testing.T) {
 	})
 
 	t.Run("重复注册", func(t *testing.T) {
-		container := NewNamedContainer(func(item testInterface) string { return "" })
+		container := NewNamedContainer(func(item testInterface) string { return item.testMethod() })
 
 		impl1 := &testImplementation{name: "test"}
 		impl2 := &testImplementation{name: "test"}
@@ -223,10 +225,14 @@ func TestNamedContainer(t *testing.T) {
 	})
 
 	t.Run("获取所有实例", func(t *testing.T) {
-		container := NewNamedContainer(func(item testInterface) string { return "" })
+		container := NewNamedContainer(func(item testInterface) string { return item.testMethod() })
 
-		container.Register(&testImplementation{name: "test1"})
-		container.Register(&testImplementation{name: "test2"})
+		if err := container.Register(&testImplementation{name: "test1"}); err != nil {
+			t.Errorf("注册失败: %v", err)
+		}
+		if err := container.Register(&testImplementation{name: "test2"}); err != nil {
+			t.Errorf("注册失败: %v", err)
+		}
 
 		all := container.GetAll()
 		if len(all) != 2 {
@@ -235,13 +241,15 @@ func TestNamedContainer(t *testing.T) {
 	})
 
 	t.Run("获取实例数量", func(t *testing.T) {
-		container := NewNamedContainer(func(item testInterface) string { return "" })
+		container := NewNamedContainer(func(item testInterface) string { return item.testMethod() })
 
 		if container.Count() != 0 {
 			t.Errorf("期望 0 个实例，实际: %d", container.Count())
 		}
 
-		container.Register(&testImplementation{name: "test"})
+		if err := container.Register(&testImplementation{name: "test"}); err != nil {
+			t.Errorf("注册失败: %v", err)
+		}
 
 		if container.Count() != 1 {
 			t.Errorf("期望 1 个实例，实际: %d", container.Count())
