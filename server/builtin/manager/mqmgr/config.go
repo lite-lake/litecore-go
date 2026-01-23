@@ -7,12 +7,17 @@ import (
 )
 
 const (
-	DefaultRabbitMQURL         = "amqp://guest:guest@localhost:5672/"
-	DefaultRabbitMQDurable     = true
-	DefaultMemoryMaxQueueSize  = 10000
+	// DefaultRabbitMQURL 默认 RabbitMQ 连接地址
+	DefaultRabbitMQURL = "amqp://guest:guest@localhost:5672/"
+	// DefaultRabbitMQDurable 默认 RabbitMQ 队列持久化配置
+	DefaultRabbitMQDurable = true
+	// DefaultMemoryMaxQueueSize 默认内存队列最大容量
+	DefaultMemoryMaxQueueSize = 10000
+	// DefaultMemoryChannelBuffer 默认内存通道缓冲区大小
 	DefaultMemoryChannelBuffer = 100
 )
 
+// DefaultConfig 返回默认配置
 func DefaultConfig() *MQConfig {
 	return &MQConfig{
 		Driver: "memory",
@@ -27,22 +32,33 @@ func DefaultConfig() *MQConfig {
 	}
 }
 
+// MQConfig 消息队列配置
 type MQConfig struct {
-	Driver         string          `yaml:"driver"`
+	// Driver 驱动类型：rabbitmq 或 memory
+	Driver string `yaml:"driver"`
+	// RabbitMQConfig RabbitMQ 配置
 	RabbitMQConfig *RabbitMQConfig `yaml:"rabbitmq_config"`
-	MemoryConfig   *MemoryConfig   `yaml:"memory_config"`
+	// MemoryConfig 内存队列配置
+	MemoryConfig *MemoryConfig `yaml:"memory_config"`
 }
 
+// RabbitMQConfig RabbitMQ 配置
 type RabbitMQConfig struct {
-	URL     string `yaml:"url"`
-	Durable bool   `yaml:"durable"`
+	// URL 连接地址
+	URL string `yaml:"url"`
+	// Durable 是否持久化
+	Durable bool `yaml:"durable"`
 }
 
+// MemoryConfig 内存队列配置
 type MemoryConfig struct {
-	MaxQueueSize  int `yaml:"max_queue_size"`
+	// MaxQueueSize 最大队列大小
+	MaxQueueSize int `yaml:"max_queue_size"`
+	// ChannelBuffer 通道缓冲区大小
 	ChannelBuffer int `yaml:"channel_buffer"`
 }
 
+// Validate 验证配置
 func (c *MQConfig) Validate() error {
 	if c.Driver == "" {
 		return fmt.Errorf("driver is required")
@@ -67,6 +83,7 @@ func (c *MQConfig) Validate() error {
 	return nil
 }
 
+// ParseMQConfigFromMap 从 map 解析消息队列配置
 func ParseMQConfigFromMap(cfg map[string]any) (*MQConfig, error) {
 	config := &MQConfig{
 		Driver: "memory",
@@ -107,6 +124,7 @@ func ParseMQConfigFromMap(cfg map[string]any) (*MQConfig, error) {
 	return config, nil
 }
 
+// parseRabbitMQConfig 解析 RabbitMQ 配置
 func parseRabbitMQConfig(cfg map[string]any) (*RabbitMQConfig, error) {
 	config := &RabbitMQConfig{
 		URL:     DefaultRabbitMQURL,
@@ -124,6 +142,7 @@ func parseRabbitMQConfig(cfg map[string]any) (*RabbitMQConfig, error) {
 	return config, nil
 }
 
+// parseMemoryConfig 解析内存队列配置
 func parseMemoryConfig(cfg map[string]any) (*MemoryConfig, error) {
 	config := &MemoryConfig{
 		MaxQueueSize:  DefaultMemoryMaxQueueSize,
@@ -145,6 +164,7 @@ func parseMemoryConfig(cfg map[string]any) (*MemoryConfig, error) {
 	return config, nil
 }
 
+// toInt 将任意值转换为整数
 func toInt(v any) (int, bool) {
 	switch val := v.(type) {
 	case int:
@@ -161,6 +181,7 @@ func toInt(v any) (int, bool) {
 	}
 }
 
+// parseDuration 将任意值转换为时长
 func parseDuration(v any) (time.Duration, error) {
 	switch val := v.(type) {
 	case int:

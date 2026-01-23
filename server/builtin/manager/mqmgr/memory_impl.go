@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// memoryMessage 内存消息
 type memoryMessage struct {
 	id      string
 	queue   string
@@ -18,18 +19,22 @@ type memoryMessage struct {
 	nacked  atomic.Bool
 }
 
+// ID 获取消息 ID
 func (m *memoryMessage) ID() string {
 	return m.id
 }
 
+// Body 获取消息体
 func (m *memoryMessage) Body() []byte {
 	return m.body
 }
 
+// Headers 获取消息头
 func (m *memoryMessage) Headers() map[string]any {
 	return m.headers
 }
 
+// memoryQueue 内存队列
 type memoryQueue struct {
 	name        string
 	messages    []*memoryMessage
@@ -41,6 +46,7 @@ type memoryQueue struct {
 	deliveryTag atomic.Int64
 }
 
+// messageQueueManagerMemoryImpl 内存消息队列管理器实现
 type messageQueueManagerMemoryImpl struct {
 	*mqManagerBaseImpl
 	queues   sync.Map
@@ -49,6 +55,7 @@ type messageQueueManagerMemoryImpl struct {
 	shutdown atomic.Bool
 }
 
+// NewMessageQueueManagerMemoryImpl 创建内存消息队列管理器
 func NewMessageQueueManagerMemoryImpl(config *MemoryConfig) IMQManager {
 	return &messageQueueManagerMemoryImpl{
 		mqManagerBaseImpl: newMqManagerBaseImpl(),
@@ -339,6 +346,7 @@ func (m *messageQueueManagerMemoryImpl) Close() error {
 	return nil
 }
 
+// getOrCreateQueue 获取或创建队列
 func (m *messageQueueManagerMemoryImpl) getOrCreateQueue(queue string) *memoryQueue {
 	q, _ := m.queues.LoadOrStore(queue, &memoryQueue{
 		name:       queue,
@@ -350,6 +358,7 @@ func (m *messageQueueManagerMemoryImpl) getOrCreateQueue(queue string) *memoryQu
 	return q.(*memoryQueue)
 }
 
+// removeMessage 从队列中移除消息
 func (m *messageQueueManagerMemoryImpl) removeMessage(q *memoryQueue, msg *memoryMessage) {
 	q.messagesMu.Lock()
 	for i, m := range q.messages {
@@ -361,6 +370,7 @@ func (m *messageQueueManagerMemoryImpl) removeMessage(q *memoryQueue, msg *memor
 	q.messagesMu.Unlock()
 }
 
+// requeueMessage 重新入队消息
 func (m *messageQueueManagerMemoryImpl) requeueMessage(ctx context.Context, queue string, msg *memoryMessage) {
 	mq := m.getOrCreateQueue(queue)
 	mq.messagesMu.Lock()
@@ -368,6 +378,7 @@ func (m *messageQueueManagerMemoryImpl) requeueMessage(ctx context.Context, queu
 	mq.messagesMu.Unlock()
 }
 
+// removeMessageById 根据 ID 移除消息
 func (m *messageQueueManagerMemoryImpl) removeMessageById(messageID string) {
 	m.queues.Range(func(key, value any) bool {
 		q := value.(*memoryQueue)

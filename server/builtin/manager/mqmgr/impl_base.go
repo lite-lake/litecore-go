@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// mqManagerBaseImpl 消息队列管理器基础实现
 type mqManagerBaseImpl struct {
 	Logger            logger.ILogger                 `inject:""`
 	telemetryMgr      telemetrymgr.ITelemetryManager `inject:""`
@@ -26,10 +27,12 @@ type mqManagerBaseImpl struct {
 	operationDuration metric.Float64Histogram
 }
 
+// newMqManagerBaseImpl 创建消息队列管理器基础实现
 func newMqManagerBaseImpl() *mqManagerBaseImpl {
 	return &mqManagerBaseImpl{}
 }
 
+// initObservability 初始化可观测性组件
 func (b *mqManagerBaseImpl) initObservability() {
 	if b.telemetryMgr == nil {
 		return
@@ -69,6 +72,7 @@ func (b *mqManagerBaseImpl) initObservability() {
 	)
 }
 
+// recordOperation 记录操作并执行
 func (b *mqManagerBaseImpl) recordOperation(
 	ctx context.Context,
 	driver string,
@@ -128,6 +132,7 @@ func (b *mqManagerBaseImpl) recordOperation(
 	return err
 }
 
+// recordPublish 记录消息发布
 func (b *mqManagerBaseImpl) recordPublish(ctx context.Context, driver string) {
 	if b.meter == nil {
 		return
@@ -142,6 +147,7 @@ func (b *mqManagerBaseImpl) recordPublish(ctx context.Context, driver string) {
 	}
 }
 
+// recordConsume 记录消息消费
 func (b *mqManagerBaseImpl) recordConsume(ctx context.Context, driver string) {
 	if b.meter == nil {
 		return
@@ -156,6 +162,7 @@ func (b *mqManagerBaseImpl) recordConsume(ctx context.Context, driver string) {
 	}
 }
 
+// recordAck 记录消息确认
 func (b *mqManagerBaseImpl) recordAck(ctx context.Context, driver string) {
 	if b.meter == nil {
 		return
@@ -170,6 +177,7 @@ func (b *mqManagerBaseImpl) recordAck(ctx context.Context, driver string) {
 	}
 }
 
+// recordNack 记录消息拒绝
 func (b *mqManagerBaseImpl) recordNack(ctx context.Context, driver string) {
 	if b.meter == nil {
 		return
@@ -184,6 +192,7 @@ func (b *mqManagerBaseImpl) recordNack(ctx context.Context, driver string) {
 	}
 }
 
+// ValidateContext 验证上下文是否有效
 func ValidateContext(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("context cannot be nil")
@@ -191,6 +200,7 @@ func ValidateContext(ctx context.Context) error {
 	return nil
 }
 
+// ValidateQueue 验证队列名是否有效
 func ValidateQueue(queue string) error {
 	if queue == "" {
 		return fmt.Errorf("queue name cannot be empty")
@@ -198,6 +208,7 @@ func ValidateQueue(queue string) error {
 	return nil
 }
 
+// getStatus 获取操作状态
 func getStatus(err error) string {
 	if err != nil {
 		return "error"
