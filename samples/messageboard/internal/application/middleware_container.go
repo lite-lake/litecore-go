@@ -11,11 +11,11 @@ func InitMiddlewareContainer(serviceContainer *container.ServiceContainer) *cont
 	middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 	container.RegisterMiddleware[middlewares.IAuthMiddleware](middlewareContainer, middlewares.NewAuthMiddleware())
 	container.RegisterMiddleware[middlewares.ICorsMiddleware](middlewareContainer, middlewares.NewCorsMiddleware())
+	container.RegisterMiddleware[middlewares.IRateLimiterMiddleware](middlewareContainer, middlewares.NewRateLimiterMiddleware())
 	container.RegisterMiddleware[middlewares.IRecoveryMiddleware](middlewareContainer, middlewares.NewRecoveryMiddleware())
 	container.RegisterMiddleware[middlewares.IRequestLoggerMiddleware](middlewareContainer, middlewares.NewRequestLoggerMiddleware())
 	container.RegisterMiddleware[middlewares.ISecurityHeadersMiddleware](middlewareContainer, middlewares.NewSecurityHeadersMiddleware())
 	container.RegisterMiddleware[middlewares.ITelemetryMiddleware](middlewareContainer, middlewares.NewTelemetryMiddleware())
-	container.RegisterMiddleware[middlewares.IRateLimiterMiddleware](middlewareContainer, middlewares.NewRateLimiterMiddleware())
 
 	return middlewareContainer
 }

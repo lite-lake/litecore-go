@@ -10,8 +10,10 @@ const (
 package {{.PackageName}}
 
 import (
-	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
+	{{- if .Components}}
+	"github.com/lite-lake/litecore-go/common"
+	{{- end}}
 	{{- range $alias, $path := .Imports}}
 	{{- if $alias}}
 	{{ $alias }} "{{$path}}"
