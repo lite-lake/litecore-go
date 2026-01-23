@@ -8,12 +8,14 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 )
 
+// ServiceContainer 服务层容器
 type ServiceContainer struct {
 	base                *injectableContainer[common.IBaseService]
 	managerContainer    *ManagerContainer
 	repositoryContainer *RepositoryContainer
 }
 
+// NewServiceContainer 创建新的服务容器
 func NewServiceContainer(repository *RepositoryContainer) *ServiceContainer {
 	return &ServiceContainer{
 		base: &injectableContainer[common.IBaseService]{
@@ -25,11 +27,13 @@ func NewServiceContainer(repository *RepositoryContainer) *ServiceContainer {
 	}
 }
 
+// RegisterService 泛型注册函数，按接口类型注册
 func RegisterService[T common.IBaseService](s *ServiceContainer, impl T) error {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	return s.RegisterByType(ifaceType, impl)
 }
 
+// GetService 按接口类型获取
 func GetService[T common.IBaseService](s *ServiceContainer) (T, error) {
 	ifaceType := reflect.TypeOf((*T)(nil)).Elem()
 	impl := s.GetByType(ifaceType)
@@ -43,10 +47,12 @@ func GetService[T common.IBaseService](s *ServiceContainer) (T, error) {
 	return impl.(T), nil
 }
 
+// RegisterByType 按接口类型注册
 func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseService) error {
 	return s.base.container.Register(ifaceType, impl)
 }
 
+// InjectAll 执行依赖注入
 func (s *ServiceContainer) InjectAll() error {
 	if s.managerContainer == nil {
 		panic(&ManagerContainerNotSetError{Layer: "Service"})
@@ -83,6 +89,7 @@ func (s *ServiceContainer) InjectAll() error {
 	return nil
 }
 
+// buildDependencyGraph 构建服务依赖图
 func (s *ServiceContainer) buildDependencyGraph() (map[reflect.Type][]reflect.Type, error) {
 	graph := make(map[reflect.Type][]reflect.Type)
 
@@ -125,15 +132,18 @@ func (s *ServiceContainer) buildDependencyGraph() (map[reflect.Type][]reflect.Ty
 	return graph, nil
 }
 
+// isBaseServiceType 检查类型是否为服务类型
 func (s *ServiceContainer) isBaseServiceType(typ reflect.Type) bool {
 	baseServiceType := reflect.TypeOf((*common.IBaseService)(nil)).Elem()
 	return typ.Implements(baseServiceType)
 }
 
+// GetAll 获取所有已注册的服务
 func (s *ServiceContainer) GetAll() []common.IBaseService {
 	return s.base.container.GetAll()
 }
 
+// GetAllSorted 获取所有已注册的服务（按名称排序）
 func (s *ServiceContainer) GetAllSorted() []common.IBaseService {
 	items := s.GetAll()
 	sort.Slice(items, func(i, j int) bool {
@@ -142,18 +152,22 @@ func (s *ServiceContainer) GetAllSorted() []common.IBaseService {
 	return items
 }
 
+// GetByType 按接口类型获取
 func (s *ServiceContainer) GetByType(ifaceType reflect.Type) common.IBaseService {
 	return s.base.container.GetByType(ifaceType)
 }
 
+// Count 返回已注册的服务数量
 func (s *ServiceContainer) Count() int {
 	return s.base.container.Count()
 }
 
+// SetManagerContainer 设置管理器容器
 func (s *ServiceContainer) SetManagerContainer(container *ManagerContainer) {
 	s.managerContainer = container
 }
 
+// GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
 func (s *ServiceContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
 	if dep, err := resolveDependencyFromManager(fieldType, s.managerContainer); dep != nil || err != nil {
 		return dep, err

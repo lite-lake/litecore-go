@@ -14,6 +14,7 @@ type DependencyNotFoundError struct {
 	ContainerType string       // 应该从哪个容器查找
 }
 
+// Error 返回错误信息
 func (e *DependencyNotFoundError) Error() string {
 	return fmt.Sprintf("dependency not found for %s.%s: need type %s from %s container",
 		e.InstanceName, e.FieldName, e.FieldType, e.ContainerType)
@@ -24,6 +25,7 @@ type CircularDependencyError struct {
 	Cycle []string // 循环依赖链
 }
 
+// Error 返回错误信息
 func (e *CircularDependencyError) Error() string {
 	if len(e.Cycle) == 0 {
 		return "circular dependency detected"
@@ -40,6 +42,7 @@ type AmbiguousMatchError struct {
 	Candidates   []string // 匹配的候选实例名称
 }
 
+// Error 返回错误信息
 func (e *AmbiguousMatchError) Error() string {
 	return fmt.Sprintf("ambiguous match for %s.%s: type %s matches multiple instances: %s",
 		e.InstanceName, e.FieldName, e.FieldType, strings.Join(e.Candidates, ", "))
@@ -52,6 +55,7 @@ type DuplicateRegistrationError struct {
 	New      interface{}
 }
 
+// Error 返回错误信息
 func (e *DuplicateRegistrationError) Error() string {
 	return fmt.Sprintf("duplicate registration: name '%s' already exists", e.Name)
 }
@@ -62,6 +66,7 @@ type InstanceNotFoundError struct {
 	Layer string
 }
 
+// Error 返回错误信息
 func (e *InstanceNotFoundError) Error() string {
 	return fmt.Sprintf("%s instance not found: '%s'", e.Layer, e.Name)
 }
@@ -73,6 +78,7 @@ type InterfaceAlreadyRegisteredError struct {
 	NewImpl       interface{}
 }
 
+// Error 返回错误信息
 func (e *InterfaceAlreadyRegisteredError) Error() string {
 	return fmt.Sprintf("interface %v already registered with implementation %v", e.InterfaceType, e.ExistingImpl)
 }
@@ -83,6 +89,7 @@ type ImplementationDoesNotImplementInterfaceError struct {
 	Implementation interface{}
 }
 
+// Error 返回错误信息
 func (e *ImplementationDoesNotImplementInterfaceError) Error() string {
 	return fmt.Sprintf("implementation %T does not implement interface %v", e.Implementation, e.InterfaceType)
 }
@@ -92,6 +99,7 @@ type InterfaceNotRegisteredError struct {
 	InterfaceType reflect.Type
 }
 
+// Error 返回错误信息
 func (e *InterfaceNotRegisteredError) Error() string {
 	return fmt.Sprintf("interface %v not registered", e.InterfaceType)
 }
@@ -101,6 +109,7 @@ type ManagerContainerNotSetError struct {
 	Layer string
 }
 
+// Error 返回错误信息
 func (e *ManagerContainerNotSetError) Error() string {
 	return "manager container not set before injection"
 }
