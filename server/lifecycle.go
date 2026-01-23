@@ -10,7 +10,6 @@ import (
 
 // startManagers 启动所有管理器
 func (e *Engine) startManagers() error {
-	// 启动内置管理器
 	managers := e.Manager.GetAll()
 	for _, mgr := range managers {
 		if err := mgr.(common.IBaseManager).OnStart(); err != nil {
@@ -42,9 +41,19 @@ func (e *Engine) startServices() error {
 	return nil
 }
 
+// startMiddlewares 启动所有中间件
+func (e *Engine) startMiddlewares() error {
+	middlewares := e.Middleware.GetAll()
+	for _, mw := range middlewares {
+		if err := mw.OnStart(); err != nil {
+			return fmt.Errorf("failed to start middleware %s: %w", mw.MiddlewareName(), err)
+		}
+	}
+	return nil
+}
+
 // stopManagers 停止所有管理器
 func (e *Engine) stopManagers() []error {
-	// 停止内置管理器（反向顺序）
 	managers := e.Manager.GetAll()
 	var errors []error
 	for i := len(managers) - 1; i >= 0; i-- {
@@ -79,6 +88,18 @@ func (e *Engine) stopRepositories() []error {
 	return errors
 }
 
+// stopMiddlewares 停止所有中间件
+func (e *Engine) stopMiddlewares() []error {
+	middlewares := e.Middleware.GetAll()
+	var errors []error
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		if err := middlewares[i].OnStop(); err != nil {
+			errors = append(errors, fmt.Errorf("failed to stop middleware %s: %w", middlewares[i].MiddlewareName(), err))
+		}
+	}
+	return errors
+}
+
 // Stop 停止引擎（实现 LiteServer 接口）
 func (e *Engine) Stop() error {
 	e.mu.Lock()
@@ -99,11 +120,13 @@ func (e *Engine) Stop() error {
 
 	serviceErrors := e.stopServices()
 	repositoryErrors := e.stopRepositories()
+	middlewareErrors := e.stopMiddlewares()
 	managerErrors := e.stopManagers()
 
-	allErrors := make([]error, 0, len(serviceErrors)+len(repositoryErrors)+len(managerErrors))
+	allErrors := make([]error, 0, len(serviceErrors)+len(repositoryErrors)+len(middlewareErrors)+len(managerErrors))
 	allErrors = append(allErrors, serviceErrors...)
 	allErrors = append(allErrors, repositoryErrors...)
+	allErrors = append(allErrors, middlewareErrors...)
 	allErrors = append(allErrors, managerErrors...)
 
 	if len(allErrors) > 0 {

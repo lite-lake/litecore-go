@@ -11,8 +11,7 @@ type IRequestLoggerMiddleware interface {
 	common.IBaseMiddleware
 }
 
-// NewRequestLoggerMiddleware 创建请求日志中间件
+// NewRequestLoggerMiddleware 使用默认配置创建请求日志中间件
 func NewRequestLoggerMiddleware() IRequestLoggerMiddleware {
-	// 直接返回 component 的中间件，让依赖注入自动处理
-	return componentMiddleware.NewRequestLoggerMiddleware()
+	return componentMiddleware.NewRequestLoggerMiddlewareWithDefaults()
 }

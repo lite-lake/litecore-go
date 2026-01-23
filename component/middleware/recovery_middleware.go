@@ -1,38 +1,75 @@
 package middleware
 
 import (
-	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 	"runtime/debug"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
 
-// RecoveryMiddleware panic 恢复中间件
-type RecoveryMiddleware struct {
-	order     int
+// RecoveryConfig panic 恢复配置
+type RecoveryConfig struct {
+	Name            string // 中间件名称
+	Order           *int   // 执行顺序（指针类型用于判断是否设置）
+	PrintStack      bool   // 是否打印堆栈信息
+	CustomErrorBody bool   // 是否使用自定义错误响应
+	ErrorMessage    string // 自定义错误消息
+	ErrorCode       string // 自定义错误代码
+}
+
+// DefaultRecoveryConfig 默认 panic 恢复配置
+func DefaultRecoveryConfig() *RecoveryConfig {
+	defaultOrder := OrderRecovery
+	return &RecoveryConfig{
+		Name:            "RecoveryMiddleware",
+		Order:           &defaultOrder,
+		PrintStack:      true,
+		CustomErrorBody: true,
+		ErrorMessage:    "内部服务器错误",
+		ErrorCode:       "INTERNAL_SERVER_ERROR",
+	}
+}
+
+// recoveryMiddleware panic 恢复中间件
+type recoveryMiddleware struct {
 	LoggerMgr loggermgr.ILoggerManager `inject:""`
+	cfg       *RecoveryConfig
 }
 
 // NewRecoveryMiddleware 创建 panic 恢复中间件
-func NewRecoveryMiddleware() common.IBaseMiddleware {
-	return &RecoveryMiddleware{order: 10}
+func NewRecoveryMiddleware(config *RecoveryConfig) common.IBaseMiddleware {
+	if config == nil {
+		config = DefaultRecoveryConfig()
+	}
+	return &recoveryMiddleware{cfg: config}
+}
+
+// NewRecoveryMiddlewareWithDefaults 使用默认配置创建 panic 恢复中间件
+func NewRecoveryMiddlewareWithDefaults() common.IBaseMiddleware {
+	return NewRecoveryMiddleware(nil)
 }
 
 // MiddlewareName 返回中间件名称
-func (m *RecoveryMiddleware) MiddlewareName() string {
+func (m *recoveryMiddleware) MiddlewareName() string {
+	if m.cfg.Name != "" {
+		return m.cfg.Name
+	}
 	return "RecoveryMiddleware"
 }
 
 // Order 返回执行顺序
-func (m *RecoveryMiddleware) Order() int {
-	return m.order
+func (m *recoveryMiddleware) Order() int {
+	if m.cfg.Order != nil {
+		return *m.cfg.Order
+	}
+	return OrderRecovery
 }
 
 // Wrapper 返回 Gin 中间件函数
-func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
+func (m *recoveryMiddleware) Wrapper() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -49,8 +86,7 @@ func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
 				userAgent := c.Request.UserAgent()
 				query := c.Request.URL.RawQuery
 
-				m.LoggerMgr.Ins().Error(
-					"PANIC recovered",
+				fields := []interface{}{
 					"panic", err,
 					"method", method,
 					"path", path,
@@ -59,13 +95,22 @@ func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
 					"userAgent", userAgent,
 					"requestID", requestID,
 					"timestamp", time.Now().Format(time.RFC3339Nano),
-					"stack", string(stack),
-				)
+				}
 
-				c.JSON(common.HTTPStatusInternalServerError, gin.H{
-					"error": "内部服务器错误",
-					"code":  "INTERNAL_SERVER_ERROR",
-				})
+				if m.cfg.PrintStack {
+					fields = append(fields, "stack", string(stack))
+				}
+
+				m.LoggerMgr.Ins().Error("PANIC recovered", fields...)
+
+				if m.cfg.CustomErrorBody {
+					c.JSON(common.HTTPStatusInternalServerError, gin.H{
+						"error": m.cfg.ErrorMessage,
+						"code":  m.cfg.ErrorCode,
+					})
+				} else {
+					c.String(common.HTTPStatusInternalServerError, m.cfg.ErrorMessage)
+				}
 				c.Abort()
 			}
 		}()
@@ -74,11 +119,11 @@ func (m *RecoveryMiddleware) Wrapper() gin.HandlerFunc {
 }
 
 // OnStart 服务器启动时触发
-func (m *RecoveryMiddleware) OnStart() error {
+func (m *recoveryMiddleware) OnStart() error {
 	return nil
 }
 
 // OnStop 服务器停止时触发
-func (m *RecoveryMiddleware) OnStop() error {
+func (m *recoveryMiddleware) OnStop() error {
 	return nil
 }

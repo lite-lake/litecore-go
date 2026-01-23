@@ -6,43 +6,102 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 )
 
-// SecurityHeadersMiddleware 安全头中间件
-type SecurityHeadersMiddleware struct {
-	order int
+// SecurityHeadersConfig 安全头配置
+type SecurityHeadersConfig struct {
+	Name                    string // 中间件名称
+	Order                   *int   // 执行顺序（指针类型用于判断是否设置）
+	FrameOptions            string // X-Frame-Options (DENY, SAMEORIGIN, ALLOW-FROM)
+	ContentTypeOptions      string // X-Content-Type-Options (nosniff)
+	XSSProtection           string // X-XSS-Protection (1; mode=block)
+	ReferrerPolicy          string // Referrer-Policy (strict-origin-when-cross-origin, no-referrer, etc)
+	ContentSecurityPolicy   string // Content-Security-Policy
+	StrictTransportSecurity string // Strict-Transport-Security (max-age=31536000; includeSubDomains)
+}
+
+// DefaultSecurityHeadersConfig 默认安全头配置
+func DefaultSecurityHeadersConfig() *SecurityHeadersConfig {
+	defaultOrder := OrderSecurityHeaders
+	return &SecurityHeadersConfig{
+		Name:               "SecurityHeadersMiddleware",
+		Order:              &defaultOrder,
+		FrameOptions:       "DENY",
+		ContentTypeOptions: "nosniff",
+		XSSProtection:      "1; mode=block",
+		ReferrerPolicy:     "strict-origin-when-cross-origin",
+	}
+}
+
+// securityHeadersMiddleware 安全头中间件
+type securityHeadersMiddleware struct {
+	cfg *SecurityHeadersConfig
 }
 
 // NewSecurityHeadersMiddleware 创建安全头中间件
-func NewSecurityHeadersMiddleware() common.IBaseMiddleware {
-	return &SecurityHeadersMiddleware{order: 40}
+func NewSecurityHeadersMiddleware(config *SecurityHeadersConfig) common.IBaseMiddleware {
+	if config == nil {
+		config = DefaultSecurityHeadersConfig()
+	}
+	return &securityHeadersMiddleware{cfg: config}
+}
+
+// NewSecurityHeadersMiddlewareWithDefaults 使用默认配置创建安全头中间件
+func NewSecurityHeadersMiddlewareWithDefaults() common.IBaseMiddleware {
+	return NewSecurityHeadersMiddleware(nil)
 }
 
 // MiddlewareName 返回中间件名称
-func (m *SecurityHeadersMiddleware) MiddlewareName() string {
+func (m *securityHeadersMiddleware) MiddlewareName() string {
+	if m.cfg.Name != "" {
+		return m.cfg.Name
+	}
 	return "SecurityHeadersMiddleware"
 }
 
 // Order 返回执行顺序
-func (m *SecurityHeadersMiddleware) Order() int {
-	return m.order
+func (m *securityHeadersMiddleware) Order() int {
+	if m.cfg.Order != nil {
+		return *m.cfg.Order
+	}
+	return OrderSecurityHeaders
 }
 
 // Wrapper 返回 Gin 中间件函数
-func (m *SecurityHeadersMiddleware) Wrapper() gin.HandlerFunc {
+func (m *securityHeadersMiddleware) Wrapper() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("X-Frame-Options", "DENY")
-		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
-		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
-		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		if m.cfg.FrameOptions != "" {
+			c.Writer.Header().Set("X-Frame-Options", m.cfg.FrameOptions)
+		}
+
+		if m.cfg.ContentTypeOptions != "" {
+			c.Writer.Header().Set("X-Content-Type-Options", m.cfg.ContentTypeOptions)
+		}
+
+		if m.cfg.XSSProtection != "" {
+			c.Writer.Header().Set("X-XSS-Protection", m.cfg.XSSProtection)
+		}
+
+		if m.cfg.ReferrerPolicy != "" {
+			c.Writer.Header().Set("Referrer-Policy", m.cfg.ReferrerPolicy)
+		}
+
+		if m.cfg.ContentSecurityPolicy != "" {
+			c.Writer.Header().Set("Content-Security-Policy", m.cfg.ContentSecurityPolicy)
+		}
+
+		if m.cfg.StrictTransportSecurity != "" {
+			c.Writer.Header().Set("Strict-Transport-Security", m.cfg.StrictTransportSecurity)
+		}
+
 		c.Next()
 	}
 }
 
 // OnStart 服务器启动时触发
-func (m *SecurityHeadersMiddleware) OnStart() error {
+func (m *securityHeadersMiddleware) OnStart() error {
 	return nil
 }
 
 // OnStop 服务器停止时触发
-func (m *SecurityHeadersMiddleware) OnStop() error {
+func (m *securityHeadersMiddleware) OnStop() error {
 	return nil
 }
