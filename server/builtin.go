@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lite-lake/litecore-go/container"
+	"github.com/lite-lake/litecore-go/logger"
 	"github.com/lite-lake/litecore-go/manager/cachemgr"
 	"github.com/lite-lake/litecore-go/manager/configmgr"
 	"github.com/lite-lake/litecore-go/manager/databasemgr"
@@ -31,6 +32,22 @@ func (c *BuiltinConfig) Validate() error {
 	return nil
 }
 
+// logStartup 记录启动日志
+func logStartup(log logger.ILogger, phase StartupPhase, msg string, fields ...logger.Field) {
+	log.Info(msg, fields...)
+}
+
+// logPhaseStart 记录阶段开始
+func logPhaseStart(log logger.ILogger, phase StartupPhase, msg string, fields ...logger.Field) {
+	log.Info(msg, fields...)
+}
+
+// logPhaseEnd 记录阶段结束（带耗时）
+func logPhaseEnd(log logger.ILogger, phase StartupPhase, msg string, extraFields ...logger.Field) {
+	fields := append(extraFields, logger.F("phase", phase.String()))
+	log.Info(msg, fields...)
+}
+
 // Initialize 初始化所有内置管理器并注册到容器中
 // 初始化顺序：config -> telemetry -> logger -> database -> cache -> lock -> limiter -> mq
 func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
@@ -41,6 +58,12 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 		return nil, fmt.Errorf("invalid configmgr: %w", err)
 	}
 
+	tempLogger := logger.NewDefaultLogger("Builtin")
+
+	logPhaseStart(tempLogger, PhaseConfig, "开始初始化内置组件")
+	logStartup(tempLogger, PhaseConfig, "配置文件: "+cfg.FilePath)
+	logStartup(tempLogger, PhaseConfig, "配置驱动: "+cfg.Driver)
+
 	// 1. 初始化配置管理器（必须最先初始化，其他管理器依赖它）
 	configManager, err := configmgr.Build(cfg.Driver, cfg.FilePath)
 	if err != nil {
@@ -49,6 +72,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	if err := container.RegisterManager[configmgr.IConfigManager](cntr, configManager); err != nil {
 		return nil, fmt.Errorf("failed to register config manager: %w", err)
 	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: ConfigManager")
 
 	// 2. 初始化遥测管理器（依赖配置管理器）
 	telemetryMgr, err := telemetrymgr.BuildWithConfigProvider(configManager)
@@ -58,6 +82,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	if err := container.RegisterManager[telemetrymgr.ITelemetryManager](cntr, telemetryMgr); err != nil {
 		return nil, fmt.Errorf("failed to register telemetry manager: %w", err)
 	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: TelemetryManager")
 
 	// 3. 初始化日志管理器（依赖配置管理器和遥测管理器）
 	loggerManager, err := loggermgr.BuildWithConfigProvider(configManager, telemetryMgr)
@@ -67,6 +92,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	if err := container.RegisterManager[loggermgr.ILoggerManager](cntr, loggerManager); err != nil {
 		return nil, fmt.Errorf("failed to register logger manager: %w", err)
 	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: LoggerManager")
 
 	// 4. 初始化数据库管理器（依赖配置管理器）
 	databaseMgr, err := databasemgr.BuildWithConfigProvider(configManager)
@@ -76,6 +102,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	if err := container.RegisterManager[databasemgr.IDatabaseManager](cntr, databaseMgr); err != nil {
 		return nil, fmt.Errorf("failed to register database manager: %w", err)
 	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: DatabaseManager")
 
 	// 5. 初始化缓存管理器（依赖配置管理器）
 	cacheMgr, err := cachemgr.BuildWithConfigProvider(configManager)
@@ -85,6 +112,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	if err := container.RegisterManager[cachemgr.ICacheManager](cntr, cacheMgr); err != nil {
 		return nil, fmt.Errorf("failed to register cache manager: %w", err)
 	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: CacheManager")
 
 	// 6. 初始化锁管理器（依赖配置管理器）
 	lockMgr, err := lockmgr.BuildWithConfigProvider(configManager)
@@ -94,6 +122,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	if err := container.RegisterManager[lockmgr.ILockManager](cntr, lockMgr); err != nil {
 		return nil, fmt.Errorf("failed to register lock manager: %w", err)
 	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: LockManager")
 
 	// 7. 初始化限流管理器（依赖配置管理器）
 	limiterMgr, err := limitermgr.BuildWithConfigProvider(configManager)
@@ -103,6 +132,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	if err := container.RegisterManager[limitermgr.ILimiterManager](cntr, limiterMgr); err != nil {
 		return nil, fmt.Errorf("failed to register limiter manager: %w", err)
 	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: LimiterManager")
 
 	// 8. 初始化消息队列管理器（依赖配置管理器）
 	mqMgr, err := mqmgr.BuildWithConfigProvider(configManager)
@@ -112,6 +142,9 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	if err := container.RegisterManager[mqmgr.IMQManager](cntr, mqMgr); err != nil {
 		return nil, fmt.Errorf("failed to register mq manager: %w", err)
 	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: MQManager")
+
+	logPhaseEnd(tempLogger, PhaseManagers, "管理器初始化完成", logger.F("count", 8))
 
 	return cntr, nil
 }

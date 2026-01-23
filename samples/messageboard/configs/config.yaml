@@ -18,6 +18,10 @@ server:
   idle_timeout: "60s"                           # 空闲超时时间
   enable_recovery: true                         # 是否启用panic恢复
   shutdown_timeout: "30s"                       # 优雅关闭超时时间
+  startup_log:                                  # 启动日志配置
+    enabled: true                               # 是否启用启动日志
+    async: true                                 # 是否异步日志
+    buffer: 100                                 # 日志缓冲区大小
 
 # 数据库配置
 database:

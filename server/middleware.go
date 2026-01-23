@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/logger"
 )
 
 // registerMiddlewares 注册中间件
@@ -11,10 +12,18 @@ func (e *Engine) registerMiddlewares() error {
 	middlewares := e.Middleware.GetAll()
 
 	sortedMiddlewares := sortMiddlewares(middlewares)
+	registeredCount := 0
 
 	for _, mw := range sortedMiddlewares {
 		e.ginEngine.Use(mw.Wrapper())
+		e.logStartup(PhaseRouter, "注册中间件",
+			logger.F("middleware", mw.MiddlewareName()),
+			logger.F("type", "全局"))
+		registeredCount++
 	}
+
+	e.logStartup(PhaseRouter, "中间件注册完成",
+		logger.F("middleware_count", registeredCount))
 
 	return nil
 }
