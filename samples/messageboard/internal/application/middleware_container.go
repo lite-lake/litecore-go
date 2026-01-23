@@ -15,6 +15,7 @@ func InitMiddlewareContainer(serviceContainer *container.ServiceContainer) *cont
 	container.RegisterMiddleware[middlewares.IRequestLoggerMiddleware](middlewareContainer, middlewares.NewRequestLoggerMiddleware())
 	container.RegisterMiddleware[middlewares.ISecurityHeadersMiddleware](middlewareContainer, middlewares.NewSecurityHeadersMiddleware())
 	container.RegisterMiddleware[middlewares.ITelemetryMiddleware](middlewareContainer, middlewares.NewTelemetryMiddleware())
+	container.RegisterMiddleware[middlewares.IRateLimiterMiddleware](middlewareContainer, middlewares.NewRateLimiterMiddleware())
 
 	return middlewareContainer
 }
