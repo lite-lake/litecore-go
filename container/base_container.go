@@ -1,6 +1,7 @@
 package container
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 )
@@ -150,7 +151,7 @@ func (c *NamedContainer[T]) Register(impl T) error {
 	name := c.nameFunc(impl)
 
 	if name == "" {
-		return &DuplicateRegistrationError{Name: "empty name"}
+		return fmt.Errorf("instance name cannot be empty")
 	}
 
 	c.mu.Lock()

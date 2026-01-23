@@ -288,7 +288,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"telemetry.driver": 123,
 			}),
 			wantErr: true,
-			errMsg:  "telemetry.driver must be a string",
+			errMsg:  "telemetry.driver: expected string",
 		},
 		{
 			name: "otel driver without otel_config",
@@ -305,7 +305,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"telemetry.otel_config": "invalid",
 			}),
 			wantErr: true,
-			errMsg:  "telemetry.otel_config must be a map",
+			errMsg:  "telemetry.otel_config: expected map[string]any",
 		},
 		{
 			name: "unsupported driver type",

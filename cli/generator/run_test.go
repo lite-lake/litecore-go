@@ -139,6 +139,12 @@ go 1.21
 	os.MkdirAll(filepath.Join(tempDir, "internal", "controllers"), 0755)
 	os.MkdirAll(filepath.Join(tempDir, "internal", "middlewares"), 0755)
 
+	os.MkdirAll(filepath.Join(tempDir, "configs"), 0755)
+	configFile := []byte(`server:
+  port: 8080
+`)
+	os.WriteFile(filepath.Join(tempDir, "configs", "config.yaml"), configFile, 0644)
+
 	entityCode := `package entities
 
 type User struct {
@@ -150,8 +156,20 @@ type User struct {
 
 	repoCode := `package repositories
 
+import "entities"
+
 type IUserRepository interface {
-	GetByID(id string) (*User, error)
+	GetByID(id string) (*entities.User, error)
+}
+
+func NewUserRepository() IUserRepository {
+	return &UserRepository{}
+}
+
+type UserRepository struct{}
+
+func (r *UserRepository) GetByID(id string) (*entities.User, error) {
+	return &entities.User{ID: id}, nil
 }
 `
 	os.WriteFile(filepath.Join(tempDir, "internal", "repositories", "user_repo.go"), []byte(repoCode), 0644)
@@ -161,6 +179,52 @@ type IUserRepository interface {
 type IMessageService interface {
 	Send(message string) error
 }
+
+func NewMessageService() IMessageService {
+	return &MessageService{}
+}
+
+type MessageService struct{}
+
+func (s *MessageService) Send(message string) error {
+	return nil
+}
 `
 	os.WriteFile(filepath.Join(tempDir, "internal", "services", "message.go"), []byte(serviceCode), 0644)
+
+	controllerCode := `package controllers
+
+type IHomeController interface {
+	Index() string
+}
+
+func NewHomeController() IHomeController {
+	return &HomeController{}
+}
+
+type HomeController struct{}
+
+func (c *HomeController) Index() string {
+	return "Hello"
+}
+`
+	os.WriteFile(filepath.Join(tempDir, "internal", "controllers", "home.go"), []byte(controllerCode), 0644)
+
+	middlewareCode := `package middlewares
+
+type IAuthMiddleware interface {
+	Process() bool
+}
+
+func NewAuthMiddleware() IAuthMiddleware {
+	return &AuthMiddleware{}
+}
+
+type AuthMiddleware struct{}
+
+func (m *AuthMiddleware) Process() bool {
+	return true
+}
+`
+	os.WriteFile(filepath.Join(tempDir, "internal", "middlewares", "auth.go"), []byte(middlewareCode), 0644)
 }

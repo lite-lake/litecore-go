@@ -1,6 +1,7 @@
 package server
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -75,48 +76,39 @@ func TestEngineInitialize(t *testing.T) {
 		controllerContainer := container.NewControllerContainer(serviceContainer)
 		middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
-		builtinConfig := &builtin.Config{
-			Driver:   "yaml",
-			FilePath: "/tmp/test-config.yaml",
+		configFile := `server:
+  port: 8080
+telemetry:
+  driver: none
+logger:
+  driver: none
+database:
+  driver: none
+cache:
+  driver: none
+lock:
+  driver: memory
+  memory_config:
+    ttl: 60
+limiter:
+  driver: memory
+  memory_config:
+    max_requests: 1000
+    window: 60
+mq:
+  driver: memory
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
+`
+		configPath := t.TempDir() + "/test-config.yaml"
+		if err := os.WriteFile(configPath, []byte(configFile), 0644); err != nil {
+			t.Fatalf("创建配置文件失败: %v", err)
 		}
-
-		engine := NewEngine(
-			builtinConfig,
-			entityContainer,
-			repositoryContainer,
-			serviceContainer,
-			controllerContainer,
-			middlewareContainer,
-		)
-
-		if err := engine.Initialize(); err != nil {
-			t.Fatalf("初始化失败: %v", err)
-		}
-
-		if engine.ginEngine == nil {
-			t.Error("Gin 引擎未创建")
-		}
-
-		if engine.httpServer == nil {
-			t.Error("HTTP 服务器未创建")
-		}
-	})
-}
-
-// TestEngineStart 测试引擎启动
-func TestEngineStart(t *testing.T) {
-	t.Run("启动_成功", func(t *testing.T) {
-		gin.SetMode(gin.TestMode)
-
-		entityContainer := container.NewEntityContainer()
-		repositoryContainer := container.NewRepositoryContainer(entityContainer)
-		serviceContainer := container.NewServiceContainer(repositoryContainer)
-		controllerContainer := container.NewControllerContainer(serviceContainer)
-		middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
 		builtinConfig := &builtin.Config{
 			Driver:   "yaml",
-			FilePath: "/tmp/test-config.yaml",
+			FilePath: configPath,
 		}
 
 		engine := NewEngine(
@@ -165,9 +157,189 @@ func TestEngineStart(t *testing.T) {
 		controllerContainer := container.NewControllerContainer(serviceContainer)
 		middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
+		configFile := `server:
+  port: 8080
+telemetry:
+  driver: none
+logger:
+  driver: none
+database:
+  driver: none
+cache:
+  driver: none
+lock:
+  driver: memory
+  memory_config:
+    ttl: 60
+limiter:
+  driver: memory
+  memory_config:
+    max_requests: 1000
+    window: 60
+mq:
+  driver: memory
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
+`
+		configPath := t.TempDir() + "/test-config.yaml"
+		if err := os.WriteFile(configPath, []byte(configFile), 0644); err != nil {
+			t.Fatalf("创建配置文件失败: %v", err)
+		}
+
 		builtinConfig := &builtin.Config{
 			Driver:   "yaml",
-			FilePath: "/tmp/test-config.yaml",
+			FilePath: configPath,
+		}
+
+		engine := NewEngine(
+			builtinConfig,
+			entityContainer,
+			repositoryContainer,
+			serviceContainer,
+			controllerContainer,
+			middlewareContainer,
+		)
+
+		if err := engine.Initialize(); err != nil {
+			t.Fatalf("初始化失败: %v", err)
+		}
+
+		if engine.ginEngine == nil {
+			t.Error("Gin 引擎未创建")
+		}
+
+		if engine.httpServer == nil {
+			t.Error("HTTP 服务器未创建")
+		}
+	})
+}
+
+// TestEngineStart 测试引擎启动
+func TestEngineStart(t *testing.T) {
+	t.Run("启动_成功", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+
+		entityContainer := container.NewEntityContainer()
+		repositoryContainer := container.NewRepositoryContainer(entityContainer)
+		serviceContainer := container.NewServiceContainer(repositoryContainer)
+		controllerContainer := container.NewControllerContainer(serviceContainer)
+		middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
+
+		configFile := `server:
+  port: 8080
+telemetry:
+  driver: none
+logger:
+  driver: none
+database:
+  driver: none
+cache:
+  driver: none
+lock:
+  driver: memory
+  memory_config:
+    ttl: 60
+limiter:
+  driver: memory
+  memory_config:
+    max_requests: 1000
+    window: 60
+mq:
+  driver: memory
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
+`
+		configPath := t.TempDir() + "/test-config.yaml"
+		if err := os.WriteFile(configPath, []byte(configFile), 0644); err != nil {
+			t.Fatalf("创建配置文件失败: %v", err)
+		}
+
+		builtinConfig := &builtin.Config{
+			Driver:   "yaml",
+			FilePath: configPath,
+		}
+
+		engine := NewEngine(
+			builtinConfig,
+			entityContainer,
+			repositoryContainer,
+			serviceContainer,
+			controllerContainer,
+			middlewareContainer,
+		)
+
+		engine.serverConfig = &serverConfig{
+			Host:            "127.0.0.1",
+			Port:            18080,
+			Mode:            "test",
+			ReadTimeout:     1 * time.Second,
+			WriteTimeout:    1 * time.Second,
+			IdleTimeout:     10 * time.Second,
+			ShutdownTimeout: 2 * time.Second,
+		}
+
+		if err := engine.Initialize(); err != nil {
+			t.Fatalf("初始化失败: %v", err)
+		}
+
+		if err := engine.Start(); err != nil {
+			t.Fatalf("启动失败: %v", err)
+		}
+
+		if !engine.started {
+			t.Error("引擎应该处于已启动状态")
+		}
+
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			_ = engine.Stop()
+		}()
+	})
+
+	t.Run("重复启动_返回错误", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+
+		entityContainer := container.NewEntityContainer()
+		repositoryContainer := container.NewRepositoryContainer(entityContainer)
+		serviceContainer := container.NewServiceContainer(repositoryContainer)
+		controllerContainer := container.NewControllerContainer(serviceContainer)
+		middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
+
+		configFile := `server:
+  port: 8080
+telemetry:
+  driver: none
+logger:
+  driver: none
+database:
+  driver: none
+cache:
+  driver: none
+lock:
+  driver: memory
+  memory_config:
+    ttl: 60
+limiter:
+  driver: memory
+  memory_config:
+    max_requests: 1000
+    window: 60
+mq:
+  driver: memory
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
+`
+		configPath := t.TempDir() + "/test-config.yaml"
+		if err := os.WriteFile(configPath, []byte(configFile), 0644); err != nil {
+			t.Fatalf("创建配置文件失败: %v", err)
+		}
+
+		builtinConfig := &builtin.Config{
+			Driver:   "yaml",
+			FilePath: configPath,
 		}
 
 		engine := NewEngine(

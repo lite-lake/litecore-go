@@ -1,6 +1,7 @@
 package server
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -21,9 +22,39 @@ func TestLifecycleManagerStartStop(t *testing.T) {
 		controllerContainer := container.NewControllerContainer(serviceContainer)
 		middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
+		configFile := `server:
+  port: 8080
+telemetry:
+  driver: none
+logger:
+  driver: none
+database:
+  driver: none
+cache:
+  driver: none
+lock:
+  driver: memory
+  memory_config:
+    ttl: 60
+limiter:
+  driver: memory
+  memory_config:
+    max_requests: 1000
+    window: 60
+mq:
+  driver: memory
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
+`
+		configPath := t.TempDir() + "/test-config.yaml"
+		if err := os.WriteFile(configPath, []byte(configFile), 0644); err != nil {
+			t.Fatalf("创建配置文件失败: %v", err)
+		}
+
 		builtinConfig := &builtin.Config{
 			Driver:   "yaml",
-			FilePath: "/tmp/test-config.yaml",
+			FilePath: configPath,
 		}
 
 		engine := NewEngine(
