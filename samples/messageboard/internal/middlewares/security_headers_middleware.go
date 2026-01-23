@@ -11,8 +11,7 @@ type ISecurityHeadersMiddleware interface {
 	common.IBaseMiddleware
 }
 
-// NewSecurityHeadersMiddleware 创建安全头中间件
+// NewSecurityHeadersMiddleware 使用默认配置创建安全头中间件
 func NewSecurityHeadersMiddleware() ISecurityHeadersMiddleware {
-	// 直接返回 component 的中间件，让依赖注入自动处理
-	return componentMiddleware.NewSecurityHeadersMiddleware()
+	return componentMiddleware.NewSecurityHeadersMiddlewareWithDefaults()
 }

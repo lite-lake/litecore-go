@@ -180,6 +180,7 @@ func (e *Engine) autoInject() error {
 // - 启动所有 Manager
 // - 启动所有 Repository
 // - 启动所有 Service
+// - 启动所有 Middleware
 // - 启动 HTTP 服务器
 func (e *Engine) Start() error {
 	e.mu.Lock()
@@ -204,7 +205,12 @@ func (e *Engine) Start() error {
 		return fmt.Errorf("start services failed: %w", err)
 	}
 
-	// 4. 启动 HTTP 服务器
+	// 4. 启动所有 Middleware
+	if err := e.startMiddlewares(); err != nil {
+		return fmt.Errorf("start middlewares failed: %w", err)
+	}
+
+	// 5. 启动 HTTP 服务器
 	errChan := make(chan error, 1)
 	go func() {
 		e.logger().Info("HTTP server listening", "addr", e.httpServer.Addr)

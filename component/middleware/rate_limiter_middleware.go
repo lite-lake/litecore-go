@@ -23,6 +23,8 @@ type KeyFunc func(c *gin.Context) string
 type SkipFunc func(c *gin.Context) bool
 
 type RateLimiterConfig struct {
+	Name      string        // 中间件名称
+	Order     *int          // 执行顺序（指针类型用于判断是否设置）
 	Limit     int           // 时间窗口内最大请求数
 	Window    time.Duration // 时间窗口大小
 	KeyFunc   KeyFunc       // 自定义key生成函数（可选，默认按IP）
@@ -30,20 +32,15 @@ type RateLimiterConfig struct {
 	KeyPrefix string        // key前缀，默认 "rate_limit"
 }
 
-type RateLimiterMiddleware struct {
-	order      int
+type rateLimiterMiddleware struct {
 	LimiterMgr limitermgr.ILimiterManager `inject:""`
 	LoggerMgr  loggermgr.ILoggerManager   `inject:""`
 	config     *RateLimiterConfig
 }
 
-func NewRateLimiter(config *RateLimiterConfig) common.IBaseMiddleware {
+func NewRateLimiterMiddleware(config *RateLimiterConfig) common.IBaseMiddleware {
 	if config == nil {
-		config = &RateLimiterConfig{
-			Limit:     100,
-			Window:    time.Minute,
-			KeyPrefix: "rate_limit",
-		}
+		config = DefaultRateLimiterConfig()
 	}
 	if config.KeyFunc == nil {
 		config.KeyFunc = func(c *gin.Context) string {
@@ -54,21 +51,43 @@ func NewRateLimiter(config *RateLimiterConfig) common.IBaseMiddleware {
 		config.KeyPrefix = "rate_limit"
 	}
 
-	return &RateLimiterMiddleware{
-		order:  40,
+	return &rateLimiterMiddleware{
 		config: config,
 	}
 }
 
-func (m *RateLimiterMiddleware) MiddlewareName() string {
+// DefaultRateLimiterConfig 默认限流配置
+func DefaultRateLimiterConfig() *RateLimiterConfig {
+	defaultOrder := OrderRateLimiter
+	return &RateLimiterConfig{
+		Name:      "RateLimiterMiddleware",
+		Order:     &defaultOrder,
+		Limit:     100,
+		Window:    time.Minute,
+		KeyPrefix: "rate_limit",
+	}
+}
+
+// NewRateLimiterMiddlewareWithDefaults 使用默认配置创建限流中间件
+func NewRateLimiterMiddlewareWithDefaults() common.IBaseMiddleware {
+	return NewRateLimiterMiddleware(nil)
+}
+
+func (m *rateLimiterMiddleware) MiddlewareName() string {
+	if m.config.Name != "" {
+		return m.config.Name
+	}
 	return "RateLimiterMiddleware"
 }
 
-func (m *RateLimiterMiddleware) Order() int {
-	return m.order
+func (m *rateLimiterMiddleware) Order() int {
+	if m.config.Order != nil {
+		return *m.config.Order
+	}
+	return OrderRateLimiter
 }
 
-func (m *RateLimiterMiddleware) Wrapper() gin.HandlerFunc {
+func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if m.config.SkipFunc != nil && m.config.SkipFunc(c) {
 			c.Next()
@@ -125,56 +144,10 @@ func (m *RateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 	}
 }
 
-func (m *RateLimiterMiddleware) OnStart() error {
+func (m *rateLimiterMiddleware) OnStart() error {
 	return nil
 }
 
-func (m *RateLimiterMiddleware) OnStop() error {
+func (m *rateLimiterMiddleware) OnStop() error {
 	return nil
-}
-
-func NewRateLimiterByIP(limit int, window time.Duration) common.IBaseMiddleware {
-	return NewRateLimiter(&RateLimiterConfig{
-		Limit:     limit,
-		Window:    window,
-		KeyPrefix: "ip",
-	})
-}
-
-func NewRateLimiterByPath(limit int, window time.Duration) common.IBaseMiddleware {
-	return NewRateLimiter(&RateLimiterConfig{
-		Limit:     limit,
-		Window:    window,
-		KeyPrefix: "path",
-		KeyFunc: func(c *gin.Context) string {
-			return c.Request.URL.Path
-		},
-	})
-}
-
-func NewRateLimiterByHeader(limit int, window time.Duration, headerKey string) common.IBaseMiddleware {
-	return NewRateLimiter(&RateLimiterConfig{
-		Limit:     limit,
-		Window:    window,
-		KeyPrefix: "header",
-		KeyFunc: func(c *gin.Context) string {
-			return c.GetHeader(headerKey)
-		},
-	})
-}
-
-func NewRateLimiterByUserID(limit int, window time.Duration) common.IBaseMiddleware {
-	return NewRateLimiter(&RateLimiterConfig{
-		Limit:     limit,
-		Window:    window,
-		KeyPrefix: "user",
-		KeyFunc: func(c *gin.Context) string {
-			if userID, exists := c.Get("user_id"); exists {
-				if uid, ok := userID.(string); ok {
-					return uid
-				}
-			}
-			return c.ClientIP()
-		},
-	})
 }

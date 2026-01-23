@@ -19,9 +19,9 @@ func TestNewSecurityHeadersMiddleware(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewSecurityHeadersMiddleware()
+			middleware := NewSecurityHeadersMiddleware(nil)
 			assert.NotNil(t, middleware)
-			assert.IsType(t, &SecurityHeadersMiddleware{}, middleware)
+			assert.IsType(t, &securityHeadersMiddleware{}, middleware)
 		})
 	}
 }
@@ -38,7 +38,7 @@ func TestSecurityHeadersMiddleware_MiddlewareName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			assert.Equal(t, tt.expected, middleware.MiddlewareName())
 		})
 	}
@@ -51,12 +51,12 @@ func TestSecurityHeadersMiddleware_Order(t *testing.T) {
 	}{
 		{
 			name:     "返回执行顺序",
-			expected: 40,
+			expected: OrderSecurityHeaders,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			assert.Equal(t, tt.expected, middleware.Order())
 		})
 	}
@@ -75,7 +75,7 @@ func TestSecurityHeadersMiddleware_Wrapper(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -136,7 +136,7 @@ func TestSecurityHeadersMiddleware_Wrapper_AllMethods(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.Any("/test", func(c *gin.Context) {
@@ -171,7 +171,7 @@ func TestSecurityHeadersMiddleware_XFrameOptions(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -202,7 +202,7 @@ func TestSecurityHeadersMiddleware_XContentTypeOptions(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -233,7 +233,7 @@ func TestSecurityHeadersMiddleware_XXSSProtection(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -264,7 +264,7 @@ func TestSecurityHeadersMiddleware_ReferrerPolicy(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -290,7 +290,7 @@ func TestSecurityHeadersMiddleware_OnStart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			err := middleware.OnStart()
 			assert.NoError(t, err)
 		})
@@ -307,7 +307,7 @@ func TestSecurityHeadersMiddleware_OnStop(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			err := middleware.OnStop()
 			assert.NoError(t, err)
 		})
@@ -327,8 +327,8 @@ func TestSecurityHeadersMiddleware_ChainedMiddlewares(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			securityMiddleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
-			corsMiddleware := NewCorsMiddleware().(*CorsMiddleware)
+			securityMiddleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
+			corsMiddleware := NewCorsMiddleware(nil).(*corsMiddleware)
 
 			router.Use(securityMiddleware.Wrapper())
 			router.Use(corsMiddleware.Wrapper())
@@ -373,7 +373,7 @@ func TestSecurityHeadersMiddleware_NotOverridingExistingHeaders(t *testing.T) {
 				c.Next()
 			})
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -402,7 +402,7 @@ func TestSecurityHeadersMiddleware_ErrorResponse(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -437,7 +437,7 @@ func TestSecurityHeadersMiddleware_EmptyPath(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/", func(c *gin.Context) {
@@ -468,7 +468,7 @@ func TestSecurityHeadersMiddleware_QueryParameters(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewSecurityHeadersMiddleware().(*SecurityHeadersMiddleware)
+			middleware := NewSecurityHeadersMiddleware(nil).(*securityHeadersMiddleware)
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {

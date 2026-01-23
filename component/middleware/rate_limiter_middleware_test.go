@@ -69,8 +69,8 @@ func setupRouter(middleware common.IBaseMiddleware) *gin.Engine {
 
 func TestNewRateLimiter(t *testing.T) {
 	t.Run("默认配置", func(t *testing.T) {
-		mw := NewRateLimiter(nil)
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		mw := NewRateLimiterMiddleware(nil)
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		assert.NotNil(t, rlmw.config)
 		assert.Equal(t, 100, rlmw.config.Limit)
@@ -84,8 +84,8 @@ func TestNewRateLimiter(t *testing.T) {
 			Window:    time.Hour,
 			KeyPrefix: "custom",
 		}
-		mw := NewRateLimiter(customConfig)
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		mw := NewRateLimiterMiddleware(customConfig)
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		assert.Equal(t, 10, rlmw.config.Limit)
 		assert.Equal(t, time.Hour, rlmw.config.Window)
@@ -93,8 +93,12 @@ func TestNewRateLimiter(t *testing.T) {
 	})
 
 	t.Run("按IP限流", func(t *testing.T) {
-		mw := NewRateLimiterByIP(50, time.Minute)
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     50,
+			Window:    time.Minute,
+			KeyPrefix: "ip",
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		assert.Equal(t, 50, rlmw.config.Limit)
 		assert.Equal(t, time.Minute, rlmw.config.Window)
@@ -102,8 +106,12 @@ func TestNewRateLimiter(t *testing.T) {
 	})
 
 	t.Run("按路径限流", func(t *testing.T) {
-		mw := NewRateLimiterByPath(20, time.Hour)
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     20,
+			Window:    time.Hour,
+			KeyPrefix: "path",
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		assert.Equal(t, 20, rlmw.config.Limit)
 		assert.Equal(t, time.Hour, rlmw.config.Window)
@@ -117,8 +125,12 @@ func TestRateLimiterMiddleware_Allow(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(true, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(99, nil)
 
-		mw := NewRateLimiterByIP(100, time.Minute)
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     100,
+			Window:    time.Minute,
+			KeyPrefix: "ip",
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
 
@@ -144,8 +156,12 @@ func TestRateLimiterMiddleware_Reject(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(false, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(0, nil)
 
-		mw := NewRateLimiterByIP(100, time.Minute)
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     100,
+			Window:    time.Minute,
+			KeyPrefix: "ip",
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
 
@@ -169,8 +185,12 @@ func TestRateLimiterMiddleware_Error(t *testing.T) {
 		mockLimiter := new(MockLimiterManager)
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(false, errors.New("limiter error"))
 
-		mw := NewRateLimiterByIP(100, time.Minute)
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     100,
+			Window:    time.Minute,
+			KeyPrefix: "ip",
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
 
@@ -192,14 +212,14 @@ func TestRateLimiterMiddleware_Skip(t *testing.T) {
 	t.Run("跳过限流", func(t *testing.T) {
 		mockLimiter := new(MockLimiterManager)
 
-		mw := NewRateLimiter(&RateLimiterConfig{
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
 			Limit:  100,
 			Window: time.Minute,
 			SkipFunc: func(c *gin.Context) bool {
 				return c.GetHeader("X-Skip-Limit") == "true"
 			},
 		})
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
 
@@ -218,7 +238,11 @@ func TestRateLimiterMiddleware_Skip(t *testing.T) {
 
 func TestRateLimiterMiddleware_NilLimiter(t *testing.T) {
 	t.Run("限流管理器未初始化", func(t *testing.T) {
-		mw := NewRateLimiterByIP(100, time.Minute)
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     100,
+			Window:    time.Minute,
+			KeyPrefix: "ip",
+		})
 		router := setupRouter(mw)
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -236,7 +260,7 @@ func TestRateLimiterMiddleware_CustomKeyFunc(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, "custom:test-user", 50, time.Minute).Return(true, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, "custom:test-user", 50, time.Minute).Return(49, nil)
 
-		mw := NewRateLimiter(&RateLimiterConfig{
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
 			Limit:     50,
 			Window:    time.Minute,
 			KeyPrefix: "custom",
@@ -244,7 +268,7 @@ func TestRateLimiterMiddleware_CustomKeyFunc(t *testing.T) {
 				return c.GetHeader("X-User-ID")
 			},
 		})
-		rlmw, ok := mw.(*RateLimiterMiddleware)
+		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
 
@@ -262,12 +286,16 @@ func TestRateLimiterMiddleware_CustomKeyFunc(t *testing.T) {
 }
 
 func TestRateLimiterMiddleware_BasicMethods(t *testing.T) {
-	mw := NewRateLimiterByIP(100, time.Minute)
-	rlmw, ok := mw.(*RateLimiterMiddleware)
+	mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+		Limit:     100,
+		Window:    time.Minute,
+		KeyPrefix: "ip",
+	})
+	rlmw, ok := mw.(*rateLimiterMiddleware)
 	assert.True(t, ok)
 
 	assert.Equal(t, "RateLimiterMiddleware", rlmw.MiddlewareName())
-	assert.Equal(t, 40, rlmw.Order())
+	assert.Equal(t, OrderRateLimiter, rlmw.Order())
 	assert.NoError(t, rlmw.OnStart())
 	assert.NoError(t, rlmw.OnStop())
 }

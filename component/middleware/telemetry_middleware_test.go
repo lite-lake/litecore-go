@@ -9,7 +9,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/server/builtin/manager/telemetrymgr"
+	"go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/metric"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type mockTelemetryManager struct{}
@@ -30,6 +36,34 @@ func (m *mockTelemetryManager) OnStop() error {
 	return nil
 }
 
+func (m *mockTelemetryManager) Tracer(name string) trace.Tracer {
+	return nil
+}
+
+func (m *mockTelemetryManager) TracerProvider() *sdktrace.TracerProvider {
+	return nil
+}
+
+func (m *mockTelemetryManager) Meter(name string) metric.Meter {
+	return nil
+}
+
+func (m *mockTelemetryManager) MeterProvider() *sdkmetric.MeterProvider {
+	return nil
+}
+
+func (m *mockTelemetryManager) Logger(name string) log.Logger {
+	return nil
+}
+
+func (m *mockTelemetryManager) LoggerProvider() *sdklog.LoggerProvider {
+	return nil
+}
+
+func (m *mockTelemetryManager) Shutdown(ctx context.Context) error {
+	return nil
+}
+
 type mockOtelManager struct {
 	*mockTelemetryManager
 }
@@ -43,23 +77,17 @@ func (m *mockOtelManager) GinMiddleware() gin.HandlerFunc {
 
 func TestNewTelemetryMiddleware(t *testing.T) {
 	tests := []struct {
-		name    string
-		manager common.IBaseManager
+		name string
 	}{
 		{
-			name:    "创建遥测中间件",
-			manager: &mockTelemetryManager{},
-		},
-		{
-			name:    "创建遥测中间件无管理器",
-			manager: nil,
+			name: "创建遥测中间件",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewTelemetryMiddleware(tt.manager)
+			middleware := NewTelemetryMiddleware(nil)
 			assert.NotNil(t, middleware)
-			assert.IsType(t, &TelemetryMiddleware{}, middleware)
+			assert.IsType(t, &telemetryMiddleware{}, middleware)
 		})
 	}
 }
@@ -76,7 +104,7 @@ func TestTelemetryMiddleware_MiddlewareName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewTelemetryMiddleware(&mockTelemetryManager{}).(*TelemetryMiddleware)
+			middleware := NewTelemetryMiddleware(nil).(*telemetryMiddleware)
 			assert.Equal(t, tt.expected, middleware.MiddlewareName())
 		})
 	}
@@ -89,12 +117,12 @@ func TestTelemetryMiddleware_Order(t *testing.T) {
 	}{
 		{
 			name:     "返回执行顺序",
-			expected: 50,
+			expected: OrderTelemetry,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewTelemetryMiddleware(&mockTelemetryManager{}).(*TelemetryMiddleware)
+			middleware := NewTelemetryMiddleware(nil).(*telemetryMiddleware)
 			assert.Equal(t, tt.expected, middleware.Order())
 		})
 	}
@@ -103,7 +131,7 @@ func TestTelemetryMiddleware_Order(t *testing.T) {
 func TestTelemetryMiddleware_Wrapper(t *testing.T) {
 	tests := []struct {
 		name              string
-		manager           common.IBaseManager
+		manager           telemetrymgr.ITelemetryManager
 		hasOtelMiddleware bool
 	}{
 		{
@@ -116,18 +144,14 @@ func TestTelemetryMiddleware_Wrapper(t *testing.T) {
 			manager:           &mockTelemetryManager{},
 			hasOtelMiddleware: false,
 		},
-		{
-			name:              "无管理器",
-			manager:           nil,
-			hasOtelMiddleware: false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewTelemetryMiddleware(tt.manager).(*TelemetryMiddleware)
+			middleware := NewTelemetryMiddleware(nil).(*telemetryMiddleware)
+			middleware.TelemetryManager = tt.manager
 			router.Use(middleware.Wrapper())
 
 			router.GET("/test", func(c *gin.Context) {
@@ -150,7 +174,7 @@ func TestTelemetryMiddleware_Wrapper(t *testing.T) {
 func TestTelemetryMiddleware_Wrapper_Context(t *testing.T) {
 	tests := []struct {
 		name              string
-		manager           common.IBaseManager
+		manager           telemetrymgr.ITelemetryManager
 		hasOtelMiddleware bool
 	}{
 		{
@@ -169,7 +193,8 @@ func TestTelemetryMiddleware_Wrapper_Context(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewTelemetryMiddleware(tt.manager).(*TelemetryMiddleware)
+			middleware := NewTelemetryMiddleware(nil).(*telemetryMiddleware)
+			middleware.TelemetryManager = tt.manager
 			router.Use(middleware.Wrapper())
 
 			var traced bool
@@ -196,7 +221,7 @@ func TestTelemetryMiddleware_Wrapper_Context(t *testing.T) {
 func TestTelemetryMiddleware_Wrapper_Chain(t *testing.T) {
 	tests := []struct {
 		name              string
-		manager           common.IBaseManager
+		manager           telemetrymgr.ITelemetryManager
 		hasOtelMiddleware bool
 	}{
 		{
@@ -210,7 +235,8 @@ func TestTelemetryMiddleware_Wrapper_Chain(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewTelemetryMiddleware(tt.manager).(*TelemetryMiddleware)
+			middleware := NewTelemetryMiddleware(nil).(*telemetryMiddleware)
+			middleware.TelemetryManager = tt.manager
 
 			var executionOrder []string
 			router.Use(func(c *gin.Context) {
@@ -253,7 +279,7 @@ func TestTelemetryMiddleware_OnStart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewTelemetryMiddleware(&mockTelemetryManager{}).(*TelemetryMiddleware)
+			middleware := NewTelemetryMiddleware(nil).(*telemetryMiddleware)
 			err := middleware.OnStart()
 			assert.NoError(t, err)
 		})
@@ -270,39 +296,9 @@ func TestTelemetryMiddleware_OnStop(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := NewTelemetryMiddleware(&mockTelemetryManager{}).(*TelemetryMiddleware)
+			middleware := NewTelemetryMiddleware(nil).(*telemetryMiddleware)
 			err := middleware.OnStop()
 			assert.NoError(t, err)
-		})
-	}
-}
-
-func TestTelemetryMiddleware_NilManager(t *testing.T) {
-	tests := []struct {
-		name string
-	}{
-		{
-			name: "空管理器处理",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gin.SetMode(gin.TestMode)
-			router := gin.New()
-
-			middleware := NewTelemetryMiddleware(nil).(*TelemetryMiddleware)
-			router.Use(middleware.Wrapper())
-
-			router.GET("/test", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"message": "ok"})
-			})
-
-			req := httptest.NewRequest(http.MethodGet, "/test", nil)
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
-
-			assert.Equal(t, http.StatusOK, w.Code)
-			assert.Contains(t, w.Body.String(), "message")
 		})
 	}
 }
@@ -323,7 +319,7 @@ func (m *contextMockManager) GinMiddleware() gin.HandlerFunc {
 func TestTelemetryMiddleware_ContextPropagation(t *testing.T) {
 	tests := []struct {
 		name            string
-		manager         common.IBaseManager
+		manager         telemetrymgr.ITelemetryManager
 		hasContextValue bool
 	}{
 		{
@@ -337,7 +333,8 @@ func TestTelemetryMiddleware_ContextPropagation(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 
-			middleware := NewTelemetryMiddleware(tt.manager).(*TelemetryMiddleware)
+			middleware := NewTelemetryMiddleware(nil).(*telemetryMiddleware)
+			middleware.TelemetryManager = tt.manager
 			router.Use(middleware.Wrapper())
 
 			var contextValue string

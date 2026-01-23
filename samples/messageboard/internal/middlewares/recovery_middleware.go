@@ -11,8 +11,7 @@ type IRecoveryMiddleware interface {
 	common.IBaseMiddleware
 }
 
-// NewRecoveryMiddleware 创建 panic 恢复中间件
+// NewRecoveryMiddleware 使用默认配置创建 panic 恢复中间件
 func NewRecoveryMiddleware() IRecoveryMiddleware {
-	// 直接返回 component 的中间件，让依赖注入自动处理
-	return componentMiddleware.NewRecoveryMiddleware()
+	return componentMiddleware.NewRecoveryMiddlewareWithDefaults()
 }
