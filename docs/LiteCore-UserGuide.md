@@ -872,9 +872,107 @@ return "/api/v1/users [GET]"           // 版本化路由
 
 ### 5.5 Middleware 层（中间件层）
 
-Middleware 层负责横切关注点的处理，如认证、授权、日志、CORS 等。
+Middleware 层负责横切关注点的处理，如认证、授权、日志、CORS、限流等。
 
-#### 5.5.1 中间件示例
+#### 5.5.1 限流器中间件
+
+限流器中间件提供基于 Gin 框架的 HTTP 请求限流功能，支持多种限流策略。
+
+##### 基本用法
+
+```go
+package middlewares
+
+import (
+    "time"
+    "github.com/lite-lake/litecore-go/component/middleware"
+)
+
+// 创建按 IP 限流的中间件
+// 每分钟最多 100 个请求
+func NewRateLimiterMiddleware() middleware.IBaseMiddleware {
+    return middleware.NewRateLimiterByIP(100, time.Minute)
+}
+```
+
+##### 自定义限流策略
+
+```go
+// 自定义 Key 生成函数（基于用户ID）
+func NewUserRateLimiterMiddleware() middleware.IBaseMiddleware {
+    return middleware.NewRateLimiter(&middleware.RateLimiterConfig{
+        Limit:     60,
+        Window:    time.Minute,
+        KeyPrefix: "user_rate_limit",
+        KeyFunc: func(c *gin.Context) string {
+            if userID, exists := c.Get("user_id"); exists {
+                if uid, ok := userID.(string); ok {
+                    return uid
+                }
+            }
+            return c.ClientIP()
+        },
+    })
+}
+
+// 添加跳过逻辑（公开接口不限流）
+func NewRateLimiterWithSkip() middleware.IBaseMiddleware {
+    return middleware.NewRateLimiter(&middleware.RateLimiterConfig{
+        Limit:     100,
+        Window:    time.Minute,
+        KeyPrefix: "api_rate_limit",
+        SkipFunc: func(c *gin.Context) bool {
+            return c.Request.URL.Path == "/api/health" ||
+                   c.Request.URL.Path == "/api/public"
+        },
+    })
+}
+```
+
+##### 内置限流器工厂
+
+```go
+// 按 IP 限流
+middleware.NewRateLimiterByIP(100, time.Minute)
+
+// 按路径限流
+middleware.NewRateLimiterByPath(200, time.Minute)
+
+// 按 Header 限流（如 API Key）
+middleware.NewRateLimiterByHeader(50, time.Minute, "X-API-Key")
+
+// 按用户 ID 限流（从上下文中获取）
+middleware.NewRateLimiterByUserID(60, time.Minute)
+```
+
+##### 响应头说明
+
+限流器会在响应中添加以下头信息：
+
+| 响应头 | 说明 |
+|--------|------|
+| `X-RateLimit-Limit` | 时间窗口内的最大请求数 |
+| `X-RateLimit-Remaining` | 当前窗口剩余的请求数 |
+| `Retry-After` | 被限流时，建议的等待时间（秒） |
+
+##### 限流响应示例
+
+```json
+// 请求成功
+Status: 200 OK
+Headers:
+  X-RateLimit-Limit: 100
+  X-RateLimit-Remaining: 99
+
+// 被限流
+Status: 429 Too Many Requests
+Body: {
+  "error": "请求过于频繁，请 1m0s 后再试",
+  "code": "RATE_LIMIT_EXCEEDED"
+}
+```
+
+#### 5.5.2 认证中间件示例
 
 ```go
 package middlewares
@@ -970,20 +1068,27 @@ func (m *authMiddleware) OnStop() error {
 var _ IAuthMiddleware = (*authMiddleware)(nil)
 ```
 
-#### 5.5.2 中间件执行顺序
+#### 5.5.3 中间件执行顺序
 
 中间件按照 `Order()` 返回的值从小到大执行：
 
 ```go
 // 推荐的中间件顺序
-func (m *RecoveryMiddleware) Order() int     { return 10 }   // 恢复中间件
-func (m *CORSMiddleware) Order() int          { return 20 }   // CORS 中间件
-func (m *AuthMiddleware) Order() int          { return 100 }  // 认证中间件
-func (m *LoggerMiddleware) Order() int       { return 200 }  // 日志中间件
-func (m *TelemetryMiddleware) Order() int    { return 300 }  // 遥测中间件
+func (m *RecoveryMiddleware) Order() int         { return 10 }   // 恢复中间件
+func (m *CORSMiddleware) Order() int              { return 20 }   // CORS 中间件
+func (m *RateLimiterMiddleware) Order() int       { return 30 }   // 限流中间件
+func (m *AuthMiddleware) Order() int              { return 100 }  // 认证中间件
+func (m *LoggerMiddleware) Order() int           { return 200 }  // 日志中间件
+func (m *TelemetryMiddleware) Order() int        { return 300 }  // 遥测中间件
 ```
 
-#### 5.5.3 中间件设计规范
+**说明**：
+- 限流中间件应放在 CORS 之后、认证之前，这样可以：
+  1. 正常处理跨域请求
+  2. 对所有请求（包括未认证请求）进行限流保护
+  3. 在认证之前拦截恶意请求，减少认证服务压力
+
+#### 5.5.4 中间件设计规范
 
 - **横切关注点**：中间件处理认证、日志、CORS 等横切关注点
 - **顺序控制**：使用 `Order()` 方法定义执行顺序
@@ -1027,6 +1132,8 @@ Manager 组件也作为服务器内置组件，由引擎自动初始化。在 `I
 // 3. LoggerManager - 日志管理
 // 4. DatabaseManager - 数据库管理
 // 5. CacheManager - 缓存管理
+// 6. LockManager - 锁管理
+// 7. LimiterManager - 限流管理
 ```
 
 无需手动创建 Manager，只需在代码中通过依赖注入使用：
@@ -1037,28 +1144,197 @@ type userRepository struct {
 }
 ```
 
-### 6.3 可用的内置 Manager
+### 6.3 LockMgr（锁管理器）
+
+LockMgr 提供分布式锁功能，支持 Redis 和内存两种实现，用于解决并发访问和资源竞争问题。
+
+#### 6.3.1 接口定义
+
+```go
+type ILockManager interface {
+    // Lock 获取锁（阻塞直到成功或超时）
+    Lock(ctx context.Context, key string, ttl time.Duration) error
+    
+    // Unlock 释放锁
+    Unlock(ctx context.Context, key string) error
+    
+    // TryLock 尝试获取锁（非阻塞）
+    TryLock(ctx context.Context, key string, ttl time.Duration) (bool, error)
+}
+```
+
+#### 6.3.2 使用示例
+
+**在 Service 层使用锁**
+
+```go
+package services
+
+import (
+    "context"
+    "time"
+    
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/lockmgr"
+)
+
+type OrderService struct {
+    Config  configmgr.IConfigManager `inject:""`
+    LockMgr lockmgr.ILockManager    `inject:""`
+}
+
+// ProcessOrder 处理订单（使用分布式锁防止重复处理）
+func (s *OrderService) ProcessOrder(ctx context.Context, orderID string) error {
+    lockKey := "order:process:" + orderID
+    
+    // 尝试获取锁，30秒后过期
+    acquired, err := s.LockMgr.TryLock(ctx, lockKey, 30*time.Second)
+    if err != nil {
+        return err
+    }
+    if !acquired {
+        return errors.New("订单正在处理中，请稍后重试")
+    }
+    defer s.LockMgr.Unlock(ctx, lockKey)
+    
+    // 执行业务逻辑
+    return s.processOrderInternal(ctx, orderID)
+}
+
+// UpdateInventory 更新库存（使用阻塞锁）
+func (s *OrderService) UpdateInventory(ctx context.Context, productID string, quantity int) error {
+    lockKey := "inventory:update:" + productID
+    
+    // 获取锁，最多等待10秒，锁自动过期30秒
+    err := s.LockMgr.Lock(ctx, lockKey, 30*time.Second)
+    if err != nil {
+        return err
+    }
+    defer s.LockMgr.Unlock(ctx, lockKey)
+    
+    // 执行库存更新
+    return s.updateInventoryInternal(ctx, productID, quantity)
+}
+```
+
+#### 6.3.3 使用场景
+
+- **防止重复处理**：订单、任务等幂等性控制
+- **资源竞争**：库存扣减、余额更新等并发场景
+- **定时任务**：防止多个实例同时执行同一任务
+- **缓存重建**：防止缓存击穿时的并发重建
+
+### 6.4 LimiterMgr（限流管理器）
+
+LimiterMgr 提供限流功能，支持 Redis 和内存两种实现，用于保护系统免受过量请求的影响。
+
+#### 6.4.1 接口定义
+
+```go
+type ILimiterManager interface {
+    // Allow 检查是否允许通过限流
+    Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error)
+    
+    // GetRemaining 获取剩余可访问次数
+    GetRemaining(ctx context.Context, key string, limit int, window time.Duration) (int, error)
+}
+```
+
+#### 6.4.2 使用示例
+
+**在 Service 层使用限流**
+
+```go
+package services
+
+import (
+    "context"
+    "time"
+    
+    "github.com/lite-lake/litecore-go/server/builtin/manager/configmgr"
+    "github.com/lite-lake/litecore-go/server/builtin/manager/limitermgr"
+)
+
+type SMSService struct {
+    Config     configmgr.IConfigManager    `inject:""`
+    LimiterMgr limitermgr.ILimiterManager `inject:""`
+}
+
+// SendSMS 发送短信（按手机号限流）
+func (s *SMSService) SendSMS(ctx context.Context, phone string) error {
+    limitKey := "sms:send:" + phone
+    
+    // 每个手机号每分钟最多发送 5 条短信
+    allowed, err := s.LimiterMgr.Allow(ctx, limitKey, 5, time.Minute)
+    if err != nil {
+        return err
+    }
+    
+    if !allowed {
+        return errors.New("发送频率过高，请稍后重试")
+    }
+    
+    // 获取剩余次数
+    remaining, _ := s.LimiterMgr.GetRemaining(ctx, limitKey, 5, time.Minute)
+    fmt.Printf("剩余可发送次数: %d\n", remaining)
+    
+    // 发送短信逻辑
+    return s.sendSMSInternal(ctx, phone)
+}
+
+// CreateOrder 创建订单（按用户限流）
+func (s *OrderService) CreateOrder(ctx context.Context, userID string) error {
+    limitKey := "order:create:" + userID
+    
+    // 每个用户每分钟最多创建 10 个订单
+    allowed, err := s.LimiterMgr.Allow(ctx, limitKey, 10, time.Minute)
+    if err != nil {
+        return err
+    }
+    
+    if !allowed {
+        return errors.New("操作过于频繁，请稍后重试")
+    }
+    
+    // 创建订单逻辑
+    return s.createOrderInternal(ctx, userID)
+}
+```
+
+#### 6.4.3 使用场景
+
+- **API 限流**：保护 API 免受 DDoS 攻击
+- **用户限流**：防止恶意用户频繁操作
+- **资源保护**：限制短信、邮件等高成本资源的使用
+- **服务降级**：在系统负载过高时进行限流
+
+### 6.5 可用的内置 Manager
 
 | Manager | 功能 | 支持驱动 |
 |---------|------|----------|
+| `ConfigManager` | 配置管理 | YAML, JSON |
+| `TelemetryManager` | 遥测管理 | OpenTelemetry, None |
+| `LoggerManager` | 日志管理 | Zap, None |
 | `DatabaseManager` | 数据库管理 | MySQL, PostgreSQL, SQLite, None |
 | `CacheManager` | 缓存管理 | Redis, Memory, None |
-| `LoggerManager` | 日志管理 | Zap, None |
-| `TelemetryManager` | 遥测管理 | OpenTelemetry, None |
+| `LockManager` | 锁管理 | Redis, Memory, None |
+| `LimiterManager` | 限流管理 | Redis, Memory, None |
 
-### 6.4 使用内置组件
+### 6.6 使用内置组件
 
 在任何层中，都可以通过 `inject:""` 标签自动注入 Config 和 Manager：
 
 ```go
 type UserServiceImpl struct {
     // 内置组件（由引擎自动注入）
-    Config    configmgr.IConfigManager      `inject:""`
-    DBManager databasemgr.IDatabaseManager `inject:""`
-    CacheMgr  cachemgr.ICacheManager       `inject:""`
+    Config     configmgr.IConfigManager     `inject:""`
+    DBManager  databasemgr.IDatabaseManager `inject:""`
+    CacheMgr   cachemgr.ICacheManager      `inject:""`
+    LockMgr    lockmgr.ILockManager        `inject:""`
+    LimiterMgr limitermgr.ILimiterManager  `inject:""`
 
     // 业务依赖
-    UserRepo  IUserRepository              `inject:""`
+    UserRepo  IUserRepository             `inject:""`
 }
 ```
 
@@ -1265,6 +1541,34 @@ database:
 # 缓存配置
 cache:
   driver: "memory"              # redis, memory, none
+
+# 锁管理配置
+lock:
+  driver: "memory"              # redis, memory, none
+  redis_config:
+    host: "localhost"
+    port: 6379
+    password: ""
+    db: 2
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: "30s"
+  memory_config:
+    max_backups: 1000
+
+# 限流管理配置
+limiter:
+  driver: "memory"              # redis, memory, none
+  redis_config:
+    host: "localhost"
+    port: 6379
+    password: ""
+    db: 3
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: "30s"
+  memory_config:
+    max_backups: 1000
 
 # 日志配置
 logger:

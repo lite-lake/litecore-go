@@ -13,6 +13,7 @@
 - **可观测性** - 集成 OpenTelemetry、结构化日志、健康检查、指标采集
 - **CLI 代码生成** - 自动生成容器初始化代码，简化项目搭建
 - **生命周期管理** - 统一的启动/停止机制，优雅关闭
+- **限流器** - 支持 Redis 和内存两种驱动的分布式限流
 
 ## 快速开始
 
@@ -202,6 +203,8 @@ go run ./cmd/server
 │  - databasemgr          │    │                      │
 │  - cachemgr             │    │                      │
 │  - telemetrymgr         │    │                      │
+│  - lockmgr              │    │                      │
+│  - limitermgr           │    │                      │
 │  - 由引擎自动初始化       │    │                      │
 └─────────────────────────┘    └──────────────────────┘
 ```
@@ -380,7 +383,100 @@ func (s *MyService) DoSomething(ctx context.Context) error {
 }
 ```
 
-### 6. HTTP 服务引擎 (server)
+### 6. 锁管理 (lockmgr)
+
+支持 Redis 和 Memory 两种驱动的分布式锁，由引擎自动初始化，通过依赖注入使用：
+
+```go
+// 由引擎自动初始化，通过依赖注入使用
+type MyService struct {
+    LockMgr lockmgr.ILockManager `inject:""`
+}
+
+func (s *MyService) ProcessResource(ctx context.Context, resourceID string) error {
+    // 获取锁（阻塞直到成功或超时）
+    err := s.LockMgr.Lock(ctx, "resource:"+resourceID, 10*time.Second)
+    if err != nil {
+        return err
+    }
+    defer s.LockMgr.Unlock(ctx, "resource:"+resourceID)
+
+    // 执行需要加锁的操作
+    // ...
+
+    return nil
+}
+
+func (s *MyService) TryProcessResource(ctx context.Context, resourceID string) error {
+    // 尝试获取锁（非阻塞）
+    locked, err := s.LockMgr.TryLock(ctx, "resource:"+resourceID, 10*time.Second)
+    if err != nil {
+        return err
+    }
+    if !locked {
+        return fmt.Errorf("资源已被占用")
+    }
+    defer s.LockMgr.Unlock(ctx, "resource:"+resourceID)
+
+    // 执行需要加锁的操作
+    // ...
+
+    return nil
+}
+```
+
+使用场景：
+- 分布式环境下的资源互斥访问
+- 并发控制，防止重复操作
+- 任务队列的任务消费
+- 限流控制
+
+支持的驱动：
+- Redis（分布式锁）
+- Memory（本地内存锁）
+- None（空实现，用于测试）
+
+### 7. 限流管理 (limitermgr)
+
+支持 Redis、Memory 和 None 三种驱动的限流器，由引擎自动初始化，通过依赖注入使用：
+
+```go
+// 由引擎自动初始化，通过依赖注入使用
+type MyService struct {
+    LimiterMgr limitermgr.ILimiterManager `inject:""`
+}
+
+func (s *MyService) CheckUserLimit(ctx context.Context, userID string) (bool, error) {
+    // 检查是否允许通过（100次/分钟）
+    allowed, err := s.LimiterMgr.Allow(ctx, "user:"+userID, 100, time.Minute)
+    if err != nil {
+        return false, err
+    }
+    return allowed, nil
+}
+
+func (s *MyService) GetUserRemaining(ctx context.Context, userID string) (int, error) {
+    // 获取剩余可访问次数
+    remaining, err := s.LimiterMgr.GetRemaining(ctx, "user:"+userID, 100, time.Minute)
+    if err != nil {
+        return 0, err
+    }
+    return remaining, nil
+}
+```
+
+使用场景：
+- API 接口请求频率限制
+- 用户行为频率控制（如点赞、评论）
+- 防止恶意请求和爬虫
+- 资源使用配额管理
+
+支持的驱动：
+- Redis（分布式限流）
+- Memory（本地内存限流）
+- None（无限流，用于测试）
+
+### 8. HTTP 服务引擎 (server)
 
 统一的服务启动和生命周期管理：
 
@@ -393,6 +489,118 @@ engine.Run()
 engine.Initialize()
 engine.Start()
 engine.WaitForShutdown()
+```
+
+## 内置中间件
+
+### 1. Recovery 中间件
+
+自动恢复 panic，防止服务崩溃：
+
+```go
+import "github.com/lite-lake/litecore-go/component/middleware"
+
+// 在中间件容器中注册
+recovery := middleware.NewRecoveryMiddleware()
+middlewareContainer.Register(recovery)
+```
+
+### 2. 日志中间件
+
+记录每个请求的详细信息：
+
+```go
+// 在中间件容器中注册
+requestLogger := middleware.NewRequestLoggerMiddleware()
+middlewareContainer.Register(requestLogger)
+```
+
+### 3. CORS 中间件
+
+处理跨域请求：
+
+```go
+cors := middleware.NewCorsMiddleware(&middleware.CorsConfig{
+    AllowOrigins:     []string{"*"},
+    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+    AllowHeaders:     []string{"Origin", "Content-Type"},
+    ExposeHeaders:    []string{"Content-Length"},
+    AllowCredentials: false,
+    MaxAge:           12 * time.Hour,
+})
+middlewareContainer.Register(cors)
+```
+
+### 4. 安全头中间件
+
+添加安全相关的 HTTP 头：
+
+```go
+securityHeaders := middleware.NewSecurityHeadersMiddleware()
+middlewareContainer.Register(securityHeaders)
+```
+
+### 5. 遥测中间件
+
+集成 OpenTelemetry 追踪：
+
+```go
+telemetry := middleware.NewTelemetryMiddleware()
+middlewareContainer.Register(telemetry)
+```
+
+### 6. 限流中间件
+
+基于 IP、路径、Header 或用户 ID 的限流：
+
+```go
+// 基于 IP 限流（100次/分钟）
+rateLimiter := middleware.NewRateLimiterByIP(100, time.Minute)
+middlewareContainer.Register(rateLimiter)
+
+// 基于路径限流（1000次/分钟）
+rateLimiter := middleware.NewRateLimiterByPath(1000, time.Minute)
+middlewareContainer.Register(rateLimiter)
+
+// 基于 Header 限流（500次/分钟）
+rateLimiter := middleware.NewRateLimiterByHeader(500, time.Minute, "X-User-ID")
+middlewareContainer.Register(rateLimiter)
+
+// 基于用户 ID 限流（200次/分钟）
+rateLimiter := middleware.NewRateLimiterByUserID(200, time.Minute)
+middlewareContainer.Register(rateLimiter)
+
+// 自定义配置
+rateLimiter := middleware.NewRateLimiter(&middleware.RateLimiterConfig{
+    Limit:     100,
+    Window:    time.Minute,
+    KeyPrefix: "custom",
+    KeyFunc: func(c *gin.Context) string {
+        // 自定义 key 生成逻辑
+        return c.GetHeader("X-API-Key")
+    },
+    SkipFunc: func(c *gin.Context) bool {
+        // 跳过限流的条件
+        return c.Request.URL.Path == "/health"
+    },
+})
+middlewareContainer.Register(rateLimiter)
+```
+
+### 中间件排序
+
+可以通过实现 `Order()` 方法控制中间件执行顺序：
+
+```go
+const (
+    OrderRecovery   = 10  // panic 恢复
+    OrderLogger     = 20  // 日志记录
+    OrderCors       = 30  // 跨域处理
+    OrderTelemetry  = 40  // 遥测监控
+    OrderSecurity   = 50  // 安全头
+    OrderRateLimit  = 90  // 限流
+    OrderAuth       = 100 // 认证
+)
 ```
 
 ## CLI 工具
