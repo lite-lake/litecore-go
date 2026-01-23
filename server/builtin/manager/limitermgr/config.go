@@ -59,7 +59,8 @@ type MemoryLimiterConfig struct {
 	MaxBackups int `yaml:"max_backups"` // 最大备份项数（清理策略相关）
 }
 
-// Validate 验证配置
+// Validate 验证配置的有效性
+// 检查驱动类型是否有效、对应的配置是否完整
 func (c *LimiterConfig) Validate() error {
 	if c.Driver == "" {
 		return fmt.Errorf("driver is required")
@@ -90,6 +91,7 @@ func (c *LimiterConfig) Validate() error {
 }
 
 // ParseLimiterConfigFromMap 从 ConfigMap 解析限流配置
+// 支持从 map[string]any 格式的配置中解析限流管理器配置
 func ParseLimiterConfigFromMap(cfg map[string]any) (*LimiterConfig, error) {
 	config := &LimiterConfig{
 		Driver: "memory", // 默认使用 memory 驱动
@@ -137,6 +139,7 @@ func ParseLimiterConfigFromMap(cfg map[string]any) (*LimiterConfig, error) {
 }
 
 // parseRedisLimiterConfig 解析 Redis 限流配置
+// 从 map 中解析 Redis 连接相关的配置项
 func parseRedisLimiterConfig(cfg map[string]any) (*RedisLimiterConfig, error) {
 	config := &RedisLimiterConfig{
 		Host:            DefaultRedisHost,
@@ -221,6 +224,7 @@ func parseRedisLimiterConfig(cfg map[string]any) (*RedisLimiterConfig, error) {
 }
 
 // parseMemoryLimiterConfig 解析内存限流配置
+// 从 map 中解析内存限流相关的配置项
 func parseMemoryLimiterConfig(cfg map[string]any) (*MemoryLimiterConfig, error) {
 	config := &MemoryLimiterConfig{
 		MaxBackups: DefaultMemoryMaxBackups,
@@ -237,6 +241,7 @@ func parseMemoryLimiterConfig(cfg map[string]any) (*MemoryLimiterConfig, error) 
 }
 
 // toInt 将任意类型转换为 int
+// 支持 int、int64、float64 类型的转换
 func toInt(v any) (int, bool) {
 	switch val := v.(type) {
 	case int:
@@ -253,7 +258,8 @@ func toInt(v any) (int, bool) {
 	}
 }
 
-// parseDuration 解析时间长度，支持 int, int64, float64 和字符串
+// parseDuration 解析时间长度
+// 支持 int/int64/float64（秒）、字符串（支持 Go duration 格式或纯数字秒数）
 func parseDuration(v any) (time.Duration, error) {
 	switch val := v.(type) {
 	case int:
@@ -283,6 +289,7 @@ func parseDuration(v any) (time.Duration, error) {
 }
 
 // parseDurationSeconds 解析秒数形式的字符串
+// 将纯数字字符串转换为整数秒数
 func parseDurationSeconds(s string) (int, error) {
 	s = strings.TrimSpace(s)
 	var num int
