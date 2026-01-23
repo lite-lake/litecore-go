@@ -19,27 +19,29 @@ import (
 // ISessionService 会话服务接口
 type ISessionService interface {
 	common.IBaseService
-	CreateSession() (string, error)
-	ValidateSession(token string) (*dtos.AdminSession, error)
-	DeleteSession(token string) error
+	CreateSession() (string, error)                           // 创建新会话，返回 token
+	ValidateSession(token string) (*dtos.AdminSession, error) // 验证会话有效性
+	DeleteSession(token string) error                         // 删除会话
 }
 
 type sessionService struct {
-	Config    configmgr.IConfigManager `inject:""`
-	CacheMgr  cachemgr.ICacheManager   `inject:""`
-	LoggerMgr loggermgr.ILoggerManager `inject:""`
-	timeout   time.Duration
+	Config    configmgr.IConfigManager `inject:""` // 配置管理器
+	CacheMgr  cachemgr.ICacheManager   `inject:""` // 缓存管理器
+	LoggerMgr loggermgr.ILoggerManager `inject:""` // 日志管理器
+	timeout   time.Duration            // 会话超时时间
 }
 
-// NewSessionService 创建会话服务
+// NewSessionService 创建会话服务实例
 func NewSessionService() ISessionService {
 	return &sessionService{}
 }
 
+// ServiceName 返回服务名称
 func (s *sessionService) ServiceName() string {
 	return "SessionService"
 }
 
+// OnStart 启动时从配置读取会话超时时间
 func (s *sessionService) OnStart() error {
 	timeout, err := configmgr.Get[int](s.Config, "app.admin.session_timeout")
 	if err != nil {
@@ -49,10 +51,12 @@ func (s *sessionService) OnStart() error {
 	return nil
 }
 
+// OnStop 停止时清理
 func (s *sessionService) OnStop() error {
 	return nil
 }
 
+// CreateSession 创建新会话，生成 UUID token 并存储到缓存
 func (s *sessionService) CreateSession() (string, error) {
 	token := uuid.New().String()
 	session := &dtos.AdminSession{
@@ -71,6 +75,7 @@ func (s *sessionService) CreateSession() (string, error) {
 	return token, nil
 }
 
+// ValidateSession 验证会话有效性，检查是否存在及是否过期
 func (s *sessionService) ValidateSession(token string) (*dtos.AdminSession, error) {
 	ctx := context.Background()
 	sessionKey := fmt.Sprintf("session:%s", token)
@@ -92,6 +97,7 @@ func (s *sessionService) ValidateSession(token string) (*dtos.AdminSession, erro
 	return &session, nil
 }
 
+// DeleteSession 从缓存删除指定 token 的会话
 func (s *sessionService) DeleteSession(token string) error {
 	s.LoggerMgr.Ins().Info("删除会话", "token", token)
 

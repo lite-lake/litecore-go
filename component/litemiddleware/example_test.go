@@ -1,20 +1,20 @@
-package middleware_test
+package litemiddleware_test
 
 import (
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/lite-lake/litecore-go/component/middleware"
+	"github.com/lite-lake/litecore-go/component/litemiddleware"
 )
 
 // 示例 1: 使用默认配置创建中间件
 func Example_newMiddlewareWithDefaults() {
 	// 使用默认配置
-	cors := middleware.NewCorsMiddlewareWithDefaults()
-	recovery := middleware.NewRecoveryMiddlewareWithDefaults()
-	security := middleware.NewSecurityHeadersMiddlewareWithDefaults()
-	reqLogger := middleware.NewRequestLoggerMiddlewareWithDefaults()
+	cors := litemiddleware.NewCorsMiddlewareWithDefaults()
+	recovery := litemiddleware.NewRecoveryMiddlewareWithDefaults()
+	security := litemiddleware.NewSecurityHeadersMiddlewareWithDefaults()
+	reqLogger := litemiddleware.NewRequestLoggerMiddlewareWithDefaults()
 
 	_ = cors
 	_ = recovery
@@ -25,7 +25,7 @@ func Example_newMiddlewareWithDefaults() {
 // 示例 2: 自定义 CORS 配置
 func Example_customCorsConfig() {
 	// 自定义 CORS 配置
-	cfg := &middleware.CorsConfig{
+	cfg := &litemiddleware.CorsConfig{
 		AllowOrigins:     []string{"https://example.com", "https://app.example.com"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
@@ -33,7 +33,7 @@ func Example_customCorsConfig() {
 		AllowCredentials: true,
 		MaxAge:           8 * time.Hour,
 	}
-	cors := middleware.NewCorsMiddleware(cfg)
+	cors := litemiddleware.NewCorsMiddleware(cfg)
 
 	_ = cors
 }
@@ -41,7 +41,7 @@ func Example_customCorsConfig() {
 // 示例 3: 自定义请求日志配置
 func Example_customRequestLoggerConfig() {
 	// 自定义请求日志配置
-	cfg := &middleware.RequestLoggerConfig{
+	cfg := &litemiddleware.RequestLoggerConfig{
 		Enable:          true,
 		LogBody:         true,
 		MaxBodySize:     2048,
@@ -49,7 +49,7 @@ func Example_customRequestLoggerConfig() {
 		LogHeaders:      []string{"User-Agent", "Content-Type", "X-Request-ID"},
 		SuccessLogLevel: "debug",
 	}
-	reqLogger := middleware.NewRequestLoggerMiddleware(cfg)
+	reqLogger := litemiddleware.NewRequestLoggerMiddleware(cfg)
 
 	_ = reqLogger
 }
@@ -57,7 +57,7 @@ func Example_customRequestLoggerConfig() {
 // 示例 4: 自定义安全头配置
 func Example_customSecurityHeadersConfig() {
 	// 自定义安全头配置
-	cfg := &middleware.SecurityHeadersConfig{
+	cfg := &litemiddleware.SecurityHeadersConfig{
 		FrameOptions:            "SAMEORIGIN",
 		ContentTypeOptions:      "nosniff",
 		XSSProtection:           "1; mode=block",
@@ -65,7 +65,7 @@ func Example_customSecurityHeadersConfig() {
 		ContentSecurityPolicy:   "default-src 'self'; script-src 'self' 'unsafe-inline'",
 		StrictTransportSecurity: "max-age=31536000; includeSubDomains",
 	}
-	security := middleware.NewSecurityHeadersMiddleware(cfg)
+	security := litemiddleware.NewSecurityHeadersMiddleware(cfg)
 
 	_ = security
 }
@@ -73,13 +73,13 @@ func Example_customSecurityHeadersConfig() {
 // 示例 5: 自定义 Recovery 配置
 func Example_customRecoveryConfig() {
 	// 自定义 Recovery 配置
-	cfg := &middleware.RecoveryConfig{
+	cfg := &litemiddleware.RecoveryConfig{
 		PrintStack:      true,
 		CustomErrorBody: true,
 		ErrorMessage:    "服务器内部错误，请稍后重试",
 		ErrorCode:       "SERVER_ERROR",
 	}
-	recovery := middleware.NewRecoveryMiddleware(cfg)
+	recovery := litemiddleware.NewRecoveryMiddleware(cfg)
 
 	_ = recovery
 }
@@ -87,7 +87,7 @@ func Example_customRecoveryConfig() {
 // 示例 6: 自定义限流配置
 func Example_customRateLimiterConfig() {
 	// 按自定义配置创建限流中间件
-	cfg := &middleware.RateLimiterConfig{
+	cfg := &litemiddleware.RateLimiterConfig{
 		Limit:     100,
 		Window:    time.Minute,
 		KeyPrefix: "api",
@@ -102,7 +102,7 @@ func Example_customRateLimiterConfig() {
 			return false
 		},
 	}
-	limiter := middleware.NewRateLimiterMiddleware(cfg)
+	limiter := litemiddleware.NewRateLimiterMiddleware(cfg)
 
 	_ = limiter
 }
@@ -110,13 +110,13 @@ func Example_customRateLimiterConfig() {
 // 示例 7: 使用配置创建不同类型的限流中间件
 func Example_rateLimiterConfigurations() {
 	// 按IP限流
-	byIP := middleware.NewRateLimiterMiddleware(&middleware.RateLimiterConfig{
+	byIP := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
 		Limit:     100,
 		Window:    time.Minute,
 		KeyPrefix: "ip",
 	})
 	// 按路径限流
-	byPath := middleware.NewRateLimiterMiddleware(&middleware.RateLimiterConfig{
+	byPath := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
 		Limit:     200,
 		Window:    time.Minute,
 		KeyPrefix: "path",
@@ -125,7 +125,7 @@ func Example_rateLimiterConfigurations() {
 		},
 	})
 	// 按请求头限流
-	byHeader := middleware.NewRateLimiterMiddleware(&middleware.RateLimiterConfig{
+	byHeader := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
 		Limit:     50,
 		Window:    time.Minute,
 		KeyPrefix: "header",
@@ -134,7 +134,7 @@ func Example_rateLimiterConfigurations() {
 		},
 	})
 	// 按用户ID限流
-	byUserID := middleware.NewRateLimiterMiddleware(&middleware.RateLimiterConfig{
+	byUserID := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
 		Limit:     10,
 		Window:    time.Minute,
 		KeyPrefix: "user",
@@ -157,7 +157,7 @@ func Example_rateLimiterConfigurations() {
 // 示例 8: 闭包配置生产环境 CORS
 func Example_productionCorsConfig() {
 	// 生产环境 CORS 配置（仅允许特定域名）
-	cfg := &middleware.CorsConfig{
+	cfg := &litemiddleware.CorsConfig{
 		AllowOrigins: []string{
 			"https://example.com",
 			"https://www.example.com",
@@ -178,7 +178,7 @@ func Example_productionCorsConfig() {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}
-	cors := middleware.NewCorsMiddleware(cfg)
+	cors := litemiddleware.NewCorsMiddleware(cfg)
 
 	_ = cors
 }
@@ -186,10 +186,10 @@ func Example_productionCorsConfig() {
 // 示例 9: 关闭请求日志
 func Example_disableRequestLogger() {
 	// 完全禁用请求日志
-	cfg := &middleware.RequestLoggerConfig{
+	cfg := &litemiddleware.RequestLoggerConfig{
 		Enable: false,
 	}
-	reqLogger := middleware.NewRequestLoggerMiddleware(cfg)
+	reqLogger := litemiddleware.NewRequestLoggerMiddleware(cfg)
 
 	_ = reqLogger
 }
@@ -197,13 +197,13 @@ func Example_disableRequestLogger() {
 // 示例 10: 关闭 Recovery 堆栈打印（生产环境可能不需要）
 func Example_recoveryWithoutStack() {
 	// 不打印堆栈信息（生产环境可能为了性能）
-	cfg := &middleware.RecoveryConfig{
+	cfg := &litemiddleware.RecoveryConfig{
 		PrintStack:      false,
 		CustomErrorBody: true,
 		ErrorMessage:    "系统错误",
 		ErrorCode:       "SYSTEM_ERROR",
 	}
-	recovery := middleware.NewRecoveryMiddleware(cfg)
+	recovery := litemiddleware.NewRecoveryMiddleware(cfg)
 
 	_ = recovery
 }

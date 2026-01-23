@@ -3,7 +3,7 @@ package middlewares
 
 import (
 	"github.com/lite-lake/litecore-go/common"
-	componentMiddleware "github.com/lite-lake/litecore-go/component/middleware"
+	"github.com/lite-lake/litecore-go/component/litemiddleware"
 )
 
 // ISecurityHeadersMiddleware 安全头中间件接口
@@ -13,5 +13,5 @@ type ISecurityHeadersMiddleware interface {
 
 // NewSecurityHeadersMiddleware 使用默认配置创建安全头中间件
 func NewSecurityHeadersMiddleware() ISecurityHeadersMiddleware {
-	return componentMiddleware.NewSecurityHeadersMiddlewareWithDefaults()
+	return litemiddleware.NewSecurityHeadersMiddlewareWithDefaults()
 }

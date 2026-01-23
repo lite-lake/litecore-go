@@ -1,4 +1,4 @@
-package controller
+package litecontroller
 
 import (
 	"net/http"

@@ -15,8 +15,8 @@ type IMsgCreateController interface {
 }
 
 type msgCreateControllerImpl struct {
-	MessageService services.IMessageService `inject:""`
-	LoggerMgr      loggermgr.ILoggerManager `inject:""`
+	MessageService services.IMessageService `inject:""` // 留言服务
+	LoggerMgr      loggermgr.ILoggerManager `inject:""` // 日志管理器
 }
 
 // NewMsgCreateController 创建控制器实例
@@ -24,14 +24,17 @@ func NewMsgCreateController() IMsgCreateController {
 	return &msgCreateControllerImpl{}
 }
 
+// ControllerName 返回控制器名称
 func (c *msgCreateControllerImpl) ControllerName() string {
 	return "msgCreateControllerImpl"
 }
 
+// GetRouter 返回路由信息
 func (c *msgCreateControllerImpl) GetRouter() string {
 	return "/api/messages [POST]"
 }
 
+// Handle 处理创建留言请求
 func (c *msgCreateControllerImpl) Handle(ctx *gin.Context) {
 	var req dtos.CreateMessageRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {

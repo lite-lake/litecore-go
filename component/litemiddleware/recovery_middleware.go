@@ -1,4 +1,4 @@
-package middleware
+package litemiddleware
 
 import (
 	"runtime/debug"

@@ -1,4 +1,4 @@
-package controller
+package litecontroller
 
 import (
 	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"

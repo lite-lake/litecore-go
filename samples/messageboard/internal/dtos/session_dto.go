@@ -6,6 +6,6 @@ import "time"
 // AdminSession 管理员会话信息
 // 存储在缓存中，不持久化到数据库
 type AdminSession struct {
-	Token     string    `json:"token"`
-	ExpiresAt time.Time `json:"expires_at"`
+	Token     string    `json:"token"`      // 会话令牌
+	ExpiresAt time.Time `json:"expires_at"` // 过期时间
 }

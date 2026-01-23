@@ -1,4 +1,4 @@
-package controller
+package litecontroller
 
 import (
 	"net/http"
@@ -9,6 +9,19 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/server/builtin/manager/loggermgr"
 )
+
+// responseWriterWrapper 包装 gin.ResponseWriter 实现 http.ResponseWriter 接口
+type responseWriterWrapper struct {
+	gin.ResponseWriter
+}
+
+func wrapResponseWriter(w gin.ResponseWriter) http.ResponseWriter {
+	return &responseWriterWrapper{ResponseWriter: w}
+}
+
+func (w *responseWriterWrapper) WriteHeader(code int) {
+	w.ResponseWriter.WriteHeader(code)
+}
 
 type pprofHandlerFunc func(http.ResponseWriter, *http.Request)
 

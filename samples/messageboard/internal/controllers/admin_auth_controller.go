@@ -15,8 +15,8 @@ type IAdminAuthController interface {
 }
 
 type adminAuthControllerImpl struct {
-	AuthService services.IAuthService    `inject:""`
-	LoggerMgr   loggermgr.ILoggerManager `inject:""`
+	AuthService services.IAuthService    `inject:""` // 认证服务
+	LoggerMgr   loggermgr.ILoggerManager `inject:""` // 日志管理器
 }
 
 // NewAdminAuthController 创建控制器实例
@@ -24,14 +24,17 @@ func NewAdminAuthController() IAdminAuthController {
 	return &adminAuthControllerImpl{}
 }
 
+// ControllerName 返回控制器名称
 func (c *adminAuthControllerImpl) ControllerName() string {
 	return "adminAuthControllerImpl"
 }
 
+// GetRouter 返回路由信息
 func (c *adminAuthControllerImpl) GetRouter() string {
 	return "/api/admin/login [POST]"
 }
 
+// Handle 处理管理员登录请求
 func (c *adminAuthControllerImpl) Handle(ctx *gin.Context) {
 	var req dtos.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {

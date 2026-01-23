@@ -11,14 +11,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IMsgDeleteController 删除留言控制器接口
+// IMsgDeleteController 删除留言控制器接口（管理员专用）
 type IMsgDeleteController interface {
 	common.IBaseController
 }
 
 type msgDeleteControllerImpl struct {
-	MessageService services.IMessageService `inject:""`
-	LoggerMgr      loggermgr.ILoggerManager `inject:""`
+	MessageService services.IMessageService `inject:""` // 留言服务
+	LoggerMgr      loggermgr.ILoggerManager `inject:""` // 日志管理器
 }
 
 // NewMsgDeleteController 创建控制器实例
@@ -26,14 +26,17 @@ func NewMsgDeleteController() IMsgDeleteController {
 	return &msgDeleteControllerImpl{}
 }
 
+// ControllerName 返回控制器名称
 func (c *msgDeleteControllerImpl) ControllerName() string {
 	return "msgDeleteControllerImpl"
 }
 
+// GetRouter 返回路由信息
 func (c *msgDeleteControllerImpl) GetRouter() string {
 	return "/api/admin/messages/:id/delete [POST]"
 }
 
+// Handle 处理删除留言请求（管理员专用）
 func (c *msgDeleteControllerImpl) Handle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)

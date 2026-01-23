@@ -11,14 +11,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// IMsgStatusController 更新留言状态控制器接口
+// IMsgStatusController 更新留言状态控制器接口（管理员专用）
 type IMsgStatusController interface {
 	common.IBaseController
 }
 
 type msgStatusControllerImpl struct {
-	MessageService services.IMessageService `inject:""`
-	LoggerMgr      loggermgr.ILoggerManager `inject:""`
+	MessageService services.IMessageService `inject:""` // 留言服务
+	LoggerMgr      loggermgr.ILoggerManager `inject:""` // 日志管理器
 }
 
 // NewMsgStatusController 创建控制器实例
@@ -26,14 +26,17 @@ func NewMsgStatusController() IMsgStatusController {
 	return &msgStatusControllerImpl{}
 }
 
+// ControllerName 返回控制器名称
 func (c *msgStatusControllerImpl) ControllerName() string {
 	return "msgStatusControllerImpl"
 }
 
+// GetRouter 返回路由信息
 func (c *msgStatusControllerImpl) GetRouter() string {
 	return "/api/admin/messages/:id/status [POST]"
 }
 
+// Handle 处理更新留言状态请求（管理员专用）
 func (c *msgStatusControllerImpl) Handle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)

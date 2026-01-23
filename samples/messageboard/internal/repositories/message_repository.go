@@ -11,42 +11,47 @@ import (
 // IMessageRepository 留言仓储接口
 type IMessageRepository interface {
 	common.IBaseRepository
-	Create(message *entities.Message) error
-	GetByID(id uint) (*entities.Message, error)
-	GetApprovedMessages() ([]*entities.Message, error)
-	GetAllMessages() ([]*entities.Message, error)
-	UpdateStatus(id uint, status string) error
-	Delete(id uint) error
-	CountByStatus(status string) (int64, error)
+	Create(message *entities.Message) error            // 创建留言
+	GetByID(id uint) (*entities.Message, error)        // 根据 ID 获取留言
+	GetApprovedMessages() ([]*entities.Message, error) // 获取已审核通过的留言列表
+	GetAllMessages() ([]*entities.Message, error)      // 获取所有留言列表
+	UpdateStatus(id uint, status string) error         // 更新留言状态
+	Delete(id uint) error                              // 删除留言
+	CountByStatus(status string) (int64, error)        // 根据状态统计留言数量
 }
 
 type messageRepository struct {
-	Config  configmgr.IConfigManager     `inject:""`
-	Manager databasemgr.IDatabaseManager `inject:""`
+	Config  configmgr.IConfigManager     `inject:""` // 配置管理器
+	Manager databasemgr.IDatabaseManager `inject:""` // 数据库管理器
 }
 
-// NewMessageRepository 创建留言仓储
+// NewMessageRepository 创建留言仓储实例
 func NewMessageRepository() IMessageRepository {
 	return &messageRepository{}
 }
 
+// RepositoryName 返回仓储名称
 func (r *messageRepository) RepositoryName() string {
 	return "MessageRepository"
 }
 
+// OnStart 启动时自动迁移数据库表结构
 func (r *messageRepository) OnStart() error {
 	return r.Manager.AutoMigrate(&entities.Message{})
 }
 
+// OnStop 停止时清理资源
 func (r *messageRepository) OnStop() error {
 	return nil
 }
 
+// Create 在数据库中创建新留言
 func (r *messageRepository) Create(message *entities.Message) error {
 	db := r.Manager.DB()
 	return db.Create(message).Error
 }
 
+// GetByID 根据 ID 获取留言记录
 func (r *messageRepository) GetByID(id uint) (*entities.Message, error) {
 	db := r.Manager.DB()
 	var message entities.Message
@@ -57,6 +62,7 @@ func (r *messageRepository) GetByID(id uint) (*entities.Message, error) {
 	return &message, nil
 }
 
+// GetApprovedMessages 获取已审核通过的留言列表，按创建时间倒序排列
 func (r *messageRepository) GetApprovedMessages() ([]*entities.Message, error) {
 	db := r.Manager.DB()
 	var messages []*entities.Message
@@ -66,6 +72,7 @@ func (r *messageRepository) GetApprovedMessages() ([]*entities.Message, error) {
 	return messages, err
 }
 
+// GetAllMessages 获取所有留言列表，按创建时间倒序排列
 func (r *messageRepository) GetAllMessages() ([]*entities.Message, error) {
 	db := r.Manager.DB()
 	var messages []*entities.Message
@@ -73,6 +80,7 @@ func (r *messageRepository) GetAllMessages() ([]*entities.Message, error) {
 	return messages, err
 }
 
+// UpdateStatus 更新指定留言的状态
 func (r *messageRepository) UpdateStatus(id uint, status string) error {
 	db := r.Manager.DB()
 	return db.Model(&entities.Message{}).
@@ -80,11 +88,13 @@ func (r *messageRepository) UpdateStatus(id uint, status string) error {
 		Update("status", status).Error
 }
 
+// Delete 删除指定的留言记录
 func (r *messageRepository) Delete(id uint) error {
 	db := r.Manager.DB()
 	return db.Delete(&entities.Message{}, id).Error
 }
 
+// CountByStatus 统计指定状态的留言数量
 func (r *messageRepository) CountByStatus(status string) (int64, error) {
 	db := r.Manager.DB()
 	var count int64

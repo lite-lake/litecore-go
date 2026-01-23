@@ -1,4 +1,4 @@
-package middleware
+package litemiddleware
 
 const (
 	OrderRecovery        = 0   // panic 恢复中间件（最先执行）

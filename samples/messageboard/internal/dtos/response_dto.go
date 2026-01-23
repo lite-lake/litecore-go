@@ -3,12 +3,12 @@ package dtos
 
 // CommonResponse 统一响应结构
 type CommonResponse struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int         `json:"code"`           // 响应状态码
+	Message string      `json:"message"`        // 响应消息
+	Data    interface{} `json:"data,omitempty"` // 响应数据（可选）
 }
 
-// SuccessResponse 成功响应
+// SuccessResponse 创建成功响应（带消息和数据）
 func SuccessResponse(message string, data interface{}) CommonResponse {
 	return CommonResponse{
 		Code:    200,
@@ -17,7 +17,7 @@ func SuccessResponse(message string, data interface{}) CommonResponse {
 	}
 }
 
-// SuccessWithData 成功响应（仅数据）
+// SuccessWithData 创建成功响应（仅数据）
 func SuccessWithData(data interface{}) CommonResponse {
 	return CommonResponse{
 		Code:    200,
@@ -26,7 +26,7 @@ func SuccessWithData(data interface{}) CommonResponse {
 	}
 }
 
-// SuccessWithMessage 成功响应（仅消息）
+// SuccessWithMessage 创建成功响应（仅消息）
 func SuccessWithMessage(message string) CommonResponse {
 	return CommonResponse{
 		Code:    200,
@@ -34,7 +34,7 @@ func SuccessWithMessage(message string) CommonResponse {
 	}
 }
 
-// ErrorResponse 错误响应
+// ErrorResponse 创建错误响应
 func ErrorResponse(code int, message string) CommonResponse {
 	return CommonResponse{
 		Code:    code,

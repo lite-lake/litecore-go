@@ -235,7 +235,7 @@ func NewProductionCorsMiddleware() ICorsMiddleware {
 ### 方式 3：直接使用 component 层中间件
 
 ```go
-import "github.com/lite-lake/litecore-go/component/middleware"
+import "github.com/lite-lake/litecore-go/component/litemiddleware"
 
 // 在容器中注册
 container.RegisterMiddleware(middlewareContainer, middleware.NewCorsMiddlewareWithDefaults())
@@ -270,7 +270,7 @@ container.RegisterMiddleware(middlewareContainer, middleware.NewCorsMiddlewareWi
 
 运行测试：
 ```bash
-go test ./component/middleware/... -v
+go test ./component/litemiddleware/... -v
 ```
 
 ---
