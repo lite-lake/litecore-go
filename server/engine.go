@@ -144,7 +144,7 @@ func (e *Engine) Initialize() error {
 	if loggerMgr, err := container.GetManager[loggermgr.ILoggerManager](e.Manager); err == nil {
 		e.setLogger(loggerMgr.Ins())
 		e.isStartup = false
-		e.getLogger().Info("切换到结构化日志系统")
+		e.getLogger().Info("Switched to structured logging system")
 
 		// 初始化异步日志器
 		if e.startupLogConfig.Async {
@@ -156,12 +156,9 @@ func (e *Engine) Initialize() error {
 
 	// 2. 验证 Scheduler 配置（在依赖注入之前）
 	if e.Scheduler != nil {
-		e.logPhaseStart(PhaseValidation, "开始验证 Scheduler 配置")
+		e.logPhaseStart(PhaseValidation, "Starting to validate Scheduler configuration")
 
-		// 2.1 Container 层基础验证
-		e.Scheduler.ValidateAll()
-
-		// 2.2 Manager 层完整验证
+		// Manager 验证
 		schedulerMgr, err := container.GetManager[schedulermgr.ISchedulerManager](e.Manager)
 		if err == nil {
 			schedulers := e.Scheduler.GetAll()
@@ -172,7 +169,7 @@ func (e *Engine) Initialize() error {
 			}
 		}
 
-		e.logPhaseEnd(PhaseValidation, "Scheduler 配置验证完成", logger.F("count", e.Scheduler.Count()))
+		e.logPhaseEnd(PhaseValidation, "Scheduler configuration validation complete", logger.F("count", e.Scheduler.Count()))
 	}
 
 	// 3. 自动依赖注入
@@ -223,7 +220,7 @@ func (e *Engine) Initialize() error {
 
 // autoInject 自动依赖注入
 func (e *Engine) autoInject() error {
-	e.logPhaseStart(PhaseInjection, "开始依赖注入")
+	e.logPhaseStart(PhaseInjection, "Starting dependency injection")
 
 	// 1. Entity 层（无需依赖注入）
 
@@ -234,7 +231,7 @@ func (e *Engine) autoInject() error {
 	}
 	repos := e.Repository.GetAll()
 	for _, repo := range repos {
-		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Repository", repo.RepositoryName()))
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Repository", repo.RepositoryName()))
 	}
 
 	// 3. Service 层（依赖 Manager + Repository + 同层）
@@ -244,7 +241,7 @@ func (e *Engine) autoInject() error {
 	}
 	svcs := e.Service.GetAll()
 	for _, svc := range svcs {
-		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Service", svc.ServiceName()))
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Service", svc.ServiceName()))
 	}
 
 	// 4. Controller 层（依赖 Manager + Service）
@@ -254,7 +251,7 @@ func (e *Engine) autoInject() error {
 	}
 	ctrls := e.Controller.GetAll()
 	for _, ctrl := range ctrls {
-		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Controller", ctrl.ControllerName()))
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Controller", ctrl.ControllerName()))
 	}
 
 	// 5. Middleware 层（依赖 Manager + Service）
@@ -264,7 +261,7 @@ func (e *Engine) autoInject() error {
 	}
 	mws := e.Middleware.GetAll()
 	for _, mw := range mws {
-		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Middleware", mw.MiddlewareName()))
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Middleware", mw.MiddlewareName()))
 	}
 
 	// 6. Listener 层
@@ -275,7 +272,7 @@ func (e *Engine) autoInject() error {
 		}
 		listeners := e.Listener.GetAll()
 		for _, listener := range listeners {
-			e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Listener", listener.ListenerName()))
+			e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Listener", listener.ListenerName()))
 		}
 	}
 
@@ -287,7 +284,7 @@ func (e *Engine) autoInject() error {
 		}
 		schedulers := e.Scheduler.GetAll()
 		for _, scheduler := range schedulers {
-			e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Scheduler", scheduler.SchedulerName()))
+			e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Scheduler", scheduler.SchedulerName()))
 		}
 	}
 
@@ -298,7 +295,7 @@ func (e *Engine) autoInject() error {
 	if e.Scheduler != nil {
 		totalCount += len(e.Scheduler.GetAll())
 	}
-	e.logPhaseEnd(PhaseInjection, "依赖注入完成", logger.F("count", totalCount))
+	e.logPhaseEnd(PhaseInjection, "Dependency injection complete", logger.F("count", totalCount))
 
 	return nil
 }
@@ -361,13 +358,19 @@ func (e *Engine) Start() error {
 		if err := e.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			e.logger().Error("HTTP server error", "error", err)
 			errChan <- fmt.Errorf("HTTP server error: %w", err)
-			e.cancel()
 		}
 	}()
 
+	select {
+	case err := <-errChan:
+		return fmt.Errorf("HTTP server failed to start: %w", err)
+	case <-time.After(100 * time.Millisecond):
+		e.logger().Debug("HTTP server started successfully")
+	}
+
 	// 记录启动完成汇总
 	totalDuration := time.Since(e.startupStartTime)
-	e.logPhaseStart(PhaseStartup, "服务启动完成，开始对外提供服务",
+	e.logPhaseStart(PhaseStartup, "Service startup complete, starting to serve requests",
 		logger.F("addr", e.httpServer.Addr),
 		logger.F("total_duration", totalDuration.String()))
 
@@ -401,7 +404,7 @@ func (e *Engine) getGinEngine() *gin.Engine {
 
 // registerControllers 注册所有控制器路由
 func (e *Engine) registerControllers() error {
-	e.logPhaseStart(PhaseRouter, "开始注册路由")
+	e.logPhaseStart(PhaseRouter, "Starting to register routes")
 
 	controllers := e.Controller.GetAll()
 	registeredCount := 0
@@ -423,14 +426,14 @@ func (e *Engine) registerControllers() error {
 		handler := ctrl.Handle
 		e.registerRoute(method, path, handler)
 
-		e.logStartup(PhaseRouter, "注册路由",
+		e.logStartup(PhaseRouter, "Registered route",
 			logger.F("method", method),
 			logger.F("path", path),
 			logger.F("controller", ctrl.ControllerName()))
 		registeredCount++
 	}
 
-	e.logPhaseEnd(PhaseRouter, "路由注册完成",
+	e.logPhaseEnd(PhaseRouter, "Route registration complete",
 		logger.F("route_count", registeredCount),
 		logger.F("controller_count", len(controllers)))
 

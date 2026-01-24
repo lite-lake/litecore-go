@@ -20,7 +20,7 @@ func (m *mockManager) Health() error {
 	if m.healthy {
 		return nil
 	}
-	return errors.New("管理器不健康")
+	return errors.New("manager is unhealthy")
 }
 
 func (m *mockManager) OnStart() error {
@@ -38,15 +38,15 @@ func (f *failingManager) ManagerName() string {
 }
 
 func (f *failingManager) Health() error {
-	return errors.New("健康检查失败")
+	return errors.New("health check failed")
 }
 
 func (f *failingManager) OnStart() error {
-	return errors.New("启动失败")
+	return errors.New("start failed")
 }
 
 func (f *failingManager) OnStop() error {
-	return errors.New("停止失败")
+	return errors.New("stop failed")
 }
 
 func TestIBaseManager_基础接口实现(t *testing.T) {

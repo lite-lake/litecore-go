@@ -41,20 +41,20 @@ func (c *msgDeleteControllerImpl) Handle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.LoggerMgr.Ins().Error("删除留言失败：无效的留言 ID", "id_str", idStr, "error", err)
+		c.LoggerMgr.Ins().Error("Failed to delete message: invalid message ID", "id_str", idStr, "error", err)
 		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, "无效的留言 ID"))
 		return
 	}
 
-	c.LoggerMgr.Ins().Debug("开始删除留言", "id", id)
+	c.LoggerMgr.Ins().Debug("Starting to delete message", "id", id)
 
 	if err := c.MessageService.DeleteMessage(uint(id)); err != nil {
-		c.LoggerMgr.Ins().Error("删除留言失败", "id", id, "error", err)
+		c.LoggerMgr.Ins().Error("Failed to delete message", "id", id, "error", err)
 		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
 	}
 
-	c.LoggerMgr.Ins().Info("删除留言成功", "id", id)
+	c.LoggerMgr.Ins().Info("Message deleted successfully", "id", id)
 
 	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithMessage("删除成功"))
 }

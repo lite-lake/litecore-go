@@ -149,10 +149,7 @@ scheduler:
 			t.Error("引擎应该处于已启动状态")
 		}
 
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			_ = engine.Stop()
-		}()
+		_ = engine.Stop()
 	})
 
 	t.Run("重复启动_返回错误", func(t *testing.T) {
@@ -311,10 +308,7 @@ scheduler:
 			t.Error("引擎应该处于已启动状态")
 		}
 
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			_ = engine.Stop()
-		}()
+		_ = engine.Stop()
 	})
 
 	t.Run("重复启动_返回错误", func(t *testing.T) {
@@ -378,7 +372,7 @@ scheduler:
 
 		engine.serverConfig = &serverConfig{
 			Host:            "127.0.0.1",
-			Port:            18080,
+			Port:            18081,
 			Mode:            "test",
 			ReadTimeout:     1 * time.Second,
 			WriteTimeout:    1 * time.Second,
@@ -394,11 +388,6 @@ scheduler:
 			t.Fatalf("第一次启动失败: %v", err)
 		}
 
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			_ = engine.Stop()
-		}()
-
 		err := engine.Start()
 		if err == nil {
 			t.Error("期望重复启动返回错误")
@@ -407,5 +396,7 @@ scheduler:
 		if err != nil && !strings.Contains(err.Error(), "already started") {
 			t.Errorf("期望错误包含 'already started', 实际: %v", err)
 		}
+
+		_ = engine.Stop()
 	})
 }

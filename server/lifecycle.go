@@ -45,80 +45,80 @@ func (e *Engine) logPhaseEnd(phase StartupPhase, msg string, extraFields ...logg
 
 // startManagers 启动所有管理器
 func (e *Engine) startManagers() error {
-	e.logPhaseStart(PhaseStartup, "开始启动 Manager 层")
+	e.logPhaseStart(PhaseStartup, "Starting Manager layer")
 	managers := e.Manager.GetAll()
 
 	for _, mgr := range managers {
 		if err := mgr.(common.IBaseManager).OnStart(); err != nil {
 			return fmt.Errorf("failed to start manager %s: %w", mgr.(common.IBaseManager).ManagerName(), err)
 		}
-		e.logStartup(PhaseStartup, mgr.(common.IBaseManager).ManagerName()+": 启动完成")
+		e.logStartup(PhaseStartup, mgr.(common.IBaseManager).ManagerName()+": started")
 	}
 
-	e.logPhaseEnd(PhaseStartup, "Manager 层启动完成", logger.F("count", len(managers)))
+	e.logPhaseEnd(PhaseStartup, "Manager layer started", logger.F("count", len(managers)))
 	return nil
 }
 
 // startRepositories 启动所有仓储
 func (e *Engine) startRepositories() error {
-	e.logPhaseStart(PhaseStartup, "开始启动 Repository 层")
+	e.logPhaseStart(PhaseStartup, "Starting Repository layer")
 	repositories := e.Repository.GetAll()
 
 	for _, repo := range repositories {
 		if err := repo.OnStart(); err != nil {
 			return fmt.Errorf("failed to start repository %s: %w", repo.RepositoryName(), err)
 		}
-		e.logStartup(PhaseStartup, repo.RepositoryName()+": 启动完成")
+		e.logStartup(PhaseStartup, repo.RepositoryName()+": started")
 	}
 
-	e.logPhaseEnd(PhaseStartup, "Repository 层启动完成", logger.F("count", len(repositories)))
+	e.logPhaseEnd(PhaseStartup, "Repository layer started", logger.F("count", len(repositories)))
 	return nil
 }
 
 // startServices 启动所有服务
 func (e *Engine) startServices() error {
-	e.logPhaseStart(PhaseStartup, "开始启动 Service 层")
+	e.logPhaseStart(PhaseStartup, "Starting Service layer")
 	services := e.Service.GetAll()
 
 	for _, svc := range services {
 		if err := svc.OnStart(); err != nil {
 			return fmt.Errorf("failed to start service %s: %w", svc.ServiceName(), err)
 		}
-		e.logStartup(PhaseStartup, svc.ServiceName()+": 启动完成")
+		e.logStartup(PhaseStartup, svc.ServiceName()+": started")
 	}
 
-	e.logPhaseEnd(PhaseStartup, "Service 层启动完成", logger.F("count", len(services)))
+	e.logPhaseEnd(PhaseStartup, "Service layer started", logger.F("count", len(services)))
 	return nil
 }
 
 // startMiddlewares 启动所有中间件
 func (e *Engine) startMiddlewares() error {
-	e.logPhaseStart(PhaseStartup, "开始启动 Middleware 层")
+	e.logPhaseStart(PhaseStartup, "Starting Middleware layer")
 	middlewares := e.Middleware.GetAll()
 
 	for _, mw := range middlewares {
 		if err := mw.OnStart(); err != nil {
 			return fmt.Errorf("failed to start middleware %s: %w", mw.MiddlewareName(), err)
 		}
-		e.logStartup(PhaseStartup, mw.MiddlewareName()+": 启动完成")
+		e.logStartup(PhaseStartup, mw.MiddlewareName()+": started")
 	}
 
-	e.logPhaseEnd(PhaseStartup, "Middleware 层启动完成", logger.F("count", len(middlewares)))
+	e.logPhaseEnd(PhaseStartup, "Middleware layer started", logger.F("count", len(middlewares)))
 	return nil
 }
 
 // startListeners 启动所有监听器
 func (e *Engine) startListeners() error {
-	e.logPhaseStart(PhaseStartup, "开始启动 Listener 层")
+	e.logPhaseStart(PhaseStartup, "Starting Listener layer")
 
 	if e.Listener == nil {
-		e.getLogger().Info("未配置 Listener 层，跳过启动")
+		e.getLogger().Info("Listener layer not configured, skipping")
 		return nil
 	}
 
 	listeners := e.Listener.GetAll()
 	if len(listeners) == 0 {
-		e.getLogger().Info("没有注册的 Listener，跳过启动")
+		e.getLogger().Info("No registered Listener, skipping")
 		return nil
 	}
 
@@ -133,7 +133,7 @@ func (e *Engine) startListeners() error {
 		queue := listener.GetQueue()
 		opts := listener.GetSubscribeOptions()
 
-		e.getLogger().Info("启动消息监听器",
+		e.getLogger().Info("Starting message listener",
 			logger.F("listener", listener.ListenerName()),
 			logger.F("queue", queue))
 
@@ -155,29 +155,29 @@ func (e *Engine) startListeners() error {
 			subscribeOpts...,
 		)
 		if err != nil {
-			return fmt.Errorf("启动监听器 %s 失败: %w", listener.ListenerName(), err)
+			return fmt.Errorf("Failed to start listener %s: %w", listener.ListenerName(), err)
 		}
 
-		e.logStartup(PhaseStartup, listener.ListenerName()+": 启动完成")
+		e.logStartup(PhaseStartup, listener.ListenerName()+": started")
 		startedCount++
 	}
 
-	e.logPhaseEnd(PhaseStartup, "Listener 层启动完成", logger.F("count", startedCount))
+	e.logPhaseEnd(PhaseStartup, "Listener layer started", logger.F("count", startedCount))
 	return nil
 }
 
 // startSchedulers 启动所有定时器
 func (e *Engine) startSchedulers() error {
-	e.logPhaseStart(PhaseStartup, "开始启动 Scheduler 层")
+	e.logPhaseStart(PhaseStartup, "Starting Scheduler layer")
 
 	if e.Scheduler == nil {
-		e.getLogger().Info("未配置 Scheduler 层，跳过启动")
+		e.getLogger().Info("Scheduler layer not configured, skipping")
 		return nil
 	}
 
 	schedulers := e.Scheduler.GetAll()
 	if len(schedulers) == 0 {
-		e.getLogger().Info("没有注册的 Scheduler，跳过启动")
+		e.getLogger().Info("No registered Scheduler, skipping")
 		return nil
 	}
 
@@ -189,24 +189,24 @@ func (e *Engine) startSchedulers() error {
 	startedCount := 0
 
 	for _, scheduler := range schedulers {
-		e.getLogger().Info("注册定时器",
+		e.getLogger().Info("Registering scheduler",
 			logger.F("scheduler", scheduler.SchedulerName()),
 			logger.F("rule", scheduler.GetRule()),
 			logger.F("timezone", scheduler.GetTimezone()))
 
 		if err := schedulerMgr.RegisterScheduler(scheduler); err != nil {
-			return fmt.Errorf("注册定时器 %s 失败: %w", scheduler.SchedulerName(), err)
+			return fmt.Errorf("Failed to register scheduler %s: %w", scheduler.SchedulerName(), err)
 		}
 
 		if err := scheduler.OnStart(); err != nil {
-			return fmt.Errorf("启动定时器 %s 失败: %w", scheduler.SchedulerName(), err)
+			return fmt.Errorf("Failed to start scheduler %s: %w", scheduler.SchedulerName(), err)
 		}
 
-		e.logStartup(PhaseStartup, scheduler.SchedulerName()+": 启动完成")
+		e.logStartup(PhaseStartup, scheduler.SchedulerName()+": started")
 		startedCount++
 	}
 
-	e.logPhaseEnd(PhaseStartup, "Scheduler 层启动完成", logger.F("count", startedCount))
+	e.logPhaseEnd(PhaseStartup, "Scheduler layer started", logger.F("count", startedCount))
 	return nil
 }
 
@@ -270,7 +270,7 @@ func (e *Engine) stopListeners() []error {
 	for i := len(listeners) - 1; i >= 0; i-- {
 		listener := listeners[i]
 		if err := listener.OnStop(); err != nil {
-			errors = append(errors, fmt.Errorf("停止监听器 %s 失败: %w", listener.ListenerName(), err))
+			errors = append(errors, fmt.Errorf("Failed to stop listener %s: %w", listener.ListenerName(), err))
 		}
 	}
 
@@ -290,17 +290,17 @@ func (e *Engine) stopSchedulers() []error {
 		scheduler := schedulers[i]
 
 		if err := scheduler.OnStop(); err != nil {
-			errors = append(errors, fmt.Errorf("停止定时器 %s 失败: %w", scheduler.SchedulerName(), err))
+			errors = append(errors, fmt.Errorf("Failed to stop scheduler %s: %w", scheduler.SchedulerName(), err))
 		}
 
 		schedulerMgr, err := container.GetManager[schedulermgr.ISchedulerManager](e.Manager)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("获取 SchedulerManager 失败: %w", err))
+			errors = append(errors, fmt.Errorf("Failed to get SchedulerManager: %w", err))
 			continue
 		}
 
 		if err := schedulerMgr.UnregisterScheduler(scheduler); err != nil {
-			errors = append(errors, fmt.Errorf("注销定时器 %s 失败: %w", scheduler.SchedulerName(), err))
+			errors = append(errors, fmt.Errorf("Failed to unregister scheduler %s: %w", scheduler.SchedulerName(), err))
 		}
 	}
 
@@ -316,7 +316,7 @@ func (e *Engine) Stop() error {
 		return nil
 	}
 
-	e.logStartup(PhaseShutdown, "HTTP 服务器关闭...")
+	e.logStartup(PhaseShutdown, "Shutting down HTTP server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), e.shutdownTimeout)
 	defer cancel()
@@ -327,25 +327,25 @@ func (e *Engine) Stop() error {
 		}
 	}
 
-	e.logPhaseStart(PhaseShutdown, "开始停止各层组件")
+	e.logPhaseStart(PhaseShutdown, "Stopping all layers")
 
 	middlewareErrors := e.stopMiddlewares()
-	e.logStartup(PhaseShutdown, "Middleware 层停止完成")
+	e.logStartup(PhaseShutdown, "Middleware layer stopped")
 
 	listenerErrors := e.stopListeners()
-	e.logStartup(PhaseShutdown, "Listener 层停止完成")
+	e.logStartup(PhaseShutdown, "Listener layer stopped")
 
 	schedulerErrors := e.stopSchedulers()
-	e.logStartup(PhaseShutdown, "Scheduler 层停止完成")
+	e.logStartup(PhaseShutdown, "Scheduler layer stopped")
 
 	serviceErrors := e.stopServices()
-	e.logStartup(PhaseShutdown, "Service 层停止完成")
+	e.logStartup(PhaseShutdown, "Service layer stopped")
 
 	repositoryErrors := e.stopRepositories()
-	e.logStartup(PhaseShutdown, "Repository 层停止完成")
+	e.logStartup(PhaseShutdown, "Repository layer stopped")
 
 	managerErrors := e.stopManagers()
-	e.logStartup(PhaseShutdown, "Manager 层停止完成")
+	e.logStartup(PhaseShutdown, "Manager layer stopped")
 
 	allErrors := make([]error, 0, len(middlewareErrors)+len(listenerErrors)+len(schedulerErrors)+len(serviceErrors)+len(repositoryErrors)+len(managerErrors))
 	allErrors = append(allErrors, middlewareErrors...)
@@ -356,7 +356,7 @@ func (e *Engine) Stop() error {
 	allErrors = append(allErrors, managerErrors...)
 
 	totalDuration := time.Since(e.startupStartTime)
-	e.logPhaseEnd(PhaseShutdown, "关闭完成",
+	e.logPhaseEnd(PhaseShutdown, "Shutdown completed",
 		logger.F("error_count", len(allErrors)),
 		logger.F("total_duration", totalDuration.String()))
 

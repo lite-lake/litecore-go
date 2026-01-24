@@ -17,7 +17,7 @@
 //	// 使用默认的 none 驱动创建管理器
 //	mgr, err := telemetrymgr.Build("none", nil)
 //	if err != nil {
-//	    logger.Fatal("创建可观测性管理器失败", "error", err)
+//	    logger.Fatal("Failed to create telemetry manager", "error", err)
 //	}
 //	defer mgr.Shutdown(context.Background())
 //
@@ -27,7 +27,7 @@
 //	    "insecure": true,
 //	})
 //	if err != nil {
-//	    logger.Fatal("创建可观测性管理器失败", "error", err)
+//	    logger.Fatal("Failed to create telemetry manager", "error", err)
 //	}
 //	defer mgr.Shutdown(context.Background())
 //
@@ -42,7 +42,7 @@
 //	// 从配置提供者读取配置
 //	mgr, err := telemetrymgr.BuildWithConfigProvider(configProvider)
 //	if err != nil {
-//	    logger.Fatal("从配置提供者创建可观测性管理器失败", "error", err)
+//	    logger.Fatal("Failed to create telemetry manager from config provider", "error", err)
 //	}
 //
 // 配置路径：

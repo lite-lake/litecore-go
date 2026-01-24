@@ -7,58 +7,67 @@ import (
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
 )
 
+// IStatisticsScheduler 统计定时器接口
 type IStatisticsScheduler interface {
 	common.IBaseScheduler
 }
 
 type statisticsSchedulerImpl struct {
-	MessageService services.IMessageService `inject:""`
-	LoggerMgr      loggermgr.ILoggerManager `inject:""`
+	MessageService services.IMessageService `inject:""` // 留言服务
+	LoggerMgr      loggermgr.ILoggerManager `inject:""` // 日志管理器
 	logger         logger.ILogger
 }
 
+// NewStatisticsScheduler 创建统计定时器实例
 func NewStatisticsScheduler() IStatisticsScheduler {
 	return &statisticsSchedulerImpl{}
 }
 
+// SchedulerName 返回调度器名称
 func (s *statisticsSchedulerImpl) SchedulerName() string {
 	return "statisticsScheduler"
 }
 
+// GetRule 返回 cron 表达式
 func (s *statisticsSchedulerImpl) GetRule() string {
 	return "0 0 * * * *"
 }
 
+// GetTimezone 返回时区
 func (s *statisticsSchedulerImpl) GetTimezone() string {
 	return "Asia/Shanghai"
 }
 
+// OnTick 定时任务执行回调
 func (s *statisticsSchedulerImpl) OnTick(tickID int64) error {
 	s.initLogger()
-	s.logger.Info("开始统计任务", "tick_id", tickID)
+	s.logger.Info("Starting statistics task", "tick_id", tickID)
 
 	stats, err := s.MessageService.GetStatistics()
 	if err != nil {
-		s.logger.Error("获取统计信息失败", "error", err)
+		s.logger.Error("Failed to get statistics", "error", err)
 		return err
 	}
 
-	s.logger.Info("统计任务完成", "tick_id", tickID, "pending", stats["pending"], "approved", stats["approved"], "rejected", stats["rejected"], "total", stats["total"])
+	s.logger.Info("Statistics task completed", "tick_id", tickID, "pending", stats["pending"], "approved", stats["approved"], "rejected", stats["rejected"], "total", stats["total"])
 	return nil
 }
 
+// OnStart 调度器启动回调
 func (s *statisticsSchedulerImpl) OnStart() error {
 	s.initLogger()
-	s.logger.Info("统计定时器已启动")
+	s.logger.Info("Statistics scheduler started")
 	return nil
 }
 
+// OnStop 调度器停止回调
 func (s *statisticsSchedulerImpl) OnStop() error {
 	s.initLogger()
-	s.logger.Info("统计定时器已停止")
+	s.logger.Info("Statistics scheduler stopped")
 	return nil
 }
 
+// initLogger 初始化日志记录器
 func (s *statisticsSchedulerImpl) initLogger() {
 	if s.logger == nil && s.LoggerMgr != nil {
 		s.logger = s.LoggerMgr.Ins()

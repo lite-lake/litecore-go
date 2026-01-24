@@ -68,7 +68,7 @@ func Build(
 // 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
 func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheManager, error) {
 	if configProvider == nil {
-		return nil, fmt.Errorf("configProvider cannot be nil")
+		return nil, fmt.Errorf("config provider cannot be nil")
 	}
 
 	// 1. 读取驱动类型 cache.driver
@@ -79,7 +79,7 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheMan
 
 	driverTypeStr, err := common.GetString(driverType)
 	if err != nil {
-		return nil, fmt.Errorf("cache.driver: %w", err)
+		return nil, fmt.Errorf("invalid cache.driver config: %w", err)
 	}
 
 	// 2. 根据驱动类型读取对应配置
@@ -93,7 +93,7 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheMan
 		}
 		driverConfig, err = common.GetMap(redisConfig)
 		if err != nil {
-			return nil, fmt.Errorf("cache.redis_config: %w", err)
+			return nil, fmt.Errorf("invalid cache.redis_config config: %w", err)
 		}
 
 	case "memory":
@@ -103,7 +103,7 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheMan
 		}
 		driverConfig, err = common.GetMap(memoryConfig)
 		if err != nil {
-			return nil, fmt.Errorf("cache.memory_config: %w", err)
+			return nil, fmt.Errorf("invalid cache.memory_config config: %w", err)
 		}
 
 	case "none":
@@ -111,7 +111,7 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheMan
 		driverConfig = nil
 
 	default:
-		return nil, fmt.Errorf("unsupported driver type: %s (must be redis, memory, or none)", driverTypeStr)
+		return nil, fmt.Errorf("unsupported driver type: %s (must be redis, memory or none)", driverTypeStr)
 	}
 
 	// 3. 调用 Build 函数创建实例

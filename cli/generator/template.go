@@ -23,7 +23,7 @@ import (
 	{{- end}}
 )
 
-// InitEntityContainer 初始化实体容器
+// InitEntityContainer Initialize entity container
 func InitEntityContainer() *container.EntityContainer {
 	entityContainer := container.NewEntityContainer()
 
@@ -49,7 +49,7 @@ import (
 	{{- end}}
 )
 
-// InitRepositoryContainer 初始化仓储容器
+// InitRepositoryContainer Initialize repository container
 func InitRepositoryContainer(entityContainer *container.EntityContainer) *container.RepositoryContainer {
 	repositoryContainer := container.NewRepositoryContainer(entityContainer)
 
@@ -75,7 +75,7 @@ import (
 	{{- end}}
 )
 
-// InitServiceContainer 初始化服务容器
+// InitServiceContainer Initialize service container
 func InitServiceContainer(repositoryContainer *container.RepositoryContainer) *container.ServiceContainer {
 	serviceContainer := container.NewServiceContainer(repositoryContainer)
 
@@ -101,7 +101,7 @@ import (
 	{{- end}}
 )
 
-// InitControllerContainer 初始化控制器容器
+// InitControllerContainer Initialize controller container
 func InitControllerContainer(serviceContainer *container.ServiceContainer) *container.ControllerContainer {
 	controllerContainer := container.NewControllerContainer(serviceContainer)
 
@@ -127,7 +127,7 @@ import (
 	{{- end}}
 )
 
-// InitMiddlewareContainer 初始化中间件容器
+// InitMiddlewareContainer Initialize middleware container
 func InitMiddlewareContainer(serviceContainer *container.ServiceContainer) *container.MiddlewareContainer {
 	middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
@@ -153,7 +153,7 @@ import (
 	{{- end}}
 )
 
-// InitListenerContainer 初始化监听器容器
+// InitListenerContainer Initialize listener container
 func InitListenerContainer(serviceContainer *container.ServiceContainer) *container.ListenerContainer {
 	listenerContainer := container.NewListenerContainer(serviceContainer)
 
@@ -179,7 +179,7 @@ import (
 	{{- end}}
 )
 
-// InitSchedulerContainer 初始化定时器容器
+// InitSchedulerContainer Initialize scheduler container
 func InitSchedulerContainer(serviceContainer *container.ServiceContainer) *container.SchedulerContainer {
 	schedulerContainer := container.NewSchedulerContainer(serviceContainer)
 
@@ -198,7 +198,7 @@ import (
 	"github.com/lite-lake/litecore-go/server"
 )
 
-// NewEngine 创建应用引擎
+// NewEngine Create application engine
 func NewEngine() (*server.Engine, error) {
 	entityContainer := InitEntityContainer()
 	repositoryContainer := InitRepositoryContainer(entityContainer)

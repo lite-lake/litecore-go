@@ -42,7 +42,7 @@ func TestLogLevel_String(t *testing.T) {
 			expected: "fatal",
 		},
 		{
-			name:     "未知级别",
+			name:     "unknown level",
 			level:    LogLevel(99),
 			expected: "unknown",
 		},
@@ -64,22 +64,22 @@ func TestParseLogLevel(t *testing.T) {
 		expected LogLevel
 	}{
 		{
-			name:     "小写 debug",
+			name:     "lowercase debug",
 			input:    "debug",
 			expected: DebugLevel,
 		},
 		{
-			name:     "大写 DEBUG",
+			name:     "uppercase DEBUG",
 			input:    "DEBUG",
 			expected: DebugLevel,
 		},
 		{
-			name:     "混合大小写 DeBuG",
+			name:     "mixed case DeBuG",
 			input:    "DeBuG",
 			expected: DebugLevel,
 		},
 		{
-			name:     "带空格的 debug",
+			name:     "debug with spaces",
 			input:    " debug ",
 			expected: DebugLevel,
 		},
@@ -109,12 +109,12 @@ func TestParseLogLevel(t *testing.T) {
 			expected: FatalLevel,
 		},
 		{
-			name:     "无效级别返回默认 InfoLevel",
+			name:     "invalid level returns default InfoLevel",
 			input:    "invalid",
 			expected: InfoLevel,
 		},
 		{
-			name:     "空字符串返回默认 InfoLevel",
+			name:     "empty string returns default InfoLevel",
 			input:    "",
 			expected: InfoLevel,
 		},
@@ -136,47 +136,47 @@ func TestIsValidLogLevel(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "有效 debug",
+			name:     "valid debug",
 			level:    "debug",
 			expected: true,
 		},
 		{
-			name:     "有效 info",
+			name:     "valid info",
 			level:    "info",
 			expected: true,
 		},
 		{
-			name:     "有效 warn",
+			name:     "valid warn",
 			level:    "warn",
 			expected: true,
 		},
 		{
-			name:     "有效 warning",
+			name:     "valid warning",
 			level:    "warning",
 			expected: true,
 		},
 		{
-			name:     "有效 error",
+			name:     "valid error",
 			level:    "error",
 			expected: true,
 		},
 		{
-			name:     "有效 fatal",
+			name:     "valid fatal",
 			level:    "fatal",
 			expected: true,
 		},
 		{
-			name:     "空字符串有效",
+			name:     "empty string is valid",
 			level:    "",
 			expected: true,
 		},
 		{
-			name:     "无效级别",
+			name:     "invalid level",
 			level:    "invalid",
 			expected: false,
 		},
 		{
-			name:     "部分匹配",
+			name:     "partial match",
 			level:    "debugging",
 			expected: false,
 		},
@@ -198,37 +198,37 @@ func TestLogLevel_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "DebugLevel 有效",
+			name:    "DebugLevel is valid",
 			level:   DebugLevel,
 			wantErr: false,
 		},
 		{
-			name:    "InfoLevel 有效",
+			name:    "InfoLevel is valid",
 			level:   InfoLevel,
 			wantErr: false,
 		},
 		{
-			name:    "WarnLevel 有效",
+			name:    "WarnLevel is valid",
 			level:   WarnLevel,
 			wantErr: false,
 		},
 		{
-			name:    "ErrorLevel 有效",
+			name:    "ErrorLevel is valid",
 			level:   ErrorLevel,
 			wantErr: false,
 		},
 		{
-			name:    "FatalLevel 有效",
+			name:    "FatalLevel is valid",
 			level:   FatalLevel,
 			wantErr: false,
 		},
 		{
-			name:    "负数级别无效",
+			name:    "negative level is invalid",
 			level:   LogLevel(-1),
 			wantErr: true,
 		},
 		{
-			name:    "超出范围的级别无效",
+			name:    "out of range level is invalid",
 			level:   LogLevel(99),
 			wantErr: true,
 		},
@@ -323,7 +323,7 @@ func TestLogLevel_UnmarshalText(t *testing.T) {
 			expected: FatalLevel,
 		},
 		{
-			name:     "无效字符串",
+			name:     "invalid string",
 			data:     []byte("invalid"),
 			expected: InfoLevel,
 		},
@@ -418,7 +418,7 @@ func TestLogLevelToZap(t *testing.T) {
 			expected: zapcore.FatalLevel,
 		},
 		{
-			name:     "无效级别",
+			name:     "invalid level",
 			level:    LogLevel(99),
 			expected: zapcore.InfoLevel,
 		},
@@ -496,15 +496,15 @@ func TestNewDefaultLogger(t *testing.T) {
 		input string
 	}{
 		{
-			name:  "普通名称",
+			name:  "normal name",
 			input: "TestLogger",
 		},
 		{
-			name:  "空名称",
+			name:  "empty name",
 			input: "",
 		},
 		{
-			name:  "带特殊字符",
+			name:  "name with special chars",
 			input: "Logger-123",
 		},
 	}
@@ -513,10 +513,10 @@ func TestNewDefaultLogger(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := NewDefaultLogger(tt.input)
 			if logger == nil {
-				t.Fatal("NewDefaultLogger() 返回 nil")
+				t.Fatal("NewDefaultLogger() returned nil")
 			}
 			if logger.level != InfoLevel {
-				t.Errorf("默认级别应该是 InfoLevel, got %v", logger.level)
+				t.Errorf("default level should be InfoLevel, got %v", logger.level)
 			}
 		})
 	}
@@ -530,23 +530,23 @@ func TestDefaultLogger_SetLevel(t *testing.T) {
 		level LogLevel
 	}{
 		{
-			name:  "设置 DebugLevel",
+			name:  "set DebugLevel",
 			level: DebugLevel,
 		},
 		{
-			name:  "设置 InfoLevel",
+			name:  "set InfoLevel",
 			level: InfoLevel,
 		},
 		{
-			name:  "设置 WarnLevel",
+			name:  "set WarnLevel",
 			level: WarnLevel,
 		},
 		{
-			name:  "设置 ErrorLevel",
+			name:  "set ErrorLevel",
 			level: ErrorLevel,
 		},
 		{
-			name:  "设置 FatalLevel",
+			name:  "set FatalLevel",
 			level: FatalLevel,
 		},
 	}
@@ -555,7 +555,7 @@ func TestDefaultLogger_SetLevel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger.SetLevel(tt.level)
 			if logger.level != tt.level {
-				t.Errorf("设置级别后应该为 %v, got %v", tt.level, logger.level)
+				t.Errorf("level should be %v after setting, got %v", tt.level, logger.level)
 			}
 		})
 	}
@@ -569,15 +569,15 @@ func TestDefaultLogger_With(t *testing.T) {
 		args []any
 	}{
 		{
-			name: "添加单个字段",
+			name: "add single field",
 			args: []any{"key", "value"},
 		},
 		{
-			name: "添加多个字段",
+			name: "add multiple fields",
 			args: []any{"key1", "value1", "key2", "value2"},
 		},
 		{
-			name: "添加空字段",
+			name: "add empty fields",
 			args: []any{},
 		},
 	}
@@ -586,10 +586,10 @@ func TestDefaultLogger_With(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			newLogger := logger.With(tt.args...)
 			if newLogger == nil {
-				t.Fatal("With() 返回 nil")
+				t.Fatal("With() returned nil")
 			}
 			if newLogger == logger {
-				t.Error("With() 应该返回新的 logger 实例")
+				t.Error("With() should return new logger instance")
 			}
 		})
 	}
@@ -601,7 +601,7 @@ func TestDefaultLogger_WithPreservesLevel(t *testing.T) {
 
 	newLogger := logger.With("key", "value")
 	if newLogger.(*DefaultLogger).level != DebugLevel {
-		t.Errorf("With() 应该保持原级别, got %v", newLogger.(*DefaultLogger).level)
+		t.Errorf("With() should preserve original level, got %v", newLogger.(*DefaultLogger).level)
 	}
 }
 
@@ -611,7 +611,7 @@ func TestDefaultLogger_WithAccumulatesFields(t *testing.T) {
 	logger2 := logger1.With("key2", "value2")
 
 	if len(logger2.(*DefaultLogger).extraArgs) != 4 {
-		t.Errorf("应该累积所有字段, got %v", len(logger2.(*DefaultLogger).extraArgs))
+		t.Errorf("should accumulate all fields, got %v", len(logger2.(*DefaultLogger).extraArgs))
 	}
 }
 
@@ -625,7 +625,7 @@ func TestDefaultLogger_LevelFiltering(t *testing.T) {
 		shouldLogError bool
 	}{
 		{
-			name:           "DebugLevel 记录所有",
+			name:           "DebugLevel logs all",
 			level:          DebugLevel,
 			shouldLogDebug: true,
 			shouldLogInfo:  true,
@@ -633,7 +633,7 @@ func TestDefaultLogger_LevelFiltering(t *testing.T) {
 			shouldLogError: true,
 		},
 		{
-			name:           "InfoLevel 跳过 Debug",
+			name:           "InfoLevel skips Debug",
 			level:          InfoLevel,
 			shouldLogDebug: false,
 			shouldLogInfo:  true,
@@ -641,7 +641,7 @@ func TestDefaultLogger_LevelFiltering(t *testing.T) {
 			shouldLogError: true,
 		},
 		{
-			name:           "WarnLevel 跳过 Debug 和 Info",
+			name:           "WarnLevel skips Debug and Info",
 			level:          WarnLevel,
 			shouldLogDebug: false,
 			shouldLogInfo:  false,
@@ -649,7 +649,7 @@ func TestDefaultLogger_LevelFiltering(t *testing.T) {
 			shouldLogError: true,
 		},
 		{
-			name:           "ErrorLevel 只记录 Error 和 Fatal",
+			name:           "ErrorLevel only logs Error and Fatal",
 			level:          ErrorLevel,
 			shouldLogDebug: false,
 			shouldLogInfo:  false,
@@ -657,7 +657,7 @@ func TestDefaultLogger_LevelFiltering(t *testing.T) {
 			shouldLogError: true,
 		},
 		{
-			name:           "FatalLevel 只记录 Fatal",
+			name:           "FatalLevel only logs Fatal",
 			level:          FatalLevel,
 			shouldLogDebug: false,
 			shouldLogInfo:  false,
@@ -691,16 +691,16 @@ func TestDefaultLogger_LevelFiltering(t *testing.T) {
 			errorLogged := strings.Contains(buf.String(), "ERROR:")
 
 			if debugLogged != tt.shouldLogDebug {
-				t.Errorf("Debug 日志记录结果: %v, 期望: %v", debugLogged, tt.shouldLogDebug)
+				t.Errorf("Debug log result: %v, expected: %v", debugLogged, tt.shouldLogDebug)
 			}
 			if infoLogged != tt.shouldLogInfo {
-				t.Errorf("Info 日志记录结果: %v, 期望: %v", infoLogged, tt.shouldLogInfo)
+				t.Errorf("Info log result: %v, expected: %v", infoLogged, tt.shouldLogInfo)
 			}
 			if warnLogged != tt.shouldLogWarn {
-				t.Errorf("Warn 日志记录结果: %v, 期望: %v", warnLogged, tt.shouldLogWarn)
+				t.Errorf("Warn log result: %v, expected: %v", warnLogged, tt.shouldLogWarn)
 			}
 			if errorLogged != tt.shouldLogError {
-				t.Errorf("Error 日志记录结果: %v, 期望: %v", errorLogged, tt.shouldLogError)
+				t.Errorf("Error log result: %v, expected: %v", errorLogged, tt.shouldLogError)
 			}
 
 			log.SetOutput(os.Stderr)
@@ -719,19 +719,19 @@ func TestDefaultLogger_LogOutputFormat(t *testing.T) {
 
 	output := buf.String()
 	if !strings.Contains(output, "[TestLogger]") {
-		t.Error("日志输出应该包含前缀")
+		t.Error("log output should contain prefix")
 	}
 	if !strings.Contains(output, "INFO:") {
-		t.Error("日志输出应该包含级别")
+		t.Error("log output should contain level")
 	}
 	if !strings.Contains(output, "test message") {
-		t.Error("日志输出应该包含消息")
+		t.Error("log output should contain message")
 	}
 	if !strings.Contains(output, "key") {
-		t.Error("日志输出应该包含字段键")
+		t.Error("log output should contain field key")
 	}
 	if !strings.Contains(output, "value") {
-		t.Error("日志输出应该包含字段值")
+		t.Error("log output should contain field value")
 	}
 }
 
@@ -746,16 +746,16 @@ func TestDefaultLogger_WithFields(t *testing.T) {
 
 	output := buf.String()
 	if !strings.Contains(output, "key1") {
-		t.Error("日志输出应该包含 With 添加的字段")
+		t.Error("log output should contain field added by With")
 	}
 	if !strings.Contains(output, "value1") {
-		t.Error("日志输出应该包含 With 添加的字段值")
+		t.Error("log output should contain field value added by With")
 	}
 	if !strings.Contains(output, "key2") {
-		t.Error("日志输出应该包含直接传递的字段")
+		t.Error("log output should contain directly passed field")
 	}
 	if !strings.Contains(output, "value2") {
-		t.Error("日志输出应该包含直接传递的字段值")
+		t.Error("log output should contain directly passed field value")
 	}
 }
 

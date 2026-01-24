@@ -42,31 +42,31 @@ func (b *mqManagerBaseImpl) initObservability() {
 
 	b.publishCounter, _ = b.meter.Int64Counter(
 		"mq.publish",
-		metric.WithDescription("消息发布次数"),
+		metric.WithDescription("Number of messages published"),
 		metric.WithUnit("{message}"),
 	)
 
 	b.consumeCounter, _ = b.meter.Int64Counter(
 		"mq.consume",
-		metric.WithDescription("消息消费次数"),
+		metric.WithDescription("Number of messages consumed"),
 		metric.WithUnit("{message}"),
 	)
 
 	b.ackCounter, _ = b.meter.Int64Counter(
 		"mq.ack",
-		metric.WithDescription("消息确认次数"),
+		metric.WithDescription("Number of messages acknowledged"),
 		metric.WithUnit("{message}"),
 	)
 
 	b.nackCounter, _ = b.meter.Int64Counter(
 		"mq.nack",
-		metric.WithDescription("消息拒绝次数"),
+		metric.WithDescription("Number of messages rejected"),
 		metric.WithUnit("{message}"),
 	)
 
 	b.operationDuration, _ = b.meter.Float64Histogram(
 		"mq.operation.duration",
-		metric.WithDescription("消息队列操作耗时（秒）"),
+		metric.WithDescription("Duration of message queue operations in seconds"),
 		metric.WithUnit("s"),
 	)
 }

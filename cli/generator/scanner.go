@@ -33,7 +33,7 @@ func NewScanner(projectPath, moduleName string) *Scanner {
 func (s *Scanner) Scan() (*analyzer.ProjectInfo, error) {
 	info, err := s.analyzer.Analyze()
 	if err != nil {
-		return nil, fmt.Errorf("analyze failed: %w", err)
+		return nil, fmt.Errorf("failed to scan project: %w", err)
 	}
 
 	s.scanComponents(info)

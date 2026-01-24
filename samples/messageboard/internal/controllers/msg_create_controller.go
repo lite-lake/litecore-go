@@ -38,21 +38,21 @@ func (c *msgCreateControllerImpl) GetRouter() string {
 func (c *msgCreateControllerImpl) Handle(ctx *gin.Context) {
 	var req dtos.CreateMessageRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		c.LoggerMgr.Ins().Error("创建留言失败：参数绑定失败", "error", err)
+		c.LoggerMgr.Ins().Error("Failed to create message: parameter binding error", "error", err)
 		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
 	}
 
-	c.LoggerMgr.Ins().Debug("开始创建留言", "nickname", req.Nickname, "content_length", len(req.Content))
+	c.LoggerMgr.Ins().Debug("Starting to create message", "nickname", req.Nickname, "content_length", len(req.Content))
 
 	message, err := c.MessageService.CreateMessage(req.Nickname, req.Content)
 	if err != nil {
-		c.LoggerMgr.Ins().Error("创建留言失败", "nickname", req.Nickname, "error", err)
+		c.LoggerMgr.Ins().Error("Failed to create message", "nickname", req.Nickname, "error", err)
 		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
 	}
 
-	c.LoggerMgr.Ins().Info("创建留言成功", "id", message.ID, "nickname", message.Nickname)
+	c.LoggerMgr.Ins().Info("Message created successfully", "id", message.ID, "nickname", message.Nickname)
 
 	ctx.JSON(common.HTTPStatusOK, dtos.SuccessResponse("留言提交成功，等待审核", gin.H{
 		"id": message.ID,

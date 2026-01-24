@@ -24,7 +24,7 @@ package loggermgr
 //	    panic(err)
 //	}
 //	log := mgr.Ins()
-//	log.Info("应用启动", "port", 8080)
+//	log.Info("Application started", "port", 8080)
 //
 // 配置示例：
 //

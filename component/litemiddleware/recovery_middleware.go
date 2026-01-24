@@ -26,7 +26,7 @@ func DefaultRecoveryConfig() *RecoveryConfig {
 	name := "RecoveryMiddleware"
 	printStack := true
 	customErrorBody := true
-	errorMessage := "内部服务器错误"
+	errorMessage := "Internal server error"
 	errorCode := "INTERNAL_SERVER_ERROR"
 	return &RecoveryConfig{
 		Name:            &name,
@@ -129,7 +129,7 @@ func (m *recoveryMiddleware) Wrapper() gin.HandlerFunc {
 					fields = append(fields, "stack", string(stack))
 				}
 
-				m.LoggerMgr.Ins().Error("PANIC recovered", fields...)
+				m.LoggerMgr.Ins().Error("PANIC recovered - internal error", fields...)
 
 				if m.cfg.CustomErrorBody != nil && *m.cfg.CustomErrorBody {
 					c.JSON(common.HTTPStatusInternalServerError, gin.H{

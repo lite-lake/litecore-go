@@ -36,11 +36,11 @@ func (c *msgAllControllerImpl) GetRouter() string {
 
 // Handle 处理获取所有留言列表请求（管理员专用）
 func (c *msgAllControllerImpl) Handle(ctx *gin.Context) {
-	c.LoggerMgr.Ins().Debug("开始获取所有留言列表")
+	c.LoggerMgr.Ins().Debug("Starting to fetch all messages")
 
 	messages, err := c.MessageService.GetAllMessages()
 	if err != nil {
-		c.LoggerMgr.Ins().Error("获取所有留言失败", "error", err)
+		c.LoggerMgr.Ins().Error("Failed to fetch all messages", "error", err)
 		ctx.JSON(common.HTTPStatusInternalServerError, dtos.ErrInternalServer)
 		return
 	}
@@ -56,7 +56,7 @@ func (c *msgAllControllerImpl) Handle(ctx *gin.Context) {
 		))
 	}
 
-	c.LoggerMgr.Ins().Info("获取所有留言成功", "count", len(responseList))
+	c.LoggerMgr.Ins().Info("Successfully fetched all messages", "count", len(responseList))
 
 	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithData(responseList))
 }

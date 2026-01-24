@@ -53,7 +53,7 @@ func (l *AsyncStartupLogger) Log(phase StartupPhase, msg string, fields ...logge
 	select {
 	case l.buffer <- event:
 	default:
-		l.logger.Warn("启动日志缓冲区已满，丢弃日志", "msg", msg, "phase", phase.String())
+		l.logger.Warn("Startup log buffer is full, discarding log", "msg", msg, "phase", phase.String())
 	}
 }
 
