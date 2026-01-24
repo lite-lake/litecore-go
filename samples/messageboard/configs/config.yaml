@@ -29,7 +29,7 @@ database:
   auto_migrate: true                            # 是否自动迁移数据库表结构（默认 false）
   # MySQL 配置示例
   # mysql_config:
-  #   dsn: "root:password@tcp(localhost:3306)/messageboard?charset=utf8mb4&parseTime=True&loc=Local" # 数据源名称
+  #   dsn: "root:password@tcp(localhost:3306)/messageboard?charset=utf8mb4&parseTime=True&loc=Local" # MySQL 数据源名称
   #   pool_config:                             # 连接池配置
   #     max_open_conns: 10                     # 最大打开连接数
   #     max_idle_conns: 5                      # 最大空闲连接数
@@ -37,7 +37,7 @@ database:
   #     conn_max_idle_time: "5m"               # 连接最大空闲时间
   # PostgreSQL 配置示例
   # postgresql_config:
-  #   dsn: "host=localhost port=5432 user=postgres password= dbname=messageboard sslmode=disable" # 数据源名称
+  #   dsn: "host=localhost port=5432 user=postgres password= dbname=messageboard sslmode=disable" # PostgreSQL 数据源名称
   #   pool_config:                             # 连接池配置
   #     max_open_conns: 10                     # 最大打开连接数
   #     max_idle_conns: 5                      # 最大空闲连接数
