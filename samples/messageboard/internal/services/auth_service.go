@@ -20,7 +20,7 @@ type IAuthService interface {
 	ValidateToken(token string) (*dtos.AdminSession, error) // 验证 token 有效性
 }
 
-type authService struct {
+type authServiceImpl struct {
 	Config         configmgr.IConfigManager `inject:""` // 配置管理器
 	LoggerMgr      loggermgr.ILoggerManager `inject:""` // 日志管理器
 	SessionService ISessionService          `inject:""` // 会话服务
@@ -28,26 +28,26 @@ type authService struct {
 
 // NewAuthService 创建认证服务实例
 func NewAuthService() IAuthService {
-	return &authService{}
+	return &authServiceImpl{}
 }
 
 // ServiceName 返回服务名称
-func (s *authService) ServiceName() string {
+func (s *authServiceImpl) ServiceName() string {
 	return "AuthService"
 }
 
 // OnStart 启动时初始化
-func (s *authService) OnStart() error {
+func (s *authServiceImpl) OnStart() error {
 	return nil
 }
 
 // OnStop 停止时清理
-func (s *authService) OnStop() error {
+func (s *authServiceImpl) OnStop() error {
 	return nil
 }
 
 // VerifyPassword 验证管理员密码是否正确
-func (s *authService) VerifyPassword(password string) bool {
+func (s *authServiceImpl) VerifyPassword(password string) bool {
 	storedPassword, err := configmgr.Get[string](s.Config, "app.admin.password")
 	if err != nil {
 		s.LoggerMgr.Ins().Error("获取管理员密码失败", "error", err)
@@ -57,7 +57,7 @@ func (s *authService) VerifyPassword(password string) bool {
 }
 
 // Login 管理员登录，验证密码后创建会话
-func (s *authService) Login(password string) (string, error) {
+func (s *authServiceImpl) Login(password string) (string, error) {
 	if !s.VerifyPassword(password) {
 		s.LoggerMgr.Ins().Warn("登录失败：密码错误")
 		return "", fmt.Errorf("invalid password")
@@ -75,14 +75,14 @@ func (s *authService) Login(password string) (string, error) {
 }
 
 // Logout 管理员退出登录，删除会话
-func (s *authService) Logout(token string) error {
+func (s *authServiceImpl) Logout(token string) error {
 	s.LoggerMgr.Ins().Info("退出登录", "token", token)
 	return s.SessionService.DeleteSession(token)
 }
 
 // ValidateToken 验证 token 有效性
-func (s *authService) ValidateToken(token string) (*dtos.AdminSession, error) {
+func (s *authServiceImpl) ValidateToken(token string) (*dtos.AdminSession, error) {
 	return s.SessionService.ValidateSession(token)
 }
 
-var _ IAuthService = (*authService)(nil)
+var _ IAuthService = (*authServiceImpl)(nil)

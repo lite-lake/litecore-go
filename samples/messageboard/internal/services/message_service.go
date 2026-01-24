@@ -24,7 +24,7 @@ type IMessageService interface {
 	GetStatistics() (map[string]int64, error)                          // 获取留言统计信息
 }
 
-type messageService struct {
+type messageServiceImpl struct {
 	Config     configmgr.IConfigManager        `inject:""` // 配置管理器
 	Repository repositories.IMessageRepository `inject:""` // 留言仓储
 	LoggerMgr  loggermgr.ILoggerManager        `inject:""` // 日志管理器
@@ -32,27 +32,27 @@ type messageService struct {
 
 // NewMessageService 创建留言服务实例
 func NewMessageService() IMessageService {
-	return &messageService{}
+	return &messageServiceImpl{}
 }
 
 // ServiceName 返回服务名称
-func (s *messageService) ServiceName() string {
+func (s *messageServiceImpl) ServiceName() string {
 	return "MessageService"
 }
 
 // OnStart 启动时初始化
-func (s *messageService) OnStart() error {
+func (s *messageServiceImpl) OnStart() error {
 	return nil
 }
 
 // OnStop 停止时清理
-func (s *messageService) OnStop() error {
+func (s *messageServiceImpl) OnStop() error {
 	return nil
 }
 
 // CreateMessage 创建新留言
 // 验证昵称和内容长度，初始状态为 pending
-func (s *messageService) CreateMessage(nickname, content string) (*entities.Message, error) {
+func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.Message, error) {
 	if len(nickname) < 2 || len(nickname) > 20 {
 		s.LoggerMgr.Ins().Warn("创建留言失败：昵称长度不符合要求", "nickname_length", len(nickname))
 		return nil, errors.New("昵称长度必须在 2-20 个字符之间")
@@ -83,7 +83,7 @@ func (s *messageService) CreateMessage(nickname, content string) (*entities.Mess
 }
 
 // GetApprovedMessages 获取已审核通过的留言列表
-func (s *messageService) GetApprovedMessages() ([]*entities.Message, error) {
+func (s *messageServiceImpl) GetApprovedMessages() ([]*entities.Message, error) {
 
 	s.LoggerMgr.Ins().Debug("获取已审核留言列表")
 
@@ -99,7 +99,7 @@ func (s *messageService) GetApprovedMessages() ([]*entities.Message, error) {
 }
 
 // GetAllMessages 获取所有留言列表（管理员专用）
-func (s *messageService) GetAllMessages() ([]*entities.Message, error) {
+func (s *messageServiceImpl) GetAllMessages() ([]*entities.Message, error) {
 	s.LoggerMgr.Ins().Debug("获取所有留言列表")
 
 	messages, err := s.Repository.GetAllMessages()
@@ -115,7 +115,7 @@ func (s *messageService) GetAllMessages() ([]*entities.Message, error) {
 
 // UpdateMessageStatus 更新留言状态（管理员专用）
 // 状态值必须是 pending、approved 或 rejected
-func (s *messageService) UpdateMessageStatus(id uint, status string) error {
+func (s *messageServiceImpl) UpdateMessageStatus(id uint, status string) error {
 	if status != "pending" && status != "approved" && status != "rejected" {
 		s.LoggerMgr.Ins().Warn("更新留言状态失败：无效的状态值", "id", id, "status", status)
 		return errors.New("invalid status value")
@@ -144,7 +144,7 @@ func (s *messageService) UpdateMessageStatus(id uint, status string) error {
 }
 
 // DeleteMessage 删除留言（管理员专用）
-func (s *messageService) DeleteMessage(id uint) error {
+func (s *messageServiceImpl) DeleteMessage(id uint) error {
 	s.LoggerMgr.Ins().Debug("准备删除留言", "id", id)
 
 	message, err := s.Repository.GetByID(id)
@@ -169,7 +169,7 @@ func (s *messageService) DeleteMessage(id uint) error {
 
 // GetStatistics 获取留言统计信息
 // 返回各状态留言数量及总数
-func (s *messageService) GetStatistics() (map[string]int64, error) {
+func (s *messageServiceImpl) GetStatistics() (map[string]int64, error) {
 	pendingCount, err := s.Repository.CountByStatus("pending")
 	if err != nil {
 		return nil, err
@@ -193,4 +193,4 @@ func (s *messageService) GetStatistics() (map[string]int64, error) {
 	}, nil
 }
 
-var _ IMessageService = (*messageService)(nil)
+var _ IMessageService = (*messageServiceImpl)(nil)

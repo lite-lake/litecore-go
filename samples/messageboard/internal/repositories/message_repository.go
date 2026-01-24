@@ -20,39 +20,39 @@ type IMessageRepository interface {
 	CountByStatus(status string) (int64, error)        // 根据状态统计留言数量
 }
 
-type messageRepository struct {
+type messageRepositoryImpl struct {
 	Config  configmgr.IConfigManager     `inject:""` // 配置管理器
 	Manager databasemgr.IDatabaseManager `inject:""` // 数据库管理器
 }
 
 // NewMessageRepository 创建留言仓储实例
 func NewMessageRepository() IMessageRepository {
-	return &messageRepository{}
+	return &messageRepositoryImpl{}
 }
 
 // RepositoryName 返回仓储名称
-func (r *messageRepository) RepositoryName() string {
+func (r *messageRepositoryImpl) RepositoryName() string {
 	return "MessageRepository"
 }
 
 // OnStart 启动时自动迁移数据库表结构
-func (r *messageRepository) OnStart() error {
+func (r *messageRepositoryImpl) OnStart() error {
 	return r.Manager.AutoMigrate(&entities.Message{})
 }
 
 // OnStop 停止时清理资源
-func (r *messageRepository) OnStop() error {
+func (r *messageRepositoryImpl) OnStop() error {
 	return nil
 }
 
 // Create 在数据库中创建新留言
-func (r *messageRepository) Create(message *entities.Message) error {
+func (r *messageRepositoryImpl) Create(message *entities.Message) error {
 	db := r.Manager.DB()
 	return db.Create(message).Error
 }
 
 // GetByID 根据 ID 获取留言记录
-func (r *messageRepository) GetByID(id uint) (*entities.Message, error) {
+func (r *messageRepositoryImpl) GetByID(id uint) (*entities.Message, error) {
 	db := r.Manager.DB()
 	var message entities.Message
 	err := db.First(&message, id).Error
@@ -63,7 +63,7 @@ func (r *messageRepository) GetByID(id uint) (*entities.Message, error) {
 }
 
 // GetApprovedMessages 获取已审核通过的留言列表，按创建时间倒序排列
-func (r *messageRepository) GetApprovedMessages() ([]*entities.Message, error) {
+func (r *messageRepositoryImpl) GetApprovedMessages() ([]*entities.Message, error) {
 	db := r.Manager.DB()
 	var messages []*entities.Message
 	err := db.Where("status = ?", "approved").
@@ -73,7 +73,7 @@ func (r *messageRepository) GetApprovedMessages() ([]*entities.Message, error) {
 }
 
 // GetAllMessages 获取所有留言列表，按创建时间倒序排列
-func (r *messageRepository) GetAllMessages() ([]*entities.Message, error) {
+func (r *messageRepositoryImpl) GetAllMessages() ([]*entities.Message, error) {
 	db := r.Manager.DB()
 	var messages []*entities.Message
 	err := db.Order("created_at DESC").Find(&messages).Error
@@ -81,7 +81,7 @@ func (r *messageRepository) GetAllMessages() ([]*entities.Message, error) {
 }
 
 // UpdateStatus 更新指定留言的状态
-func (r *messageRepository) UpdateStatus(id uint, status string) error {
+func (r *messageRepositoryImpl) UpdateStatus(id uint, status string) error {
 	db := r.Manager.DB()
 	return db.Model(&entities.Message{}).
 		Where("id = ?", id).
@@ -89,13 +89,13 @@ func (r *messageRepository) UpdateStatus(id uint, status string) error {
 }
 
 // Delete 删除指定的留言记录
-func (r *messageRepository) Delete(id uint) error {
+func (r *messageRepositoryImpl) Delete(id uint) error {
 	db := r.Manager.DB()
 	return db.Delete(&entities.Message{}, id).Error
 }
 
 // CountByStatus 统计指定状态的留言数量
-func (r *messageRepository) CountByStatus(status string) (int64, error) {
+func (r *messageRepositoryImpl) CountByStatus(status string) (int64, error) {
 	db := r.Manager.DB()
 	var count int64
 	err := db.Model(&entities.Message{}).
@@ -104,4 +104,4 @@ func (r *messageRepository) CountByStatus(status string) (int64, error) {
 	return count, err
 }
 
-var _ IMessageRepository = (*messageRepository)(nil)
+var _ IMessageRepository = (*messageRepositoryImpl)(nil)
