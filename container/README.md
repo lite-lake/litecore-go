@@ -1,16 +1,16 @@
 # Container
 
-依赖注入容器，支持 7 层分层架构的自动依赖管理。
+ 依赖注入容器，支持 5 层分层架构的自动依赖管理，交互层包含 4 种组件容器。
 
-## 特性
+ ## 特性
 
-- **7 层容器** - Entity、Manager、Repository、Service、Controller、Middleware、Scheduler、Listener 八层容器
-- **类型安全** - 泛型注册与获取，编译时类型检查
-- **自动注入** - 通过 `inject:""` 结构体标签自动注入依赖
-- **拓扑排序** - Service 层使用 Kahn 算法检测并解决循环依赖
-- **线程安全** - 所有容器操作使用读写锁保护
-- **分层依赖** - 严格的依赖层级，Controller/Middleware/Scheduler/Listener 禁止直接注入 Repository
-- **Manager 自动初始化** - Engine 自动初始化并注册内置 Manager
+ - **5 层容器** - 内置管理器层、Entity、Repository、Service、交互层（Controller/Middleware/Listener/Scheduler 4 种容器）
+ - **类型安全** - 泛型注册与获取，编译时类型检查
+ - **自动注入** - 通过 `inject:""` 结构体标签自动注入依赖
+ - **拓扑排序** - Service 层使用 Kahn 算法检测并解决循环依赖
+ - **线程安全** - 所有容器操作使用读写锁保护
+ - **分层依赖** - 严格的依赖层级，交互层禁止直接注入 Repository
+ - **Manager 自动初始化** - Engine 自动初始化并注册内置 Manager
 
 ## 快速开始
 
@@ -70,46 +70,44 @@ func NewEngine() (*server.Engine, error) {
 }
 ```
 
-## 分层架构
+ ## 分层架构
 
-容器支持 7 层分层架构，严格遵循依赖方向：
+ 容器支持 5 层分层架构，严格遵循依赖方向：
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   Controller Layer                       │
-│              (HTTP 请求处理和响应)                        │
-├─────────────────────────────────────────────────────────┤
-│                  Middleware Layer                        │
-│              (请求预处理和后处理)                         │
-├─────────────────────────────────────────────────────────┤
-│                   Service Layer                          │
-│              (业务逻辑和数据处理)                         │
-│            【支持服务间依赖 + 拓扑排序】                    │
-├─────────────────────────────────────────────────────────┤
-│                 Repository Layer                         │
-│              (数据访问和持久化)                           │
-├─────────────────────────────────────────────────────────┤
-│                   Entity Layer                           │
-│              (数据模型和领域对象)                         │
-└─────────────────────────────────────────────────────────┘
-            ↑                                              ↑
-            └───────────────── Manager Layer ───────────────┘
-             (configmgr、loggermgr、databasemgr、cachemgr、
-              lockmgr、limitermgr、mqmgr、telemetrymgr)
-```
+ ```
+ ┌─────────────────────────────────────────────────────────────┐
+ │                交互层 (Interaction Layer)                  │
+ │  Controller/Middleware/Listener/Scheduler               │
+ │  (HTTP 请求、MQ 消息、定时任务的统一处理)                    │
+ ├─────────────────────────────────────────────────────────────┤
+ │                    Service Layer                          │
+ │              (业务逻辑和数据处理)                          │
+ │            【支持服务间依赖 + 拓扑排序】                    │
+ ├─────────────────────────────────────────────────────────────┤
+ │                 Repository Layer                          │
+ │              (数据访问和持久化)                            │
+ ├─────────────────────────────────────────────────────────────┤
+ │                    Entity Layer                            │
+ │              (数据模型和领域对象)                           │
+ └─────────────────────────────────────────────────────────────┘
+             ↑                                              ↑
+             └───────────────── Manager Layer ───────────────┘
+  (configmgr、loggermgr、databasemgr、cachemgr、lockmgr、
+   limitermgr、mqmgr、telemetrymgr、schedulermgr)
+ ```
 
-### 依赖规则
+ ### 依赖规则
 
-| 层 | 可依赖的层 | 说明 |
-|---|---|---|
-| Entity | 无 | 纯数据模型，无依赖 |
-| Manager | 其他 Manager | 基础能力组件，可相互依赖 |
-| Repository | Manager + Entity | 数据访问层 |
-| Service | Manager + Repository + Service | 业务逻辑，支持服务间依赖 |
-| Controller | Manager + Service | HTTP 请求处理 |
-| Middleware | Manager + Service | 请求拦截器 |
-| Scheduler | Manager + Service | 定时任务 |
-| Listener | Manager + Service | 事件监听器 |
+ | 层 | 可依赖的层 | 说明 |
+ |---|---|---|
+ | Entity | 无 | 纯数据模型，无依赖 |
+ | Manager | 其他 Manager | 基础能力组件，可相互依赖 |
+ | Repository | Manager + Entity | 数据访问层 |
+ | Service | Manager + Repository + Service | 业务逻辑，支持服务间依赖 |
+ | 交互层 (Controller) | Manager + Service | HTTP 请求处理 |
+ | 交互层 (Middleware) | Manager + Service | 请求拦截器 |
+ | 交互层 (Scheduler) | Manager + Service | 定时任务 |
+ | 交互层 (Listener) | Manager + Service | 事件监听器 |
 
 ## 依赖注入
 

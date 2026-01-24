@@ -4,8 +4,9 @@
 
 ## 特性
 
-- **内置组件自动初始化** - 自动初始化 9 个内置 Manager（Config、Telemetry、Logger、Database、Cache、Lock、Limiter、MQ、Scheduler）
-- **5 层依赖注入架构** - Entity → Repository → Service → Controller → Middleware，支持层级依赖和同层依赖
+ - **内置组件自动初始化** - 自动初始化 9 个内置 Manager（Config、Telemetry、Logger、Database、Cache、Lock、Limiter、MQ、Scheduler）
+ - **5 层依赖注入架构** - 内置管理器层 → Entity → Repository → Service → 交互层，支持层级依赖和同层依赖
+ - **交互层支持** - 统一处理 Controller/Middleware/Listener/Scheduler 四类组件
 - **生命周期管理** - 统一管理各层组件的启动和停止，启动和停止顺序可预测
 - **中间件集成** - 自动排序并注册全局中间件，支持通过配置自定义名称和执行顺序
 - **路由管理** - 自动注册控制器路由，支持 OpenAPI 风格的路由定义 `/path [METHOD]`
@@ -268,35 +269,35 @@ Engine 按以下顺序管理组件生命周期：
    - LimiterManager（依赖 ConfigManager）
    - MQManager（依赖 ConfigManager）
    - SchedulerManager（依赖 ConfigManager、LoggerManager）
-2. 配置验证（验证 Scheduler crontab 规则）
-3. 依赖注入（按层顺序）
-   - Repository 层（依赖 Manager、Entity）
-   - Service 层（依赖 Manager、Repository 和同层 Service）
-   - Controller 层（依赖 Manager、Service）
-   - Middleware 层（依赖 Manager、Service）
-   - Listener 层（依赖 Manager）
-   - Scheduler 层（依赖 Manager）
+ 2. 配置验证（验证 Scheduler crontab 规则）
+ 3. 依赖注入（按层顺序）
+    - Repository 层（依赖 Manager、Entity）
+    - Service 层（依赖 Manager、Repository 和同层 Service）
+    - 交互层 - Controller（依赖 Manager、Service）
+    - 交互层 - Middleware（依赖 Manager、Service）
+    - 交互层 - Listener（依赖 Manager）
+    - 交互层 - Scheduler（依赖 Manager）
 4. 创建 Gin 引擎
 5. 注册中间件和路由
 
 **Start() 启动顺序：**
 1. Manager 层（按注册顺序）
-2. 自动迁移数据库（如果启用）
-3. Repository 层（按注册顺序）
-4. Service 层（按注册顺序）
-5. Middleware 层（按注册顺序）
-6. Scheduler 层（注册到 SchedulerManager 并启动）
-7. Listener 层（注册到 MQManager 并启动）
-8. HTTP 服务器
+ 2. 自动迁移数据库（如果启用）
+ 3. Repository 层（按注册顺序）
+ 4. Service 层（按注册顺序）
+ 5. 交互层 - Middleware（按注册顺序）
+ 6. 交互层 - Scheduler（注册到 SchedulerManager 并启动）
+ 7. 交互层 - Listener（注册到 MQManager 并启动）
+ 8. HTTP 服务器
 
-**Stop() 停止顺序（反转启动顺序）：**
-1. HTTP 服务器（优雅关闭）
-2. Listener 层（反转注册顺序）
-3. Scheduler 层（反转注册顺序）
-4. Middleware 层（反转注册顺序）
-5. Service 层（反转注册顺序）
-6. Repository 层（反转注册顺序）
-7. Manager 层（反转注册顺序）
+ **Stop() 停止顺序（反转启动顺序）：**
+ 1. HTTP 服务器（优雅关闭）
+ 2. 交互层 - Listener（反转注册顺序）
+ 3. 交互层 - Scheduler（反转注册顺序）
+ 4. 交互层 - Middleware（反转注册顺序）
+ 5. Service 层（反转注册顺序）
+ 6. Repository 层（反转注册顺序）
+ 7. Manager 层（反转注册顺序）
 
 ```go
 // 手动停止
@@ -333,14 +334,14 @@ database:
 
 Engine 在初始化时自动按以下顺序执行依赖注入：
 
-1. **Manager 层**（由 `server.Initialize()` 自动初始化并注入）
-2. **Entity 层**（无依赖）
-3. **Repository 层**（依赖 Manager、Entity）
-4. **Service 层**（依赖 Manager、Repository 和同层 Service）
-5. **Controller 层**（依赖 Manager、Service）
-6. **Middleware 层**（依赖 Manager、Service）
-7. **Listener 层**（依赖 Manager）
-8. **Scheduler 层**（依赖 Manager）
+ 1. **Manager 层**（由 `server.Initialize()` 自动初始化并注入）
+ 2. **Entity 层**（无依赖）
+ 3. **Repository 层**（依赖 Manager、Entity）
+ 4. **Service 层**（依赖 Manager、Repository 和同层 Service）
+ 5. **交互层 - Controller**（依赖 Manager、Service）
+ 6. **交互层 - Middleware**（依赖 Manager、Service）
+ 7. **交互层 - Listener**（依赖 Manager）
+ 8. **交互层 - Scheduler**（依赖 Manager）
 
 各层组件通过 `inject:""` 标签声明依赖，Manager 由引擎自动注入：
 
@@ -727,16 +728,16 @@ Engine 自动处理以下信号，触发优雅关闭：
 - `SIGTERM`
 - `SIGQUIT`
 
-关闭流程：
+ 关闭流程：
 
-1. 捕获信号
-2. HTTP 服务器优雅关闭（等待现有请求完成）
-3. 停止 Listener 层（反转注册顺序）
-4. 停止 Scheduler 层（反转注册顺序）
-5. 停止 Middleware 层（反转注册顺序）
-6. 停止 Service 层（反转注册顺序）
-7. 停止 Repository 层（反转注册顺序）
-8. 停止 Manager 层（反转注册顺序）
+ 1. 捕获信号
+ 2. HTTP 服务器优雅关闭（等待现有请求完成）
+ 3. 停止交互层 - Listener（反转注册顺序）
+ 4. 停止交互层 - Scheduler（反转注册顺序）
+ 5. 停止交互层 - Middleware（反转注册顺序）
+ 6. 停止 Service 层（反转注册顺序）
+ 7. 停止 Repository 层（反转注册顺序）
+ 8. 停止 Manager 层（反转注册顺序）
 
 ## 注意事项
 

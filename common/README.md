@@ -1,50 +1,46 @@
 # Common - 公共基础接口
 
-定义 7 层依赖注入架构的基础接口，规范各层的行为契约和生命周期管理，并提供类型转换工具函数。
+ 定义 5 层依赖注入架构的基础接口，规范各层的行为契约和生命周期管理，并提供类型转换工具函数。交互层包含 4 种组件类型。
 
 ## 概述
 
 common 包是框架的核心基础模块，定义了标准化的分层架构接口，所有业务组件都必须实现对应的基础接口。通过接口约束，确保架构的一致性和可维护性。
 
-## 架构层次
+ ## 架构层次
 
-```
-┌──────────────────────────────────────────────────────────┐
-│              Controller / Middleware                      │
-│           (HTTP 请求处理和请求拦截)                        │
-├──────────────────────────────────────────────────────────┤
-│                      Service                             │
-│                   (业务逻辑层)                             │
-├──────────────────────────────────────────────────────────┤
-│                    Repository                             │
-│                   (数据访问层)                             │
-├──────────────────────────────────────────────────────────┤
-│                      Entity                               │
-│                   (数据实体层)                             │
-└──────────────────────────────────────────────────────────┘
-                        ↑
-             ┌──────────┴──────────┐
-             │   Manager Layer     │
-             │ (基础设施管理器)     │
-             └─────────────────────┘
-     configmgr、databasemgr、loggermgr、cachemgr、
-      lockmgr、limitermgr、mqmgr、telemetrymgr
-
-┌──────────────────────────────────────────────────────────┐
-│                    Listener / Scheduler                   │
-│              (消息监听和定时任务)                          │
-└──────────────────────────────────────────────────────────┘
-```
+ ```
+ ┌─────────────────────────────────────────────────────────────┐
+ │                    交互层 (Interaction Layer)              │
+ │  Controller/Middleware/Listener/Scheduler               │
+ │  (HTTP 请求、MQ 消息、定时任务的统一处理层)                 │
+ ├─────────────────────────────────────────────────────────────┤
+ │                       Service                              │
+ │                    (业务逻辑层)                              │
+ ├─────────────────────────────────────────────────────────────┤
+ │                     Repository                              │
+ │                    (数据访问层)                              │
+ ├─────────────────────────────────────────────────────────────┤
+ │                       Entity                                │
+ │                    (数据实体层)                              │
+ └─────────────────────────────────────────────────────────────┘
+                         ↑
+              ┌──────────┴──────────┐
+              │  内置管理器层 (Manager Layer) │
+              │ (基础设施管理器)     │
+              └─────────────────────┘
+      configmgr、databasemgr、loggermgr、cachemgr、
+       lockmgr、limitermgr、mqmgr、telemetrymgr、schedulermgr
+ ```
 
 ## 特性
 
-- **标准接口定义** - 定义 Entity、Manager、Repository、Service、Controller、Middleware、Listener、Scheduler 的标准接口
-- **生命周期管理** - 提供统一的 OnStart 和 OnStop 钩子方法
-- **命名规范** - 每层接口要求实现对应的名称方法，便于调试和日志
-- **依赖注入支持** - 为容器提供标准接口类型，支持类型安全的依赖注入
-- **类型转换工具** - 提供安全的类型转换函数，避免 panic 并支持默认值
-- **HTTP 状态码常量** - 定义完整的 HTTP 状态码常量，便于统一使用
-- **7层架构规范** - 明确各层的职责边界和依赖关系，确保架构清晰
+ - **标准接口定义** - 定义 Entity、Manager、Repository、Service、Controller、Middleware、Listener、Scheduler 的标准接口
+ - **生命周期管理** - 提供统一的 OnStart 和 OnStop 钩子方法
+ - **命名规范** - 每层接口要求实现对应的名称方法，便于调试和日志
+ - **依赖注入支持** - 为容器提供标准接口类型，支持类型安全的依赖注入
+ - **类型转换工具** - 提供安全的类型转换函数，避免 panic 并支持默认值
+ - **HTTP 状态码常量** - 定义完整的 HTTP 状态码常量，便于统一使用
+ - **5层架构规范** - 明确各层的职责边界和依赖关系，确保架构清晰
 
 ## 快速开始
 
@@ -359,19 +355,16 @@ type IBaseScheduler interface {
 - GetTimezone 返回时区（如 `"Asia/Shanghai"`、`"UTC"`）
 - OnTick 方法接收 tickID（Unix 时间戳秒级）
 
-## 依赖规则
+ ## 依赖规则
 
-各层之间有明确的依赖关系：
+ 各层之间有明确的依赖关系：
 
-- **Entity 层**：无依赖
-- **Repository 层**：可依赖 Entity、Manager
-- **Service 层**：可依赖 Repository、Entity、Manager、其他 Service
-- **Controller 层**：可依赖 Service、Manager
-- **Middleware 层**：可依赖 Service、Manager
-- **Listener 层**：可依赖 Service、Manager、Repository
-- **Scheduler 层**：可依赖 Service、Manager、Repository
+ - **Entity 层**：无依赖
+ - **Repository 层**：可依赖 Entity、Manager
+ - **Service 层**：可依赖 Repository、Entity、Manager、其他 Service
+ - **交互层 (Controller/Middleware/Listener/Scheduler)**：可依赖 Service、Manager
 
-**原则**：上层可以依赖下层，下层不能依赖上层。Listener 和 Scheduler 作为独立的事件处理层，可以依赖 Service 和 Repository 层。
+ **原则**：上层可以依赖下层，下层不能依赖上层。交互层统一处理 HTTP 请求、MQ 消息和定时任务，必须通过 Service 层访问数据。
 
 ## 依赖注入
 
@@ -465,19 +458,21 @@ ctx.JSON(common.HTTPStatusNotFound, gin.H{"error": "not found"})
 ctx.JSON(common.HTTPStatusInternalServerError, gin.H{"error": "internal error"})
 ```
 
-## 7 层架构统一接口规范
+ ## 5 层架构统一接口规范
 
-### 接口命名规律
+ ### 接口命名规律
 
-| 层级 | 接口命名 | 实现命名 | 示例 |
-|------|---------|---------|------|
-| Entity | 不需要单独接口 | PascalCase | `Message` |
-| Repository | `I` + 功能名 + `Repository` | 小驼峰 + `Impl` | `IMessageRepository` / `messageRepositoryImpl` |
-| Service | `I` + 功能名 + `Service` | 小驼峰 + `Impl` | `IMessageService` / `messageServiceImpl` |
-| Controller | `I` + 功能名 + `Controller` | 小驼峰 + `Impl` | `IMsgCreateController` / `msgCreateControllerImpl` |
-| Middleware | `I` + 功能名 + `Middleware` | 小驼峰 + `Impl` | `IAuthMiddleware` / `authMiddlewareImpl` |
-| Listener | `I` + 功能名 + `Listener` | 小驼峰 + `Impl` | `IMessageCreatedListener` / `messageCreatedListenerImpl` |
-| Scheduler | `I` + 功能名 + `Scheduler` | 小驼峰 + `Impl` | `ICleanupScheduler` / `cleanupSchedulerImpl` |
+ | 层级 | 接口命名 | 实现命名 | 示例 |
+ |------|---------|---------|------|
+ | Entity | 不需要单独接口 | PascalCase | `Message` |
+ | Repository | `I` + 功能名 + `Repository` | 小驼峰 + `Impl` | `IMessageRepository` / `messageRepositoryImpl` |
+ | Service | `I` + 功能名 + `Service` | 小驼峰 + `Impl` | `IMessageService` / `messageServiceImpl` |
+ | Controller | `I` + 功能名 + `Controller` | 小驼峰 + `Impl` | `IMsgCreateController` / `msgCreateControllerImpl` |
+ | Middleware | `I` + 功能名 + `Middleware` | 小驼峰 + `Impl` | `IAuthMiddleware` / `authMiddlewareImpl` |
+ | Listener | `I` + 功能名 + `Listener` | 小驼峰 + `Impl` | `IMessageCreatedListener` / `messageCreatedListenerImpl` |
+ | Scheduler | `I` + 功能名 + `Scheduler` | 小驼峰 + `Impl` | `ICleanupScheduler` / `cleanupSchedulerImpl` |
+
+ **说明**：交互层包含 4 种组件类型（Controller/Middleware/Listener/Scheduler），它们位于同一架构层级，职责是处理不同类型的外部交互。
 
 ### 接口方法统一规范
 
@@ -518,27 +513,28 @@ var _ IMessageService = (*messageServiceImpl)(nil)
 var _ common.IBaseService = (*messageServiceImpl)(nil)
 ```
 
-### 组件注册规范
+ ### 组件注册规范
 
-1. **Entity**：在 `entity_container.go` 中注册
-2. **Repository**：在 `repository_container.go` 中注册
-3. **Service**：在 `service_container.go` 中注册
-4. **Controller**：在 `controller_container.go` 中注册
-5. **Middleware**：在 `middleware_container.go` 中注册
-6. **Listener**：在 `listener_container.go` 中注册
-7. **Scheduler**：在 `scheduler_container.go` 中注册
+ 1. **Entity**：在 `entity_container.go` 中注册
+ 2. **Repository**：在 `repository_container.go` 中注册
+ 3. **Service**：在 `service_container.go` 中注册
+ 4. **交互层组件**：
+    - **Controller**：在 `controller_container.go` 中注册
+    - **Middleware**：在 `middleware_container.go` 中注册
+    - **Listener**：在 `listener_container.go` 中注册
+    - **Scheduler**：在 `scheduler_container.go` 中注册
 
-### 层级职责边界
+ ### 层级职责边界
 
-| 层级 | 职责 | 允许依赖 |
-|------|------|---------|
-| Entity | 数据模型定义 | 无 |
-| Repository | 数据访问、持久化 | Entity、Manager |
-| Service | 业务逻辑、编排 | Repository、Entity、Manager、其他 Service |
-| Controller | HTTP 请求处理、响应 | Service、Manager |
-| Middleware | 请求预处理、后处理 | Service、Manager |
-| Listener | 消息队列事件处理 | Service、Manager、Repository |
-| Scheduler | 定时任务执行 | Service、Manager、Repository |
+ | 层级 | 职责 | 允许依赖 |
+ |------|------|---------|
+ | Entity | 数据模型定义 | 无 |
+ | Repository | 数据访问、持久化 | Entity、Manager |
+ | Service | 业务逻辑、编排 | Repository、Entity、Manager、其他 Service |
+ | 交互层 (Controller) | HTTP 请求处理、响应 | Service、Manager |
+ | 交互层 (Middleware) | 请求预处理、后处理 | Service、Manager |
+ | 交互层 (Listener) | 消息队列事件处理 | Service、Manager |
+ | 交互层 (Scheduler) | 定时任务执行 | Service、Manager |
 
 ### 生命周期方法规范
 

@@ -1,10 +1,10 @@
 # LiteCore-Go
 
-基于 Gin + GORM + Zap 的企业级 Go Web 开发框架，采用 5 层分层架构和声明式依赖注入。
+ 基于 Gin + GORM + Zap 的企业级 Go Web 开发框架，采用 5 层分层架构（内置管理器层 → Entity → Repository → Service → 交互层）和声明式依赖注入。
 
 ## 核心特性
 
-- **5 层分层架构** - Entity → Repository → Service → Controller/Middleware，清晰的责任分离
+ - **5 层分层架构** - 内置管理器层 → Entity → Repository → Service → 交互层（Controller/Middleware/Listener/Scheduler），清晰的责任分离
 - **内置 Manager 组件** - Config、Logger、Database、Cache、Telemetry、Lock、Limiter、MQ 等管理器，自动初始化和注入
 - **声明式依赖注入** - 使用 `inject:""` 标签自动注入依赖，支持同层依赖和循环依赖检测
 - **统一配置管理** - 支持 YAML/JSON 配置文件，类型安全的配置读取
@@ -31,10 +31,10 @@ mkdir myapp && cd myapp
 go mod init com.litelake.myapp
 go get github.com/lite-lake/litecore-go
 
-# 2. 创建目录结构
-mkdir -p internal/{entities,repositories,services,controllers,middlewares}
-mkdir -p cmd/{server,generate}
-mkdir -p {configs,data}
+ # 2. 创建目录结构
+ mkdir -p internal/{entities,repositories,services,controllers,middlewares,listeners,schedulers}
+ mkdir -p cmd/{server,generate}
+ mkdir -p {configs,data}
 
 # 3. 创建配置文件
 cat > configs/config.yaml <<EOF
@@ -85,12 +85,14 @@ import (
     "github.com/lite-lake/litecore-go/container"
 )
 
-func main() {
+ func main() {
     entityContainer := container.NewEntityContainer()
     repositoryContainer := container.NewRepositoryContainer(entityContainer)
     serviceContainer := container.NewServiceContainer(repositoryContainer)
     controllerContainer := container.NewControllerContainer(serviceContainer)
     middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
+    listenerContainer := container.NewListenerContainer(serviceContainer)
+    schedulerContainer := container.NewSchedulerContainer(serviceContainer)
 
     engine := server.NewEngine(
         &builtin.Config{
@@ -102,12 +104,14 @@ func main() {
         serviceContainer,
         controllerContainer,
         middlewareContainer,
+        listenerContainer,
+        schedulerContainer,
     )
 
     if err := engine.Run(); err != nil {
         os.Exit(1)
     }
-}
+ }
 SERVEREOF
 
 # 7. 运行应用
@@ -187,38 +191,39 @@ go run ./cmd/server
 
 访问 `http://localhost:8080/api/users` 查看接口
 
-## 架构设计
+ ## 架构设计
 
-### 5 层分层架构
+ ### 5 层分层架构
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Controller / Middleware         (控制器/中间件层)   │
-│  - 处理 HTTP 请求和响应                               │
-│  - 参数验证和转换                                    │
-│  - 调用 Service 层业务逻辑                           │
-└─────────────────────────────────────────────────────┘
-                             ↓ 依赖
-┌─────────────────────────────────────────────────────┐
-│  Service                           (服务层)         │
-│  - 编排业务逻辑                                          │
-│  - 事务管理                                             │
-│  - 调用 Repository 和其他 Service                      │
-└─────────────────────────────────────────────────────┘
-                             ↓ 依赖
-┌─────────────────────────────────────────────────────┐
-│  Repository                       (仓储层)           │
-│  - 数据访问抽象                                        │
-│  - 与 Manager 和 Entity 交互                          │
-└─────────────────────────────────────────────────────┘
-               ↓ 依赖              ↑ 使用
-┌─────────────────────────┐    ┌──────────────────────┐
-│  Manager  (管理器层)     │    │  Entity    (实体层)   │
-│  - Config/Logger/DB     │    │  - 数据模型定义        │
-│  - Cache/Telemetry      │    │  - 表映射和验证规则    │
-│  - Lock/Limiter/MQ      │    │  - 无依赖              │
-└─────────────────────────┘    └──────────────────────┘
-```
+ ```
+ ┌───────────────────────────────────────────────────────────────────┐
+ │  Controller / Middleware / Listener / Scheduler      (交互层)    │
+ │  - Controller: 处理 HTTP 请求和响应                              │
+ │  - Middleware: 请求预处理和拦截                                  │
+ │  - Listener: 处理 MQ 消息队列                                    │
+ │  - Scheduler: 执行定时任务                                        │
+ └───────────────────────────────────────────────────────────────────┘
+                                    ↓ 依赖
+ ┌───────────────────────────────────────────────────────────────────┐
+ │  Service                                            (服务层)    │
+ │  - 编排业务逻辑                                                  │
+ │  - 事务管理                                                      │
+ │  - 调用 Repository 和其他 Service                                │
+ └───────────────────────────────────────────────────────────────────┘
+                                    ↓ 依赖
+ ┌───────────────────────────────────────────────────────────────────┐
+ │  Repository                                          (仓储层)   │
+ │  - 数据访问抽象                                                  │
+ │  - 与 Manager 和 Entity 交互                                    │
+ └───────────────────────────────────────────────────────────────────┘
+                ↓ 依赖                              ↑ 使用
+ ┌───────────────────────────────┐    ┌─────────────────────────────┐
+ │  Manager        (内置管理器层)  │    │  Entity          (实体层)   │
+ │  - Config/Logger/Database     │    │  - 数据模型定义              │
+ │  - Cache/Telemetry/Lock       │    │  - 表映射和验证规则          │
+ │  - Limiter/MQ/Scheduler       │    │  - 无依赖                    │
+ └───────────────────────────────┘    └─────────────────────────────┘
+ ```
 
 ### 依赖注入
 
@@ -461,35 +466,39 @@ func main() {
 
 运行：`go run ./cmd/generate`
 
-生成的文件位于 `internal/application/`：
-- `entity_container.go`
-- `repository_container.go`
-- `service_container.go`
-- `controller_container.go`
-- `middleware_container.go`
-- `engine.go`
+ 生成的文件位于 `internal/application/`：
+ - `entity_container.go`
+ - `repository_container.go`
+ - `service_container.go`
+ - `controller_container.go`
+ - `middleware_container.go`
+ - `listener_container.go`
+ - `scheduler_container.go`
+ - `engine.go`
 
 ## 目录结构规范
 
-```
-myapp/
-├── cmd/
-│   ├── server/            # 应用入口
-│   └── generate/          # 代码生成器入口
-├── internal/
-│   ├── application/       # 容器初始化代码（自动生成）
-│   ├── entities/          # 实体层
-│   ├── repositories/      # 仓储层
-│   ├── services/          # 服务层
-│   ├── controllers/       # 控制器层
-│   ├── middlewares/       # 中间件层
-│   └── dtos/              # 数据传输对象
-├── configs/               # 配置文件
-│   └── config.yaml
-├── data/                  # 数据目录
-├── go.mod
-└── go.sum
-```
+ ```
+ myapp/
+ ├── cmd/
+ │   ├── server/            # 应用入口
+ │   └── generate/          # 代码生成器入口
+ ├── internal/
+ │   ├── application/       # 容器初始化代码（自动生成）
+ │   ├── entities/          # 实体层
+ │   ├── repositories/      # 仓储层
+ │   ├── services/          # 服务层
+ │   ├── controllers/       # 控制器层
+ │   ├── middlewares/       # 中间件层
+ │   ├── listeners/         # 监听器层
+ │   ├── schedulers/        # 定时器层
+ │   └── dtos/              # 数据传输对象
+ ├── configs/               # 配置文件
+ │   └── config.yaml
+ ├── data/                  # 数据目录
+ ├── go.mod
+ └── go.sum
+ ```
 
 ## 命名规范
 

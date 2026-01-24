@@ -1,15 +1,16 @@
 # CLI - 代码生成器
 
-CLI 是 LiteCore 框架的代码生成工具，用于自动生成 7 层依赖注入架构的容器初始化代码，大幅减少手动编写依赖注入配置的工作量。
+ CLI 是 LiteCore 框架的代码生成工具，用于自动生成 5 层依赖注入架构的容器初始化代码，大幅减少手动编写依赖注入配置的工作量。
 
-## 特性
+ ## 特性
 
-- **智能扫描**：自动扫描项目中的 Entity、Repository、Service、Controller、Middleware、Listener、Scheduler 组件
-- **7 层架构支持**：完整的 7 层依赖注入架构（Entity → Repository → Service → Controller/Middleware/Listener/Scheduler）
-- **自动依赖注入**：自动识别并注册 `inject:""` 标签的依赖
-- **灵活配置**：支持自定义项目路径、输出目录、包名和配置文件路径
-- **双模式使用**：既可作为独立命令行工具，也可作为库导入使用
-- **类型安全**：生成的代码遵循 Go 类型系统，编译时检查依赖关系
+ - **智能扫描**：自动扫描项目中的 Entity、Repository、Service、Controller、Middleware、Listener、Scheduler 组件
+ - **5 层架构支持**：完整的 5 层依赖注入架构（内置管理器层 → Entity → Repository → Service → 交互层）
+ - **交互层生成**：自动生成 Controller/Middleware/Listener/Scheduler 四种容器初始化代码
+ - **自动依赖注入**：自动识别并注册 `inject:""` 标签的依赖
+ - **灵活配置**：支持自定义项目路径、输出目录、包名和配置文件路径
+ - **双模式使用**：既可作为独立命令行工具，也可作为库导入使用
+ - **类型安全**：生成的代码遵循 Go 类型系统，编译时检查依赖关系
 
 ## 快速开始
 
@@ -76,32 +77,32 @@ func main() {
 
 ### 目录结构
 
-```
-项目根目录/
-├── internal/
-│   ├── entities/        # 实体层：导出的结构体类型
-│   ├── repositories/    # 仓储层：I 前缀接口 + New 前缀工厂函数
-│   ├── services/        # 服务层：I 前缀接口 + New 前缀工厂函数
-│   ├── controllers/     # 控制器层：I 前缀接口 + New 前缀工厂函数
-│   ├── middlewares/     # 中间件层：I 前缀接口 + New 前缀工厂函数
-│   ├── listeners/       # 监听器层：I 前缀接口 + New 前缀工厂函数
-│   ├── schedulers/      # 定时器层：I 前缀接口 + New 前缀工厂函数
-│   └── infras/          # 基础设施层：New 前缀工厂函数
-└── configs/
-    └── config.yaml      # 配置文件
-```
+ ```
+ 项目根目录/
+ ├── internal/
+ │   ├── entities/        # 实体层：导出的结构体类型
+ │   ├── repositories/    # 仓储层：I 前缀接口 + New 前缀工厂函数
+ │   ├── services/        # 服务层：I 前缀接口 + New 前缀工厂函数
+ │   ├── controllers/     # 交互层 - 控制器：I 前缀接口 + New 前缀工厂函数
+ │   ├── middlewares/     # 交互层 - 中间件：I 前缀接口 + New 前缀工厂函数
+ │   ├── listeners/       # 交互层 - 监听器：I 前缀接口 + New 前缀工厂函数
+ │   ├── schedulers/      # 交互层 - 定时器：I 前缀接口 + New 前缀工厂函数
+ │   └── infras/          # 基础设施层：New 前缀工厂函数
+ └── configs/
+     └── config.yaml      # 配置文件
+ ```
 
-### 命名规范
+ ### 命名规范
 
-| 层级 | 接口命名 | 工厂函数命名 | 实现结构体 |
-|------|----------|--------------|-----------|
-| Entity | `MessageEntity` | 无需工厂函数 | `Message` |
-| Repository | `IMessageRepository` | `NewMessageRepository()` | `messageRepositoryImpl` |
-| Service | `IMessageService` | `NewMessageService()` | `messageServiceImpl` |
-| Controller | `IMessageController` | `NewMessageController()` | `msgControllerImpl` |
-| Middleware | `IAuthMiddleware` | `NewAuthMiddleware()` | `authMiddlewareImpl` |
-| Listener | `IMessageListener` | `NewMessageListener()` | `messageListenerImpl` |
-| Scheduler | `ICleanupScheduler` | `NewCleanupScheduler()` | `cleanupSchedulerImpl` |
+ | 层级 | 接口命名 | 工厂函数命名 | 实现结构体 |
+ |------|----------|--------------|-----------|
+ | Entity | `MessageEntity` | 无需工厂函数 | `Message` |
+ | Repository | `IMessageRepository` | `NewMessageRepository()` | `messageRepositoryImpl` |
+ | Service | `IMessageService` | `NewMessageService()` | `messageServiceImpl` |
+ | 交互层 - Controller | `IMessageController` | `NewMessageController()` | `msgControllerImpl` |
+ | 交互层 - Middleware | `IAuthMiddleware` | `NewAuthMiddleware()` | `authMiddlewareImpl` |
+ | 交互层 - Listener | `IMessageListener` | `NewMessageListener()` | `messageListenerImpl` |
+ | 交互层 - Scheduler | `ICleanupScheduler` | `NewCleanupScheduler()` | `cleanupSchedulerImpl` |
 
 ### 依赖注入规范
 
@@ -125,24 +126,25 @@ func NewMessageService() IMessageService {
 
 CLI 代码生成器由以下核心模块组成：
 
-### 1. Parser（解析器）
-负责解析项目中的 Go 源代码，提取各层组件信息。
+ ### 1. Parser（解析器）
+ 负责解析项目中的 Go 源代码，提取各层组件信息。
 
-- 解析 `internal/entities/` 目录，提取导出的结构体类型
-- 解析 `internal/repositories/`、`internal/services/`、`internal/controllers/`、`internal/middlewares/`、`internal/listeners/`、`internal/schedulers/` 目录，提取 `I` 前缀的接口定义和 `New` 前缀的工厂函数
-- 解析 `internal/infras/` 目录，提取 `New` 前缀的工厂函数
+ - 解析 `internal/entities/` 目录，提取导出的结构体类型
+ - 解析 `internal/repositories/`、`internal/services/` 目录，提取 `I` 前缀的接口定义和 `New` 前缀的工厂函数
+ - 解析 `internal/controllers/`、`internal/middlewares/`、`internal/listeners/`、`internal/schedulers/`（交互层）目录，提取 `I` 前缀的接口定义和 `New` 前缀的工厂函数
+ - 解析 `internal/infras/` 目录，提取 `New` 前缀的工厂函数
 
-### 2. Builder（构建器）
-根据解析结果，使用模板引擎生成容器初始化代码。
+ ### 2. Builder（构建器）
+ 根据解析结果，使用模板引擎生成容器初始化代码。
 
-- `InitEntityContainer()` - 实体容器初始化
-- `InitRepositoryContainer()` - 仓储容器初始化
-- `InitServiceContainer()` - 服务容器初始化
-- `InitControllerContainer()` - 控制器容器初始化
-- `InitMiddlewareContainer()` - 中间件容器初始化
-- `InitListenerContainer()` - 监听器容器初始化
-- `InitSchedulerContainer()` - 定时器容器初始化
-- `NewEngine()` - 引擎创建函数
+ - `InitEntityContainer()` - 实体容器初始化
+ - `InitRepositoryContainer()` - 仓储容器初始化
+ - `InitServiceContainer()` - 服务容器初始化
+ - `InitControllerContainer()` - 交互层 - 控制器容器初始化
+ - `InitMiddlewareContainer()` - 交互层 - 中间件容器初始化
+ - `InitListenerContainer()` - 交互层 - 监听器容器初始化
+ - `InitSchedulerContainer()` - 交互层 - 定时器容器初始化
+ - `NewEngine()` - 引擎创建函数
 
 ### 3. Template（模板）
 定义生成代码的结构和格式，使用 Go 标准库 `text/template`。
@@ -303,9 +305,9 @@ go run cmd/server/main.go
 
 ## 常见问题
 
-**Q: 为什么需要代码生成器？**
+ **Q: 为什么需要代码生成器？**
 
-A: LiteCore 采用 7 层依赖注入架构，手动编写容器初始化代码容易出错且维护困难。代码生成器自动化这一过程，确保代码的一致性和正确性。
+ A: LiteCore 采用 5 层依赖注入架构，手动编写容器初始化代码容易出错且维护困难。代码生成器自动化这一过程，确保代码的一致性和正确性。
 
 **Q: 生成的代码可以手动修改吗？**
 
@@ -319,9 +321,9 @@ A: 修改业务代码（添加/删除组件）后，重新运行代码生成器�
 
 A: LiteCore 的依赖注入机制会自动注入 `inject:""` 标记的依赖，因此工厂函数不需要显式传入参数。
 
-**Q: 支持哪些层级？**
+ **Q: 支持哪些层级？**
 
-A: 支持 7 层架构：Entity、Repository、Service、Controller、Middleware、Listener、Scheduler。
+ A: 支持 5 层架构：内置管理器层、Entity、Repository、Service、交互层（Controller/Middleware/Listener/Scheduler）。
 
 **Q: 如何自定义输出目录？**
 
