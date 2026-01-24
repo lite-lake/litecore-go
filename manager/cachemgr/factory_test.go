@@ -123,7 +123,7 @@ func TestBuild(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Build(tt.driverType, tt.driverConfig)
+			got, err := Build(tt.driverType, tt.driverConfig, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Build() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -266,7 +266,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := BuildWithConfigProvider(tt.configProvider)
+			got, err := BuildWithConfigProvider(tt.configProvider, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BuildWithConfigProvider() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -290,7 +290,7 @@ func TestBuildMemoryDefaultExpiration(t *testing.T) {
 		"max_age": "30m", // 30 分钟
 	}
 
-	mgr, err := Build("memory", driverConfig)
+	mgr, err := Build("memory", driverConfig, nil, nil)
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -324,7 +324,7 @@ func TestBuildUpperCaseDriver(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Build(tt.driverType, map[string]any{})
+			got, err := Build(tt.driverType, map[string]any{}, nil, nil)
 			// Build 函数目前不进行大小写转换，所以大写会失败
 			if (err != nil) != tt.wantErr {
 				t.Logf("Build() error = %v (expected to fail with uppercase driver)", err)

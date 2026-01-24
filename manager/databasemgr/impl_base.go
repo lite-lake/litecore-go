@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/lite-lake/litecore-go/logger"
-	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"math/rand"
 	"regexp"
 	"strings"
@@ -17,12 +15,16 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
+
+	"github.com/lite-lake/litecore-go/logger"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // databaseManagerBaseImpl 数据库管理器基础实现
 type databaseManagerBaseImpl struct {
-	Logger       logger.ILogger                 `inject:""`
-	telemetryMgr telemetrymgr.ITelemetryManager `inject:""`
+	loggerMgr    loggermgr.ILoggerManager
+	telemetryMgr telemetrymgr.ITelemetryManager
 	tracer       trace.Tracer
 	meter        metric.Meter
 
@@ -46,9 +48,20 @@ type databaseManagerBaseImpl struct {
 }
 
 // newIDatabaseManagerBaseImpl 创建基础实现
-func newIDatabaseManagerBaseImpl(name, driver string, db *gorm.DB) *databaseManagerBaseImpl {
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+func newIDatabaseManagerBaseImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+	name string,
+	driver string,
+	db *gorm.DB,
+) *databaseManagerBaseImpl {
 	sqlDB, _ := db.DB()
 	return &databaseManagerBaseImpl{
+		loggerMgr:           loggerMgr,
+		telemetryMgr:        telemetryMgr,
 		name:                name,
 		driver:              driver,
 		db:                  db,
@@ -70,8 +83,12 @@ func (b *databaseManagerBaseImpl) initObservability(cfg *DatabaseConfig) {
 
 	// 设置可观测性插件
 	if b.observabilityPlugin != nil {
+		var lgr logger.ILogger
+		if b.loggerMgr != nil {
+			lgr = b.loggerMgr.Ins()
+		}
 		b.observabilityPlugin.Setup(
-			b.Logger,
+			lgr,
 			b.tracer,
 			b.meter,
 			b.queryDuration,
@@ -92,7 +109,7 @@ func (b *databaseManagerBaseImpl) initObservability(cfg *DatabaseConfig) {
 		}
 
 		// 注册 GORM 插件
-		if b.Logger != nil || b.tracer != nil {
+		if b.loggerMgr != nil || b.tracer != nil {
 			b.db.Use(b.observabilityPlugin)
 		}
 	}

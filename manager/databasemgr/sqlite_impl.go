@@ -11,6 +11,9 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // databaseManagerSqliteImpl SQLite 数据库管理器实现
@@ -19,7 +22,15 @@ type databaseManagerSqliteImpl struct {
 }
 
 // NewDatabaseManagerSQLiteImpl 创建 SQLite 数据库管理器
-func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (IDatabaseManager, error) {
+// 参数：
+//   - cfg: SQLite 配置
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+func NewDatabaseManagerSQLiteImpl(
+	cfg *SQLiteConfig,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) (IDatabaseManager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("sqlite configmgr is required")
 	}
@@ -66,7 +77,7 @@ func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (IDatabaseManager, error) {
 	}
 
 	// 创建基础实现
-	baseImpl := newIDatabaseManagerBaseImpl("databaseManagerSqliteImpl", "sqlite", db)
+	baseImpl := newIDatabaseManagerBaseImpl(loggerMgr, telemetryMgr, "databaseManagerSqliteImpl", "sqlite", db)
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{

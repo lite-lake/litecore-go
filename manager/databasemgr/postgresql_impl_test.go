@@ -29,7 +29,7 @@ func TestNewDatabaseManagerPostgreSQLImpl(t *testing.T) {
 		},
 	}
 
-	mgr, err := NewDatabaseManagerPostgreSQLImpl(cfg)
+	mgr, err := NewDatabaseManagerPostgreSQLImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerPostgreSQLImpl() error = %v", err)
 	}
@@ -115,7 +115,7 @@ func TestPostgreSQLImpl_PoolConfig(t *testing.T) {
 		},
 	}
 
-	mgr, err := NewDatabaseManagerPostgreSQLImpl(cfg)
+	mgr, err := NewDatabaseManagerPostgreSQLImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerPostgreSQLImpl() error = %v", err)
 	}
@@ -173,7 +173,7 @@ func TestPostgreSQLImpl_ErrorHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &PostgreSQLConfig{DSN: tt.dsn}
-			_, err := NewDatabaseManagerPostgreSQLImpl(cfg)
+			_, err := NewDatabaseManagerPostgreSQLImpl(cfg, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewDatabaseManagerPostgreSQLImpl() error = %v, wantErr %v", err, tt.wantErr)
 			}

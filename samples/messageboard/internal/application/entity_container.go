@@ -7,7 +7,7 @@ import (
 	entities "github.com/lite-lake/litecore-go/samples/messageboard/internal/entities"
 )
 
-// InitEntityContainer 初始化实体容器
+// InitEntityContainer Initialize entity container
 func InitEntityContainer() *container.EntityContainer {
 	entityContainer := container.NewEntityContainer()
 	container.RegisterEntity[common.IBaseEntity](entityContainer, &entities.Message{})

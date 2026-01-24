@@ -185,7 +185,7 @@ cacheMgr     cachemgr.ICacheManager         `inject:""`
 
 改为：
 ```go
-logger       logger.ILogger
+loggerMgr    loggermgr.ILoggerManager
 telemetryMgr telemetrymgr.ITelemetryManager
 cacheMgr     cachemgr.ICacheManager
 ```
@@ -201,14 +201,14 @@ cacheMgr     cachemgr.ICacheManager
 func Build(
     driverType string,
     driverConfig map[string]any,
-    logger logger.ILogger,
+    loggerMgr loggermgr.ILoggerManager,
     telemetryMgr telemetrymgr.ITelemetryManager,
 ) (ICacheManager, error)
 
 // BuildWithConfigProvider 从配置提供者创建缓存管理器实例（新增依赖参数）
 func BuildWithConfigProvider(
     configProvider configmgr.IConfigManager,
-    logger logger.ILogger,
+    loggerMgr loggermgr.ILoggerManager,
     telemetryMgr telemetrymgr.ITelemetryManager,
 ) (ICacheManager, error)
 ```
@@ -221,7 +221,7 @@ func BuildWithConfigProvider(
 func Build(
     driverType string,
     driverConfig map[string]any,
-    logger logger.ILogger,
+    loggerMgr loggermgr.ILoggerManager,
     telemetryMgr telemetrymgr.ITelemetryManager,
 ) (ICacheManager, error) {
     switch driverType {
@@ -232,7 +232,7 @@ func Build(
         }
 
         // ← 传入依赖
-        mgr, err := NewCacheManagerRedisImpl(redisConfig, logger, telemetryMgr)
+        mgr, err := NewCacheManagerRedisImpl(redisConfig, loggerMgr, telemetryMgr)
         if err != nil {
             return nil, err
         }
@@ -262,13 +262,13 @@ func Build(
 
 func BuildWithConfigProvider(
     configProvider configmgr.IConfigManager,
-    logger logger.ILogger,
+    loggerMgr loggermgr.ILoggerManager,
     telemetryMgr telemetrymgr.ITelemetryManager,
 ) (ICacheManager, error) {
     // ... 解析配置 ...
 
     // ← 调用 Build 时传入依赖
-    return Build(driverTypeStr, driverConfig, logger, telemetryMgr)
+    return Build(driverTypeStr, driverConfig, loggerMgr, telemetryMgr)
 }
 ```
 
@@ -280,13 +280,13 @@ func BuildWithConfigProvider(
 // NewCacheManagerRedisImpl 创建 Redis 实现（新增依赖参数）
 func NewCacheManagerRedisImpl(
     cfg *RedisConfig,
-    logger logger.ILogger,
+    loggerMgr loggermgr.ILoggerManager,
     telemetryMgr telemetrymgr.ITelemetryManager,
 ) (ICacheManager, error) {
     // ... 创建 Redis 客户端 ...
 
     impl := &cacheManagerRedisImpl{
-        cacheManagerBaseImpl: newICacheManagerBaseImpl(logger, telemetryMgr), // ← 传入依赖
+        cacheManagerBaseImpl: newICacheManagerBaseImpl(loggerMgr, telemetryMgr), // ← 传入依赖
         client:               client,
         name:                 "cacheManagerRedisImpl",
     }
@@ -298,12 +298,12 @@ func NewCacheManagerRedisImpl(
 
 // newICacheManagerBaseImpl 创建基类（接收依赖参数）
 func newICacheManagerBaseImpl(
-    logger logger.ILogger,
+    loggerMgr loggermgr.ILoggerManager,
     telemetryMgr telemetrymgr.ITelemetryManager,
 ) *cacheManagerBaseImpl {
     return &cacheManagerBaseImpl{
-        Logger:       logger,
-        telemetryMgr: telemetryMgr,
+        loggerMgr:     loggerMgr,
+        telemetryMgr:  telemetryMgr,
     }
 }
 ```
@@ -328,31 +328,28 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
     loggerManager, err := loggermgr.BuildWithConfigProvider(configManager, telemetryMgr)
     container.RegisterManager[loggermgr.ILoggerManager](cntr, loggerManager)
 
-    // ← 获取 Logger 和 Telemetry 实例
-    logger := loggerManager.Ins()
-
-    // 4. 初始化缓存管理器（传入 logger 和 telemetry）
-    cacheMgr, err := cachemgr.BuildWithConfigProvider(configManager, logger, telemetryMgr)
+    // 4. 初始化缓存管理器（传入 loggerManager 和 telemetry）
+    cacheMgr, err := cachemgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr)
     container.RegisterManager[cachemgr.ICacheManager](cntr, cacheMgr)
 
-    // 5. 初始化数据库管理器（传入 logger 和 telemetry）
-    databaseMgr, err := databasemgr.BuildWithConfigProvider(configManager, logger, telemetryMgr)
+    // 5. 初始化数据库管理器（传入 loggerManager 和 telemetry）
+    databaseMgr, err := databasemgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr)
     container.RegisterManager[databasemgr.IDatabaseManager](cntr, databaseMgr)
 
-    // 6. 初始化锁管理器（传入 logger、telemetry 和 cacheMgr）
-    lockMgr, err := lockmgr.BuildWithConfigProvider(configManager, logger, telemetryMgr, cacheMgr)
+    // 6. 初始化锁管理器（传入 loggerManager、telemetry 和 cacheMgr）
+    lockMgr, err := lockmgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr, cacheMgr)
     container.RegisterManager[lockmgr.ILockManager](cntr, lockMgr)
 
-    // 7. 初始化限流管理器（传入 logger、telemetry 和 cacheMgr）
-    limiterMgr, err := limitermgr.BuildWithConfigProvider(configManager, logger, telemetryMgr, cacheMgr)
+    // 7. 初始化限流管理器（传入 loggerManager、telemetry 和 cacheMgr）
+    limiterMgr, err := limitermgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr, cacheMgr)
     container.RegisterManager[limitermgr.ILimiterManager](cntr, limiterMgr)
 
-    // 8. 初始化消息队列管理器（传入 logger 和 telemetry）
-    mqMgr, err := mqmgr.BuildWithConfigProvider(configManager, logger, telemetryMgr)
+    // 8. 初始化消息队列管理器（传入 loggerManager 和 telemetry）
+    mqMgr, err := mqmgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr)
     container.RegisterManager[mqmgr.IMQManager](cntr, mqMgr)
 
-    // 9. 初始化定时任务管理器（传入 logger）
-    schedulerMgr, err := schedulermgr.BuildWithConfigProvider(configManager, logger)
+    // 9. 初始化定时任务管理器（传入 loggerManager）
+    schedulerMgr, err := schedulermgr.BuildWithConfigProvider(configManager, loggerManager)
     container.RegisterManager[schedulermgr.ISchedulerManager](cntr, schedulerMgr)
 
     return cntr, nil
@@ -368,13 +365,13 @@ TelemetryManager (依赖 ConfigManager)
     ↓
 LoggerManager (依赖 ConfigManager, TelemetryManager)
     ↓
-DatabaseManager (依赖 Logger, TelemetryManager)
-CacheManager (依赖 Logger, TelemetryManager)
+DatabaseManager (依赖 LoggerManager, TelemetryManager)
+CacheManager (依赖 LoggerManager, TelemetryManager)
     ↓
-LockManager (依赖 Logger, TelemetryManager, CacheManager)
-LimiterManager (依赖 Logger, TelemetryManager, CacheManager)
-MQManager (依赖 Logger, TelemetryManager)
-SchedulerManager (依赖 Logger)
+LockManager (依赖 LoggerManager, TelemetryManager, CacheManager)
+LimiterManager (依赖 LoggerManager, TelemetryManager, CacheManager)
+MQManager (依赖 LoggerManager, TelemetryManager)
+SchedulerManager (依赖 LoggerManager)
 ```
 
 ## 4. 需要修改的文件清单
@@ -383,52 +380,52 @@ SchedulerManager (依赖 Logger)
 
 | 文件 | 修改内容 |
 |------|---------|
-| manager/cachemgr/impl_base.go | 1. 移除字段 `inject:""` 标签<br>2. 修改 `newICacheManagerBaseImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/cachemgr/redis_impl.go | 修改 `NewCacheManagerRedisImpl` 接收 logger 和 telemetryMgr 参数 |
+| manager/cachemgr/impl_base.go | 1. 移除字段 `inject:""` 标签，字段类型改为 `loggerMgr loggermgr.ILoggerManager`<br>2. 修改 `newICacheManagerBaseImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/cachemgr/redis_impl.go | 修改 `NewCacheManagerRedisImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
 | manager/cachemgr/memory_impl.go | 可选：支持传入依赖（若 Memory 也需要日志） |
 | manager/cachemgr/none_impl.go | 无需修改 |
-| manager/cachemgr/factory.go | 1. `Build` 函数新增 logger 和 telemetryMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 logger 和 telemetryMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释（移除"需要通过容器注入"） |
+| manager/cachemgr/factory.go | 1. `Build` 函数新增 loggerMgr 和 telemetryMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 loggerMgr 和 telemetryMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释（移除"需要通过容器注入"） |
 
 | 文件 | 修改内容 |
 |------|---------|
-| manager/databasemgr/impl_base.go | 1. 移除字段 `inject:""` 标签<br>2. 修改 `newIDatabaseManagerBaseImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/databasemgr/mysql_impl.go | 修改 `NewDatabaseManagerMySQLImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/databasemgr/postgresql_impl.go | 修改 `NewDatabaseManagerPostgreSQLImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/databasemgr/sqlite_impl.go | 修改 `NewDatabaseManagerSQLiteImpl` 接收 logger 和 telemetryMgr 参数 |
+| manager/databasemgr/impl_base.go | 1. 移除字段 `inject:""` 标签，字段类型改为 `loggerMgr loggermgr.ILoggerManager`<br>2. 修改 `newIDatabaseManagerBaseImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/databasemgr/mysql_impl.go | 修改 `NewDatabaseManagerMySQLImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/databasemgr/postgresql_impl.go | 修改 `NewDatabaseManagerPostgreSQLImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/databasemgr/sqlite_impl.go | 修改 `NewDatabaseManagerSQLiteImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
 | manager/databasemgr/none_impl.go | 无需修改 |
-| manager/databasemgr/factory.go | 1. `Build` 函数新增 logger 和 telemetryMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 logger 和 telemetryMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释 |
+| manager/databasemgr/factory.go | 1. `Build` 函数新增 loggerMgr 和 telemetryMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 loggerMgr 和 telemetryMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释 |
 
 | 文件 | 修改内容 |
 |------|---------|
-| manager/lockmgr/impl_base.go | 1. 移除字段 `inject:""` 标签<br>2. 修改 `newILockManagerBaseImpl` 接收 logger、telemetryMgr 和 cacheMgr 参数 |
-| manager/lockmgr/redis_impl.go | 修改 `NewLockManagerRedisImpl` 接收 logger、telemetryMgr 和 cacheMgr 参数 |
-| manager/lockmgr/memory_impl.go | 修改 `NewLockManagerMemoryImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/lockmgr/factory.go | 1. `Build` 函数新增 logger、telemetryMgr 和 cacheMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 logger、telemetryMgr 和 cacheMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释 |
+| manager/lockmgr/impl_base.go | 1. 移除字段 `inject:""` 标签，字段类型改为 `loggerMgr loggermgr.ILoggerManager`<br>2. 修改 `newILockManagerBaseImpl` 接收 loggerMgr、telemetryMgr 和 cacheMgr 参数 |
+| manager/lockmgr/redis_impl.go | 修改 `NewLockManagerRedisImpl` 接收 loggerMgr、telemetryMgr 和 cacheMgr 参数 |
+| manager/lockmgr/memory_impl.go | 修改 `NewLockManagerMemoryImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/lockmgr/factory.go | 1. `Build` 函数新增 loggerMgr、telemetryMgr 和 cacheMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 loggerMgr、telemetryMgr 和 cacheMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释 |
 
 | 文件 | 修改内容 |
 |------|---------|
-| manager/limitermgr/impl_base.go | 1. 移除字段 `inject:""` 标签<br>2. 修改 `newILimiterManagerBaseImpl` 接收 logger、telemetryMgr 和 cacheMgr 参数 |
-| manager/limitermgr/redis_impl.go | 1. 修改 `NewLimiterManagerRedisImpl` 接收 logger、telemetryMgr 和 cacheMgr 参数<br>2. 移除字段 `CacheMgr` 及其 inject 标签（已通过构造函数传入） |
-| manager/limitermgr/memory_impl.go | 修改 `NewLimiterManagerMemoryImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/limitermgr/factory.go | 1. `Build` 函数新增 logger、telemetryMgr 和 cacheMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 logger、telemetryMgr 和 cacheMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释 |
+| manager/limitermgr/impl_base.go | 1. 移除字段 `inject:""` 标签，字段类型改为 `loggerMgr loggermgr.ILoggerManager`<br>2. 修改 `newILimiterManagerBaseImpl` 接收 loggerMgr、telemetryMgr 和 cacheMgr 参数 |
+| manager/limitermgr/redis_impl.go | 1. 修改 `NewLimiterManagerRedisImpl` 接收 loggerMgr、telemetryMgr 和 cacheMgr 参数<br>2. 移除字段 `CacheMgr` 及其 inject 标签（已通过构造函数传入） |
+| manager/limitermgr/memory_impl.go | 修改 `NewLimiterManagerMemoryImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/limitermgr/factory.go | 1. `Build` 函数新增 loggerMgr、telemetryMgr 和 cacheMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 loggerMgr、telemetryMgr 和 cacheMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释 |
 
 | 文件 | 修改内容 |
 |------|---------|
-| manager/mqmgr/impl_base.go | 1. 移除字段 `inject:""` 标签<br>2. 修改 `newIMQManagerBaseImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/mqmgr/rabbitmq_impl.go | 修改 `NewMQManagerRabbitMQImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/mqmgr/memory_impl.go | 修改 `NewMQManagerMemoryImpl` 接收 logger 和 telemetryMgr 参数 |
-| manager/mqmgr/factory.go | 1. `Build` 函数新增 logger 和 telemetryMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 logger 和 telemetryMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释 |
+| manager/mqmgr/impl_base.go | 1. 移除字段 `inject:""` 标签，字段类型改为 `loggerMgr loggermgr.ILoggerManager`<br>2. 修改 `newIMQManagerBaseImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/mqmgr/rabbitmq_impl.go | 修改 `NewMQManagerRabbitMQImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/mqmgr/memory_impl.go | 修改 `NewMQManagerMemoryImpl` 接收 loggerMgr 和 telemetryMgr 参数 |
+| manager/mqmgr/factory.go | 1. `Build` 函数新增 loggerMgr 和 telemetryMgr 参数<br>2. `BuildWithConfigProvider` 函数新增 loggerMgr 和 telemetryMgr 参数<br>3. 修改内部调用，传入依赖<br>4. 更新注释 |
 
 | 文件 | 修改内容 |
 |------|---------|
-| manager/schedulermgr/cron_impl.go | 修改 `NewSchedulerManagerCronImpl` 接收 logger 参数 |
-| manager/schedulermgr/factory.go | 修改 `Build` 函数接收 logger 参数 |
+| manager/schedulermgr/cron_impl.go | 修改 `NewSchedulerManagerCronImpl` 接收 loggerMgr 参数 |
+| manager/schedulermgr/factory.go | 修改 `Build` 函数接收 loggerMgr 参数 |
 
 ### 4.2 Server 层文件
 
 | 文件 | 修改内容 |
 |------|---------|
-| server/builtin.go | 1. 初始化 loggerMgr 和 telemetryMgr 后，获取其实例<br>2. 创建 databaseMgr、cacheMgr 时传入 logger 和 telemetryMgr<br>3. 创建 lockMgr、limiterMgr 时传入 logger、telemetryMgr 和 cacheMgr<br>4. 创建 mqMgr 时传入 logger 和 telemetryMgr<br>5. 创建 schedulerMgr 时传入 logger |
+| server/builtin.go | 1. 初始化 loggerMgr 和 telemetryMgr<br>2. 创建 databaseMgr、cacheMgr 时传入 loggerManager 和 telemetryMgr<br>3. 创建 lockMgr、limiterMgr 时传入 loggerManager、telemetryMgr 和 cacheMgr<br>4. 创建 mqMgr 时传入 loggerManager 和 telemetryMgr<br>5. 创建 schedulerMgr 时传入 loggerManager |
 
 ### 4.3 文档文件
 
@@ -515,7 +512,42 @@ SchedulerManager (依赖 Logger)
 3. **代码一致性提升** - 移除无效的 inject 标签，减少困惑
 4. **架构清晰度提升** - 依赖关系通过构造函数显式声明，一目了然
 
-## 8. 参考资料
+## 8. 日志使用方式
+
+### 8.1 Manager 层日志使用
+
+Manager 层注入 `ILoggerManager` 后，通过 `LoggerMgr.Ins()` 获取 Logger 实例：
+
+```go
+type cacheManagerBaseImpl struct {
+    loggerMgr    loggermgr.ILoggerManager
+    telemetryMgr telemetrymgr.ITelemetryManager
+}
+
+func (c *cacheManagerRedisImpl) Set(ctx context.Context, key string, value any, ttl time.Duration) error {
+    c.loggerMgr.Ins().Debug("开始设置缓存", "key", key, "ttl", ttl)
+    // ...
+    c.loggerMgr.Ins().Info("缓存设置成功", "key", key)
+    return nil
+}
+```
+
+### 8.2 与其他层保持一致
+
+Service、Controller、Middleware、Listener、Scheduler 等层均使用 `LoggerMgr.Ins()` 方式：
+
+```go
+// Service 层
+type MessageService struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+}
+
+func (s *MessageService) CreateMessage(...) {
+    s.LoggerMgr.Ins().Info("Message created", "id", message.ID)
+}
+```
+
+## 9. 参考资料
 
 - AGENTS.md - 项目架构和编码规范
 - container/manager_container.go - Manager 容器实现

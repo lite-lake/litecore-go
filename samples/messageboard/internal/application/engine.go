@@ -5,7 +5,7 @@ import (
 	"github.com/lite-lake/litecore-go/server"
 )
 
-// NewEngine 创建应用引擎
+// NewEngine Create application engine
 func NewEngine() (*server.Engine, error) {
 	entityContainer := InitEntityContainer()
 	repositoryContainer := InitRepositoryContainer(entityContainer)

@@ -9,6 +9,9 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // databaseManagerMysqlImpl MySQL 数据库管理器实现
@@ -17,7 +20,15 @@ type databaseManagerMysqlImpl struct {
 }
 
 // NewDatabaseManagerMySQLImpl 创建 MySQL 数据库管理器
-func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (IDatabaseManager, error) {
+// 参数：
+//   - cfg: MySQL 配置
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+func NewDatabaseManagerMySQLImpl(
+	cfg *MySQLConfig,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) (IDatabaseManager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("mysql configmgr is required")
 	}
@@ -56,7 +67,7 @@ func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (IDatabaseManager, error) {
 	}
 
 	// 创建基础实现
-	baseImpl := newIDatabaseManagerBaseImpl("databaseManagerMysqlImpl", "mysql", db)
+	baseImpl := newIDatabaseManagerBaseImpl(loggerMgr, telemetryMgr, "databaseManagerMysqlImpl", "mysql", db)
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{

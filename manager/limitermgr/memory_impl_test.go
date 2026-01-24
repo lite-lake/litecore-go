@@ -11,7 +11,7 @@ import (
 
 func TestNewLimiterManagerMemoryImpl(t *testing.T) {
 	t.Run("创建内存限流管理器", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		assert.NotNil(t, mgr)
 		assert.Equal(t, "limiterManagerMemoryImpl", mgr.ManagerName())
 		assert.Nil(t, mgr.Health())
@@ -25,7 +25,7 @@ func TestLimiterManagerMemoryImpl_Allow(t *testing.T) {
 	window := time.Second
 
 	t.Run("限流前允许访问", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 
 		for i := 0; i < limit; i++ {
 			allowed, err := mgr.Allow(ctx, key, limit, window)
@@ -35,7 +35,7 @@ func TestLimiterManagerMemoryImpl_Allow(t *testing.T) {
 	})
 
 	t.Run("超过限制后拒绝访问", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		key := "test_key_2"
 
 		for i := 0; i < limit; i++ {
@@ -48,7 +48,7 @@ func TestLimiterManagerMemoryImpl_Allow(t *testing.T) {
 	})
 
 	t.Run("不同key独立限流", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 
 		for i := 0; i < limit; i++ {
 			mgr.Allow(ctx, "key1", limit, window)
@@ -67,14 +67,14 @@ func TestLimiterManagerMemoryImpl_GetRemaining(t *testing.T) {
 	window := time.Second
 
 	t.Run("获取初始剩余次数", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		remaining, err := mgr.GetRemaining(ctx, key, limit, window)
 		assert.NoError(t, err)
 		assert.Equal(t, limit, remaining)
 	})
 
 	t.Run("获取剩余次数递减", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		key := "test_remaining_2"
 
 		for i := 0; i < 3; i++ {
@@ -87,7 +87,7 @@ func TestLimiterManagerMemoryImpl_GetRemaining(t *testing.T) {
 	})
 
 	t.Run("剩余次数为0", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		key := "test_remaining_3"
 
 		for i := 0; i < limit; i++ {
@@ -107,7 +107,7 @@ func TestLimiterManagerMemoryImpl_SlidingWindow(t *testing.T) {
 	window := 100 * time.Millisecond
 
 	t.Run("时间窗口滑动后恢复", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 
 		for i := 0; i < limit; i++ {
 			allowed, _ := mgr.Allow(ctx, key, limit, window)
@@ -125,7 +125,7 @@ func TestLimiterManagerMemoryImpl_SlidingWindow(t *testing.T) {
 	})
 
 	t.Run("部分时间过期", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		key := "test_sliding_2"
 
 		interval := window / time.Duration(limit+1)
@@ -152,7 +152,7 @@ func TestLimiterManagerMemoryImpl_Concurrent(t *testing.T) {
 	window := time.Second
 
 	t.Run("并发安全测试", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		var wg sync.WaitGroup
 		successCount := 0
 		var mu sync.Mutex
@@ -177,7 +177,7 @@ func TestLimiterManagerMemoryImpl_Concurrent(t *testing.T) {
 }
 
 func TestLimiterManagerMemoryImpl_Validation(t *testing.T) {
-	mgr := NewLimiterManagerMemoryImpl()
+	mgr := NewLimiterManagerMemoryImpl(nil, nil)
 	ctx := context.Background()
 	key := "test_validation"
 	limit := 5
@@ -220,7 +220,7 @@ func TestLimiterManagerMemoryImpl_EdgeConditions(t *testing.T) {
 	window := 10 * time.Millisecond
 
 	t.Run("limit为1", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		key := "edge1"
 
 		allowed, err := mgr.Allow(ctx, key, limit, window)
@@ -233,7 +233,7 @@ func TestLimiterManagerMemoryImpl_EdgeConditions(t *testing.T) {
 	})
 
 	t.Run("非常短的窗口", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		key := "edge2"
 
 		allowed, _ := mgr.Allow(ctx, key, limit, 1*time.Millisecond)
@@ -247,7 +247,7 @@ func TestLimiterManagerMemoryImpl_EdgeConditions(t *testing.T) {
 	})
 
 	t.Run("非常长的窗口", func(t *testing.T) {
-		mgr := NewLimiterManagerMemoryImpl()
+		mgr := NewLimiterManagerMemoryImpl(nil, nil)
 		key := "edge3"
 
 		for i := 0; i < limit; i++ {

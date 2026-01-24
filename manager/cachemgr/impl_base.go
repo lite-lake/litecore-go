@@ -3,7 +3,7 @@ package cachemgr
 import (
 	"context"
 	"fmt"
-	"github.com/lite-lake/litecore-go/logger"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"time"
 
@@ -16,10 +16,10 @@ import (
 // cacheManagerBaseImpl 缓存管理器基类实现
 // 提供可观测性（日志、指标、链路追踪）和工具函数
 type cacheManagerBaseImpl struct {
-	// Logger 日志记录器，通过依赖注入获取
-	Logger logger.ILogger `inject:""`
+	// loggerMgr 日志管理器，用于记录日志
+	loggerMgr loggermgr.ILoggerManager
 	// telemetryMgr 遥测管理器，用于指标和链路追踪
-	telemetryMgr telemetrymgr.ITelemetryManager `inject:""`
+	telemetryMgr telemetrymgr.ITelemetryManager
 	// tracer 链路追踪器，用于记录操作链路
 	tracer trace.Tracer
 	// meter 指标记录器，用于记录性能指标
@@ -33,8 +33,17 @@ type cacheManagerBaseImpl struct {
 }
 
 // newICacheManagerBaseImpl 创建基类
-func newICacheManagerBaseImpl() *cacheManagerBaseImpl {
-	return &cacheManagerBaseImpl{}
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+func newICacheManagerBaseImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) *cacheManagerBaseImpl {
+	return &cacheManagerBaseImpl{
+		loggerMgr:    loggerMgr,
+		telemetryMgr: telemetryMgr,
+	}
 }
 
 // initObservability 初始化可观测性组件
@@ -88,7 +97,7 @@ func (b *cacheManagerBaseImpl) recordOperation(
 	fn func() error,
 ) error {
 	// 如果没有配置任何可观测性组件，直接执行操作
-	if b.tracer == nil && b.Logger == nil && b.operationDuration == nil {
+	if b.tracer == nil && b.loggerMgr == nil && b.operationDuration == nil {
 		return fn()
 	}
 
@@ -120,10 +129,11 @@ func (b *cacheManagerBaseImpl) recordOperation(
 	}
 
 	// 记录日志
-	if b.Logger != nil {
+	if b.loggerMgr != nil {
+		logger := b.loggerMgr.Ins()
 		if err != nil {
 			// 操作失败，记录错误日志
-			b.Logger.Error("cache operation failed",
+			logger.Error("cache operation failed",
 				"operation", operation,
 				"key", sanitizeKey(key),
 				"error", err.Error(),
@@ -135,7 +145,7 @@ func (b *cacheManagerBaseImpl) recordOperation(
 			}
 		} else {
 			// 操作成功，记录调试日志
-			b.Logger.Debug("cache operation success",
+			logger.Debug("cache operation success",
 				"operation", operation,
 				"key", sanitizeKey(key),
 				"duration", duration,

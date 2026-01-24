@@ -13,7 +13,7 @@ func setupMemoryManager(t *testing.T) IMQManager {
 		MaxQueueSize:  1000,
 		ChannelBuffer: 10,
 	}
-	return NewMessageQueueManagerMemoryImpl(config)
+	return NewMessageQueueManagerMemoryImpl(config, nil, nil)
 }
 
 func TestMemoryManager_ManagerName(t *testing.T) {
@@ -440,7 +440,7 @@ func TestMemoryManager_QueueFull(t *testing.T) {
 		MaxQueueSize:  2,
 		ChannelBuffer: 10,
 	}
-	mgr := NewMessageQueueManagerMemoryImpl(config)
+	mgr := NewMessageQueueManagerMemoryImpl(config, nil, nil)
 	defer mgr.Close()
 
 	ctx := context.Background()

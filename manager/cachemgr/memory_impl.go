@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/dgraph-io/ristretto/v2"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // cacheManagerMemoryImpl 内存缓存实现
@@ -26,9 +28,15 @@ type cacheManagerMemoryImpl struct {
 // 参数：
 //   - defaultExpiration: 默认过期时间（仅用于配置参考）
 //   - cleanupInterval: 清理间隔（仅用于配置参考）
+//   - loggerMgr: 日志管理器（可选）
+//   - telemetryMgr: 遥测管理器（可选）
 //
 // 返回 ICacheManager 接口实例
-func NewCacheManagerMemoryImpl(defaultExpiration, cleanupInterval time.Duration) ICacheManager {
+func NewCacheManagerMemoryImpl(
+	defaultExpiration, cleanupInterval time.Duration,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) ICacheManager {
 	// 配置 Ristretto 缓存参数
 	numCounters := int64(1e6) // 统计计数器数量
 	maxCost := int64(1e8)     // 最大缓存成本
@@ -46,7 +54,7 @@ func NewCacheManagerMemoryImpl(defaultExpiration, cleanupInterval time.Duration)
 	}
 
 	impl := &cacheManagerMemoryImpl{
-		cacheManagerBaseImpl: newICacheManagerBaseImpl(),
+		cacheManagerBaseImpl: newICacheManagerBaseImpl(loggerMgr, telemetryMgr),
 		cache:                cache,
 		name:                 "cacheManagerMemoryImpl",
 	}

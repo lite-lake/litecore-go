@@ -10,7 +10,7 @@ func Example_databasemgr_withFactory() {
 	cfg := map[string]any{
 		"dsn": ":memory:",
 	}
-	dbMgr, _ := databasemgr.Build("sqlite", cfg)
+	dbMgr, _ := databasemgr.Build("sqlite", cfg, nil, nil)
 	defer dbMgr.Close()
 
 	// 使用数据库

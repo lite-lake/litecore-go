@@ -11,7 +11,7 @@ import (
 
 func TestLockManagerMemoryImpl_LockUnlock(t *testing.T) {
 	t.Run("基础锁获取和释放", func(t *testing.T) {
-		mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+		mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 		ctx := context.Background()
 		key := "test-key"
 
@@ -23,7 +23,7 @@ func TestLockManagerMemoryImpl_LockUnlock(t *testing.T) {
 	})
 
 	t.Run("重复释放锁", func(t *testing.T) {
-		mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+		mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 		ctx := context.Background()
 		key := "test-key2"
 
@@ -40,7 +40,7 @@ func TestLockManagerMemoryImpl_LockUnlock(t *testing.T) {
 
 func TestLockManagerMemoryImpl_TryLock(t *testing.T) {
 	t.Run("TryLock 成功获取锁", func(t *testing.T) {
-		mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+		mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 		ctx := context.Background()
 		key := "test-trylock-key1"
 
@@ -53,7 +53,7 @@ func TestLockManagerMemoryImpl_TryLock(t *testing.T) {
 	})
 
 	t.Run("TryLock 失败获取锁", func(t *testing.T) {
-		mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+		mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 		ctx := context.Background()
 		key := "test-trylock-key2"
 
@@ -70,7 +70,7 @@ func TestLockManagerMemoryImpl_TryLock(t *testing.T) {
 	})
 
 	t.Run("TryLock 释放后可再次获取", func(t *testing.T) {
-		mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+		mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 		ctx := context.Background()
 		key := "test-trylock-key3"
 
@@ -92,7 +92,7 @@ func TestLockManagerMemoryImpl_TryLock(t *testing.T) {
 
 func TestLockManagerMemoryImpl_Concurrent(t *testing.T) {
 	t.Run("并发获取不同键的锁", func(t *testing.T) {
-		mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+		mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 		ctx := context.Background()
 		keys := []string{"key1", "key2", "key3", "key4", "key5"}
 
@@ -113,7 +113,7 @@ func TestLockManagerMemoryImpl_Concurrent(t *testing.T) {
 	})
 
 	t.Run("并发获取同一键的锁互斥", func(t *testing.T) {
-		mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+		mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 		ctx := context.Background()
 		key := "concurrent-key"
 
@@ -152,27 +152,27 @@ func TestLockManagerMemoryImpl_Concurrent(t *testing.T) {
 }
 
 func TestLockManagerMemoryImpl_ManagerName(t *testing.T) {
-	mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+	mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 	assert.Equal(t, "lockManagerMemoryImpl", mgr.ManagerName())
 }
 
 func TestLockManagerMemoryImpl_Health(t *testing.T) {
-	mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+	mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 	assert.NoError(t, mgr.Health())
 }
 
 func TestLockManagerMemoryImpl_OnStart(t *testing.T) {
-	mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+	mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 	assert.NoError(t, mgr.OnStart())
 }
 
 func TestLockManagerMemoryImpl_OnStop(t *testing.T) {
-	mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+	mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 	assert.NoError(t, mgr.OnStop())
 }
 
 func TestLockManagerMemoryImpl_Validation(t *testing.T) {
-	mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+	mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 
 	t.Run("空上下文错误", func(t *testing.T) {
 		err := mgr.Lock(nil, "test", time.Second*5)
@@ -215,7 +215,7 @@ func TestLockManagerMemoryImpl_Validation(t *testing.T) {
 }
 
 func TestLockManagerMemoryImpl_ZeroTTL(t *testing.T) {
-	mgr := NewLockManagerMemoryImpl(&MemoryLockConfig{})
+	mgr := NewLockManagerMemoryImpl(nil, nil, &MemoryLockConfig{})
 	ctx := context.Background()
 	key := "zero-ttl-key"
 

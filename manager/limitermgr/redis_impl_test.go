@@ -2,17 +2,23 @@ package limitermgr
 
 import (
 	"context"
-	"github.com/lite-lake/litecore-go/manager/cachemgr"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
 	"github.com/stretchr/testify/assert"
 )
 
+// newTestLimiterManagerRedis 创建带内存缓存的 Redis 限流管理器测试实例
+func newTestLimiterManagerRedis() *limiterManagerRedisImpl {
+	cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute, nil, nil)
+	return NewLimiterManagerRedisImpl(nil, nil, cacheMgr).(*limiterManagerRedisImpl)
+}
+
 func TestNewLimiterManagerRedisImpl(t *testing.T) {
 	t.Run("创建Redis限流管理器", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
+		mgr := NewLimiterManagerRedisImpl(nil, nil, nil)
 		assert.NotNil(t, mgr)
 		assert.Equal(t, "limiterManagerRedisImpl", mgr.ManagerName())
 	})
@@ -20,16 +26,14 @@ func TestNewLimiterManagerRedisImpl(t *testing.T) {
 
 func TestLimiterManagerRedisImpl_Health(t *testing.T) {
 	t.Run("未初始化cache manager时健康检查失败", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
+		mgr := NewLimiterManagerRedisImpl(nil, nil, nil)
 		err := mgr.Health()
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cache manager is not initialized")
 	})
 
 	t.Run("初始化cache manager后健康检查通过", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 
 		err := mgr.Health()
 		assert.NoError(t, err)
@@ -43,9 +47,7 @@ func TestLimiterManagerRedisImpl_Allow(t *testing.T) {
 	window := time.Second
 
 	t.Run("限流前允许访问", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 
 		for i := 0; i < limit; i++ {
 			allowed, err := mgr.Allow(ctx, key, limit, window)
@@ -55,9 +57,7 @@ func TestLimiterManagerRedisImpl_Allow(t *testing.T) {
 	})
 
 	t.Run("超过限制后拒绝访问", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 		key := "test_key_2"
 
 		for i := 0; i < limit; i++ {
@@ -70,9 +70,7 @@ func TestLimiterManagerRedisImpl_Allow(t *testing.T) {
 	})
 
 	t.Run("不同key独立限流", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 
 		for i := 0; i < limit; i++ {
 			mgr.Allow(ctx, "key1", limit, window)
@@ -84,7 +82,7 @@ func TestLimiterManagerRedisImpl_Allow(t *testing.T) {
 	})
 
 	t.Run("未初始化cache manager时返回错误", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
+		mgr := NewLimiterManagerRedisImpl(nil, nil, nil)
 
 		_, err := mgr.Allow(ctx, key, limit, window)
 		assert.Error(t, err)
@@ -99,9 +97,7 @@ func TestLimiterManagerRedisImpl_GetRemaining(t *testing.T) {
 	window := time.Second
 
 	t.Run("获取初始剩余次数", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 
 		remaining, err := mgr.GetRemaining(ctx, key, limit, window)
 		assert.NoError(t, err)
@@ -109,9 +105,7 @@ func TestLimiterManagerRedisImpl_GetRemaining(t *testing.T) {
 	})
 
 	t.Run("获取剩余次数递减", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 		key := "test_remaining_2"
 
 		for i := 0; i < 3; i++ {
@@ -124,9 +118,7 @@ func TestLimiterManagerRedisImpl_GetRemaining(t *testing.T) {
 	})
 
 	t.Run("剩余次数为0", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 		key := "test_remaining_3"
 
 		for i := 0; i < limit; i++ {
@@ -139,7 +131,7 @@ func TestLimiterManagerRedisImpl_GetRemaining(t *testing.T) {
 	})
 
 	t.Run("未初始化cache manager时返回错误", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
+		mgr := NewLimiterManagerRedisImpl(nil, nil, nil)
 
 		_, err := mgr.GetRemaining(ctx, key, limit, window)
 		assert.Error(t, err)
@@ -155,9 +147,7 @@ func TestLimiterManagerRedisImpl_SlidingWindow(t *testing.T) {
 
 	t.Run("时间窗口滑动后恢复", func(t *testing.T) {
 		t.Skip("内存缓存 TTL 行为与 Redis 不同，需要在真实 Redis 环境中测试")
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 
 		for i := 0; i < limit; i++ {
 			allowed, _ := mgr.Allow(ctx, key, limit, window)
@@ -183,9 +173,7 @@ func TestLimiterManagerRedisImpl_Concurrent(t *testing.T) {
 
 	t.Run("并发安全测试", func(t *testing.T) {
 		t.Skip("内存缓存的 Increment 非原子，需要在真实 Redis 环境中测试")
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 		var wg sync.WaitGroup
 		successCount := 0
 		var mu sync.Mutex
@@ -211,9 +199,7 @@ func TestLimiterManagerRedisImpl_Concurrent(t *testing.T) {
 }
 
 func TestLimiterManagerRedisImpl_Validation(t *testing.T) {
-	mgr := NewLimiterManagerRedisImpl()
-	cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-	mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+	mgr := newTestLimiterManagerRedis()
 	ctx := context.Background()
 	key := "test_validation"
 	limit := 5
@@ -256,9 +242,7 @@ func TestLimiterManagerRedisImpl_EdgeConditions(t *testing.T) {
 	window := 10 * time.Millisecond
 
 	t.Run("limit为1", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 		key := "edge1"
 
 		allowed, err := mgr.Allow(ctx, key, limit, window)
@@ -271,9 +255,7 @@ func TestLimiterManagerRedisImpl_EdgeConditions(t *testing.T) {
 	})
 
 	t.Run("非常短的窗口", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 		key := "edge2"
 
 		allowed, _ := mgr.Allow(ctx, key, limit, 1*time.Millisecond)
@@ -287,9 +269,7 @@ func TestLimiterManagerRedisImpl_EdgeConditions(t *testing.T) {
 	})
 
 	t.Run("非常长的窗口", func(t *testing.T) {
-		mgr := NewLimiterManagerRedisImpl()
-		cacheMgr := cachemgr.NewCacheManagerMemoryImpl(time.Minute, time.Minute)
-		mgr.(*limiterManagerRedisImpl).CacheMgr = cacheMgr
+		mgr := newTestLimiterManagerRedis()
 		key := "edge3"
 
 		for i := 0; i < limit; i++ {

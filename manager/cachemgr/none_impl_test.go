@@ -8,7 +8,7 @@ import (
 
 // setupNoneManager 创建一个 None 缓存管理器用于测试
 func setupNoneManager(t *testing.T) ICacheManager {
-	return NewCacheManagerNoneImpl()
+	return NewCacheManagerNoneImpl(nil, nil)
 }
 
 // TestNoneManager_ManagerName 测试管理器名称

@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // cacheManagerNoneImpl 空缓存实现（降级模式）
@@ -15,10 +18,17 @@ type cacheManagerNoneImpl struct {
 }
 
 // NewCacheManagerNoneImpl 创建空缓存实现
+// 参数：
+//   - loggerMgr: 日志管理器（可选）
+//   - telemetryMgr: 遥测管理器（可选）
+//
 // 返回一个不存储任何数据的缓存管理器
-func NewCacheManagerNoneImpl() ICacheManager {
+func NewCacheManagerNoneImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) ICacheManager {
 	impl := &cacheManagerNoneImpl{
-		cacheManagerBaseImpl: newICacheManagerBaseImpl(),
+		cacheManagerBaseImpl: newICacheManagerBaseImpl(loggerMgr, telemetryMgr),
 		name:                 "cacheManagerNoneImpl",
 	}
 	impl.initObservability()

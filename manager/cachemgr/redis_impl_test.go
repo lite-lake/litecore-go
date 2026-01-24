@@ -36,7 +36,7 @@ func TestRedisManager_NewCacheManagerRedisImpl(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr, err := NewCacheManagerRedisImpl(tt.config)
+			mgr, err := NewCacheManagerRedisImpl(tt.config, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewCacheManagerRedisImpl() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -404,7 +404,7 @@ func TestRedisManager_ConfigEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr, err := NewCacheManagerRedisImpl(tt.config)
+			mgr, err := NewCacheManagerRedisImpl(tt.config, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewCacheManagerRedisImpl() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -425,7 +425,7 @@ func TestRedisManager_PasswordConfig(t *testing.T) {
 	}
 
 	// 由于没有实际的 Redis 服务器，预期会失败
-	mgr, err := NewCacheManagerRedisImpl(config)
+	mgr, err := NewCacheManagerRedisImpl(config, nil, nil)
 	if err == nil {
 		mgr.Close()
 		t.Log("Note: This test requires a Redis server to properly test password authentication")
@@ -471,7 +471,7 @@ func TestRedisManager_ConnectionPoolConfig(t *testing.T) {
 				ConnMaxLifetime: tt.connMaxLifetime,
 			}
 
-			mgr, err := NewCacheManagerRedisImpl(config)
+			mgr, err := NewCacheManagerRedisImpl(config, nil, nil)
 			if err == nil {
 				mgr.Close()
 				t.Log("Note: This test requires a Redis server to properly test connection pool")
@@ -489,7 +489,7 @@ func TestRedisManager_Timeout(t *testing.T) {
 		ConnMaxLifetime: 1 * time.Nanosecond, // 非常短的超时
 	}
 
-	mgr, err := NewCacheManagerRedisImpl(config)
+	mgr, err := NewCacheManagerRedisImpl(config, nil, nil)
 	if err == nil {
 		defer mgr.Close()
 
@@ -516,7 +516,7 @@ func TestRedisManager_ContextCancellation(t *testing.T) {
 		DB:   0,
 	}
 
-	mgr, err := NewCacheManagerRedisImpl(config)
+	mgr, err := NewCacheManagerRedisImpl(config, nil, nil)
 	if err == nil {
 		defer mgr.Close()
 

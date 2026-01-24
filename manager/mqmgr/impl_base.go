@@ -3,10 +3,10 @@ package mqmgr
 import (
 	"context"
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"time"
 
-	"github.com/lite-lake/litecore-go/logger"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -14,64 +14,99 @@ import (
 )
 
 // mqManagerBaseImpl 消息队列管理器基础实现
+// 提供可观测性（日志、指标、链路追踪）和工具函数
 type mqManagerBaseImpl struct {
-	Logger            logger.ILogger                 `inject:""`
-	telemetryMgr      telemetrymgr.ITelemetryManager `inject:""`
-	tracer            trace.Tracer
-	meter             metric.Meter
-	publishCounter    metric.Int64Counter
-	consumeCounter    metric.Int64Counter
-	ackCounter        metric.Int64Counter
-	nackCounter       metric.Int64Counter
+	// loggerMgr 日志管理器，用于记录日志
+	loggerMgr loggermgr.ILoggerManager
+	// telemetryMgr 遥测管理器，用于指标和链路追踪
+	telemetryMgr telemetrymgr.ITelemetryManager
+	// tracer 链路追踪器，用于记录操作链路
+	tracer trace.Tracer
+	// meter 指标记录器，用于记录性能指标
+	meter metric.Meter
+	// publishCounter 消息发布计数器
+	publishCounter metric.Int64Counter
+	// consumeCounter 消息消费计数器
+	consumeCounter metric.Int64Counter
+	// ackCounter 消息确认计数器
+	ackCounter metric.Int64Counter
+	// nackCounter 消息拒绝计数器
+	nackCounter metric.Int64Counter
+	// operationDuration 操作耗时直方图
 	operationDuration metric.Float64Histogram
 }
 
 // newMqManagerBaseImpl 创建消息队列管理器基础实现
-func newMqManagerBaseImpl() *mqManagerBaseImpl {
-	return &mqManagerBaseImpl{}
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+func newMqManagerBaseImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) *mqManagerBaseImpl {
+	return &mqManagerBaseImpl{
+		loggerMgr:    loggerMgr,
+		telemetryMgr: telemetryMgr,
+	}
 }
 
 // initObservability 初始化可观测性组件
+// 在依赖注入完成后调用，用于初始化链路追踪器和指标收集器
 func (b *mqManagerBaseImpl) initObservability() {
 	if b.telemetryMgr == nil {
 		return
 	}
 
+	// 初始化 tracer，用于链路追踪
 	b.tracer = b.telemetryMgr.Tracer("mqmgr")
+
+	// 初始化 meter，用于指标记录
 	b.meter = b.telemetryMgr.Meter("mqmgr")
 
+	// 创建消息发布计数器指标
 	b.publishCounter, _ = b.meter.Int64Counter(
 		"mq.publish",
-		metric.WithDescription("Number of messages published"),
+		metric.WithDescription("消息发布数量"),
 		metric.WithUnit("{message}"),
 	)
 
+	// 创建消息消费计数器指标
 	b.consumeCounter, _ = b.meter.Int64Counter(
 		"mq.consume",
-		metric.WithDescription("Number of messages consumed"),
+		metric.WithDescription("消息消费数量"),
 		metric.WithUnit("{message}"),
 	)
 
+	// 创建消息确认计数器指标
 	b.ackCounter, _ = b.meter.Int64Counter(
 		"mq.ack",
-		metric.WithDescription("Number of messages acknowledged"),
+		metric.WithDescription("消息确认数量"),
 		metric.WithUnit("{message}"),
 	)
 
+	// 创建消息拒绝计数器指标
 	b.nackCounter, _ = b.meter.Int64Counter(
 		"mq.nack",
-		metric.WithDescription("Number of messages rejected"),
+		metric.WithDescription("消息拒绝数量"),
 		metric.WithUnit("{message}"),
 	)
 
+	// 创建操作耗时直方图指标
 	b.operationDuration, _ = b.meter.Float64Histogram(
 		"mq.operation.duration",
-		metric.WithDescription("Duration of message queue operations in seconds"),
+		metric.WithDescription("消息队列操作耗时（秒）"),
 		metric.WithUnit("s"),
 	)
 }
 
 // recordOperation 记录操作并执行
+// 封装了链路追踪、指标记录、日志记录等功能
+// 参数：
+//   - ctx: 上下文
+//   - driver: 消息队列驱动类型（rabbitmq、memory）
+//   - operation: 操作名称（publish、consume、ack 等）
+//   - queue: 队列名称
+//   - fn: 要执行的操作函数
 func (b *mqManagerBaseImpl) recordOperation(
 	ctx context.Context,
 	driver string,
@@ -79,11 +114,13 @@ func (b *mqManagerBaseImpl) recordOperation(
 	queue string,
 	fn func() error,
 ) error {
-	if b.tracer == nil && b.Logger == nil && b.operationDuration == nil {
+	// 如果没有配置任何可观测性组件，直接执行操作
+	if b.tracer == nil && b.loggerMgr == nil && b.operationDuration == nil {
 		return fn()
 	}
 
 	var span trace.Span
+	// 创建链路追踪 span
 	if b.tracer != nil {
 		ctx, span = b.tracer.Start(ctx, "mq."+operation,
 			trace.WithAttributes(
@@ -94,10 +131,12 @@ func (b *mqManagerBaseImpl) recordOperation(
 		defer span.End()
 	}
 
+	// 记录操作开始时间并执行函数
 	start := time.Now()
 	err := fn()
 	duration := time.Since(start).Seconds()
 
+	// 记录操作耗时指标
 	if b.operationDuration != nil {
 		b.operationDuration.Record(ctx, duration,
 			metric.WithAttributes(
@@ -107,9 +146,12 @@ func (b *mqManagerBaseImpl) recordOperation(
 		)
 	}
 
-	if b.Logger != nil {
+	// 记录日志
+	if b.loggerMgr != nil {
+		logger := b.loggerMgr.Ins()
 		if err != nil {
-			b.Logger.Error("mq operation failed",
+			// 操作失败，记录错误日志
+			logger.Error("mq operation failed",
 				"operation", operation,
 				"queue", queue,
 				"error", err.Error(),
@@ -120,7 +162,8 @@ func (b *mqManagerBaseImpl) recordOperation(
 				span.SetStatus(codes.Error, err.Error())
 			}
 		} else {
-			b.Logger.Debug("mq operation success",
+			// 操作成功，记录调试日志
+			logger.Debug("mq operation success",
 				"operation", operation,
 				"queue", queue,
 				"duration", duration,
@@ -131,7 +174,10 @@ func (b *mqManagerBaseImpl) recordOperation(
 	return err
 }
 
-// recordPublish 记录消息发布
+// recordPublish 记录消息发布指标
+// 参数：
+//   - ctx: 上下文
+//   - driver: 消息队列驱动类型
 func (b *mqManagerBaseImpl) recordPublish(ctx context.Context, driver string) {
 	if b.meter == nil {
 		return
@@ -146,7 +192,10 @@ func (b *mqManagerBaseImpl) recordPublish(ctx context.Context, driver string) {
 	}
 }
 
-// recordConsume 记录消息消费
+// recordConsume 记录消息消费指标
+// 参数：
+//   - ctx: 上下文
+//   - driver: 消息队列驱动类型
 func (b *mqManagerBaseImpl) recordConsume(ctx context.Context, driver string) {
 	if b.meter == nil {
 		return
@@ -161,7 +210,10 @@ func (b *mqManagerBaseImpl) recordConsume(ctx context.Context, driver string) {
 	}
 }
 
-// recordAck 记录消息确认
+// recordAck 记录消息确认指标
+// 参数：
+//   - ctx: 上下文
+//   - driver: 消息队列驱动类型
 func (b *mqManagerBaseImpl) recordAck(ctx context.Context, driver string) {
 	if b.meter == nil {
 		return
@@ -176,7 +228,10 @@ func (b *mqManagerBaseImpl) recordAck(ctx context.Context, driver string) {
 	}
 }
 
-// recordNack 记录消息拒绝
+// recordNack 记录消息拒绝指标
+// 参数：
+//   - ctx: 上下文
+//   - driver: 消息队列驱动类型
 func (b *mqManagerBaseImpl) recordNack(ctx context.Context, driver string) {
 	if b.meter == nil {
 		return
@@ -192,6 +247,7 @@ func (b *mqManagerBaseImpl) recordNack(ctx context.Context, driver string) {
 }
 
 // ValidateContext 验证上下文是否有效
+// 确保传入的 context 不为 nil
 func ValidateContext(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("context cannot be nil")
@@ -200,6 +256,7 @@ func ValidateContext(ctx context.Context) error {
 }
 
 // ValidateQueue 验证队列名是否有效
+// 确保队列名不为空字符串
 func ValidateQueue(queue string) error {
 	if queue == "" {
 		return fmt.Errorf("queue name cannot be empty")
@@ -207,7 +264,8 @@ func ValidateQueue(queue string) error {
 	return nil
 }
 
-// getStatus 获取操作状态
+// getStatus 根据错误返回状态字符串
+// 用于指标记录和日志分类
 func getStatus(err error) string {
 	if err != nil {
 		return "error"

@@ -21,7 +21,7 @@ func setupRabbitMQManager(t *testing.T) IMQManager {
 		URL:     "amqp://guest:guest@localhost:5672/",
 		Durable: true,
 	}
-	mgr, err := NewMessageQueueManagerRabbitMQImpl(config)
+	mgr, err := NewMessageQueueManagerRabbitMQImpl(config, nil, nil)
 	if err != nil {
 		t.Skip("RabbitMQ not available:", err)
 	}

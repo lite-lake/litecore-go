@@ -287,14 +287,14 @@ func (e *testError) Error() string {
 
 // TestNewCacheManagerBaseImpl 测试基础实现创建
 func TestNewCacheManagerBaseImpl(t *testing.T) {
-	base := newICacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl(nil, nil)
 
 	if base == nil {
 		t.Fatal("newICacheManagerBaseImpl() returned nil")
 	}
 
-	if base.Logger != nil {
-		t.Error("expected Logger to be nil initially")
+	if base.loggerMgr != nil {
+		t.Error("expected loggerMgr to be nil initially")
 	}
 
 	if base.telemetryMgr != nil {
@@ -312,14 +312,14 @@ func TestNewCacheManagerBaseImpl(t *testing.T) {
 
 // TestICacheManagerBaseImpl_InitObservability 测试初始化可观测性
 func TestICacheManagerBaseImpl_InitObservability(t *testing.T) {
-	base := newICacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl(nil, nil)
 
 	// 调用初始化（没有依赖注入的情况下）
 	base.initObservability()
 
 	// 验证没有 panic，且字段保持为 nil
-	if base.Logger != nil {
-		t.Error("expected Logger to remain nil")
+	if base.loggerMgr != nil {
+		t.Error("expected loggerMgr to remain nil")
 	}
 
 	if base.tracer != nil {
@@ -345,7 +345,7 @@ func TestICacheManagerBaseImpl_InitObservability(t *testing.T) {
 
 // TestRecordOperation 测试记录操作
 func TestRecordOperation(t *testing.T) {
-	base := newICacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl(nil, nil)
 
 	tests := []struct {
 		name      string
@@ -402,7 +402,7 @@ func TestRecordOperation(t *testing.T) {
 
 // TestRecordOperationWithNilContext 测试使用 nil 上下文记录操作
 func TestRecordOperationWithNilContext(t *testing.T) {
-	base := newICacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl(nil, nil)
 
 	err := base.recordOperation(nil, "memory", "get", "key", func() error {
 		return nil
@@ -416,7 +416,7 @@ func TestRecordOperationWithNilContext(t *testing.T) {
 
 // TestRecordCacheHit 测试记录缓存命中
 func TestRecordCacheHit(t *testing.T) {
-	base := newICacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl(nil, nil)
 	base.initObservability()
 
 	ctx := context.Background()
@@ -432,7 +432,7 @@ func TestRecordCacheHit(t *testing.T) {
 
 // TestICacheManagerBaseImplConcurrent 测试并发安全性
 func TestICacheManagerBaseImplConcurrent(t *testing.T) {
-	base := newICacheManagerBaseImpl()
+	base := newICacheManagerBaseImpl(nil, nil)
 	base.initObservability()
 
 	ctx := context.Background()

@@ -53,7 +53,7 @@ func (m *mockConfigManager) Has(key string) bool {
 
 func TestBuild(t *testing.T) {
 	t.Run("空字符串驱动类型", func(t *testing.T) {
-		mgr, err := Build("", nil)
+		mgr, err := Build("", nil, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "driver type is required")
@@ -69,7 +69,7 @@ func TestBuild(t *testing.T) {
 			"max_open_conns":    100,
 			"conn_max_lifetime": 30,
 		}
-		mgr, err := Build("redis", config)
+		mgr, err := Build("redis", config, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &limiterManagerRedisImpl{}, mgr)
@@ -78,7 +78,7 @@ func TestBuild(t *testing.T) {
 	})
 
 	t.Run("Redis驱动配置为nil", func(t *testing.T) {
-		mgr, err := Build("redis", nil)
+		mgr, err := Build("redis", nil, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &limiterManagerRedisImpl{}, mgr)
@@ -88,7 +88,7 @@ func TestBuild(t *testing.T) {
 		config := map[string]any{
 			"max_backups": 1000,
 		}
-		mgr, err := Build("memory", config)
+		mgr, err := Build("memory", config, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &limiterManagerMemoryImpl{}, mgr)
@@ -97,28 +97,28 @@ func TestBuild(t *testing.T) {
 	})
 
 	t.Run("Memory驱动配置为nil", func(t *testing.T) {
-		mgr, err := Build("memory", nil)
+		mgr, err := Build("memory", nil, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &limiterManagerMemoryImpl{}, mgr)
 	})
 
 	t.Run("不支持的驱动类型-mysql", func(t *testing.T) {
-		mgr, err := Build("mysql", nil)
+		mgr, err := Build("mysql", nil, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "unsupported driver type: mysql")
 	})
 
 	t.Run("不支持的驱动类型-postgres", func(t *testing.T) {
-		mgr, err := Build("postgres", nil)
+		mgr, err := Build("postgres", nil, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "unsupported driver type: postgres")
 	})
 
 	t.Run("不支持的驱动类型-未知字符串", func(t *testing.T) {
-		mgr, err := Build("unknown", nil)
+		mgr, err := Build("unknown", nil, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "unsupported driver type: unknown")
@@ -127,7 +127,7 @@ func TestBuild(t *testing.T) {
 
 func TestBuildWithConfigProvider(t *testing.T) {
 	t.Run("configProvider为nil", func(t *testing.T) {
-		mgr, err := BuildWithConfigProvider(nil)
+		mgr, err := BuildWithConfigProvider(nil, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "configProvider cannot be nil")
@@ -137,7 +137,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 		mockMgr := &mockConfigManager{
 			err: errors.New("config error"),
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "failed to get limiter.driver")
@@ -149,7 +149,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"limiter.driver": 123,
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "limiter.driver")
@@ -161,7 +161,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"limiter.driver": "redis",
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "failed to get limiter.redis_config")
@@ -174,7 +174,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"limiter.redis_config": "not_a_map",
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "limiter.redis_config")
@@ -195,7 +195,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				},
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &limiterManagerRedisImpl{}, mgr)
@@ -209,7 +209,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"limiter.redis_config": map[string]any{},
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &limiterManagerRedisImpl{}, mgr)
@@ -221,7 +221,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"limiter.driver": "memory",
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "failed to get limiter.memory_config")
@@ -234,7 +234,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"limiter.memory_config": "not_a_map",
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "limiter.memory_config")
@@ -249,7 +249,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				},
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &limiterManagerMemoryImpl{}, mgr)
@@ -263,7 +263,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"limiter.memory_config": map[string]any{},
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &limiterManagerMemoryImpl{}, mgr)
@@ -275,7 +275,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 				"limiter.driver": "mysql",
 			},
 		}
-		mgr, err := BuildWithConfigProvider(mockMgr)
+		mgr, err := BuildWithConfigProvider(mockMgr, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "unsupported driver type: mysql")

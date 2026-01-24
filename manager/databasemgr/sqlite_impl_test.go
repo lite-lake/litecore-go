@@ -64,7 +64,7 @@ func TestNewDatabaseManagerSQLiteImpl(t *testing.T) {
 				skipIfCGONotAvailable(t)
 			}
 
-			mgr, err := NewDatabaseManagerSQLiteImpl(tt.cfg)
+			mgr, err := NewDatabaseManagerSQLiteImpl(tt.cfg, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewDatabaseManagerSQLiteImpl() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -95,7 +95,7 @@ func TestSQLiteImpl_BasicOperations(t *testing.T) {
 		DSN: ":memory:",
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}
@@ -128,7 +128,7 @@ func TestSQLiteImpl_GORMOperations(t *testing.T) {
 		DSN: ":memory:",
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}
@@ -185,7 +185,7 @@ func TestSQLiteImpl_CRUDOperations(t *testing.T) {
 		DSN: ":memory:",
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}
@@ -259,7 +259,7 @@ func TestSQLiteImpl_Transaction(t *testing.T) {
 		DSN: ":memory:",
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}
@@ -366,7 +366,7 @@ func TestSQLiteImpl_RawSQL(t *testing.T) {
 		DSN: ":memory:",
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}
@@ -418,7 +418,7 @@ func TestSQLiteImpl_ConnectionManagement(t *testing.T) {
 		},
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}
@@ -440,7 +440,7 @@ func TestSQLiteImpl_ConnectionManagement(t *testing.T) {
 	})
 
 	t.Run("Close", func(t *testing.T) {
-		mgr2, err := NewDatabaseManagerSQLiteImpl(&SQLiteConfig{DSN: ":memory:"})
+		mgr2, err := NewDatabaseManagerSQLiteImpl(&SQLiteConfig{DSN: ":memory:"}, nil, nil)
 		if err != nil {
 			t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 		}
@@ -465,7 +465,7 @@ func TestSQLiteImpl_Migrator(t *testing.T) {
 		DSN: ":memory:",
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}
@@ -507,7 +507,7 @@ func TestSQLiteImpl_Concurrency(t *testing.T) {
 		DSN: ":memory:",
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}
@@ -547,7 +547,7 @@ func BenchmarkSQLiteImpl_Operations(b *testing.B) {
 		DSN: ":memory:",
 	}
 
-	mgr, err := NewDatabaseManagerSQLiteImpl(cfg)
+	mgr, err := NewDatabaseManagerSQLiteImpl(cfg, nil, nil)
 	if err != nil {
 		b.Fatalf("NewDatabaseManagerSQLiteImpl() error = %v", err)
 	}

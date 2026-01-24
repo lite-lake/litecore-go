@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 )
 
 type schedulerTask struct {
@@ -18,17 +19,26 @@ type schedulerTask struct {
 }
 
 type schedulerManagerImpl struct {
-	config   *CronConfig
-	tasks    map[string]*schedulerTask
-	tasksMap map[common.IBaseScheduler]*schedulerTask
-	mu       sync.RWMutex
+	config    *CronConfig
+	tasks     map[string]*schedulerTask
+	tasksMap  map[common.IBaseScheduler]*schedulerTask
+	mu        sync.RWMutex
+	loggerMgr loggermgr.ILoggerManager
 }
 
-func NewSchedulerManagerCronImpl(config *CronConfig) ISchedulerManager {
+// NewSchedulerManagerCronImpl 创建 Cron 实现的调度管理器
+// 参数：
+//   - config: Cron 配置
+//   - loggerMgr: 日志管理器
+func NewSchedulerManagerCronImpl(
+	config *CronConfig,
+	loggerMgr loggermgr.ILoggerManager,
+) ISchedulerManager {
 	return &schedulerManagerImpl{
-		config:   config,
-		tasks:    make(map[string]*schedulerTask),
-		tasksMap: make(map[common.IBaseScheduler]*schedulerTask),
+		config:    config,
+		tasks:     make(map[string]*schedulerTask),
+		tasksMap:  make(map[common.IBaseScheduler]*schedulerTask),
+		loggerMgr: loggerMgr,
 	}
 }
 

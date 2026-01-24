@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/lite-lake/litecore-go/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"time"
 
@@ -11,19 +12,17 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/lite-lake/litecore-go/logger"
 )
 
 // lockManagerBaseImpl 锁管理器基类实现
 // 提供可观测性（日志、指标、链路追踪）和工具函数
 type lockManagerBaseImpl struct {
-	// Logger 日志记录器，通过依赖注入获取
-	Logger logger.ILogger `inject:""`
+	// loggerMgr 日志管理器，用于记录日志
+	loggerMgr loggermgr.ILoggerManager
 	// telemetryMgr 遥测管理器，用于指标和链路追踪
-	telemetryMgr telemetrymgr.ITelemetryManager `inject:""`
+	telemetryMgr telemetrymgr.ITelemetryManager
 	// cacheMgr 缓存管理器，用于 Redis 实现的底层支持
-	cacheMgr cachemgr.ICacheManager `inject:""`
+	cacheMgr cachemgr.ICacheManager
 	// tracer 链路追踪器，用于记录操作链路
 	tracer trace.Tracer
 	// meter 指标记录器，用于记录性能指标
@@ -39,8 +38,20 @@ type lockManagerBaseImpl struct {
 }
 
 // newLockManagerBaseImpl 创建基类
-func newLockManagerBaseImpl() *lockManagerBaseImpl {
-	return &lockManagerBaseImpl{}
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//   - cacheMgr: 缓存管理器
+func newLockManagerBaseImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+	cacheMgr cachemgr.ICacheManager,
+) *lockManagerBaseImpl {
+	return &lockManagerBaseImpl{
+		loggerMgr:    loggerMgr,
+		telemetryMgr: telemetryMgr,
+		cacheMgr:     cacheMgr,
+	}
 }
 
 // initObservability 初始化可观测性组件
@@ -87,7 +98,7 @@ func (b *lockManagerBaseImpl) recordOperation(
 	key string,
 	fn func() error,
 ) error {
-	if b.tracer == nil && b.Logger == nil && b.operationDuration == nil {
+	if b.tracer == nil && b.loggerMgr == nil && b.operationDuration == nil {
 		return fn()
 	}
 
@@ -115,9 +126,10 @@ func (b *lockManagerBaseImpl) recordOperation(
 		)
 	}
 
-	if b.Logger != nil {
+	if b.loggerMgr != nil {
+		logger := b.loggerMgr.Ins()
 		if err != nil {
-			b.Logger.Error("lock operation failed",
+			logger.Error("lock operation failed",
 				"operation", operation,
 				"key", sanitizeKey(key),
 				"error", err.Error(),
@@ -128,7 +140,7 @@ func (b *lockManagerBaseImpl) recordOperation(
 				span.SetStatus(codes.Error, err.Error())
 			}
 		} else {
-			b.Logger.Debug("lock operation success",
+			logger.Debug("lock operation success",
 				"operation", operation,
 				"key", sanitizeKey(key),
 				"duration", duration,

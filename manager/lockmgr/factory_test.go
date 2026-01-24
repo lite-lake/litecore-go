@@ -57,7 +57,7 @@ func (m *mockConfigManager) Set(key string, value any) error {
 
 func TestBuild(t *testing.T) {
 	t.Run("默认驱动（空字符串）返回 memory 驱动", func(t *testing.T) {
-		mgr, err := Build("", map[string]any{})
+		mgr, err := Build("", map[string]any{}, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &lockManagerMemoryImpl{}, mgr)
@@ -73,7 +73,7 @@ func TestBuild(t *testing.T) {
 			"max_open_conns":    100,
 			"conn_max_lifetime": "30s",
 		}
-		mgr, err := Build("redis", redisConfig)
+		mgr, err := Build("redis", redisConfig, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &lockManagerRedisImpl{}, mgr)
@@ -83,14 +83,14 @@ func TestBuild(t *testing.T) {
 		memoryConfig := map[string]any{
 			"max_backups": 1000,
 		}
-		mgr, err := Build("memory", memoryConfig)
+		mgr, err := Build("memory", memoryConfig, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &lockManagerMemoryImpl{}, mgr)
 	})
 
 	t.Run("创建的实例实现了 ILockManager 接口", func(t *testing.T) {
-		memoryMgr, err := Build("memory", map[string]any{})
+		memoryMgr, err := Build("memory", map[string]any{}, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.Implements(t, (*ILockManager)(nil), memoryMgr)
 
@@ -99,13 +99,13 @@ func TestBuild(t *testing.T) {
 			"port": 6379,
 			"db":   0,
 		}
-		redisMgr, err := Build("redis", redisConfig)
+		redisMgr, err := Build("redis", redisConfig, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.Implements(t, (*ILockManager)(nil), redisMgr)
 	})
 
 	t.Run("不支持的驱动类型返回错误", func(t *testing.T) {
-		mgr, err := Build("invalid-driver", map[string]any{})
+		mgr, err := Build("invalid-driver", map[string]any{}, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "unsupported driver type")
@@ -152,7 +152,7 @@ func TestBuild(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				mgr, err := Build(tc.driver, tc.config)
+				mgr, err := Build(tc.driver, tc.config, nil, nil, nil)
 				if tc.wantErr != "" {
 					assert.Error(t, err)
 					assert.Contains(t, err.Error(), tc.wantErr)
@@ -184,7 +184,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &lockManagerRedisImpl{}, mgr)
@@ -200,14 +200,14 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &lockManagerMemoryImpl{}, mgr)
 	})
 
 	t.Run("配置提供者为 nil 返回错误", func(t *testing.T) {
-		mgr, err := BuildWithConfigProvider(nil)
+		mgr, err := BuildWithConfigProvider(nil, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "configProvider cannot be nil")
@@ -219,7 +219,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			err:  fmt.Errorf("get error"),
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "failed to get lock.driver")
@@ -232,7 +232,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "lock.driver")
@@ -245,7 +245,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "failed to get lock.redis_config")
@@ -259,7 +259,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "lock.redis_config")
@@ -272,7 +272,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "failed to get lock.memory_config")
@@ -286,7 +286,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "lock.memory_config")
@@ -299,7 +299,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.Error(t, err)
 		assert.Nil(t, mgr)
 		assert.Contains(t, err.Error(), "unsupported driver type")
@@ -321,7 +321,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &lockManagerRedisImpl{}, mgr)
@@ -337,7 +337,7 @@ func TestBuildWithConfigProvider(t *testing.T) {
 			},
 		}
 
-		mgr, err := BuildWithConfigProvider(mockCfg)
+		mgr, err := BuildWithConfigProvider(mockCfg, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, mgr)
 		assert.IsType(t, &lockManagerMemoryImpl{}, mgr)

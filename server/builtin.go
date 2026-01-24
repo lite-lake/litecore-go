@@ -96,7 +96,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	logStartup(tempLogger, PhaseManagers, "Initialization complete: LoggerManager")
 
 	// 4. 初始化数据库管理器（依赖配置管理器）
-	databaseMgr, err := databasemgr.BuildWithConfigProvider(configManager)
+	databaseMgr, err := databasemgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create database manager: %w", err)
 	}
@@ -106,7 +106,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	logStartup(tempLogger, PhaseManagers, "Initialization complete: DatabaseManager")
 
 	// 5. 初始化缓存管理器（依赖配置管理器）
-	cacheMgr, err := cachemgr.BuildWithConfigProvider(configManager)
+	cacheMgr, err := cachemgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache manager: %w", err)
 	}
@@ -116,7 +116,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	logStartup(tempLogger, PhaseManagers, "Initialization complete: CacheManager")
 
 	// 6. 初始化锁管理器（依赖配置管理器）
-	lockMgr, err := lockmgr.BuildWithConfigProvider(configManager)
+	lockMgr, err := lockmgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr, cacheMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create lock manager: %w", err)
 	}
@@ -126,7 +126,7 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	logStartup(tempLogger, PhaseManagers, "Initialization complete: LockManager")
 
 	// 7. 初始化限流管理器（依赖配置管理器）
-	limiterMgr, err := limitermgr.BuildWithConfigProvider(configManager)
+	limiterMgr, err := limitermgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr, cacheMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create limiter manager: %w", err)
 	}
@@ -135,8 +135,8 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	}
 	logStartup(tempLogger, PhaseManagers, "Initialization complete: LimiterManager")
 
-	// 8. 初始化消息队列管理器（依赖配置管理器）
-	mqMgr, err := mqmgr.BuildWithConfigProvider(configManager)
+	// 8. 初始化消息队列管理器（依赖配置管理器、日志管理器、遥测管理器）
+	mqMgr, err := mqmgr.BuildWithConfigProvider(configManager, loggerManager, telemetryMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mq manager: %w", err)
 	}
@@ -145,8 +145,8 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	}
 	logStartup(tempLogger, PhaseManagers, "Initialization complete: MQManager")
 
-	// 9. 初始化定时任务管理器（依赖配置管理器）
-	schedulerMgr, err := schedulermgr.BuildWithConfigProvider(configManager)
+	// 9. 初始化定时任务管理器（依赖配置管理器、日志管理器）
+	schedulerMgr, err := schedulermgr.BuildWithConfigProvider(configManager, loggerManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create scheduler manager: %w", err)
 	}
