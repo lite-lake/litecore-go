@@ -70,6 +70,7 @@ func (s *Scanner) scanComponents(info *analyzer.ProjectInfo) {
 		analyzer.LayerService:    "services",
 		analyzer.LayerController: "controllers",
 		analyzer.LayerMiddleware: "middlewares",
+		analyzer.LayerListener:   "listeners",
 	}
 
 	for layer, dirName := range layerDirs {

@@ -20,7 +20,7 @@ func NewMessageAuditListener() IMessageAuditListener {
 }
 
 func (l *messageAuditListenerImpl) ListenerName() string {
-	return "messageAuditListenerImpl"
+	return "MessageAuditListener"
 }
 
 func (l *messageAuditListenerImpl) GetQueue() string {
