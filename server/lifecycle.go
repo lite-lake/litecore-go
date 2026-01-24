@@ -9,6 +9,7 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/logger"
+	"github.com/lite-lake/litecore-go/manager/databasemgr"
 	"github.com/lite-lake/litecore-go/manager/mqmgr"
 	"github.com/lite-lake/litecore-go/manager/schedulermgr"
 )
@@ -24,6 +25,45 @@ func (e *Engine) logStartup(phase StartupPhase, msg string, fields ...logger.Fie
 	} else {
 		e.getLogger().Info(msg, fields...)
 	}
+}
+
+// autoMigrateDatabase 自动迁移数据库
+func (e *Engine) autoMigrateDatabase() error {
+	e.logPhaseStart(PhaseStartup, "Starting database auto-migration")
+
+	// 获取 DatabaseManager
+	dbMgr, err := container.GetManager[databasemgr.IDatabaseManager](e.Manager)
+	if err != nil {
+		e.getLogger().Warn("DatabaseManager not found, skipping auto-migration")
+		return nil
+	}
+
+	if dbMgr.Driver() == "none" {
+		e.getLogger().Info("Database driver is 'none', skipping auto-migration")
+		return nil
+	}
+
+	// 获取所有实体
+	entities := e.Entity.GetAll()
+	if len(entities) == 0 {
+		e.getLogger().Info("No entities registered, skipping auto-migration")
+		return nil
+	}
+
+	// 准备迁移模型
+	var models []any
+	for _, entity := range entities {
+		models = append(models, entity)
+		e.getLogger().Debug("Preparing to migrate entity", "entity", entity.EntityName())
+	}
+
+	// 执行迁移
+	if err := dbMgr.AutoMigrate(models...); err != nil {
+		return fmt.Errorf("failed to auto-migrate entities: %w", err)
+	}
+
+	e.logPhaseEnd(PhaseStartup, "Database auto-migration complete", logger.F("count", len(models)))
+	return nil
 }
 
 // logPhaseStart 记录阶段开始

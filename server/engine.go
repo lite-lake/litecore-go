@@ -3,10 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -17,6 +17,8 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/logger"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/manager/schedulermgr"
 )
 
@@ -42,6 +44,7 @@ type Engine struct {
 	// 配置
 	serverConfig    *serverConfig
 	shutdownTimeout time.Duration
+	autoMigrateDB   bool // 是否自动迁移数据库
 
 	// 生命周期管理
 	ctx     context.Context
@@ -139,6 +142,18 @@ func (e *Engine) Initialize() error {
 		return fmt.Errorf("failed to initialize builtin components: %w", err)
 	}
 	e.Manager = builtInManagerContainer
+
+	// 读取自动迁移配置
+	e.autoMigrateDB = false
+	if configMgr := e.Manager.GetByType(reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()); configMgr != nil {
+		if mgr, ok := configMgr.(configmgr.IConfigManager); ok {
+			if autoMigrate, err := mgr.Get("database.auto_migrate"); err == nil {
+				if autoMigrateBool, ok := autoMigrate.(bool); ok {
+					e.autoMigrateDB = autoMigrateBool
+				}
+			}
+		}
+	}
 
 	// 切换到结构化日志
 	if loggerMgr, err := container.GetManager[loggermgr.ILoggerManager](e.Manager); err == nil {
@@ -319,7 +334,14 @@ func (e *Engine) Start() error {
 		return fmt.Errorf("start managers failed: %w", err)
 	}
 
-	// 2. 启动所有 Repository
+	// 2. 自动迁移数据库（如果启用）
+	if e.autoMigrateDB {
+		if err := e.autoMigrateDatabase(); err != nil {
+			return fmt.Errorf("auto migrate database failed: %w", err)
+		}
+	}
+
+	// 3. 启动所有 Repository
 	if err := e.startRepositories(); err != nil {
 		return fmt.Errorf("start repositories failed: %w", err)
 	}

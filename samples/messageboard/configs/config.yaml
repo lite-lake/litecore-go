@@ -26,6 +26,7 @@ server:
 # 数据库配置
 database:
   driver: "sqlite"                              # 驱动类型：mysql, postgresql, sqlite, none
+  auto_migrate: true                            # 是否自动迁移数据库表结构（默认 false）
   # MySQL 配置示例
   # mysql_config:
   #   dsn: "root:password@tcp(localhost:3306)/messageboard?charset=utf8mb4&parseTime=True&loc=Local" # 数据源名称
