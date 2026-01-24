@@ -14,28 +14,28 @@ type IAuthMiddleware interface {
 	common.IBaseMiddleware
 }
 
-type authMiddleware struct {
+type authMiddlewareImpl struct {
 	AuthService services.IAuthService `inject:""` // 认证服务
 }
 
 // NewAuthMiddleware 创建认证中间件实例
 func NewAuthMiddleware() IAuthMiddleware {
-	return &authMiddleware{}
+	return &authMiddlewareImpl{}
 }
 
 // MiddlewareName 返回中间件名称
-func (m *authMiddleware) MiddlewareName() string {
+func (m *authMiddlewareImpl) MiddlewareName() string {
 	return "AuthMiddleware"
 }
 
 // Order 返回中间件执行顺序
-func (m *authMiddleware) Order() int {
+func (m *authMiddlewareImpl) Order() int {
 	return 100
 }
 
 // Wrapper 返回中间件处理函数
 // 验证 /api/admin 路径的请求（登录接口除外）
-func (m *authMiddleware) Wrapper() gin.HandlerFunc {
+func (m *authMiddlewareImpl) Wrapper() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 非 admin 路径直接放行
 		if !strings.HasPrefix(c.Request.URL.Path, "/api/admin") {
@@ -91,13 +91,13 @@ func (m *authMiddleware) Wrapper() gin.HandlerFunc {
 }
 
 // OnStart 启动时初始化
-func (m *authMiddleware) OnStart() error {
+func (m *authMiddlewareImpl) OnStart() error {
 	return nil
 }
 
 // OnStop 停止时清理
-func (m *authMiddleware) OnStop() error {
+func (m *authMiddlewareImpl) OnStop() error {
 	return nil
 }
 
-var _ IAuthMiddleware = (*authMiddleware)(nil)
+var _ IAuthMiddleware = (*authMiddlewareImpl)(nil)

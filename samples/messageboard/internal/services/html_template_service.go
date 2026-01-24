@@ -16,41 +16,41 @@ type IHTMLTemplateService interface {
 	SetGinEngine(engine *gin.Engine)                        // 设置 Gin 引擎
 }
 
-type htmlTemplateService struct {
+type htmlTemplateServiceImpl struct {
 	inner     *liteservice.HTMLTemplateService // 内置模板服务
 	LoggerMgr loggermgr.ILoggerManager         `inject:""` // 日志管理器
 }
 
 // NewHTMLTemplateService 创建 HTML 模板服务实例
 func NewHTMLTemplateService() IHTMLTemplateService {
-	return &htmlTemplateService{
+	return &htmlTemplateServiceImpl{
 		inner: liteservice.NewHTMLTemplateService("templates/*"),
 	}
 }
 
 // ServiceName 返回服务名称
-func (s *htmlTemplateService) ServiceName() string {
+func (s *htmlTemplateServiceImpl) ServiceName() string {
 	return "HTMLTemplateService"
 }
 
 // OnStart 启动时初始化模板引擎
-func (s *htmlTemplateService) OnStart() error {
+func (s *htmlTemplateServiceImpl) OnStart() error {
 	return s.inner.OnStart()
 }
 
 // OnStop 停止时清理
-func (s *htmlTemplateService) OnStop() error {
+func (s *htmlTemplateServiceImpl) OnStop() error {
 	return s.inner.OnStop()
 }
 
 // Render 渲染指定的 HTML 模板
-func (s *htmlTemplateService) Render(ctx *gin.Context, name string, data interface{}) {
+func (s *htmlTemplateServiceImpl) Render(ctx *gin.Context, name string, data interface{}) {
 	s.inner.Render(ctx, name, data)
 }
 
 // SetGinEngine 设置 Gin 引擎用于模板渲染
-func (s *htmlTemplateService) SetGinEngine(engine *gin.Engine) {
+func (s *htmlTemplateServiceImpl) SetGinEngine(engine *gin.Engine) {
 	s.inner.SetGinEngine(engine)
 }
 
-var _ IHTMLTemplateService = (*htmlTemplateService)(nil)
+var _ IHTMLTemplateService = (*htmlTemplateServiceImpl)(nil)
