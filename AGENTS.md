@@ -1,66 +1,67 @@
 # AGENTS.md
 
-Guidelines for agentic coding tools in this repository.
+此仓库中 AI 编码工具的指南。
 
-## Project Overview
+## 项目概述
 
-- **Language**: Go 1.25+, Module: `github.com/lite-lake/litecore-go`
-- **Framework**: Gin, GORM, Zap
-- **Architecture**: 5-tier layered dependency injection (Entity → Repository → Service → Controller/Middleware)
-- **Built-in Components**: Manager components located at `server/builtin/manager/`, auto-initialized and injected
+- **语言**: Go 1.25+, 模块: `github.com/lite-lake/litecore-go`
+- **框架**: Gin, GORM, Zap
+ - **架构**: 5 层分层依赖注入 (内置管理器层 → Entity → Repository → Service → 交互层)
+ - **交互层**: Controller/Middleware/Listener/Scheduler 统一处理 HTTP 请求、MQ 消息和定时任务
+- **内置组件**: 位于 `server/builtin/manager/` 的管理器组件，自动初始化并注入
 
-## Essential Commands
+## 基本命令
 
-### Build/Test/Lint
+### 构建/测试/检查
 ```bash
 go build -o litecore ./...
-go test ./...                     # Test all
-go test -cover ./...              # With coverage
-go test ./util/jwt                # Specific package
+go test ./...                     # 测试所有
+go test -cover ./...              # 生成覆盖率
+go test ./util/jwt                # 测试指定包
 go test ./util/jwt -run TestGenerateHS256Token
 go test -v ./util/jwt -run TestGenerateHS256Token/valid_StandardClaims
-go test -bench=. ./util/hash       # Benchmarks
+go test -bench=. ./util/hash       # 基准测试
 go test -bench=BenchmarkMD5 ./util/hash
 go fmt ./...
 go vet ./...
 go mod tidy
 ```
 
-## Code Style
+## 代码风格
 
-### Imports (stdlib → third-party → local)
+### 导入顺序（标准库 → 第三方库 → 本地模块）
 ```go
 import (
-	"crypto"       // stdlib first
+	"crypto"       // 标准库优先
 	"errors"
 	"time"
 
-	"github.com/gin-gonic/gin"  // third-party second
+	"github.com/gin-gonic/gin"  // 第三方库其次
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lite-lake/litecore-go/common"  // local modules last
+	"github.com/lite-lake/litecore-go/common"  // 本地模块最后
 )
 ```
 
-### Naming
-- **Interfaces**: `I*` prefix (e.g., `ILiteUtilJWT`, `IDatabaseManager`)
-- **Private structs**: lowercase (e.g., `jwtEngine`, `hashEngine`)
-- **Public structs**: PascalCase (e.g., `StandardClaims`, `ServerConfig`)
-- **Functions**: PascalCase exported, camelCase private
-- **Enums**: `iota` with Chinese comments
+### 命名
+- **接口**: `I*` 前缀 (例如: `ILiteUtilJWT`, `IDatabaseManager`)
+- **私有结构体**: 小写 (例如: `jwtEngine`, `hashEngine`)
+- **公共结构体**: 大驼峰 (例如: `StandardClaims`, `ServerConfig`)
+- **函数**: 导出用大驼峰，私有用小驼峰
+- **枚举**: `iota` 配合中文注释
 
-### Comments (Chinese)
-- All comments must be in Chinese
-- Exported functions need godoc comments
+### 注释（中文）
+- 所有注释必须用中文
+- 导出函数需要 godoc 注释
 
-### Error Handling
+### 错误处理
 ```go
 if err != nil {
-	return "", fmt.Errorf("operation failed: %w", err)
+	return "", fmt.Errorf("操作失败: %w", err)
 }
 ```
 
-### DI Pattern
+### 依赖注入模式
 ```go
 type UserServiceImpl struct {
 	Config    configmgr.IConfigManager    `inject:""`
@@ -68,33 +69,34 @@ type UserServiceImpl struct {
 }
 ```
 
-### Testing
-- Table-driven tests with `t.Run()` in Chinese
-- Benchmarks with `b.ResetTimer()`
+### 测试
+- 使用 `t.Run()` 的表驱动测试，用中文
+- 基准测试使用 `b.ResetTimer()`
 
-### Formatting
-- Tabs, max 120 chars/line
-- Run `go fmt ./...` after changes
+### 格式化
+- 使用 Tab，每行最多 120 字符
+- 修改后运行 `go fmt ./...`
 
-## Architecture
+## 架构
 
-### Dependency Rules
-- Entity (no deps)
-- Manager → Config + other Managers
+### 依赖规则
+- Entity（无依赖）
+- Manager → Config + 其他 Manager
 - Repository → Config + Manager + Entity
-- Service → Config + Manager + Repository + other Services
-- Controller → Config + Manager + Service
-- Middleware → Config + Manager + Service
+- Service → Config + Manager + Repository + 其他 Service
+- 交互层 (Controller/Middleware/Listener/Scheduler) → Config + Manager + Service
 
-### DI Setup
+### 依赖注入设置
 ```go
 entityContainer := container.NewEntityContainer()
 repositoryContainer := container.NewRepositoryContainer(entityContainer)
 serviceContainer := container.NewServiceContainer(repositoryContainer)
 controllerContainer := container.NewControllerContainer(serviceContainer)
 middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
+listenerContainer := container.NewListenerContainer(serviceContainer)
+schedulerContainer := container.NewSchedulerContainer(serviceContainer)
 
-// Managers are auto-initialized by the engine via server.BuiltinConfig
+// Manager 由引擎通过 server.BuiltinConfig 自动初始化
 engine := server.NewEngine(
     &server.BuiltinConfig{
         Driver:   "yaml",
@@ -105,16 +107,18 @@ engine := server.NewEngine(
     serviceContainer,
     controllerContainer,
     middlewareContainer,
+    listenerContainer,
+    schedulerContainer,
 )
 engine.Run()
 ```
 
-## When Completing Tasks
-1. `go test ./...` - verify no regressions
-2. `go fmt ./...` - format code
-3. `go vet ./...` - check issues
-4. Verify package boundaries
-5. Add tests and documentation
+## 完成任务时
+1. `go test ./...` - 验证无回归
+2. `go fmt ./...` - 格式化代码
+3. `go vet ./...` - 检查问题
+4. 验证包边界
+5. 添加测试和文档
 
 ## 日志使用规范
 

@@ -1,144 +1,149 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+此文件为 Claude Code (claude.ai/code) 在此仓库中工作时提供指导。
 
-## Project Overview
+## 项目概述
 
-**LiteCore-Go** is a layered application framework for Go that provides dependency injection containers, lifecycle management, and infrastructure managers. Built on top of Gin, GORM, and Zap.
+**LiteCore-Go** 是一个 Go 语言的分层应用框架，提供依赖注入容器、生命周期管理和基础设施管理器。基于 Gin、GORM 和 Zap 构建。
 
-**Module**: `github.com/lite-lake/litecore-go`
-**Go Version**: 1.25+
-**Architecture**: 5-tier layered dependency injection (Entity → Repository → Service → Controller/Middleware)
-**Built-in Components**:
-- **Manager Components**: `manager/*/` (configmgr, loggermgr, databasemgr, cachemgr, telemetrymgr, limitermgr, lockmgr, mqmgr)
-- **Component Layer**: `component/litecontroller`, `component/litemiddleware`, `component/liteservice`
+**模块**: `github.com/lite-lake/litecore-go`
+**Go 版本**: 1.25+
+ **架构**: 5 层分层依赖注入（内置管理器层 → Entity → Repository → Service → 交互层）
+  - **交互层**: Controller/Middleware/Listener/Scheduler 统一处理 HTTP 请求、MQ 消息和定时任务
+**内置组件**:
+- **管理器组件**: `manager/*/` (configmgr, loggermgr, databasemgr, cachemgr, telemetrymgr, limitermgr, lockmgr, mqmgr)
+- **组件层**: `component/litecontroller`, `component/litemiddleware`, `component/liteservice`
 
-## Essential Commands
+## 基本命令
 
-### Build, Test, and Lint
+### 构建、测试和检查
 
 ```bash
-# Build all packages
+# 构建所有包
 go build -o litecore ./...
 
-# Run all tests
+# 运行所有测试
 go test ./...
 
-# Run tests with coverage
+# 运行测试并生成覆盖率
 go test -cover ./...
 
-# Test specific package
+# 测试特定包
 go test ./util/jwt
 
-# Run single test
+# 运行单个测试
 go test ./util/jwt -run TestGenerateHS256Token
 go test -v ./util/jwt -run TestGenerateHS256Token/valid_StandardClaims
 
-# Run benchmarks
+# 运行基准测试
 go test -bench=. ./util/hash
 go test -bench=BenchmarkMD5 ./util/hash
 
-# Format and vet
+# 格式化和检查
 go fmt ./...
 go vet ./...
 go mod tidy
 ```
 
-## Architecture Overview
+## 架构概述
 
-### 5-Tier Layered Architecture
+  ### 5 层分层架构
 
-The framework enforces strict layer boundaries with unidirectional dependencies:
+  框架强制执行严格的层边界和单向依赖关系：
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Controller Layer   (component/litecontroller)             │
-│  Middleware Layer   (component/litemiddleware)               │
-├─────────────────────────────────────────────────────────────┤
-│  Service Layer      (component/liteservice)                 │
-├─────────────────────────────────────────────────────────────┤
-│  Repository Layer   (BaseRepository)                        │
-├─────────────────────────────────────────────────────────────┤
-│  Entity Layer       (BaseEntity)                            │
-│  Manager Layer      (manager/*)                            │
-│  Managers: configmgr, loggermgr, databasemgr, cachemgr,      │
-│           telemetrymgr, limitermgr, lockmgr, mqmgr         │
-└─────────────────────────────────────────────────────────────┘
-```
+  ```
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                交互层 (Interaction Layer)                     │
+  │  Controller   - HTTP 请求处理 (component/litecontroller) │
+  │  Middleware   - 请求拦截 (component/litemiddleware)  │
+  │  Listener     - MQ 消息处理                          │
+  │  Scheduler    - 定时任务                               │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  Service Layer (component/liteservice)                         │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  Repository Layer (BaseRepository)                             │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  Entity Layer (BaseEntity)                                    │
+  │  Manager Layer (manager/*)                                    │
+  │  Managers: configmgr, loggermgr, databasemgr, cachemgr,        │
+  │           telemetrymgr, limitermgr, lockmgr, mqmgr, schedulermgr│
+  └──────────────────────────────────────────────────────────────────┘
+  ```
 
-**Dependency Rules**:
-- **Entity** - No dependencies
-- **Manager** → Config, other Managers (same-layer dependencies)
-- **Repository** → Config, Manager, Entity
-- **Service** → Config, Manager, Repository, other Services (same-layer)
-- **Controller** → Config, Manager, Service
-- **Middleware** → Config, Manager, Service
+  **依赖规则**:
+  - **Entity** - 无依赖
+  - **Manager** → Config, other Managers (同层依赖)
+  - **Repository** → Config, Manager, Entity
+  - **Service** → Config, Manager, Repository, other Services (同层)
+  - **交互层 (Controller/Middleware/Listener/Scheduler)** → Config, Manager, Service
 
-**Manager Components** (`manager/*/`):
-- `configmgr` - Configuration management (YAML/JSON)
-- `loggermgr` - Structured logging (Zap with Gin/JSON/default formats)
-- `databasemgr` - Database management (GORM: MySQL/PostgreSQL/SQLite)
-- `cachemgr` - Cache management (Ristretto/Redis/None)
-- `telemetrymgr` - OpenTelemetry (Traces/Metrics/Logs)
-- `limitermgr` - Rate limiting (Memory/Redis)
-- `lockmgr` - Distributed lock (Memory/Redis)
-- `mqmgr` - Message queue (RabbitMQ/Memory)
+  **管理器组件** (`manager/*/`):
+  - `configmgr` - 配置管理 (YAML/JSON)
+  - `loggermgr` - 结构化日志 (Zap 支持 Gin/JSON/default 格式)
+  - `databasemgr` - 数据库管理 (GORM: MySQL/PostgreSQL/SQLite)
+  - `cachemgr` - 缓存管理 (Ristretto/Redis/None)
+  - `telemetrymgr` - OpenTelemetry (链路追踪/指标/日志)
+  - `limitermgr` - 限流 (内存/Redis)
+  - `lockmgr` - 分布式锁 (内存/Redis)
+  - `mqmgr` - 消息队列 (RabbitMQ/内存)
+  - `schedulermgr` - 定时任务管理 (基于 Cron)
 
-### Dependency Injection Container
+### 依赖注入容器
 
-The container system (`container/`) manages component lifecycle and enforces layer boundaries.
+容器系统 (`container/`) 管理组件生命周期并强制执行层边界。
 
-**Key Pattern - Registration by Interface Type**:
+**关键模式 - 按接口类型注册**:
 ```go
-// Register instances by interface type using RegisterByType
+// 使用 RegisterByType 按接口类型注册实例
 serviceContainer.RegisterByType(
     reflect.TypeOf((*UserService)(nil)).Elem(),
     &UserServiceImpl{},
 )
 ```
 
-**Two-Phase Injection**:
-1. **Registration Phase** (`RegisterByType`) - Add instances to container, no injection
-2. **Injection Phase** (`InjectAll`) - Resolve and inject dependencies with topological sort
+**两阶段注入**:
+ 1. **注册阶段** (`RegisterByType`) - 将实例添加到容器，不进行注入
+ 2. **注入阶段** (`InjectAll`) - 解析并按拓扑排序注入依赖
 
-**Dependency Declaration**:
+**依赖声明**:
 ```go
 type UserServiceImpl struct {
     Config    configmgr.IConfigManager    `inject:""`
     DBMgr     databasemgr.IDatabaseManager `inject:""`
     UserRepo  IUserRepository              `inject:""`
-    OrderSvc  IOrderService               `inject:""`  // Same-layer dependency
+    OrderSvc  IOrderService               `inject:""`  // 同层依赖
 }
 ```
 
-### Manager Pattern
+### 管理器模式
 
-Managers (`manager/*/`) provide infrastructure capabilities (database, cache, logging, telemetry, rate limiting, locking, messaging).
+管理器 (`manager/*/`) 提供基础设施能力（数据库、缓存、日志、遥测、限流、锁、消息）。
 
-**Available Managers**:
-- `configmgr` - Configuration loader (YAML/JSON) with path query support
-- `loggermgr` - Structured logging with Gin/JSON/default formats, color support
-- `databasemgr` - GORM database (MySQL/PostgreSQL/SQLite)
-- `cachemgr` - High-performance cache (Ristretto for memory, Redis for distributed, None)
-- `telemetrymgr` - OpenTelemetry integration (Traces, Metrics, Logs)
-- `limitermgr` - Rate limiting (sliding window, Memory/Redis)
-- `lockmgr` - Distributed lock (blocking/non-blocking, Memory/Redis)
-- `mqmgr` - Message queue (RabbitMQ, Memory queue)
+ **可用管理器**:
+  - `configmgr` - 配置加载器 (YAML/JSON)，支持路径查询
+  - `loggermgr` - 结构化日志，支持 Gin/JSON/default 格式和颜色
+  - `databasemgr` - GORM 数据库 (MySQL/PostgreSQL/SQLite)
+  - `cachemgr` - 高性能缓存 (内存用 Ristretto，分布式用 Redis，或 None)
+  - `telemetrymgr` - OpenTelemetry 集成 (链路追踪、指标、日志)
+  - `limitermgr` - 限流 (滑动窗口，内存/Redis)
+  - `lockmgr` - 分布式锁 (阻塞/非阻塞，内存/Redis)
+  - `mqmgr` - 消息队列 (RabbitMQ，内存队列)
+  - `schedulermgr` - 支持 Cron 的定时任务管理器
 
-**Standard Manager Structure**:
-- `interface.go` - Core interface (extends `common.IBaseManager`)
-- `config.go` - Configuration structures and parsing
-- `impl_base.go` - Base implementation with observability
-- `{driver}_impl.go` - Driver-specific implementations
-- `factory.go` - Factory functions for DI
+**标准管理器结构**:
+- `interface.go` - 核心接口 (扩展 `common.IBaseManager`)
+- `config.go` - 配置结构和解析
+- `impl_base.go` - 带可观测性的基础实现
+- `{driver}_impl.go` - 驱动特定实现
+- `factory.go` - DI 工厂函数
 
-**Configuration Path Convention**:
+**配置路径约定**:
 ```
-{manager}.driver           # Driver type (e.g., mysql, redis, rabbitmq)
-{manager}.{driver}_config  # Driver config
+{manager}.driver           # 驱动类型 (如 mysql, redis, rabbitmq)
+{manager}.{driver}_config  # 驱动配置
 ```
 
-Examples:
+示例:
 - `database.driver` + `database.mysql_config`
 - `cache.driver` + `cache.redis_config` / `cache.memory_config`
 - `logger.driver` + `logger.zap_config`
@@ -146,84 +151,84 @@ Examples:
 - `lock.driver` + `lock.redis_config` / `lock.memory_config`
 - `mq.driver` + `mq.rabbitmq_config`
 
-### Server Engine
+### 服务器引擎
 
-The `server` package provides the HTTP server lifecycle management:
+`server` 包提供 HTTP 服务器生命周期管理：
 
-**Lifecycle Flow**:
-1. `Initialize()` - Auto-initialize managers (config → telemetry → logger → database → cache → lock → limiter → mq), register to container
-2. `NewEngine()` - Create engine with containers
-3. `Start()` - Start managers, repositories, services, HTTP server with startup logs
-4. `Stop()` - Graceful shutdown
+ **生命周期流程**:
+ 1. `Initialize()` - 自动初始化管理器 (config → telemetry → logger → database → cache → lock → limiter → mq → scheduler)，注册到容器
+ 2. `NewEngine()` - 创建带容器的引擎
+ 3. `Start()` - 启动管理器、仓库、服务、交互层组件和 HTTP 服务器，输出启动日志
+ 4. `Stop()` - 优雅关闭
 
-**Startup Logs**:
-The framework logs each startup phase:
-- Config file and driver info
-- Manager initialization status
-- Component counts (controllers, middlewares, services)
-- Dependency injection results
+**启动日志**:
+框架记录每个启动阶段：
+- 配置文件和驱动信息
+- 管理器初始化状态
+- 组件计数 (controllers, middlewares, services)
+- 依赖注入结果
 
-## Code Style and Conventions
+## 代码风格和约定
 
-### Imports Order
+### 导入顺序
 ```go
 import (
-    "crypto"       // stdlib first
+    "crypto"       // 标准库优先
     "errors"
     "time"
 
-    "github.com/gin-gonic/gin"  // third-party second
+    "github.com/gin-gonic/gin"  // 第三方库其次
     "github.com/stretchr/testify/assert"
 
-    "github.com/lite-lake/litecore-go/common"  // local modules last
+    "github.com/lite-lake/litecore-go/common"  // 本地模块最后
 )
 ```
 
-### Naming Conventions
-- **Interfaces**: `I*` prefix (e.g., `IConfigManager`, `IDatabaseManager`, `IUserService`)
-- **Private structs**: lowercase (e.g., `messageService`, `messageRepository`)
-- **Public structs**: PascalCase (e.g., `ServerConfig`, `User`)
-- **Functions**: PascalCase exported, camelCase private
-- **Factory functions**: `Build()`, `BuildWithConfigProvider()`, `NewXxx()`
+### 命名约定
+- **接口**: `I*` 前缀 (如 `IConfigManager`, `IDatabaseManager`, `IUserService`)
+- **私有结构体**: 小写 (如 `messageService`, `messageRepository`)
+- **公共结构体**: 大驼峰 (如 `ServerConfig`, `User`)
+- **函数**: 导出用大驼峰，私有用小驼峰
+- **工厂函数**: `Build()`, `BuildWithConfigProvider()`, `NewXxx()`
 
-### Comments and Documentation
-- Use **Chinese** for all user-facing documentation and code comments
-- Package documentation in `doc.go`
-- Function comments must explain purpose and parameters
-- Exported functions must have comments
+### 注释和文档
+- 所有面向用户的文档和代码注释使用**中文**
+- 包文档放在 `doc.go` 中
+- 函数注释必须说明目的和参数
+- 导出函数必须有注释
 
-### Logging Best Practices
-- **Inject ILoggerManager** in business layers: `LoggerMgr loggermgr.ILoggerManager \`inject:""\``
-- **Initialize logger**: Use `s.logger = s.LoggerMgr.Ins()` after DI
-- **Structured logging**: `s.logger.Info("msg", "key", value)`
-- **Context-aware**: `s.logger.With("user_id", id).Info("...")`
-- **Log levels**:
-  - Debug: Development debug information
-  - Info: Normal business flow (request start/complete, resource creation)
-  - Warn: Degradation, slow query, retry
-  - Error: Business error, operation failure (requires attention)
-  - Fatal: Fatal error, needs immediate termination
+### 日志最佳实践
+- 在业务层**注入 ILoggerManager**: `LoggerMgr loggermgr.ILoggerManager \`inject:""\``
+- **初始化日志**: DI 后使用 `s.logger = s.LoggerMgr.Ins()`
+- **结构化日志**: `s.logger.Info("msg", "key", value)`
+- **上下文感知**: `s.logger.With("user_id", id).Info("...")`
+- **日志级别**:
+  - Debug: 开发调试信息
+  - Info: 正常业务流程 (请求开始/完成、资源创建)
+  - Warn: 降级处理、慢查询、重试
+  - Error: 业务错误、操作失败 (需人工关注)
+  - Fatal: 致命错误，需要立即终止
 
-**Log Formats** (configurable via `logger.zap_config.console_config.format`):
-- `gin` - Gin style with pipe separators, console-friendly (default)
-- `json` - JSON format for log analysis and monitoring
-- `default` - Default ConsoleEncoder format
+**日志格式** (通过 `logger.zap_config.console_config.format` 配置):
+- `gin` - Gin 风格，竖线分隔符，控制台友好 (默认)
+- `json` - JSON 格式，用于日志分析和监控
+- `default` - 默认 ConsoleEncoder 格式
 
-**Gin Format Example**:
+**Gin 格式示例**:
 ```
 2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23
 2026-01-24 15:04:05.456 | WARN  | 慢查询检测 | duration=1.2s
 2026-01-24 15:04:05.789 | ERROR | 数据库连接失败 | error="connection refused"
 ```
 
-### Error Handling
+### 错误处理
 ```go
 if err != nil {
     return "", fmt.Errorf("operation failed: %w", err)
 }
 ```
 
-### Dependency Injection Tags
+### 依赖注入标签
 ```go
 type MyService struct {
     Config     configmgr.IConfigManager    `inject:""`
@@ -233,10 +238,10 @@ type MyService struct {
 }
 ```
 
-### Testing Patterns
-- Table-driven tests with `t.Run()` subtests
-- Use `testify/assert` for assertions
-- Benchmark functions prefixed with `Benchmark`
+### 测试模式
+- 使用 `t.Run()` 子测试的表驱动测试
+- 使用 `testify/assert` 进行断言
+- 基准测试函数以 `Benchmark` 为前缀
 
 ```go
 func TestGenerateToken(t *testing.T) {
@@ -256,57 +261,62 @@ func TestGenerateToken(t *testing.T) {
 }
 ```
 
-## Manager Implementation SOP
+## 管理器实现标准流程
 
-When creating or modifying managers, they should be placed at `manager/*/`:
+创建或修改管理器时，应放置在 `manager/*/`：
 
-1. **Flat structure** - No subdirectories within manager package
-2. **File organization**:
-   - `interface.go` - Core interface (extends `common.IBaseManager`)
-   - `config.go` - Config structures and parsing
-   - `impl_base.go` - Base implementation with observability
-   - `{driver}_impl.go` - Driver-specific implementations
-   - `factory.go` - Factory functions for DI
-3. **DI tags** - Use `inject:""` for dependencies
-4. **Config paths** - Follow `{manager}.driver` convention
-5. **Auto-initialization** - Add to `server/builtin.go:Initialize()` in the proper order
+ 1. **扁平结构** - 管理器包内无子目录
+ 2. **文件组织**:
+    - `interface.go` - 核心接口 (扩展 `common.IBaseManager`)
+    - `config.go` - 配置结构和解析
+    - `impl_base.go` - 带可观测性的基础实现
+    - `{driver}_impl.go` - 驱动特定实现
+    - `factory.go` - DI 工厂函数
+ 3. **DI 标签** - 使用 `inject:""` 声明依赖
+ 4. **配置路径** - 遵循 `{manager}.driver` 约定
+ 5. **自动初始化** - 按正确顺序添加到 `server/builtin.go:Initialize()`
 
-**Manager Initialization Order** (dependencies matter):
-1. configmgr (must be first)
-2. telemetrymgr
-3. loggermgr
-4. databasemgr
-5. cachemgr
-6. lockmgr
-7. limitermgr
-8. mqmgr
+ **管理器初始化顺序** (依赖关系很重要):
+  1. configmgr (必须第一个)
+  2. telemetrymgr
+  3. loggermgr
+  4. databasemgr
+  5. cachemgr
+  6. lockmgr
+  7. limitermgr
+  8. mqmgr
+  9. schedulermgr (依赖 loggermgr, configmgr)
 
-## Common Development Patterns
+## 常见开发模式
 
-### Adding a New Feature
-1. Create Entity in `entities/`
-2. Create Repository interface and impl in `repositories/`
-3. Create Service interface and impl in `services/`
-4. Create Controller in `controllers/`
-5. Register all in container using `RegisterByType()`
-6. Dependencies auto-injected on `InjectAll()`
+ ### 添加新功能
+ 1. 在 `entities/` 创建 Entity
+ 2. 在 `repositories/` 创建 Repository 接口和实现
+ 3. 在 `services/` 创建 Service 接口和实现
+ 4. 创建交互层组件:
+     - Controller 在 `controllers/` (HTTP 请求处理)
+     - Middleware 在 `middlewares/` (请求拦截)
+     - Listener 在 `listeners/` (MQ 消息处理)
+     - Scheduler 在 `schedulers/` (定时任务)
+ 5. 使用 `RegisterByType()` 在容器中注册所有组件
+ 6. 在 `InjectAll()` 时自动注入依赖
 
-### Creating a Manager
-1. Define interface extending `common.IBaseManager`
-2. Implement with `impl_base.go` for observability
-3. Create driver implementations (memory, redis, etc.)
-4. Provide `Build()` and `BuildWithConfigProvider()` factory functions
-5. Follow config path convention (`{manager}.driver`, `{manager}.{driver}_config`)
-6. Add to `server/builtin.go:Initialize()` in proper order
+### 创建管理器
+1. 定义扩展 `common.IBaseManager` 的接口
+2. 使用 `impl_base.go` 实现可观测性
+3. 创建驱动实现 (memory, redis 等)
+4. 提供 `Build()` 和 `BuildWithConfigProvider()` 工厂函数
+5. 遵循配置路径约定 (`{manager}.driver`, `{manager}.{driver}_config`)
+6. 按正确顺序添加到 `server/builtin.go:Initialize()`
 
-### Using Built-in Components
-Controllers, middlewares, and services are available in `component/`:
+### 使用内置组件
+Controllers、middlewares 和 services 在 `component/` 中可用:
 - `component/litecontroller` - Health, Metrics, Pprof, Resource controllers
 - `component/litemiddleware` - CORS, Recovery, RequestLogger, SecurityHeaders, RateLimiter, Telemetry
 - `component/liteservice` - HTMLTemplateService
 
 ```go
-// Register built-in middleware with default config
+// 使用默认配置注册内置中间件
 cors := litemiddleware.NewCorsMiddleware(nil)
 recovery := litemiddleware.NewRecoveryMiddleware(nil)
 limiter := litemiddleware.NewRateLimiterMiddleware(nil)
@@ -314,28 +324,28 @@ middlewareContainer.RegisterMiddleware(cors)
 middlewareContainer.RegisterMiddleware(recovery)
 middlewareContainer.RegisterMiddleware(limiter)
 
-// Custom middleware config
+// 自定义中间件配置
 allowOrigins := []string{"https://example.com"}
 customCors := litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
     AllowOrigins: &allowOrigins,
 })
 ```
 
-### Sample Application
-See `samples/messageboard/` for a complete working example demonstrating:
-- Full layer architecture
-- Container registration
-- Manager usage (database, cache, limiter, lock, mq)
-- GORM integration with Ristretto cache
-- Built-in middleware (CORS, RateLimiter, Telemetry)
-- Custom routes and middleware
+### 示例应用
+参见 `samples/messageboard/` 了解完整工作示例，演示:
+- 完整的分层架构
+- 容器注册
+- 管理器使用 (database, cache, limiter, lock, mq)
+- GORM 与 Ristretto 缓存集成
+- 内置中间件 (CORS, RateLimiter, Telemetry)
+- 自定义路由和中间件
 
-## Configuration
+## 配置
 
-All configuration uses YAML format. Manager components follow this pattern:
+所有配置使用 YAML 格式。管理器组件遵循此模式：
 
 ```yaml
-# Manager configs follow pattern:
+# 管理器配置遵循模式:
 database:
   driver: mysql
   mysql_config:
@@ -392,52 +402,59 @@ mq:
     url: "amqp://guest:guest@localhost:5672/"
     durable: true
 
-telemetry:
-  driver: otel
-  otel_config:
-    endpoint: "http://localhost:4318"
-    enabled_traces: true
-    enabled_metrics: true
-    enabled_logs: true
-```
+ telemetry:
+   driver: otel
+   otel_config:
+     endpoint: "http://localhost:4318"
+     enabled_traces: true
+     enabled_metrics: true
+     enabled_logs: true
 
-**Built-in managers** (`manager/*/`):
-- `configmgr` - Config management
-- `loggermgr` - Logging with Gin/JSON/default formats
-- `databasemgr` - Database (MySQL/PostgreSQL/SQLite)
-- `cachemgr` - Cache (Ristretto/Redis/None)
-- `telemetrymgr` - OpenTelemetry
-- `limitermgr` - Rate limiting
-- `lockmgr` - Distributed lock
-- `mqmgr` - Message queue
+ scheduler:
+   driver: cron
+   cron_config:
+     validate_on_startup: true  # 启动时验证 crontab 规则
+  ```
 
-**Built-in components** (`component/*/`):
+ **内置管理器** (`manager/*/`):
+  - `configmgr` - 配置管理
+  - `loggermgr` - 日志管理，支持 Gin/JSON/default 格式
+  - `databasemgr` - 数据库 (MySQL/PostgreSQL/SQLite)
+  - `cachemgr` - 缓存 (Ristretto/Redis/None)
+  - `telemetrymgr` - OpenTelemetry
+  - `limitermgr` - 限流
+  - `lockmgr` - 分布式锁
+  - `mqmgr` - 消息队列
+  - `schedulermgr` - 定时任务管理，支持 Cron
+
+**内置组件** (`component/*/`):
 - `litecontroller` - Health, Metrics, Pprof controllers
 - `litemiddleware` - CORS, Recovery, RequestLogger, SecurityHeaders, RateLimiter, Telemetry
 - `liteservice` - HTMLTemplateService
 
-## Important Architecture Constraints
+ ## 重要架构约束
 
-1. **No circular dependencies** - Container detects and reports cycles
-2. **Layer boundaries enforced** - Upper layers cannot depend on lower layers
-3. **Interface-based DI** - Register by interface type, not concrete type
-4. **Two-phase injection** - Register first, inject later
-5. **Manager lifecycle** - All managers implement `OnStart()/OnStop()`
-6. **Manager initialization order** - config → telemetry → logger → database → cache → lock → limiter → mq
-7. **Middleware execution order** - Recovery (0) → RequestLogger (50) → CORS (100) → SecurityHeaders (150) → RateLimiter (200) → Telemetry (250)
-8. **Component paths** - Managers in `manager/*/`, Components in `component/litecontroller`, `component/litemiddleware`, `component/liteservice`
+  1. **无循环依赖** - 容器检测并报告循环
+  2. **强制层边界** - 上层不能依赖下层
+  3. **基于接口的 DI** - 按接口类型注册，而非具体类型
+  4. **两阶段注入** - 先注册，后注入
+  5. **管理器生命周期** - 所有管理器实现 `OnStart()/OnStop()`
+  6. **管理器初始化顺序** - config → telemetry → logger → database → cache → lock → limiter → mq → scheduler
+  7. **交互层组件** - Controller/Middleware/Listener/Scheduler 都在同一层，仅依赖 Service 和 Manager
+  8. **中间件执行顺序** - Recovery (0) → RequestLogger (50) → CORS (100) → SecurityHeaders (150) → RateLimiter (200) → Telemetry (250)
+  9. **组件路径** - 管理器在 `manager/*/`，组件在 `component/litecontroller`, `component/litemiddleware`, `component/liteservice`
 
-## Testing Strategy
+## 测试策略
 
-- Unit tests in `*_test.go` files alongside source
-- Use table-driven tests for multiple scenarios
-- Mock interfaces using `testify/mock`
-- Integration tests in samples
-- Benchmark critical paths
+- 单元测试在源文件旁边的 `*_test.go` 文件中
+- 使用表驱动测试处理多个场景
+- 使用 `testify/mock` 模拟接口
+- 集成测试在 samples 中
+- 对关键路径进行基准测试
 
-## Related Documentation
+## 相关文档
 
-- **AGENTS.md** - Development guidelines for AI agents (coding standards, logging, architecture)
-- **manager/README.md** - Manager component documentation (detailed API and usage)
-- **component/README.md** - Built-in components documentation
-- **component/litemiddleware/README.md** - Middleware configuration guide
+- **AGENTS.md** - AI 代理开发指南 (编码规范、日志、架构)
+- **manager/README.md** - 管理器组件文档 (详细 API 和用法)
+- **component/README.md** - 内置组件文档
+- **component/litemiddleware/README.md** - 中间件配置指南
