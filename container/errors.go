@@ -12,10 +12,15 @@ type DependencyNotFoundError struct {
 	FieldName     string       // 缺失依赖的字段名
 	FieldType     reflect.Type // 期望的依赖类型
 	ContainerType string       // 应该从哪个容器查找
+	Message       string       // 额外的错误信息
 }
 
 // Error 返回错误信息
 func (e *DependencyNotFoundError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("dependency not found for %s.%s: need type %s from %s container: %s",
+			e.InstanceName, e.FieldName, e.FieldType, e.ContainerType, e.Message)
+	}
 	return fmt.Sprintf("dependency not found for %s.%s: need type %s from %s container",
 		e.InstanceName, e.FieldName, e.FieldType, e.ContainerType)
 }

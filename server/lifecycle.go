@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/logger"
+	"github.com/lite-lake/litecore-go/manager/mqmgr"
 )
 
 // logStartup 记录启动日志
@@ -104,6 +106,65 @@ func (e *Engine) startMiddlewares() error {
 	return nil
 }
 
+// startListeners 启动所有监听器
+func (e *Engine) startListeners() error {
+	e.logPhaseStart(PhaseStartup, "开始启动 Listener 层")
+
+	if e.Listener == nil {
+		e.getLogger().Info("未配置 Listener 层，跳过启动")
+		return nil
+	}
+
+	listeners := e.Listener.GetAll()
+	if len(listeners) == 0 {
+		e.getLogger().Info("没有注册的 Listener，跳过启动")
+		return nil
+	}
+
+	mqManager, err := container.GetManager[mqmgr.IMQManager](e.Manager)
+	if err != nil {
+		return fmt.Errorf("MQManager 未初始化，但存在 %d 个 Listener: %w", len(listeners), err)
+	}
+
+	startedCount := 0
+
+	for _, listener := range listeners {
+		queue := listener.GetQueue()
+		opts := listener.GetSubscribeOptions()
+
+		e.getLogger().Info("启动消息监听器",
+			logger.F("listener", listener.ListenerName()),
+			logger.F("queue", queue))
+
+		var subscribeOpts []mqmgr.SubscribeOption
+		for _, opt := range opts {
+			if so, ok := opt.(mqmgr.SubscribeOption); ok {
+				subscribeOpts = append(subscribeOpts, so)
+			}
+		}
+
+		wrapper := func(ctx context.Context, msg mqmgr.Message) error {
+			return listener.Handle(ctx, msg)
+		}
+
+		err := mqManager.SubscribeWithCallback(
+			e.ctx,
+			queue,
+			wrapper,
+			subscribeOpts...,
+		)
+		if err != nil {
+			return fmt.Errorf("启动监听器 %s 失败: %w", listener.ListenerName(), err)
+		}
+
+		e.logStartup(PhaseStartup, listener.ListenerName()+": 启动完成")
+		startedCount++
+	}
+
+	e.logPhaseEnd(PhaseStartup, "Listener 层启动完成", logger.F("count", startedCount))
+	return nil
+}
+
 // stopManagers 停止所有管理器
 func (e *Engine) stopManagers() []error {
 	managers := e.Manager.GetAll()
@@ -152,6 +213,25 @@ func (e *Engine) stopMiddlewares() []error {
 	return errors
 }
 
+// stopListeners 停止所有监听器
+func (e *Engine) stopListeners() []error {
+	if e.Listener == nil {
+		return nil
+	}
+
+	listeners := e.Listener.GetAll()
+	var errors []error
+
+	for i := len(listeners) - 1; i >= 0; i-- {
+		listener := listeners[i]
+		if err := listener.OnStop(); err != nil {
+			errors = append(errors, fmt.Errorf("停止监听器 %s 失败: %w", listener.ListenerName(), err))
+		}
+	}
+
+	return errors
+}
+
 // Stop 停止引擎（实现 LiteServer 接口）
 func (e *Engine) Stop() error {
 	e.mu.Lock()
@@ -177,6 +257,9 @@ func (e *Engine) Stop() error {
 	middlewareErrors := e.stopMiddlewares()
 	e.logStartup(PhaseShutdown, "Middleware 层停止完成")
 
+	listenerErrors := e.stopListeners()
+	e.logStartup(PhaseShutdown, "Listener 层停止完成")
+
 	serviceErrors := e.stopServices()
 	e.logStartup(PhaseShutdown, "Service 层停止完成")
 
@@ -186,8 +269,9 @@ func (e *Engine) Stop() error {
 	managerErrors := e.stopManagers()
 	e.logStartup(PhaseShutdown, "Manager 层停止完成")
 
-	allErrors := make([]error, 0, len(middlewareErrors)+len(serviceErrors)+len(repositoryErrors)+len(managerErrors))
+	allErrors := make([]error, 0, len(middlewareErrors)+len(listenerErrors)+len(serviceErrors)+len(repositoryErrors)+len(managerErrors))
 	allErrors = append(allErrors, middlewareErrors...)
+	allErrors = append(allErrors, listenerErrors...)
 	allErrors = append(allErrors, serviceErrors...)
 	allErrors = append(allErrors, repositoryErrors...)
 	allErrors = append(allErrors, managerErrors...)

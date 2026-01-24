@@ -56,6 +56,15 @@ func (c *ControllerContainer) InjectAll() error {
 
 // GetDependency 根据类型获取依赖实例（实现ContainerSource接口）
 func (c *ControllerContainer) GetDependency(fieldType reflect.Type) (interface{}, error) {
+	baseRepositoryType := reflect.TypeOf((*common.IBaseRepository)(nil)).Elem()
+	if fieldType == baseRepositoryType || fieldType.Implements(baseRepositoryType) {
+		return nil, &DependencyNotFoundError{
+			FieldType:     fieldType,
+			ContainerType: "Repository",
+			Message:       "Controller cannot directly inject Repository, must access data through Service",
+		}
+	}
+
 	if dep, err := resolveDependencyFromManager(fieldType, c.managerContainer); dep != nil || err != nil {
 		return dep, err
 	}

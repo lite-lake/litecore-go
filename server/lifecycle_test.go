@@ -63,6 +63,7 @@ mq:
 			serviceContainer,
 			controllerContainer,
 			middlewareContainer,
+			nil,
 		)
 
 		engine.serverConfig = &serverConfig{
