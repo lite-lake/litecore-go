@@ -56,6 +56,10 @@ func (b *Builder) Generate(info *analyzer.ProjectInfo) error {
 		return fmt.Errorf("generate listener container failed: %w", err)
 	}
 
+	if err := b.generateSchedulerContainer(info); err != nil {
+		return fmt.Errorf("generate scheduler container failed: %w", err)
+	}
+
 	if err := b.generateEngine(info); err != nil {
 		return fmt.Errorf("generate engine failed: %w", err)
 	}
@@ -169,6 +173,24 @@ func (b *Builder) generateListenerContainer(info *analyzer.ProjectInfo) error {
 	}
 
 	return b.writeFile("listener_container.go", code)
+}
+
+// generateSchedulerContainer 生成定时器容器代码
+func (b *Builder) generateSchedulerContainer(info *analyzer.ProjectInfo) error {
+	components := b.convertComponents(info.Layers[analyzer.LayerScheduler])
+
+	data := &TemplateData{
+		PackageName: b.packageName,
+		Imports:     b.collectImports(info, analyzer.LayerScheduler),
+		Components:  components,
+	}
+
+	code, err := GenerateSchedulerContainer(data)
+	if err != nil {
+		return err
+	}
+
+	return b.writeFile("scheduler_container.go", code)
 }
 
 // generateEngine 生成引擎代码
