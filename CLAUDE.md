@@ -108,7 +108,6 @@ type UserServiceImpl struct {
     DBMgr     databasemgr.IDatabaseManager `inject:""`
     UserRepo  IUserRepository              `inject:""`
     OrderSvc  IOrderService               `inject:""`  // Same-layer dependency
-    Cache     cachemgr.ICacheManager      `inject:"optional"` // Optional dependency
 }
 ```
 
@@ -231,8 +230,6 @@ type MyService struct {
     DBMgr      databasemgr.IDatabaseManager `inject:""`
     CacheMgr   cachemgr.ICacheManager      `inject:""`
     LimiterMgr limitermgr.ILimiterManager `inject:""`
-    LockMgr    lockmgr.ILockManager       `inject:"optional"` // Optional dependency
-    LoggerMgr  loggermgr.ILoggerManager   `inject:""`
 }
 ```
 

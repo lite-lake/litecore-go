@@ -261,9 +261,6 @@ type UserServiceImpl struct {
 
     // 同层依赖
     OrderSvc  IOrderService               `inject:""`
-
-    // 可选依赖（不存在时不会报错）
-    OptionalService IOtherService         `inject:"optional"`
 }
 ```
 

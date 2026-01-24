@@ -40,12 +40,8 @@ func verifyInjectTags(instance interface{}) {
 		field := typ.Field(i)
 		fieldVal := val.Field(i)
 
-		tagValue, ok := field.Tag.Lookup("inject")
+		_, ok := field.Tag.Lookup("inject")
 		if !ok {
-			continue
-		}
-
-		if tagValue == "optional" {
 			continue
 		}
 
@@ -89,17 +85,8 @@ func injectDependencies(instance interface{}, resolver IDependencyResolver) erro
 		field := typ.Field(i)
 		fieldVal := val.Field(i)
 
-		tagValue, ok := field.Tag.Lookup("inject")
+		_, ok := field.Tag.Lookup("inject")
 		if !ok {
-			continue
-		}
-
-		if tagValue == "optional" {
-			if dep, err := resolver.ResolveDependency(field.Type, typ, field.Name); err == nil && dep != nil {
-				if fieldVal.CanSet() {
-					fieldVal.Set(reflect.ValueOf(dep))
-				}
-			}
 			continue
 		}
 
