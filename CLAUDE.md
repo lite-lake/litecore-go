@@ -366,7 +366,7 @@ logger:
       level: "info"
       format: "gin"      # gin | json | default
       color: true
-      time_format: "2006-01-24 15:04:05.000"
+      time_format: "2006-01-02 15:04:05.000"
     file_enabled: false
     file_config:
       level: "info"

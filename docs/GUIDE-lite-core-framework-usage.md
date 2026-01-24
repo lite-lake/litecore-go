@@ -380,7 +380,7 @@ logger:
       level: "info"             # 日志级别
       format: "gin"             # 格式：gin | json | default
       color: true               # 是否启用颜色
-      time_format: "2006-01-24 15:04:05.000"  # 时间格式
+      time_format: "2006-01-02 15:04:05.000"  # 时间格式
     file_enabled: false         # 是否启用文件日志
     file_config:
       level: "info"             # 日志级别
@@ -1751,7 +1751,7 @@ LiteCore 支持 Gin 风格、JSON 和 Default 三种日志格式。
 #### Gin 格式特点
 
 - 统一格式：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
-- 时间固定宽度 23 字符：`2006-01-24 15:04:05.000`
+- 时间固定宽度 23 字符：`2006-01-02 15:04:05.000`
 - 级别固定宽度 5 字符，右对齐，带颜色
 - 字段格式：`key=value`，字符串值用引号包裹
 
@@ -1766,7 +1766,7 @@ logger:
       level: "info"               # 日志级别：debug, info, warn, error, fatal
       format: "gin"                # 格式：gin | json | default
       color: true                  # 是否启用颜色
-      time_format: "2006-01-24 15:04:05.000"
+      time_format: "2006-01-02 15:04:05.000"
 ```
 
 #### 颜色配置
@@ -2085,7 +2085,7 @@ logger:
       level: "info"
       format: "gin"
       color: true
-      time_format: "2006-01-24 15:04:05.000"
+      time_format: "2006-01-02 15:04:05.000"
     file_enabled: false
     file_config:
       level: "info"

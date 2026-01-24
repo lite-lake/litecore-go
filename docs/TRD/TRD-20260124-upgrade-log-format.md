@@ -70,7 +70,7 @@
 ```
 
 **字段格式**：
-- 时间：固定宽度 `2006-01-24 15:04:05.000`（23字符）
+- 时间：固定宽度 `2006-01-02 15:04:05.000`（23字符）
 - 级别：固定宽度 5 字符，右对齐，带颜色
 - 消息：主描述信息
 - 字段：`key=value` 格式，字符串值用引号包裹
@@ -144,7 +144,7 @@ type LogLevelConfig struct {
     Level      string `yaml:"level"`       // 日志级别: debug, info, warn, error, fatal
     Format     string `yaml:"format"`      // 格式: gin | json | default
     Color      bool   `yaml:"color"`       // 是否启用颜色
-    TimeFormat string `yaml:"time_format"` // 时间格式（默认：2006-01-24 15:04:05.000）
+    TimeFormat string `yaml:"time_format"` // 时间格式（默认：2006-01-02 15:04:05.000）
 }
 ```
 
@@ -159,7 +159,7 @@ logger:
       level: "info"
       format: "gin"        # gin | json | default
       color: true          # 是否启用颜色
-      time_format: "2006-01-24 15:04:05.000"
+      time_format: "2006-01-02 15:04:05.000"
     file_enabled: true
     file_config:
       level: "info"
@@ -273,7 +273,7 @@ func detectColorSupport(configColor bool) bool {
 
 - `Format` 默认值：`"gin"`
 - `Color` 默认值：`true`（由 `detectColorSupport()` 动态决定）
-- `TimeFormat` 默认值：`"2006-01-24 15:04:05.000"`
+- `TimeFormat` 默认值：`"2006-01-02 15:04:05.000"`
 
 ## 4. 兼容性处理
 
