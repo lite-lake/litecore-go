@@ -5,7 +5,7 @@
 ## 核心特性
 
  - **5 层分层架构** - 内置管理器层 → Entity → Repository → Service → 交互层（Controller/Middleware/Listener/Scheduler），清晰的责任分离
-- **内置 Manager 组件** - Config、Logger、Database、Cache、Telemetry、Lock、Limiter、MQ 等管理器，自动初始化和注入
+- **内置 Manager 组件** - Config、Telemetry、Logger、Database、Cache、Lock、Limiter、MQ、Scheduler 等 9 个管理器，自动初始化和注入
 - **声明式依赖注入** - 使用 `inject:""` 标签自动注入依赖，支持同层依赖和循环依赖检测
 - **统一配置管理** - 支持 YAML/JSON 配置文件，类型安全的配置读取
 - **多驱动支持** - 数据库（MySQL/PostgreSQL/SQLite）、缓存（Redis/Memory）、限流（Redis/Memory）、锁（Redis/Memory）、MQ（RabbitMQ/Memory）
@@ -38,15 +38,36 @@ go get github.com/lite-lake/litecore-go
 
 # 3. 创建配置文件
 cat > configs/config.yaml <<EOF
+# 应用配置
+app:
+  name: "myapp"
+  version: "1.0.0"
+
+# 服务器配置
 server:
+  host: "0.0.0.0"
   port: 8080
   mode: "debug"
+  read_timeout: "10s"
+  write_timeout: "10s"
+  idle_timeout: "60s"
+  shutdown_timeout: "30s"
 
+# 数据库配置
 database:
   driver: "sqlite"
+  auto_migrate: true
   sqlite_config:
     dsn: "./data/myapp.db"
 
+# 缓存配置
+cache:
+  driver: "memory"
+  memory_config:
+    max_size: 100
+    max_age: "720h"
+
+# 日志配置
 logger:
   driver: "zap"
   zap_config:
@@ -55,9 +76,34 @@ logger:
       level: "info"
       format: "gin"
       color: true
+
+# 限流配置
+limiter:
+  driver: "memory"
+  memory_config:
+    max_backups: 1000
+
+# 锁配置
+lock:
+  driver: "memory"
+  memory_config:
+    max_backups: 1000
+
+# 消息队列配置
+mq:
+  driver: "memory"
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
+
+# 定时任务配置
+scheduler:
+  driver: "cron"
+  cron_config:
+    validate_on_startup: true
 EOF
 
-# 4. 创建生成器入口
+ # 4. 创建生成器入口
 cat > cmd/generate/main.go <<'MAINEOF'
 package main
 
@@ -70,7 +116,7 @@ func main() {
 }
 MAINEOF
 
-# 5. 运行生成器
+# 5. 运行生成器（生成容器初始化代码）
 go run ./cmd/generate
 
 # 6. 创建应用入口
@@ -81,7 +127,6 @@ import (
     "os"
 
     "github.com/lite-lake/litecore-go/server"
-    builtin "github.com/lite-lake/litecore-go/server/builtin"
     "github.com/lite-lake/litecore-go/container"
 )
 
@@ -95,7 +140,7 @@ import (
     schedulerContainer := container.NewSchedulerContainer(serviceContainer)
 
     engine := server.NewEngine(
-        &builtin.Config{
+        &server.BuiltinConfig{
             Driver:   "yaml",
             FilePath: "configs/config.yaml",
         },
@@ -138,13 +183,13 @@ type IUserRepository interface {
 }
 
 type UserRepository struct {
-    Config  configmgr.IConfigManager    `inject:""`
-    DBMgr   databasemgr.IDatabaseManager `inject:""`
+    Config    configmgr.IConfigManager     `inject:""`
+    DBManager databasemgr.IDatabaseManager `inject:""`
 }
 
 func (r *UserRepository) List() ([]*User, error) {
     var users []*User
-    err := r.DBMgr.DB().Find(&users).Error
+    err := r.DBManager.DB().Find(&users).Error
     return users, err
 }
 
@@ -157,6 +202,7 @@ type IUserService interface {
 type UserService struct {
     Config configmgr.IConfigManager `inject:""`
     Repo   IUserRepository          `inject:""`
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
 }
 
 func (s *UserService) List() ([]*User, error) {
@@ -165,8 +211,8 @@ func (s *UserService) List() ([]*User, error) {
 
 // 4. 创建控制器 (internal/controllers/user_controller.go)
 type UserController struct {
-    Config configmgr.IConfigManager `inject:""`
-    Svc    IUserService             `inject:""`
+    Config  configmgr.IConfigManager `inject:""`
+    Service IUserService             `inject:""`
 }
 
 func (ctrl *UserController) GetRouter() string {
@@ -174,7 +220,7 @@ func (ctrl *UserController) GetRouter() string {
 }
 
 func (ctrl *UserController) Handle(c *gin.Context) {
-    users, err := ctrl.Svc.List()
+    users, err := ctrl.Service.List()
     if err != nil {
         c.JSON(500, gin.H{"error": err.Error()})
         return
@@ -182,7 +228,7 @@ func (ctrl *UserController) Handle(c *gin.Context) {
     c.JSON(200, gin.H{"data": users})
 }
 
-// 5. 重新生成容器代码
+// 5. 重新生成容器代码（添加新组件后必须重新生成）
 go run ./cmd/generate
 
 # 6. 启动应用
@@ -232,21 +278,24 @@ go run ./cmd/server
 ```go
 type UserServiceImpl struct {
     // 内置组件（由引擎自动注入）
-    Config    configmgr.IConfigManager    `inject:""`
-    DBMgr     databasemgr.IDatabaseManager `inject:""`
-    CacheMgr  cachemgr.ICacheManager      `inject:""`
+    Config     configmgr.IConfigManager      `inject:""`
+    DBManager  databasemgr.IDatabaseManager  `inject:""`
+    CacheMgr   cachemgr.ICacheManager        `inject:""`
+    LoggerMgr  loggermgr.ILoggerManager     `inject:""`
 
     // 业务依赖
-    UserRepo  IUserRepository             `inject:""`
+    UserRepo   IUserRepository               `inject:""`
 
     // 同层依赖
-    OrderSvc  IOrderService               `inject:""`
+    OrderSvc   IOrderService                `inject:""`
 }
 ```
 
 ## 内置组件
 
 ### 配置管理 (configmgr)
+
+支持 YAML/JSON 配置文件，由引擎自动初始化：
 
 支持 YAML/JSON 配置文件，由引擎自动初始化：
 
@@ -287,12 +336,12 @@ logger:
 
 ```go
 type MyRepository struct {
-    DBMgr databasemgr.IDatabaseManager `inject:""`
+    DBManager databasemgr.IDatabaseManager `inject:""`
 }
 
 func (r *MyRepository) FindUser(id uint) (*User, error) {
     var user User
-    err := r.DBMgr.DB().First(&user, id).Error
+    err := r.DBManager.DB().First(&user, id).Error
     return &user, err
 }
 ```
@@ -313,7 +362,10 @@ type MyService struct {
 func (s *MyService) GetData(ctx context.Context, key string) (string, error) {
     var val string
     err := s.CacheMgr.Get(ctx, key, &val)
-    return val, err
+    if err != nil {
+        return "", err
+    }
+    return val, nil
 }
 ```
 
@@ -325,10 +377,12 @@ func (s *MyService) GetData(ctx context.Context, key string) (string, error) {
 logger:
   driver: "zap"
   zap_config:
+    console_enabled: true
     console_config:
       level: "info"      # debug, info, warn, error, fatal
       format: "gin"       # gin | json | default
       color: true
+      time_format: "2006-01-02 15:04:05.000"
 ```
 
 **Gin 格式输出示例**：
@@ -336,6 +390,17 @@ logger:
 2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23
 2026-01-24 15:04:05.456 | WARN  | 慢查询检测 | duration=1.2s
 2026-01-24 15:04:05.789 | ERROR | 数据库连接失败 | error="connection refused"
+```
+
+**Gin 格式特点**：
+- 统一格式：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
+- 时间固定宽度 23 字符：`2006-01-02 15:04:05.000`
+- 级别固定宽度 5 字符，右对齐，带颜色
+- 字段格式：`key=value`，字符串值用引号包裹
+
+**请求日志示例**：
+```
+2026-01-24 15:04:05.123 | 200   | 1.234ms | 127.0.0.1 | GET | /api/messages
 ```
 
 ### 遥测管理 (telemetrymgr)
@@ -411,29 +476,53 @@ func (s *MyService) ConsumeMessages(ctx context.Context, queue string) error {
 }
 ```
 
+### 定时任务管理 (schedulermgr)
+
+基于 Cron 的定时任务调度，支持 Cron 表达式：
+
+```go
+type MyScheduler struct {
+    SchedulerMgr schedulermgr.ISchedulerManager `inject:""`
+}
+
+func (s *MyScheduler) RunTask(ctx context.Context) error {
+    return s.SchedulerMgr.Schedule(ctx, "task-name", "0 0 * * *", func(tickID int64) error {
+        // 定时任务逻辑
+        return nil
+    })
+}
+```
+
 ## 内置中间件
 
 框架提供以下内置中间件，开箱即用：
 
-| 中间件 | 说明 |
-|--------|------|
-| RecoveryMiddleware | panic 恢复，防止服务崩溃 |
-| RequestLoggerMiddleware | 记录每个请求的详细信息 |
-| CORSMiddleware | 处理跨域请求 |
-| SecurityHeadersMiddleware | 添加安全相关的 HTTP 头 |
-| TelemetryMiddleware | 集成 OpenTelemetry 追踪 |
-| RateLimiterMiddleware | 基于 IP、Header 或用户 ID 的限流 |
+ | 中间件 | 默认 Order | 说明 |
+|--------|-----------|------|
+| RecoveryMiddleware | 0 | panic 恢复，防止服务崩溃 |
+| RequestLoggerMiddleware | 50 | 记录每个请求的详细信息 |
+| CORSMiddleware | 100 | 处理跨域请求 |
+| SecurityHeadersMiddleware | 150 | 添加安全相关的 HTTP 头 |
+| RateLimiterMiddleware | 200 | 基于 IP、Header 或用户 ID 的限流 |
+| TelemetryMiddleware | 250 | 集成 OpenTelemetry 追踪 |
 
 ```go
 import "github.com/lite-lake/litecore-go/component/litemiddleware"
 
-// 限流中间件（100次/分钟）
+// 限流中间件（使用默认配置）
+rateLimiter := litemiddleware.NewRateLimiterMiddlewareWithDefaults()
+middlewareContainer.RegisterMiddleware(rateLimiter)
+
+// 或自定义限流规则
+limit := 200
+window := time.Minute
+keyPrefix := "api"
 rateLimiter := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
-    Limit:  100,
-    Window: time.Minute,
-    KeyPrefix: &[]string{"ip"}[0],
+    Limit:     &limit,
+    Window:    &window,
+    KeyPrefix: &keyPrefix,
 })
-middlewareContainer.Register(rateLimiter)
+middlewareContainer.RegisterMiddleware(rateLimiter)
 ```
 
 ## CLI 工具
@@ -442,13 +531,17 @@ middlewareContainer.Register(rateLimiter)
 
 ```bash
 # 构建工具
-go build -o litecore-generate ./cli
+go build -o litecore-cli ./cli
 
 # 使用默认配置生成
-./litecore-generate
+./litecore-cli generate
 
 # 自定义参数
-./litecore-generate -project . -output internal/application -package application -config configs/config.yaml
+./litecore-cli generate --project . --output internal/application --package application --config configs/config.yaml
+
+# 查看帮助
+./litecore-cli --help
+./litecore-cli generate --help
 ```
 
 或在业务项目中使用：
@@ -467,14 +560,15 @@ func main() {
 运行：`go run ./cmd/generate`
 
  生成的文件位于 `internal/application/`：
- - `entity_container.go`
- - `repository_container.go`
- - `service_container.go`
- - `controller_container.go`
- - `middleware_container.go`
- - `listener_container.go`
- - `scheduler_container.go`
- - `engine.go`
+  - `entity_container.go`
+  - `repository_container.go`
+  - `service_container.go`
+  - `controller_container.go`
+  - `middleware_container.go`
+  - `listener_container.go`
+  - `scheduler_container.go`
+  - `init_container.go`
+  - `engine.go`
 
 ## 目录结构规范
 
@@ -517,13 +611,16 @@ func main() {
 ```go
 import "github.com/lite-lake/litecore-go/util/jwt"
 
-token, err := jwt.GenerateHS256Token(jwt.StandardClaims{
-    UserID:    "123",
-    Username:  "admin",
+// 生成令牌
+claims := &jwt.StandardClaims{
+    Issuer:    "myapp",
+    Subject:   "user123",
     ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
-}, "secret")
+}
+token, err := jwt.GenerateHS256Token(claims, "your-secret-key")
 
-claims, err := jwt.VerifyHS256Token(token, "secret")
+// 解析令牌
+parsedClaims, err := jwt.ParseHS256Token(token, "your-secret-key")
 ```
 
 ### Hash 工具
@@ -531,10 +628,16 @@ claims, err := jwt.VerifyHS256Token(token, "secret")
 ```go
 import "github.com/lite-lake/litecore-go/util/hash"
 
-md5 := hash.MD5("hello")
-sha256 := hash.SHA256("hello")
-hashed, err := hash.BcryptHash("password", hash.DefaultBcryptCost)
-err = hash.BcryptVerify("password", hashed)
+// 计算哈希值
+md5Hash := hash.MD5String("hello")
+sha256Hash := hash.SHA256String("hello")
+
+// Bcrypt 密码哈希
+hashedPassword, err := hash.BcryptHash("password")
+isValid := hash.BcryptVerify("password", hashedPassword)
+
+// HMAC 计算
+hmacHash := hash.HMACSHA256String("data", "secret-key")
 ```
 
 ### ID 生成器
@@ -542,9 +645,9 @@ err = hash.BcryptVerify("password", hashed)
 ```go
 import "github.com/lite-lake/litecore-go/util/id"
 
-uuid := id.UUID()
-snowflake := id.Snowflake()
-nanoID := id.NanoID()
+// 生成 CUID2 风格的唯一标识符
+uniqueID := id.NewCUID2()
+// 输出: 2k4d2j3h8f9g3n7p6q5r4s3t (示例)
 ```
 
 ## 示例项目
@@ -553,18 +656,32 @@ nanoID := id.NanoID()
 
 ```bash
 cd samples/messageboard
-go run ./cmd/server
+
+# 首次使用需要生成管理员密码
+go run cmd/genpasswd/main.go
+
+# 将生成的加密密码复制到 configs/config.yaml 的 app.admin.password 字段
+
+# 运行应用
+go run cmd/server/main.go
 ```
+
+访问地址：
+- 用户首页: http://localhost:8080/
+- 管理页面: http://localhost:8080/admin.html
+- 健康检查: http://localhost:8080/health
 
 示例包含：
 - 完整的 5 层架构实现
-- 内置 Manager 组件自动初始化
-- 用户认证和会话管理
-- 留言审核流程
-- 数据库迁移
-- 中间件集成
+- 9 个内置 Manager 组件自动初始化
+- 用户认证和会话管理（基于缓存）
+- 留言审核流程（待审核/已通过/已拒绝）
+- 数据库自动迁移
+- 事件监听器（留言创建/审核事件）
+- 定时任务调度器（统计/清理）
+- 完整的中间件链（恢复、日志、CORS、安全头、限流、遥测、认证）
 - Gin 风格日志输出
-- 前端界面
+- Bootstrap 5 + jQuery 3 前端界面
 
 详细文档请参考 [samples/messageboard/README.md](samples/messageboard/README.md)
 
@@ -605,7 +722,8 @@ import (
 - [AGENTS.md](AGENTS.md) - AI 编码助手指南（面向开发者）
 - [CLI README](cli/README.md) - CLI 工具文档
 - [Server README](server/README.md) - 服务引擎文档
-- [Samples](samples/messageboard/README.md) - 示例项目文档
+- [Component README](component/README.md) - 内置组件文档
+- [Samples README](samples/messageboard/README.md) - 示例项目文档
 
 **AGENTS.md 与本 README 的区别**：
 - 本 README 面向框架用户，提供快速入门、功能特性和使用指南
