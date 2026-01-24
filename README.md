@@ -401,7 +401,7 @@ logger:
       level: "info"                               # 日志级别：debug, info, warn, error, fatal
       format: "gin"                                # 格式：gin | json | default
       color: true                                  # 是否启用颜色
-      time_format: "2006-01-24 15:04:05.000"     # 时间格式
+      time_format: "2006-01-02 15:04:05.000"     # 时间格式
 ```
 
 **格式说明**：
