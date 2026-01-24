@@ -15,7 +15,7 @@
 //	loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 //
 //	loggerMgr := loggermgr.GetLoggerManager()
-//	logger := loggerMgr.Logger("main")
+//	logger := loggerMgr.Ins()
 //
 //	// 创建应用引擎（由 CLI 工具生成）
 //	engine, err := app.NewEngine()

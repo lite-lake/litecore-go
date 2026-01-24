@@ -49,7 +49,7 @@ type MessageService struct {
 
 func (s *MessageService) initLogger() {
     if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Logger("MessageService")
+        s.logger = s.LoggerMgr.Ins()
     }
 }
 

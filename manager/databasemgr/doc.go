@@ -19,7 +19,7 @@ package databasemgr
 //
 //	loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 //	loggerMgr := loggermgr.GetLoggerManager()
-//	logger := loggerMgr.Logger("main")
+//	logger := loggerMgr.Ins()
 //
 //	dbMgr, err := databasemgr.Build("mysql", cfg)
 //	if err != nil {

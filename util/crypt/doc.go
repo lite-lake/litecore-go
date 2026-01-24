@@ -18,7 +18,7 @@ Crypt 包提供了常用的加密解密功能，支持多种加密算法和编�
   	import loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 
   	loggerMgr := loggermgr.GetLoggerManager()
-  	logger := loggerMgr.Logger("main")
+  	logger := loggerMgr.Ins()
 
   	// Base64 编码解码
   	encoded := crypt.Base64Encode("Hello, World!")

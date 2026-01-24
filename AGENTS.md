@@ -148,7 +148,7 @@ type MyService struct {
 
 func (s *MyService) initLogger() {
     if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Logger("MyService")
+        s.logger = s.LoggerMgr.Ins()
     }
 }
 

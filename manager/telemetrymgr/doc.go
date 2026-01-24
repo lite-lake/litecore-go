@@ -12,7 +12,7 @@
 //	loggermgr "github.com/lite-lake/litecore-go/component/manager/loggermgr"
 //
 //	loggerMgr := loggermgr.GetLoggerManager()
-//	logger := loggerMgr.Logger("main")
+//	logger := loggerMgr.Ins()
 //
 //	// 使用默认的 none 驱动创建管理器
 //	mgr, err := telemetrymgr.Build("none", nil)
