@@ -47,8 +47,8 @@ func DefaultConfig() *Config {
 		TemplateType:  TemplateTypeStandard,
 		Interactive:   false,
 		LitecoreGoVer: version.Version,
-		WithStatic:    false,
-		WithHTML:      false,
-		WithHealth:    false,
+		WithStatic:    true,
+		WithHTML:      true,
+		WithHealth:    true,
 	}
 }

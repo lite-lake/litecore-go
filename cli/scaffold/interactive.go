@@ -230,7 +230,7 @@ func promptWithStatic() (bool, error) {
 	prompt := promptui.Prompt{
 		Label:     "是否生成静态文件服务 (CSS/JS)",
 		IsConfirm: true,
-		Default:   "n",
+		Default:   "y",
 	}
 
 	_, err := prompt.Run()
@@ -247,7 +247,7 @@ func promptWithHTML() (bool, error) {
 	prompt := promptui.Prompt{
 		Label:     "是否生成 HTML 模板服务",
 		IsConfirm: true,
-		Default:   "n",
+		Default:   "y",
 	}
 
 	_, err := prompt.Run()
@@ -264,7 +264,7 @@ func promptWithHealth() (bool, error) {
 	prompt := promptui.Prompt{
 		Label:     "是否生成健康检查控制器",
 		IsConfirm: true,
-		Default:   "n",
+		Default:   "y",
 	}
 
 	_, err := prompt.Run()
