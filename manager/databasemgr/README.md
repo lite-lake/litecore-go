@@ -1,10 +1,10 @@
 # databasemgr - 数据库管理器
 
-提供统一的数据库管理功能，基于 GORM 支持多种数据库驱动。
+提供统一的数据库管理功能，基于 GORM 支持 MySQL、PostgreSQL 和 SQLite。
 
 ## 特性
 
-- **多驱动支持** - MySQL、PostgreSQL、SQLite 和 None（空实现）
+- **多数据库支持** - MySQL、PostgreSQL、SQLite 和 None（空实现，用于测试）
 - **统一接口** - 完全基于 GORM，提供 `IDatabaseManager` 统一接口
 - **连接池管理** - 统一的连接池配置和统计监控
 - **可观测性集成** - 内置日志、链路追踪和指标收集（支持 OpenTelemetry）
@@ -25,7 +25,7 @@ cfg := map[string]any{
     "dsn": "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local",
 }
 
-dbMgr, err := databasemgr.Build("mysql", cfg)
+dbMgr, err := databasemgr.Build("mysql", cfg, nil, nil)
 if err != nil {
     log.Fatal(err)
 }
@@ -57,22 +57,22 @@ dbMgr.DB().First(&user, 1)
 mysqlCfg := map[string]any{
     "dsn": "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local",
 }
-dbMgr, err := databasemgr.Build("mysql", mysqlCfg)
+dbMgr, err := databasemgr.Build("mysql", mysqlCfg, loggerMgr, telemetryMgr)
 
 // PostgreSQL
 postgresqlCfg := map[string]any{
     "dsn": "host=localhost port=5432 user=postgres password=password dbname=mydb sslmode=disable",
 }
-dbMgr, err := databasemgr.Build("postgresql", postgresqlCfg)
+dbMgr, err := databasemgr.Build("postgresql", postgresqlCfg, loggerMgr, telemetryMgr)
 
 // SQLite
 sqliteCfg := map[string]any{
     "dsn": "file:./cache.db?cache=shared&mode=rwc",
 }
-dbMgr, err := databasemgr.Build("sqlite", sqliteCfg)
+dbMgr, err := databasemgr.Build("sqlite", sqliteCfg, loggerMgr, telemetryMgr)
 
 // None（空实现，用于测试）
-dbMgr := databasemgr.NewDatabaseManagerNoneImpl()
+dbMgr := databasemgr.NewDatabaseManagerNoneImpl(loggerMgr, telemetryMgr)
 ```
 
 ### 使用 BuildWithConfigProvider
@@ -87,7 +87,7 @@ if err != nil {
     log.Fatal(err)
 }
 
-dbMgr, err := databasemgr.BuildWithConfigProvider(provider)
+dbMgr, err := databasemgr.BuildWithConfigProvider(provider, loggerMgr, telemetryMgr)
 if err != nil {
     log.Fatal(err)
 }
@@ -127,7 +127,7 @@ mysqlCfg := &databasemgr.MySQLConfig{
         ConnMaxIdleTime: 600 * time.Second,
     },
 }
-dbMgr, err := databasemgr.NewDatabaseManagerMySQLImpl(mysqlCfg)
+dbMgr, err := databasemgr.NewDatabaseManagerMySQLImpl(mysqlCfg, loggerMgr, telemetryMgr)
 ```
 
 ## GORM 核心
@@ -259,48 +259,195 @@ log.Printf("Idle: %d", stats.Idle)
 
 ## 可观测性
 
-### 指标
+databasemgr 内置了完整的可观测性功能，包括慢查询日志、SQL 日志、指标收集和链路追踪。
 
-收集的指标包括：
-- `db.query.duration` - 查询耗时直方图
-- `db.query.count` - 查询计数器
-- `db.query.error_count` - 错误计数器
-- `db.query.slow_count` - 慢查询计数器
-- `db.transaction.count` - 事务计数器
-- `db.connection.pool` - 连接池状态
+### 慢查询日志
 
-### 可观测性配置
+当查询耗时超过 `slow_query_threshold` 时，自动记录慢查询日志：
 
 ```go
-cfg := &databasemgr.DatabaseConfig{
-    Driver: "mysql",
-    MySQLConfig: &databasemgr.MySQLConfig{
-        DSN: "...",
-    },
-    ObservabilityConfig: &databasemgr.ObservabilityConfig{
-        SlowQueryThreshold: 1 * time.Second,
-        LogSQL:             false,
-        SampleRate:         1.0,
-    },
+// 配置慢查询阈值为 1 秒
+observability_config:
+  slow_query_threshold: "1s"
+```
+
+慢查询日志示例：
+```
+2026-01-24 15:04:05.456 | WARN  | 慢查询检测 | operation=query table=users duration=1.2s threshold=1s
+```
+
+### SQL 日志
+
+启用 `log_sql` 可以记录完整的 SQL 语句（生产环境建议关闭）：
+
+```go
+observability_config:
+  log_sql: true
+```
+
+SQL 日志会自动进行脱敏处理，隐藏密码、token 等敏感信息：
+```go
+// 原始 SQL: SELECT * FROM users WHERE password = 'secret123'
+// 脱敏后:   SELECT * FROM users WHERE password = '***'
+```
+
+支持的脱敏字段：
+- password、pwd
+- token
+- secret
+- api_key
+
+### 指标收集
+
+自动收集以下指标：
+
+| 指标名称 | 类型 | 说明 |
+|---------|------|------|
+| `db.query.duration` | Histogram | 查询耗时（秒） |
+| `db.query.count` | Counter | 查询计数 |
+| `db.query.error_count` | Counter | 错误计数 |
+| `db.query.slow_count` | Counter | 慢查询计数 |
+| `db.transaction.count` | Counter | 事务计数 |
+| `db.connection.pool` | Gauge | 连接池状态 |
+
+指标包含以下属性：
+- `operation` - 操作类型（query、create、update、delete）
+- `table` - 表名
+- `status` - 状态（success、error）
+
+### 链路追踪
+
+自动为所有数据库操作创建链路追踪 Span，支持 OpenTelemetry：
+```go
+Span 名称: db.{operation}
+属性:
+  - db.operation: 操作类型
+  - db.table: 表名
+```
+
+### 采样率
+
+通过 `sample_rate` 控制可观测性数据采集频率，减少性能开销：
+
+```go
+observability_config:
+  sample_rate: 0.1  # 仅采集 10% 的数据
+```
+
+### 日志级别
+
+不同级别的数据库操作使用不同的日志级别：
+
+| 级别 | 场景 | 示例 |
+|------|------|------|
+| Debug | 正常操作成功 | `database operation success` |
+| Warn | 慢查询 | `slow database query detected` |
+| Error | 操作失败 | `database operation failed` |
+
+### 可观测性配置示例
+
+```yaml
+database:
+  driver: mysql
+  mysql_config:
+    dsn: "root:password@tcp(localhost:3306)/mydb"
+  observability_config:
+    slow_query_threshold: "1s"  # 超过 1 秒的查询记录为慢查询
+    log_sql: false               # 生产环境建议关闭
+    sample_rate: 1.0             # 采样率 100%
+```
+
+### 可观测性配置结构
+
+```go
+type ObservabilityConfig struct {
+    SlowQueryThreshold time.Duration // 慢查询阈值，0 表示不记录慢查询
+    LogSQL             bool          // 是否记录完整 SQL（生产环境建议关闭）
+    SampleRate         float64       // 采样率 (0.0-1.0)
 }
 ```
+
+## 支持的数据库
+
+### MySQL
+
+```yaml
+database:
+  driver: mysql
+  mysql_config:
+    dsn: "user:password@tcp(localhost:3306)/dbname?charset=utf8mb4&parseTime=True&loc=Local"
+    pool_config:
+      max_open_conns: 100
+      max_idle_conns: 10
+      conn_max_lifetime: "30s"
+      conn_max_idle_time: "5m"
+  observability_config:
+    slow_query_threshold: "1s"
+    log_sql: false
+    sample_rate: 1.0
+```
+
+### PostgreSQL
+
+```yaml
+database:
+  driver: postgresql
+  postgresql_config:
+    dsn: "host=localhost port=5432 user=postgres password=password dbname=dbname sslmode=disable"
+    pool_config:
+      max_open_conns: 50
+      max_idle_conns: 10
+      conn_max_lifetime: "30s"
+      conn_max_idle_time: "5m"
+  observability_config:
+    slow_query_threshold: "1s"
+    log_sql: false
+    sample_rate: 1.0
+```
+
+### SQLite
+
+```yaml
+database:
+  driver: sqlite
+  sqlite_config:
+    dsn: "file:./data.db?cache=shared&mode=rwc"
+    pool_config:
+      max_open_conns: 1  # SQLite 通常设置为 1
+      max_idle_conns: 1
+      conn_max_lifetime: "30s"
+      conn_max_idle_time: "5m"
+  observability_config:
+    slow_query_threshold: "1s"
+    log_sql: false
+    sample_rate: 1.0
+```
+
+### None（空实现）
+
+```yaml
+database:
+  driver: none
+```
+
+用于测试场景，所有操作都是空操作。
 
 ## API
 
 ### 工厂函数
 
 ```go
-func Build(driverType string, driverConfig map[string]any) (IDatabaseManager, error)
-func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IDatabaseManager, error)
+func Build(driverType string, driverConfig map[string]any, loggerMgr loggermgr.ILoggerManager, telemetryMgr telemetrymgr.ITelemetryManager) (IDatabaseManager, error)
+func BuildWithConfigProvider(configProvider configmgr.IConfigManager, loggerMgr loggermgr.ILoggerManager, telemetryMgr telemetrymgr.ITelemetryManager) (IDatabaseManager, error)
 ```
 
 ### 构造函数
 
 ```go
-func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig) (IDatabaseManager, error)
-func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (IDatabaseManager, error)
-func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig) (IDatabaseManager, error)
-func NewDatabaseManagerNoneImpl() IDatabaseManager
+func NewDatabaseManagerMySQLImpl(cfg *MySQLConfig, loggerMgr loggermgr.ILoggerManager, telemetryMgr telemetrymgr.ITelemetryManager) (IDatabaseManager, error)
+func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig, loggerMgr loggermgr.ILoggerManager, telemetryMgr telemetrymgr.ITelemetryManager) (IDatabaseManager, error)
+func NewDatabaseManagerSQLiteImpl(cfg *SQLiteConfig, loggerMgr loggermgr.ILoggerManager, telemetryMgr telemetrymgr.ITelemetryManager) (IDatabaseManager, error)
+func NewDatabaseManagerNoneImpl(loggerMgr loggermgr.ILoggerManager, telemetryMgr telemetrymgr.ITelemetryManager) IDatabaseManager
 ```
 
 ### IDatabaseManager 接口
@@ -346,11 +493,24 @@ Raw(sql string, values ...any) *gorm.DB
 
 ## 配置
 
+### DatabaseConfig
+
+```go
+type DatabaseConfig struct {
+    Driver              string               // 驱动类型: mysql, postgresql, sqlite, none
+    SQLiteConfig        *SQLiteConfig        // SQLite 配置
+    PostgreSQLConfig    *PostgreSQLConfig    // PostgreSQL 配置
+    MySQLConfig         *MySQLConfig         // MySQL 配置
+    ObservabilityConfig *ObservabilityConfig // 可观测性配置
+    AutoMigrate         bool                 // 是否自动迁移数据库表结构
+}
+```
+
 ### PoolConfig
 
 ```go
 type PoolConfig struct {
-    MaxOpenConns    int           // 最大打开连接数
+    MaxOpenConns    int           // 最大打开连接数，0 表示无限制
     MaxIdleConns    int           // 最大空闲连接数
     ConnMaxLifetime time.Duration // 连接最大存活时间
     ConnMaxIdleTime time.Duration // 连接最大空闲时间
@@ -362,8 +522,35 @@ type PoolConfig struct {
 ```go
 type ObservabilityConfig struct {
     SlowQueryThreshold time.Duration // 慢查询阈值
-    LogSQL             bool          // 是否记录完整 SQL
+    LogSQL             bool          // 是否记录完整 SQL（生产环境建议关闭）
     SampleRate         float64       // 采样率 (0.0-1.0)
+}
+```
+
+### MySQLConfig
+
+```go
+type MySQLConfig struct {
+    DSN        string      // MySQL DSN
+    PoolConfig *PoolConfig // 连接池配置（可选）
+}
+```
+
+### PostgreSQLConfig
+
+```go
+type PostgreSQLConfig struct {
+    DSN        string      // PostgreSQL DSN
+    PoolConfig *PoolConfig // 连接池配置（可选）
+}
+```
+
+### SQLiteConfig
+
+```go
+type SQLiteConfig struct {
+    DSN        string      // SQLite DSN
+    PoolConfig *PoolConfig // 连接池配置（可选）
 }
 ```
 
@@ -388,3 +575,42 @@ type ObservabilityConfig struct {
 **PostgreSQL**：`host=localhost port=5432 user=postgres password=password dbname=dbname sslmode=disable`
 
 **SQLite**：`file:./cache.db?cache=shared&mode=rwc`
+
+### 可观测性配置
+
+- **生产环境**：关闭 `log_sql`，设置适当的 `slow_query_threshold`（如 1s）
+- **开发环境**：开启 `log_sql`，设置较短的慢查询阈值（如 100ms）
+- **高并发场景**：适当降低 `sample_rate`（如 0.1），减少性能开销
+
+## 在 Repository 中使用
+
+```go
+type messageRepositoryImpl struct {
+    Config  configmgr.IConfigManager     `inject:""`
+    Manager databasemgr.IDatabaseManager `inject:""`
+}
+
+func (r *messageRepositoryImpl) GetByID(id uint) (*Message, error) {
+    db := r.Manager.DB()
+    var message Message
+    err := db.First(&message, id).Error
+    if err != nil {
+        return nil, err
+    }
+    return &message, nil
+}
+
+func (r *messageRepositoryImpl) Create(message *Message) error {
+    db := r.Manager.DB()
+    return db.Create(message).Error
+}
+
+func (r *messageRepositoryImpl) GetApprovedMessages() ([]*Message, error) {
+    db := r.Manager.DB()
+    var messages []*Message
+    err := db.Where("status = ?", "approved").
+        Order("created_at DESC").
+        Find(&messages).Error
+    return messages, err
+}
+```

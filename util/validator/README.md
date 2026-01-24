@@ -19,32 +19,33 @@
 package main
 
 import (
-    "net/http"
+	"net/http"
 
-    "github.com/gin-gonic/gin"
-    "github.com/lite-lake/litecore-go/util/validator"
+	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/util/validator"
 )
 
 type CreateUserRequest struct {
-    Name     string `json:"name" validate:"required,min=2,max=50"`
-    Email    string `json:"email" validate:"required,email"`
-    Password string `json:"password" validate:"required,min=8"`
+	Name     string `json:"name" validate:"required,min=2,max=50"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	Age      int    `json:"age" validate:"required,gte=18,lte=120"`
 }
 
 func main() {
-    r := gin.Default()
-    v := validator.NewDefaultValidator()
+	r := gin.Default()
+	v := validator.NewDefaultValidator()
 
-    r.POST("/users", func(c *gin.Context) {
-        var req CreateUserRequest
-        if err := v.Validate(c, &req); err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-            return
-        }
-        c.JSON(http.StatusOK, gin.H{"message": "success"})
-    })
+	r.POST("/users", func(c *gin.Context) {
+		var req CreateUserRequest
+		if err := v.Validate(c, &req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "success", "data": req})
+	})
 
-    r.Run(":8080")
+	r.Run(":8080")
 }
 ```
 
@@ -52,12 +53,12 @@ func main() {
 
 ```go
 r.POST("/users", func(c *gin.Context) {
-    req, err := validator.BindAndValidate[CreateUserRequest](c, v)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
-    // req 是 *CreateUserRequest 类型
+	req, err := validator.BindAndValidate[CreateUserRequest](c, v)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": req})
 })
 ```
 
@@ -67,24 +68,18 @@ r.POST("/users", func(c *gin.Context) {
 
 ```go
 type ProductRequest struct {
-    // 必填字段
-    Name  string `json:"name" validate:"required"`
+	Name  string `json:"name" validate:"required"`
 
-    // 字符串长度验证
-    SKU   string `json:"sku" validate:"min=3,max=20"`
+	SKU   string `json:"sku" validate:"min=3,max=20"`
 
-    // 邮箱验证
-    Email string `json:"email" validate:"email"`
+	Email string `json:"email" validate:"email"`
 
-    // 数值范围验证
-    Price float64 `json:"price" validate:"gt=0"`
-    Qty   int     `json:"qty" validate:"gte=1,lte=100"`
+	Price float64 `json:"price" validate:"gt=0"`
+	Qty   int     `json:"qty" validate:"gte=1,lte=100"`
 
-    // 可选字段（为空时跳过验证）
-    Phone string `json:"phone,omitempty" validate:"omitempty,len=11"`
+	Phone string `json:"phone,omitempty" validate:"omitempty,len=11"`
 
-    // 枚举验证
-    Status string `json:"status" validate:"oneof=active inactive pending"`
+	Status string `json:"status" validate:"oneof=active inactive pending"`
 }
 ```
 
@@ -92,14 +87,14 @@ type ProductRequest struct {
 
 ```go
 type Address struct {
-    Street  string `json:"street" validate:"required"`
-    City    string `json:"city" validate:"required"`
-    ZipCode string `json:"zip_code" validate:"required,len=6"`
+	Street  string `json:"street" validate:"required"`
+	City    string `json:"city" validate:"required"`
+	ZipCode string `json:"zip_code" validate:"required,len=6"`
 }
 
 type CreateUserRequest struct {
-    Name    string  `json:"name" validate:"required"`
-    Address Address `json:"address" validate:"required"`
+	Name    string  `json:"name" validate:"required"`
+	Address Address `json:"address" validate:"required"`
 }
 ```
 
@@ -107,9 +102,20 @@ type CreateUserRequest struct {
 
 ```go
 type BatchDeleteRequest struct {
-    IDs []int `json:"ids" validate:"required,min=1,dive,gte=1"`
+	IDs []int `json:"ids" validate:"required,min=1,dive,gte=1"`
 }
-// dive 标签表示对切片中的每个元素进行验证
+
+type TagsRequest struct {
+	Tags []string `json:"tags" validate:"required,min=1,dive,min=2,max=20"`
+}
+```
+
+### Map 验证
+
+```go
+type MetadataRequest struct {
+	Metadata map[string]string `json:"metadata" validate:"required,dive,required,min=1"`
+}
 ```
 
 ## 自定义验证器
@@ -117,22 +123,41 @@ type BatchDeleteRequest struct {
 ### 注册自定义验证函数
 
 ```go
-// 自定义验证函数 - 验证用户名只包含小写字母和数字
-func validateUsername(fl validator.FieldLevel) bool {
-    username := fl.Field().String()
-    for _, c := range username {
-        if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
-            return false
-        }
-    }
-    return true
+v := validator.NewDefaultValidator()
+
+err := v.RegisterValidation("username", func(fl validator.FieldLevel) bool {
+	username := fl.Field().String()
+	for _, c := range username {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+			return false
+		}
+	}
+	return true
+})
+if err != nil {
+	panic(err)
 }
 
-v := validator.NewDefaultValidator()
-v.RegisterValidation("username", validateUsername)
-
 type RegisterRequest struct {
-    Username string `json:"username" validate:"required,username,min=4,max=20"`
+	Username string `json:"username" validate:"required,username,min=4,max=20"`
+}
+```
+
+### 注册多个自定义验证器
+
+```go
+v := validator.NewDefaultValidator()
+
+v.RegisterValidation("even", func(fl validator.FieldLevel) bool {
+	return fl.Field().Int()%2 == 0
+})
+
+v.RegisterValidation("positive", func(fl validator.FieldLevel) bool {
+	return fl.Field().Int() > 0
+})
+
+type NumberRequest struct {
+	Number int `json:"number" validate:"required,even,positive"`
 }
 ```
 
@@ -145,8 +170,8 @@ v := validator.NewDefaultValidator()
 validator.RegisterPasswordValidation(v)
 
 type RegisterRequest struct {
-    Email    string `json:"email" validate:"required,email"`
-    Password string `json:"password" validate:"required,complexPassword"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,complexPassword"`
 }
 ```
 
@@ -154,12 +179,12 @@ type RegisterRequest struct {
 
 ```go
 config := &validator.PasswordConfig{
-    MinLength:      8,
-    MaxLength:      64,
-    RequireUpper:   true,
-    RequireLower:   true,
-    RequireNumber:  true,
-    RequireSpecial: false,
+	MinLength:      8,
+	MaxLength:      64,
+	RequireUpper:   true,
+	RequireLower:   true,
+	RequireNumber:  true,
+	RequireSpecial: false,
 }
 validator.RegisterPasswordValidationWithConfig(v, config)
 ```
@@ -168,23 +193,26 @@ validator.RegisterPasswordValidationWithConfig(v, config)
 
 ```go
 requirements := validator.GetPasswordRequirements()
-// 返回: "Password must contain: at least 12 characters, uppercase letter,
-//        lowercase letter, number, special character"
+fmt.Println(requirements)
+```
+
+输出：
+```
+Password must contain: at least 12 characters, uppercase letter, lowercase letter, number and special character
 ```
 
 ### 服务层密码验证
 
 ```go
 func CreateUserService(email, password string) error {
-    if err := validator.ValidatePassword(password, validator.DefaultPasswordConfig()); err != nil {
-        return fmt.Errorf("invalid password: %w", err)
-    }
-    // 创建用户...
-    return nil
+	if err := validator.ValidatePassword(password, validator.DefaultPasswordConfig()); err != nil {
+		return fmt.Errorf("invalid password: %w", err)
+	}
+	return nil
 }
 ```
 
-## API 参考
+## API
 
 ### 核心接口和类型
 
@@ -192,7 +220,7 @@ func CreateUserService(email, password string) error {
 
 ```go
 type Validator interface {
-    Validate(ctx *gin.Context, obj interface{}) error
+	Validate(ctx *gin.Context, obj interface{}) error
 }
 ```
 
@@ -200,7 +228,7 @@ type Validator interface {
 
 ```go
 type DefaultValidator struct {
-    engine *validator.Validate
+	engine *validator.Validate
 }
 ```
 
@@ -208,8 +236,23 @@ type DefaultValidator struct {
 
 ```go
 type ValidationError struct {
-    Message string
-    Errors  validator.ValidationErrors
+	Message string
+	Errors  validator.ValidationErrors
+}
+
+func (ve *ValidationError) Error() string
+```
+
+#### PasswordConfig
+
+```go
+type PasswordConfig struct {
+	MinLength      int
+	MaxLength      int
+	RequireUpper   bool
+	RequireLower   bool
+	RequireNumber  bool
+	RequireSpecial bool
 }
 ```
 
@@ -221,11 +264,15 @@ type ValidationError struct {
 func NewDefaultValidator() *DefaultValidator
 ```
 
+创建默认验证器实例，自动注册 JSON 标签作为字段名。
+
 #### Validate
 
 ```go
 func (v *DefaultValidator) Validate(ctx *gin.Context, obj interface{}) error
 ```
+
+验证 Gin 请求，自动绑定 JSON 并验证结构体。
 
 #### RegisterValidation
 
@@ -233,26 +280,17 @@ func (v *DefaultValidator) Validate(ctx *gin.Context, obj interface{}) error
 func (v *DefaultValidator) RegisterValidation(tag string, fn validator.Func) error
 ```
 
+注册自定义验证函数。
+
 #### BindAndValidate
 
 ```go
 func BindAndValidate[T any](ctx *gin.Context, validator Validator) (*T, error)
 ```
 
+泛型辅助函数，绑定并验证请求。
+
 ### 密码验证相关
-
-#### PasswordConfig
-
-```go
-type PasswordConfig struct {
-    MinLength      int  // 密码最小长度（默认 12）
-    MaxLength      int  // 密码最大长度（默认 128）
-    RequireUpper   bool // 是否要求大写字母（默认 true）
-    RequireLower   bool // 是否要求小写字母（默认 true）
-    RequireNumber  bool // 是否要求数字（默认 true）
-    RequireSpecial bool // 是否要求特殊字符（默认 true）
-}
-```
 
 #### DefaultPasswordConfig
 
@@ -260,11 +298,23 @@ type PasswordConfig struct {
 func DefaultPasswordConfig() *PasswordConfig
 ```
 
+返回默认密码配置（最小长度 12，要求大小写字母、数字和特殊字符）。
+
 #### ValidatePassword
 
 ```go
 func ValidatePassword(password string, config *PasswordConfig) error
 ```
+
+使用指定配置验证密码复杂度。
+
+#### ValidateComplexPassword
+
+```go
+func ValidateComplexPassword(fl validator.FieldLevel) bool
+```
+
+使用默认配置验证密码，用于结构体验证。
 
 #### RegisterPasswordValidation
 
@@ -272,11 +322,15 @@ func ValidatePassword(password string, config *PasswordConfig) error
 func RegisterPasswordValidation(v *DefaultValidator) error
 ```
 
+注册密码复杂度验证器，使用默认配置。
+
 #### RegisterPasswordValidationWithConfig
 
 ```go
 func RegisterPasswordValidationWithConfig(v *DefaultValidator, config *PasswordConfig) error
 ```
+
+使用自定义配置注册密码验证器。
 
 #### GetPasswordRequirements
 
@@ -284,11 +338,15 @@ func RegisterPasswordValidationWithConfig(v *DefaultValidator, config *PasswordC
 func GetPasswordRequirements() string
 ```
 
+获取默认密码要求说明。
+
 #### GetPasswordRequirementsWithConfig
 
 ```go
 func GetPasswordRequirementsWithConfig(config *PasswordConfig) string
 ```
+
+使用自定义配置获取密码要求说明。
 
 ## 常用验证标签
 
@@ -317,7 +375,7 @@ func GetPasswordRequirementsWithConfig(config *PasswordConfig) string
 | `eq=n` | 等于 n | `validate:"eq=10"` |
 | `ne=n` | 不等于 n | `validate:"ne=0"` |
 
-### 其他验证
+### 条件验证
 
 | 标签 | 说明 | 示例 |
 |------|------|------|
@@ -328,33 +386,67 @@ func GetPasswordRequirementsWithConfig(config *PasswordConfig) string
 | `omitempty` | 为空时跳过验证 | `validate:"omitempty,email"` |
 | `dive` | 对数组/切片/map 的元素进行验证 | `validate:"dive,required"` |
 
+### 字符串格式验证
+
+| 标签 | 说明 | 示例 |
+|------|------|------|
+| `ascii` | 只包含 ASCII 字符 | `validate:"ascii"` |
+| `lowercase` | 只包含小写字母 | `validate:"lowercase"` |
+| `uppercase` | 只包含大写字母 | `validate:"uppercase"` |
+| `e164` | 有效的 E.164 电话号码 | `validate:"e164"` |
+| `uuid` | 有效的 UUID | `validate:"uuid"` |
+| `uuid3` | 有效的 UUID v3 | `validate:"uuid3"` |
+| `uuid4` | 有效的 UUID v4 | `validate:"uuid4"` |
+| `uuid5` | 有效的 UUID v5 | `validate:"uuid5"` |
+
+### 时间验证
+
+| 标签 | 说明 | 示例 |
+|------|------|------|
+| `datetime` | 有效的日期时间格式 | `validate:"datetime=2006-01-02"` |
+| `min=now()` | 不早于当前时间 | `validate:"min=now()"` |
+| `max=now()` | 不晚于当前时间 | `validate:"max=now()"` |
+
 ## 错误处理
 
 验证失败时返回格式化的错误信息：
 
 ```go
 type ValidationError struct {
-    Message string
-    Errors  validator.ValidationErrors
-}
-
-if err := v.Validate(c, &req); err != nil {
-    if ve, ok := err.(*validator.ValidationError); ok {
-        c.JSON(400, gin.H{
-            "error":   ve.Message,
-            "details": ve.Errors,
-        })
-        return
-    }
+	Message string
+	Errors  validator.ValidationErrors
 }
 ```
 
-错误信息示例：
+### 错误示例
+
+```go
+if err := v.Validate(c, &req); err != nil {
+	if ve, ok := err.(*validator.ValidationError); ok {
+		c.JSON(400, gin.H{
+			"error":   ve.Message,
+			"details": ve.Errors,
+		})
+		return
+	}
+}
+```
+
+错误消息示例：
 ```json
 {"error": "email is required"}
 {"error": "name must be at least 2 characters; email must be a valid email"}
 {"error": "password must contain: at least 12 characters, uppercase letter, lowercase letter, number and special character"}
 ```
+
+### 错误信息格式说明
+
+- `field is required` - 必填字段为空
+- `field must be at least n characters` - 长度小于最小值
+- `field must be at most n characters` - 长度大于最大值
+- `field must be a valid email` - 邮箱格式无效
+- `field must contain: at least 12 characters, uppercase, lowercase, number and special character` - 密码复杂度不满足要求
+- `field validation failed on tag` - 其他验证失败
 
 ## 最佳实践
 
@@ -364,20 +456,96 @@ if err := v.Validate(c, &req); err != nil {
 var GlobalValidator *validator.DefaultValidator
 
 func init() {
-    GlobalValidator = validator.NewDefaultValidator()
-    GlobalValidator.RegisterValidation("username", validateUsername)
-    validator.RegisterPasswordValidation(GlobalValidator)
+	GlobalValidator = validator.NewDefaultValidator()
+	GlobalValidator.RegisterValidation("username", validateUsername)
+	validator.RegisterPasswordValidation(GlobalValidator)
 }
 ```
 
 ### 分离请求结构体
 
 ```go
-// requests/user.go
 type RegisterRequest struct {
-    Username string `json:"username" validate:"required,alphanum,min=4,max=20"`
-    Email    string `json:"email" validate:"required,email"`
-    Password string `json:"password" validate:"required,complexPassword"`
+	Username string `json:"username" validate:"required,alphanum,min=4,max=20"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,complexPassword"`
+}
+
+type UpdateUserRequest struct {
+	Name     string `json:"name,omitempty" validate:"omitempty,min=2,max=50"`
+	Phone    string `json:"phone,omitempty" validate:"omitempty,len=11"`
+	Password string `json:"password,omitempty" validate:"omitempty,min=8"`
+}
+```
+
+### 使用 omitempty 处理可选字段
+
+```go
+type UpdateRequest struct {
+	Name  string `json:"name,omitempty" validate:"omitempty,min=2"`
+	Email string `json:"email,omitempty" validate:"omitempty,email"`
+}
+```
+
+### 嵌套验证的完整示例
+
+```go
+type Address struct {
+	Street   string `json:"street" validate:"required"`
+	City     string `json:"city" validate:"required"`
+	Province string `json:"province" validate:"required,len=2"`
+	ZipCode  string `json:"zip_code" validate:"required,len=6"`
+}
+
+type Contact struct {
+	Phone  string `json:"phone" validate:"omitempty,len=11"`
+	Email  string `json:"email" validate:"omitempty,email"`
+	WeChat string `json:"wechat" validate:"omitempty,min=6,max=30"`
+}
+
+type CreateUserRequest struct {
+	Name    string  `json:"name" validate:"required,min=2,max=50"`
+	Email   string  `json:"email" validate:"required,email"`
+	Address Address `json:"address" validate:"required,dive"`
+	Contact Contact `json:"contact,omitempty" validate:"omitempty,dive"`
+	Tags    []string `json:"tags" validate:"omitempty,min=1,dive,min=2,max=20"`
+}
+```
+
+### 错误响应格式化
+
+```go
+func HandleValidationError(c *gin.Context, err error) {
+	if ve, ok := err.(*validator.ValidationError); ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    "VALIDATION_ERROR",
+			"message": "请求参数验证失败",
+			"errors":  strings.Split(ve.Message, "; "),
+		})
+		return
+	}
+	c.JSON(http.StatusBadRequest, gin.H{
+		"code":    "BAD_REQUEST",
+		"message": err.Error(),
+	})
+}
+```
+
+### 复杂业务场景的验证
+
+```go
+type CreateOrderRequest struct {
+	UserID      uint64  `json:"user_id" validate:"required,gt=0"`
+	Products    []Product `json:"products" validate:"required,min=1,dive"`
+	TotalAmount float64 `json:"total_amount" validate:"required,gt=0"`
+	DeliveryAddress Address `json:"delivery_address" validate:"required"`
+	Remark      string  `json:"remark,omitempty" validate:"omitempty,max=500"`
+}
+
+type Product struct {
+	ProductID uint64 `json:"product_id" validate:"required,gt=0"`
+	Quantity  int    `json:"quantity" validate:"required,gte=1,lte=9999"`
+	Price     float64 `json:"price" validate:"required,gt=0"`
 }
 ```
 

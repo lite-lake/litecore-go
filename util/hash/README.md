@@ -1,6 +1,6 @@
 # Hash 哈希工具包
 
-提供多种哈希算法（MD5、SHA1、SHA256、SHA512）、HMAC 计算和 Bcrypt 密码哈希功能的 Go 语言工具包，支持泛型编程。
+提供多种哈希算法（MD5、SHA1、SHA256、SHA512）、HMAC 签名计算和 Bcrypt 密码哈希功能的 Go 语言工具包。
 
 ## 特性
 
@@ -67,11 +67,15 @@ if err != nil {
 }
 ```
 
-## 核心功能
+## 支持的哈希算法
 
-### 哈希算法
+### MD5
 
-#### MD5
+**输出长度**：32 字符（十六进制）
+
+**使用场景**：
+- 非安全场景的校验和（如文件完整性校验、缓存键生成）
+- 已不适用于安全相关场景（已被证明存在安全漏洞）
 
 ```go
 // 完整长度（32字符）
@@ -87,7 +91,13 @@ hash.Hash.MD5String32("data")
 hash.Hash.MD5("data")
 ```
 
-#### SHA1
+### SHA1
+
+**输出长度**：40 字符（十六进制）
+
+**使用场景**：
+- 遗留系统兼容
+- 不推荐在新项目中使用（存在安全漏洞）
 
 ```go
 // 完整长度（40字符）
@@ -97,7 +107,15 @@ hash.Hash.SHA1String("data")
 hash.Hash.SHA1("data")
 ```
 
-#### SHA256
+### SHA256
+
+**输出长度**：64 字符（十六进制）
+
+**使用场景**：
+- 推荐用于大多数安全场景
+- 数字签名、API 签名验证
+- 数据完整性校验
+- 密码派生（需配合盐值）
 
 ```go
 // 完整长度（64字符）
@@ -107,7 +125,14 @@ hash.Hash.SHA256String("data")
 hash.Hash.SHA256("data")
 ```
 
-#### SHA512
+### SHA512
+
+**输出长度**：128 字符（十六进制）
+
+**使用场景**：
+- 高安全要求场景
+- 需要更长哈希值的应用
+- 大数据量处理
 
 ```go
 // 完整长度（128字符）
@@ -117,7 +142,34 @@ hash.Hash.SHA512String("data")
 hash.Hash.SHA512("data")
 ```
 
-### HMAC 签名
+### Bcrypt
+
+**输出长度**：60 字符（包含算法版本、成本因子、盐值和哈希值）
+
+**使用场景**：
+- 密码存储（专为密码设计）
+- 每次生成不同的哈希值（包含随机盐值）
+- 支持可调节的计算成本因子
+
+```go
+// 使用默认成本因子生成密码哈希
+hashedPassword, err := hash.Hash.BcryptHash("mypassword")
+
+// 指定成本因子（4-31，默认为 10）
+hashedPassword, err := hash.Hash.BcryptHashWithCost("mypassword", 12)
+
+// 验证密码
+isValid := hash.Hash.BcryptVerify("mypassword", hashedPassword)
+```
+
+**注意事项**：
+- Bcrypt 是专门为密码哈希设计的算法，每次生成的哈希值不同（包含随机盐值）
+- 成本因子越高，计算时间越长，安全性越高
+- 默认成本因子为 `hash.BcryptDefaultCost`（值为 10）
+
+## HMAC 签名
+
+HMAC（基于哈希的消息认证码）用于验证数据完整性和真实性。
 
 ```go
 // HMAC-MD5
@@ -136,25 +188,13 @@ hash.Hash.HMACSHA512String("data", "key")
 hash.Hash.HMACSHA256("data", "key")
 ```
 
-### 密码哈希（Bcrypt）
+**使用场景**：
+- API 签名验证
+- 消息认证
+- 令牌验证
+- 防篡改校验
 
-```go
-// 使用默认成本因子生成密码哈希
-hashedPassword, err := hash.Hash.BcryptHash("mypassword")
-
-// 指定成本因子（4-31，默认为 10）
-hashedPassword, err := hash.Hash.BcryptHashWithCost("mypassword", 12)
-
-// 验证密码
-isValid := hash.Hash.BcryptVerify("mypassword", hashedPassword)
-```
-
-**注意事项**：
-- Bcrypt 是专门为密码哈希设计的算法，每次生成的哈希值不同（包含随机盐值）
-- 成本因子越高，计算时间越长，安全性越高
-- 默认成本因子为 `hash.BcryptDefaultCost`（值为 10）
-
-### 输出格式
+## 输出格式
 
 ```go
 // FormatBytes: 原始字节数组
@@ -170,7 +210,9 @@ mediumHash := hash.HashHexGeneric("data", hash.MD5Algorithm{}, hash.FormatHexMed
 fullHash := hash.HashHexGeneric("data", hash.MD5Algorithm{}, hash.FormatHexFull)
 ```
 
-### 泛型函数
+## 泛型函数
+
+### 哈希计算
 
 ```go
 // 计算任意哈希算法的值
@@ -185,124 +227,38 @@ hashBytes = hash.HashBytesGeneric([]byte("data"), hash.SHA256Algorithm{})
 // 处理 io.Reader（大文件）
 file, _ := os.Open("file.txt")
 hashBytes, err := hash.HashReaderGeneric(file, hash.SHA256Algorithm{})
+```
 
+### HMAC 计算
+
+```go
 // HMAC 泛型函数
 hmacBytes := hash.HMACGeneric("data", "key", hash.SHA256Algorithm{})
 hmacString := hash.HMACStringGeneric("data", "key", hash.SHA256Algorithm{})
+
+// 处理字节数组
+hmacBytes = hash.HMACBytesGeneric([]byte("data"), []byte("key"), hash.SHA256Algorithm{})
+
+// 处理 io.Reader
+file, _ := os.Open("file.txt")
+hmacBytes, err := hash.HMACReaderGeneric(file, []byte("key"), hash.SHA256Algorithm{})
 ```
 
-## API 参考
-
-### 默认实例
+### 自定义算法
 
 ```go
-var Hash = &hashEngine{}
-```
+// 实现自定义哈希算法
+type CustomAlgorithm struct{}
 
-### 哈希算法接口
-
-```go
-type HashAlgorithm interface {
-    Hash() hash.Hash
+func (CustomAlgorithm) Hash() hash.Hash {
+    return sha3.New256()
 }
 
-type MD5Algorithm struct{}
-type SHA1Algorithm struct{}
-type SHA256Algorithm struct{}
-type SHA512Algorithm struct{}
+// 使用自定义算法
+result := hash.HashGeneric("data", CustomAlgorithm{})
 ```
 
-### 输出格式常量
-
-```go
-const (
-    FormatBytes    HashOutputFormat = iota  // 原始字节数组格式
-    FormatHexShort                          // 16位十六进制字符串
-    FormatHexMedium                         // 32位十六进制字符串
-    FormatHexFull                           // 完整长度十六进制字符串
-)
-```
-
-### MD5 便捷方法
-
-```go
-func (h *hashEngine) MD5(data string) []byte
-func (h *hashEngine) MD5String(data string) string
-func (h *hashEngine) MD5String16(data string) string
-func (h *hashEngine) MD5String32(data string) string
-```
-
-### SHA1 便捷方法
-
-```go
-func (h *hashEngine) SHA1(data string) []byte
-func (h *hashEngine) SHA1String(data string) string
-```
-
-### SHA256 便捷方法
-
-```go
-func (h *hashEngine) SHA256(data string) []byte
-func (h *hashEngine) SHA256String(data string) string
-```
-
-### SHA512 便捷方法
-
-```go
-func (h *hashEngine) SHA512(data string) []byte
-func (h *hashEngine) SHA512String(data string) string
-```
-
-### HMAC 便捷方法
-
-```go
-func (h *hashEngine) HMACMD5(data string, key string) []byte
-func (h *hashEngine) HMACMD5String(data string, key string) string
-func (h *hashEngine) HMACSHA1(data string, key string) []byte
-func (h *hashEngine) HMACSHA1String(data string, key string) string
-func (h *hashEngine) HMACSHA256(data string, key string) []byte
-func (h *hashEngine) HMACSHA256String(data string, key string) string
-func (h *hashEngine) HMACSHA512(data string, key string) []byte
-func (h *hashEngine) HMACSHA512String(data string, key string) string
-```
-
-### Bcrypt 便捷方法
-
-```go
-const BcryptDefaultCost = bcrypt.DefaultCost
-
-func (h *hashEngine) BcryptHash(password string) (string, error)
-func (h *hashEngine) BcryptHashWithCost(password string, cost int) (string, error)
-func (h *hashEngine) BcryptVerify(password string, hash string) bool
-```
-
-### 泛型哈希函数
-
-```go
-func HashGeneric[T HashAlgorithm](data string, algorithm T) []byte
-func HashBytesGeneric[T HashAlgorithm](data []byte, algorithm T) []byte
-func HashReaderGeneric[T HashAlgorithm](r io.Reader, algorithm T) ([]byte, error)
-func HashHexGeneric[T HashAlgorithm](data string, algorithm T, format HashOutputFormat) string
-func HashBytesHexGeneric[T HashAlgorithm](data []byte, algorithm T, format HashOutputFormat) string
-func HashReaderHexGeneric[T HashAlgorithm](r io.Reader, algorithm T, format HashOutputFormat) (string, error)
-func HashStringGeneric[T HashAlgorithm](data string, algorithm T) string
-func HashReaderStringGeneric[T HashAlgorithm](r io.Reader, algorithm T) (string, error)
-```
-
-### 泛型 HMAC 函数
-
-```go
-func HMACGeneric[T HashAlgorithm](data string, key string, algorithm T) []byte
-func HMACBytesGeneric[T HashAlgorithm](data []byte, key []byte, algorithm T) []byte
-func HMACReaderGeneric[T HashAlgorithm](r io.Reader, key []byte, algorithm T) ([]byte, error)
-func HMACHexGeneric[T HashAlgorithm](data string, key string, algorithm T, format HashOutputFormat) string
-func HMACBytesHexGeneric[T HashAlgorithm](data []byte, key []byte, algorithm T, format HashOutputFormat) string
-func HMACReaderHexGeneric[T HashAlgorithm](r io.Reader, key []byte, algorithm T, format HashOutputFormat) (string, error)
-func HMACStringGeneric[T HashAlgorithm](data string, key string, algorithm T) string
-func HMACReaderStringGeneric[T HashAlgorithm](r io.Reader, key []byte, algorithm T) (string, error)
-```
-
-## 常见使用场景
+## 使用场景
 
 ### 密码存储和验证
 

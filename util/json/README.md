@@ -1,6 +1,6 @@
 # util/json
 
-JSON 工具包，提供 JSON 验证、格式化、数据转换和路径查询等功能。
+全面的 JSON 操作工具集，提供 JSON 验证、格式化、数据转换、路径查询等功能。
 
 ## 特性
 
@@ -8,6 +8,7 @@ JSON 工具包，提供 JSON 验证、格式化、数据转换和路径查询等
 - **灵活的数据转换** - 支持 JSON 字符串、Map 和结构体之间的双向转换
 - **便捷的路径操作** - 使用点号语法访问嵌套字段，支持对象和数组索引
 - **高级操作** - 支持深度合并和差异比较
+- **转义处理** - 提供字符串的转义和反转义功能
 - **丰富的工具函数** - 类型检测、键值查询、大小获取等辅助功能
 
 ## 快速开始
@@ -47,7 +48,52 @@ func main() {
 }
 ```
 
-## 数据转换
+## JSON 序列化
+
+### 结构体转 JSON
+
+```go
+j := json.JSON
+
+type Config struct {
+    Host string `json:"host"`
+    Port int    `json:"port"`
+}
+
+cfg := Config{Host: "localhost", Port: 8080}
+
+// 压缩格式
+jsonStr, _ := j.FromStruct(cfg)
+// 输出：{"host":"localhost","port":8080}
+
+// 格式化输出（2 空格缩进）
+formatted, _ := j.FromStructWithIndent(cfg, "  ")
+// 输出：
+// {
+//   "host": "localhost",
+//   "port": 8080
+// }
+
+// 使用默认缩进（2 空格）
+formatted, _ := j.PrettyPrintWithIndent(jsonStr)
+```
+
+### Map 转 JSON
+
+```go
+j := json.JSON
+
+data := map[string]interface{}{
+    "name":  "Alice",
+    "age":   30,
+    "email": "alice@example.com",
+}
+
+jsonStr, _ := j.FromMap(data)
+// 输出：{"name":"Alice","age":30,"email":"alice@example.com"}
+```
+
+## JSON 反序列化
 
 ### JSON 转 Map
 
@@ -59,6 +105,7 @@ data, err := j.ToMap(`{"name":"Alice","age":30}`)
 if err != nil {
     // 处理错误
 }
+fmt.Printf("Name: %v\n", data["name"])
 
 // 严格模式（必须是对象类型）
 data, err := j.ToMapStrict(`{"name":"Alice"}`)
@@ -70,6 +117,8 @@ if err != nil {
 ### JSON 转 Struct
 
 ```go
+j := json.JSON
+
 type User struct {
     Name  string `json:"name"`
     Age   int    `json:"age"`
@@ -81,26 +130,94 @@ err := j.ToStruct(`{"name":"Alice","age":30}`, &user)
 if err != nil {
     // 处理错误
 }
+fmt.Printf("User: %+v\n", user)
 ```
 
-### Go 类型转 JSON
+## JSON 格式化
+
+### 美化 JSON
 
 ```go
-// Map 转 JSON
-m := map[string]interface{}{"name": "Alice", "age": 30}
-jsonStr, _ := j.FromMap(m)
+j := json.JSON
 
-// Struct 转 JSON（压缩）
-type Config struct {
-    Host string `json:"host"`
-    Port int    `json:"port"`
+// 使用自定义缩进
+formatted, err := j.PrettyPrint(`{"name":"Alice","age":30}`, "  ")
+if err != nil {
+    // 处理错误
 }
-cfg := Config{Host: "localhost", Port: 8080}
-jsonStr, _ := j.FromStruct(cfg)
-// 输出：{"host":"localhost","port":8080}
+// 输出：
+// {
+//   "name": "Alice",
+//   "age": 30
+// }
 
-// Struct 转 JSON（格式化）
-jsonStr, _ := j.FromStructWithIndent(cfg, "  ")
+// 使用默认缩进（2 空格）
+formatted, err := j.PrettyPrintWithIndent(`{"name":"Alice"}`)
+```
+
+### 压缩 JSON
+
+```go
+j := json.JSON
+
+compacted, err := j.Compact(`{ "name" : "Alice" , "age" : 30 }`)
+if err != nil {
+    // 处理错误
+}
+// 输出：{"name":"Alice","age":30}
+```
+
+## JSON 验证
+
+```go
+j := json.JSON
+
+// 验证 JSON 有效性
+isValid := j.IsValid(`{"name":"Alice"}`)
+// true
+
+isValid = j.IsValid(`{invalid}`)
+// false
+```
+
+## 字符串转义
+
+### 转义特殊字符
+
+```go
+j := json.JSON
+
+// 转义字符串
+escaped, err := j.Escape(`Hello\nWorld`)
+if err != nil {
+    // 处理错误
+}
+// 输出：Hello\nWorld
+
+// 包含引号
+escaped, _ = j.Escape(`say "hello"`)
+// 输出：say \"hello\"
+
+// 包含反斜杠
+escaped, _ = j.Escape(`path\to\file`)
+// 输出：path\\to\\file
+```
+
+### 反转义
+
+```go
+j := json.JSON
+
+// 反转义
+unescaped, err := j.Unescape(`Hello\\nWorld`)
+if err != nil {
+    // 处理错误
+}
+// 输出：Hello\n（实际换行符）
+
+// Unicode 转义
+unescaped, _ = j.Unescape(`\u4e2d\u6587`)
+// 输出：中文
 ```
 
 ## 路径操作
@@ -111,6 +228,8 @@ jsonStr, _ := j.FromStructWithIndent(cfg, "  ")
 - **嵌套字段**：`user.profile.age`
 - **数组元素**：`items.0`（索引从 0 开始）
 - **数组中的对象**：`users.0.name`
+
+### 获取任意类型值
 
 ```go
 j := json.JSON
@@ -126,24 +245,50 @@ jsonStr := `{
 
 // 获取任意类型值
 value, _ := j.GetValue(jsonStr, "user.name")
-
-// 获取字符串
-name, _ := j.GetString(jsonStr, "user.name")
-
-// 获取数字
-age, _ := j.GetFloat64(jsonStr, "user.profile.age")
-
-// 获取布尔值
-active, _ := j.GetBool(jsonStr, "user.active")
+fmt.Println(value) // Alice
 
 // 访问数组元素
 firstItem, _ := j.GetValue(jsonStr, "items.0")
-secondUserName, _ := j.GetString(jsonStr, "users.1.name")
+fmt.Println(firstItem) // 1
+
+// 访问数组中的对象
+secondUserName, _ := j.GetValue(jsonStr, "users.1.name")
+fmt.Println(secondUserName) // Bob
+
+// 获取根对象
+root, _ := j.GetValue(jsonStr, "")
 ```
 
-## 高级操作
+### 获取特定类型值
 
-### JSON 合并
+```go
+j := json.JSON
+
+jsonStr := `{
+    "name": "Alice",
+    "age": 30,
+    "active": true,
+    "price": 99.99
+}`
+
+// 获取字符串
+name, _ := j.GetString(jsonStr, "name")
+fmt.Println(name) // Alice
+
+// 获取数字
+age, _ := j.GetFloat64(jsonStr, "age")
+fmt.Println(age) // 30
+
+// 获取布尔值
+active, _ := j.GetBool(jsonStr, "active")
+fmt.Println(active) // true
+
+// 类型自动转换
+ageStr, _ := j.GetString(jsonStr, "age")
+fmt.Println(ageStr) // "30"
+```
+
+## JSON 合并
 
 ```go
 j := json.JSON
@@ -167,11 +312,14 @@ userConfig := `{
 }`
 
 merged, _ = j.Merge(defaultConfig, userConfig)
-// database.host 被覆盖，database.port 和 database.ssl 保留，database.password 新增
-// logging.level 被覆盖
+// database.host 被覆盖为 "prod.example.com"
+// database.port 保留默认值 3306
+// database.ssl 保留默认值 false
+// database.password 新增 "secret"
+// logging.level 被覆盖为 "debug"
 ```
 
-### JSON 比较
+## JSON 比较
 
 ```go
 j := json.JSON
@@ -193,60 +341,60 @@ hasDiff, _ = j.Diff(original, converted)
 fmt.Printf("转换后一致: %v\n", !hasDiff) // true
 ```
 
-## 格式化与转义
-
-```go
-j := json.JSON
-
-// 格式化 JSON（美化）
-formatted, _ := j.PrettyPrint(`{"name":"Alice"}`, "  ")
-// 输出：
-// {
-//   "name": "Alice"
-// }
-
-// 默认缩进（2 空格）
-formatted, _ := j.PrettyPrintWithIndent(`{"name":"Alice"}`)
-
-// 压缩 JSON
-compacted, _ := j.Compact(`{ "name" : "Alice" }`)
-// 输出：{"name":"Alice"}
-
-// 转义特殊字符
-escaped, _ := j.Escape(`Hello\nWorld`)
-// 输出：Hello\nWorld
-
-// 反转义
-unescaped, _ := j.Unescape(`Hello\\nWorld`)
-// 输出：Hello\n（实际换行符）
-```
-
 ## 工具函数
 
+### 类型检查
+
 ```go
 j := json.JSON
 
-// 类型检查
+// 检查 JSON 类型
 j.IsObject(`{"name":"Alice"}`) // true
 j.IsArray(`[1,2,3]`)           // true
 
-// 获取类型
-typeName, _ := j.GetType(jsonStr, "user.profile")
-// "object" | "array" | "string" | "number" | "boolean" | "null"
+// 获取值类型
+typeName, _ := j.GetType(`{"name":"Alice"}`, "name")
+// "string"
+
+typeName, _ = j.GetType(`{"age":30}`, "age")
+// "number"
+
+typeName, _ = j.GetType(`{"active":true}`, "active")
+// "boolean"
+
+typeName, _ = j.GetType(`{"data":null}`, "data")
+// "null"
+```
+
+### 键值操作
+
+```go
+j := json.JSON
+
+jsonStr := `{
+    "user": {
+        "name": "Alice",
+        "age": 30,
+        "email": "alice@example.com"
+    }
+}`
 
 // 获取对象的所有键
 keys, _ := j.GetKeys(jsonStr, "user")
 // ["name", "age", "email"]
 
-// 获取数组或对象的大小
-size, _ := j.GetSize(jsonStr, "items")    // 数组长度
-size, _ = j.GetSize(jsonStr, "user")      // 对象键数量
-
 // 检查是否包含指定键
 exists, _ := j.Contains(jsonStr, "user", "email") // true
+exists, _ = j.Contains(jsonStr, "user", "phone") // false
+
+// 获取数组或对象的大小
+size, _ := j.GetSize(jsonStr, "user")      // 3 (对象键数量)
+
+jsonStr2 := `{"items": [1, 2, 3, 4, 5]}`
+size, _ = j.GetSize(jsonStr2, "items")    // 5 (数组长度)
 ```
 
-## API 参考
+## API 说明
 
 ### 验证与格式化
 
@@ -346,6 +494,26 @@ if j.Contains(configData, "", "database") {
 }
 ```
 
+### 日志数据格式化
+
+```go
+// 美化日志中的 JSON 数据
+logData := map[string]interface{}{
+    "timestamp": time.Now().Unix(),
+    "level":     "info",
+    "message":   "User logged in",
+    "user": map[string]interface{}{
+        "id":    123,
+        "name":  "Alice",
+        "email": "alice@example.com",
+    },
+}
+
+jsonStr, _ := j.FromMap(logData)
+formatted, _ := j.PrettyPrint(jsonStr, "  ")
+fmt.Println(formatted)
+```
+
 ## 注意事项
 
 1. **路径语法**：使用点号 `.` 分隔符，不支持通配符或复杂表达式
@@ -354,6 +522,8 @@ if j.Contains(configData, "", "database") {
 4. **类型转换**：GetString/GetFloat64/GetBool 会尝试自动类型转换
 5. **浮点数精度**：JSON 数字会被解析为 `float64`，大整数可能丢失精度
 6. **键顺序**：Go 的 map 不保证键顺序，多次序列化结果可能不同
+7. **转义处理**：Escape 和 Unescape 遵循 JSON 字符串转义规则
+8. **空值处理**：null 值在路径操作中可以被获取，但在类型转换时可能返回错误
 
 ## 相关模块
 

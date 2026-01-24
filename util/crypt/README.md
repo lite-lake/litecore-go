@@ -4,12 +4,12 @@
 
 ## 特性
 
-- **对称加密**：支持 AES-128/192/256，使用 GCM 模式提供认证加密
-- **非对称加密**：支持 RSA-1024/2048/3072/4096，使用 OAEP 填充
-- **密码哈希**：支持 Bcrypt（推荐）和 PBKDF2 两种安全算法
-- **数字签名**：支持 HMAC（SHA256/SHA512）和 ECDSA（P-256）
-- **编码转换**：Base64、Hex 编码解码，支持 URL 安全格式
-- **安全工具**：随机数生成、常数时间比较（防时序攻击）
+- **对称加密** - 支持 AES-128/192/256，使用 GCM 模式提供认证加密
+- **非对称加密** - 支持 RSA-1024/2048/3072/4096，使用 OAEP 填充
+- **密码哈希** - 支持 Bcrypt（推荐）和 PBKDF2 两种安全算法
+- **数字签名** - 支持 HMAC（SHA256/SHA512）和 ECDSA（P-256）
+- **编码转换** - Base64、Hex 编码解码，支持 URL 安全格式
+- **安全工具** - 随机数生成、常数时间比较（防时序攻击）
 
 ## 快速开始
 
@@ -17,37 +17,205 @@
 package main
 
 import (
-    "fmt"
-    "log"
+	"fmt"
+	"log"
 
-    "github.com/lite-lake/litecore-go/util/crypt"
+	"github.com/lite-lake/litecore-go/util/crypt"
 )
 
 func main() {
-    // Base64 编码解码
-    encoded := crypt.Crypt.Base64Encode("Hello, World!")
-    fmt.Println("Base64 编码:", encoded)
+	// Base64 编码解码
+	encoded := crypt.Crypt.Base64Encode("Hello, World!")
+	fmt.Println("Base64 编码:", encoded)
 
-    decoded, err := crypt.Crypt.Base64Decode(encoded)
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println("Base64 解码:", decoded)
+	decoded, err := crypt.Crypt.Base64Decode(encoded)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Base64 解码:", decoded)
 
-    // AES 对称加密
-    key, _ := crypt.Crypt.GenerateAESKey(crypt.AES256)
-    encrypted, _ := crypt.Crypt.AESEncryptToBase64("敏感信息", key)
-    fmt.Println("AES 加密:", encrypted)
+	// AES 对称加密
+	key, _ := crypt.Crypt.GenerateAESKey(crypt.AES256)
+	encrypted, _ := crypt.Crypt.AESEncryptToBase64("敏感信息", key)
+	fmt.Println("AES 加密:", encrypted)
 
-    decrypted, _ := crypt.Crypt.AESDecryptFromBase64(encrypted, key)
-    fmt.Println("AES 解密:", decrypted)
+	decrypted, _ := crypt.Crypt.AESDecryptFromBase64(encrypted, key)
+	fmt.Println("AES 解密:", decrypted)
 
-    // 密码哈希
-    hash, _ := crypt.Crypt.BcryptHash("mypassword123", 10)
-    fmt.Println("密码哈希:", hash)
+	// 密码哈希
+	hash, _ := crypt.Crypt.BcryptHash("mypassword123", 10)
+	fmt.Println("密码哈希:", hash)
 
-    verified := crypt.Crypt.BcryptVerify("mypassword123", hash)
-    fmt.Println("密码验证:", verified)
+	verified := crypt.Crypt.BcryptVerify("mypassword123", hash)
+	fmt.Println("密码验证:", verified)
+}
+```
+
+## 使用场景
+
+### 场景 1：用户密码加密
+
+在用户注册、登录场景中，使用 Bcrypt 哈希密码：
+
+```go
+// 用户注册时加密密码
+func RegisterUser(username, password string) error {
+	// 生成密码哈希（cost 参数决定计算强度）
+	hashedPassword, err := crypt.Crypt.BcryptHash(password, 10)
+	if err != nil {
+		return err
+	}
+
+	// 存储用户名和哈希后的密码
+	user := User{
+		Username: username,
+		Password: hashedPassword, // 不要存储明文密码
+	}
+	return db.Create(&user)
+}
+
+// 用户登录时验证密码
+func LoginUser(username, password string) bool {
+	// 从数据库获取用户
+	user := db.FindUserByUsername(username)
+	if user == nil {
+		return false
+	}
+
+	// 验证密码
+	return crypt.Crypt.BcryptVerify(password, user.Password)
+}
+```
+
+### 场景 2：敏感数据加密存储
+
+使用 AES 加密存储敏感信息（如身份证号、银行卡号）：
+
+```go
+// 加密敏感数据
+func EncryptSensitiveData(plaintext string, encryptionKey []byte) (string, error) {
+	return crypt.Crypt.AESEncryptToBase64(plaintext, encryptionKey)
+}
+
+// 解密敏感数据
+func DecryptSensitiveData(ciphertext string, encryptionKey []byte) (string, error) {
+	return crypt.Crypt.AESDecryptFromBase64(ciphertext, encryptionKey)
+}
+
+// 使用示例
+func SaveUserCard(userID int, cardNumber string) error {
+	// 从环境变量或配置获取加密密钥
+	encryptionKey := []byte(os.Getenv("ENCRYPTION_KEY"))
+
+	// 加密银行卡号
+	encryptedCard, err := EncryptSensitiveData(cardNumber, encryptionKey)
+	if err != nil {
+		return err
+	}
+
+	// 存储加密后的数据
+	userCard := UserCard{
+		UserID:    userID,
+		CardNumber: encryptedCard, // 加密存储
+	}
+	return db.Create(&userCard)
+}
+```
+
+### 场景 3：API 签名验证
+
+使用 HMAC 签名确保 API 请求的完整性和真实性：
+
+```go
+// 生成 API 签名
+func GenerateAPISignature(data []byte, secret string) string {
+	return crypt.Crypt.HMACSignHexWithSHA256(data, []byte(secret))
+}
+
+// 验证 API 签名
+func VerifyAPISignature(data []byte, signature, secret string) bool {
+	expectedSig := GenerateAPISignature(data, secret)
+	// 使用常数时间比较防止时序攻击
+	return crypt.Crypt.SecureEqual(signature, expectedSig)
+}
+
+// 使用示例
+func HandleAPIRequest(ctx *gin.Context) {
+	// 获取请求参数
+	data := []byte(ctx.Query("data"))
+	signature := ctx.GetHeader("X-Signature")
+	secret := os.Getenv("API_SECRET")
+
+	// 验证签名
+	if !VerifyAPISignature(data, signature, secret) {
+		ctx.JSON(401, gin.H{"error": "Invalid signature"})
+		return
+	}
+
+	// 处理请求
+	ctx.JSON(200, gin.H{"status": "success"})
+}
+```
+
+### 场景 4：混合加密（RSA + AES）
+
+大量数据加密时，使用 RSA 加密 AES 密钥，AES 加密实际数据：
+
+```go
+// 混合加密
+func HybridEncrypt(plaintext string, publicKey *rsa.PublicKey) ([]byte, string, error) {
+	// 1. 生成随机 AES 密钥
+	aesKey, err := crypt.Crypt.GenerateAESKey(crypt.AES256)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// 2. 使用 RSA 加密 AES 密钥
+	encryptedKey, err := crypt.Crypt.RSAEncrypt(aesKey, publicKey)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// 3. 使用 AES 加密实际数据
+	encryptedData, err := crypt.Crypt.AESEncryptToBase64(plaintext, aesKey)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return encryptedKey, encryptedData, nil
+}
+
+// 混合解密
+func HybridDecrypt(encryptedKey []byte, encryptedData string, privateKey *rsa.PrivateKey) (string, error) {
+	// 1. 使用 RSA 解密 AES 密钥
+	aesKey, err := crypt.Crypt.RSADecrypt(encryptedKey, privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	// 2. 使用 AES 解密实际数据
+	plaintext, err := crypt.Crypt.AESDecryptFromBase64(encryptedData, aesKey)
+	if err != nil {
+		return "", err
+	}
+
+	return plaintext, nil
+}
+
+// 使用示例
+func SendSecureData(data string) error {
+	// 获取接收方的公钥
+	receiverPublicKey := getReceiverPublicKey()
+
+	// 混合加密
+	encryptedKey, encryptedData, err := HybridEncrypt(data, receiverPublicKey)
+	if err != nil {
+		return err
+	}
+
+	// 发送加密数据
+	sendData(encryptedKey, encryptedData)
+	return nil
 }
 ```
 
@@ -72,6 +240,9 @@ decodedBytes, _ := crypt.Crypt.Base64DecodeBytes("SGVsbG8=")
 // URL 安全的 Base64 编码
 encoded := crypt.Crypt.Base64URLEncode("Hello, World!")
 decoded, _ := crypt.Crypt.Base64URLDecode(encoded)
+
+// 验证字符串是否为有效的 Base64
+isValid := crypt.Crypt.IsBase64(encoded)
 ```
 
 ## Hex 编码解码
@@ -85,6 +256,9 @@ decoded, _ := crypt.Crypt.HexDecode("48656c6c6f")
 data := []byte{0x00, 0xFF, 0xAA, 0x55}
 encodedBytes := crypt.Crypt.HexEncodeBytes(data)
 decodedBytes, _ := crypt.Crypt.HexDecodeBytes("00ffaa55")
+
+// 验证字符串是否为有效的十六进制
+isValid := crypt.Crypt.IsHex(encoded)
 ```
 
 ## AES 对称加密
@@ -178,6 +352,7 @@ key := []byte("密钥")
 // 使用 SHA256 的便捷方法
 signature := crypt.Crypt.HMACSignWithSHA256(data, key)
 signatureHex := crypt.Crypt.HMACSignHexWithSHA256(data, key)
+signatureBase64 := crypt.Crypt.HMACSignBase64(data, key, crypto.SHA256.New)
 
 // 验证签名
 isValid := crypt.Crypt.HMACVerify(data, key, signature, crypto.SHA256.New)
@@ -235,6 +410,7 @@ isEqual = crypt.Crypt.SecureEqual("password123", "password123")
 | `Base64DecodeBytes(data string) ([]byte, error)` | Base64 解码为字节数组 |
 | `Base64URLEncode(data string) string` | URL 安全的 Base64 编码 |
 | `Base64URLDecode(data string) (string, error)` | URL 安全的 Base64 解码 |
+| `IsBase64(s string) bool` | 检查字符串是否为有效的 Base64 编码 |
 
 ### Hex 编码解码
 
@@ -244,6 +420,7 @@ isEqual = crypt.Crypt.SecureEqual("password123", "password123")
 | `HexEncodeBytes(data []byte) string` | 十六进制编码字节数组 |
 | `HexDecode(data string) (string, error)` | 十六进制解码为字符串 |
 | `HexDecodeBytes(data string) ([]byte, error)` | 十六进制解码为字节数组 |
+| `IsHex(s string) bool` | 检查字符串是否为有效的十六进制编码 |
 
 ### AES 对称加密
 
@@ -283,6 +460,7 @@ isEqual = crypt.Crypt.SecureEqual("password123", "password123")
 |------|------|
 | `HMACSign(data, key []byte, hashFunc func() hash.Hash) []byte` | HMAC 签名 |
 | `HMACSignHex(data, key []byte, hashFunc func() hash.Hash) string` | HMAC 签名并转十六进制 |
+| `HMACSignBase64(data, key []byte, hashFunc func() hash.Hash) string` | HMAC 签名并转 Base64 |
 | `HMACVerify(data, key, signature []byte, hashFunc func() hash.Hash) bool` | HMAC 验证 |
 | `HMACSignWithSHA256(data, key []byte) []byte` | 使用 SHA256 的 HMAC 签名 |
 | `HMACSignHexWithSHA256(data, key []byte) string` | 使用 SHA256 的 HMAC 签名（十六进制） |
@@ -307,6 +485,8 @@ isEqual = crypt.Crypt.SecureEqual("password123", "password123")
 | `SecureEqual(a, b string) bool` | 安全字符串比较 |
 | `GenerateRandomBytes(length int) ([]byte, error)` | 生成随机字节 |
 | `GenerateRandomString(length int) (string, error)` | 生成随机字符串 |
+| `EncodeKey(key []byte) string` | 编码密钥为可传输格式 |
+| `DecodeKey(encodedKey string) ([]byte, error)` | 解码密钥 |
 
 ## 常量定义
 
@@ -314,9 +494,9 @@ isEqual = crypt.Crypt.SecureEqual("password123", "password123")
 
 ```go
 const (
-    AES128 AESKeySize = 16  // 128 位密钥
-    AES192 AESKeySize = 24  // 192 位密钥
-    AES256 AESKeySize = 32  // 256 位密钥
+	AES128 AESKeySize = 16  // 128 位密钥
+	AES192 AESKeySize = 24  // 192 位密钥
+	AES256 AESKeySize = 32  // 256 位密钥
 )
 ```
 
@@ -324,10 +504,10 @@ const (
 
 ```go
 const (
-    RSA1024 RSABits = 1024  // 不推荐用于生产环境
-    RSA2048 RSABits = 2048  // 推荐
-    RSA3072 RSABits = 3072  // 高安全性
-    RSA4096 RSABits = 4096  // 最高安全性
+	RSA1024 RSABits = 1024  // 不推荐用于生产环境
+	RSA2048 RSABits = 2048  // 推荐
+	RSA3072 RSABits = 3072  // 高安全性
+	RSA4096 RSABits = 4096  // 最高安全性
 )
 ```
 
@@ -338,8 +518,8 @@ const (
 ```go
 encrypted, err := crypt.Crypt.AESEncryptToBase64(plaintext, key)
 if err != nil {
-    log.Printf("加密失败: %v", err)
-    return
+	log.Printf("加密失败: %v", err)
+	return
 }
 ```
 
@@ -370,7 +550,7 @@ hash := sha256.Sum256([]byte(password))
 ```go
 // ✅ 使用常数时间比较
 if crypt.Crypt.SecureEqual(receivedMAC, calculatedMAC) {
-    // 验证通过
+	// 验证通过
 }
 ```
 
@@ -389,34 +569,3 @@ rand.Seed(time.Now().UnixNano())
 - **Bcrypt 成本因子**：生产环境推荐 10-12，使哈希操作耗时 100-250ms
 - **PBKDF2 迭代次数**：推荐至少 100,000 次，根据服务器性能调整
 - **AES vs RSA**：RSA 较慢，大量数据加密建议使用 AES+RSA 混合加密
-
-## 使用示例
-
-### 混合加密（RSA + AES）
-
-```go
-// 1. 生成 AES 密钥
-aesKey, _ := crypt.Crypt.GenerateAESKey(crypt.AES256)
-
-// 2. 使用 RSA 加密 AES 密钥
-privateKey, publicKey, _ := crypt.Crypt.GenerateRSAKeys(crypt.RSA2048)
-encryptedAESKey, _ := crypt.Crypt.RSAEncrypt(aesKey, publicKey)
-
-// 3. 使用 AES 加密实际数据
-encryptedData, _ := crypt.Crypt.AESEncryptToBase64("大量敏感数据", aesKey)
-
-// 发送：encryptedAESKey + encryptedData
-```
-
-### API 签名验证
-
-```go
-// 生成签名
-data := []byte(`{"user":"alice","action":"transfer","amount":100}`)
-secret := []byte("my-secret-key")
-signature := crypt.Crypt.HMACSignHexWithSHA256(data, secret)
-
-// 验证签名
-expectedSig := crypt.Crypt.HMACSignHexWithSHA256(data, secret)
-isValid := crypt.Crypt.SecureEqual(signature, expectedSig)
-```

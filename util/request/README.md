@@ -19,25 +19,15 @@ import (
     "github.com/lite-lake/litecore-go/util/request"
 )
 
-// 1. 定义请求类型
 type CreateUserRequest struct {
     Name  string `json:"name" binding:"required"`
     Email string `json:"email" binding:"required,email"`
 }
 
-// 2. 实现验证器
-type GinValidator struct{}
-
-func (v *GinValidator) Validate(ctx *gin.Context, obj interface{}) error {
-    return ctx.ShouldBindJSON(obj)
-}
-
 func main() {
-    // 3. 设置默认验证器（应用启动时）
-    request.SetDefaultValidator(&GinValidator{})
+    r := gin.Default()
 
-    // 4. 在 Handler 中使用
-    handler := func(ctx *gin.Context) {
+    r.POST("/users", func(ctx *gin.Context) {
         req, err := request.BindRequest[CreateUserRequest](ctx)
         if err != nil {
             ctx.JSON(400, gin.H{"error": err.Error()})
@@ -45,15 +35,15 @@ func main() {
         }
 
         ctx.JSON(200, gin.H{"message": "success", "name": req.Name})
-    }
+    })
 
-    r := gin.Default()
-    r.POST("/users", handler)
     r.Run(":8080")
 }
 ```
 
-## BindRequest 绑定请求
+## 请求绑定
+
+### BindRequest 泛型绑定
 
 `BindRequest[T]` 是一个泛型辅助函数，用于在 Gin Handler 中快速绑定和验证请求参数。
 
@@ -77,7 +67,7 @@ func UpdateArticleHandler(ctx *gin.Context) {
         return
     }
 
-    // 使用 req 进行业务处理...
+    ctx.JSON(200, gin.H{"title": req.Title})
 }
 ```
 
@@ -86,11 +76,11 @@ func UpdateArticleHandler(ctx *gin.Context) {
 - 泛型类型 `T` 可以是任意结构体类型
 - 验证失败时会返回错误，由调用者决定如何处理
 
-## 自定义验证器
-
-通过实现 `ValidatorInterface` 接口，可以自定义验证逻辑。
+## 验证器
 
 ### ValidatorInterface 接口
+
+通过实现 `ValidatorInterface` 接口，可以自定义验证逻辑。
 
 ```go
 type ValidatorInterface interface {
@@ -98,7 +88,7 @@ type ValidatorInterface interface {
 }
 ```
 
-### Gin 验证器实现
+### Gin JSON 验证器
 
 ```go
 type GinValidator struct{}
@@ -108,7 +98,7 @@ func (v *GinValidator) Validate(ctx *gin.Context, obj interface{}) error {
 }
 ```
 
-### XML 验证器实现
+### Gin XML 验证器
 
 ```go
 type XMLValidator struct{}
@@ -118,7 +108,7 @@ func (v *XMLValidator) Validate(ctx *gin.Context, obj interface{}) error {
 }
 ```
 
-### 混合验证器实现
+### 混合验证器
 
 ```go
 type HybridValidator struct{}
@@ -139,7 +129,17 @@ func (v *HybridValidator) Validate(ctx *gin.Context, obj interface{}) error {
 }
 ```
 
-## 管理默认验证器
+### Query 参数验证器
+
+```go
+type QueryValidator struct{}
+
+func (v *QueryValidator) Validate(ctx *gin.Context, obj interface{}) error {
+    return ctx.ShouldBindQuery(obj)
+}
+```
+
+## 验证器管理
 
 ### SetDefaultValidator 设置默认验证器
 
@@ -167,7 +167,6 @@ func GetDefaultValidator() ValidatorInterface
 func TestMyHandler(t *testing.T) {
     originalValidator := request.GetDefaultValidator()
 
-    // 使用 mock 验证器进行测试
     mockValidator := &MockValidator{}
     request.SetDefaultValidator(mockValidator)
     defer request.SetDefaultValidator(originalValidator)
@@ -184,28 +183,37 @@ func TestMyHandler(t *testing.T) {
 func CreateArticleHandler(ctx *gin.Context) {
     req, err := request.BindRequest[CreateArticleRequest](ctx)
     if err != nil {
-        // 判断错误类型
         if e, ok := err.(apperrors.IAppError); ok {
             ctx.Error(e)
             return
         }
 
-        // 转换为应用错误
         ctx.Error(apperrors.BadRequest("invalid request").Wrap(err))
         return
     }
 
-    // 处理请求...
+    ctx.JSON(200, gin.H{"success": true})
 }
 ```
 
 ## 最佳实践
 
-1. **应用层设置验证器** - 在应用启动时设置默认验证器，避免在业务代码中重复设置
+### 1. 应用层统一设置验证器
 
-2. **统一错误处理** - 使用应用层的错误包装机制，统一处理验证错误
+在应用启动时设置默认验证器，避免在业务代码中重复设置。
 
-3. **使用结构体标签** - 利用 Gin 的 binding 标签进行字段级验证
+```go
+func main() {
+    request.SetDefaultValidator(&GinValidator{})
+    
+    r := gin.Default()
+    r.Run(":8080")
+}
+```
+
+### 2. 使用结构体标签进行字段级验证
+
+利用 Gin 的 binding 标签进行字段级验证。
 
 ```go
 type UserRequest struct {
@@ -216,7 +224,13 @@ type UserRequest struct {
 }
 ```
 
-4. **测试时替换验证器** - 在单元测试中使用 mock 验证器，避免实际绑定操作
+### 3. 统一错误处理
+
+使用应用层的错误包装机制，统一处理验证错误。
+
+### 4. 测试时使用 Mock 验证器
+
+在单元测试中使用 mock 验证器，避免实际绑定操作。
 
 ```go
 type MockValidator struct {
@@ -236,9 +250,10 @@ func (m *MockValidator) Validate(ctx *gin.Context, obj interface{}) error {
 ### 接口
 
 - **ValidatorInterface** - 验证器接口
+  - `Validate(ctx *gin.Context, obj interface{}) error` - 验证请求
 
 ### 函数
 
-- **BindRequest[T]** - 绑定并验证请求
-- **SetDefaultValidator** - 设置默认验证器
-- **GetDefaultValidator** - 获取默认验证器
+- **BindRequest[T any](ctx *gin.Context) (*T, error)** - 绑定并验证请求
+- **SetDefaultValidator(validator ValidatorInterface)** - 设置默认验证器
+- **GetDefaultValidator() ValidatorInterface** - 获取默认验证器

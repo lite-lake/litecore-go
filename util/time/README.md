@@ -74,9 +74,7 @@ func main() {
 }
 ```
 
-## 功能详解
-
-### 时间格式化
+## 时间格式化
 
 支持 Java 风格的日期格式语法，让时间格式化更加直观。
 
@@ -117,7 +115,7 @@ actualValue := time.Time.FormatWithJavaOrDefault(now, "yyyy-MM-dd", "未设置�
 fmt.Println(actualValue)   // 2024-01-15
 ```
 
-### 时间解析
+## 时间解析
 
 提供灵活的时间解析方法，支持多种格式和错误处理策略。
 
@@ -127,7 +125,6 @@ import "github.com/lite-lake/litecore-go/util/time"
 // Java 风格解析
 parsed, err := time.Time.ParseWithJava("2024-01-15", "yyyy-MM-dd")
 if err != nil {
-    // 处理解析错误
     fmt.Println("解析失败:", err)
 }
 fmt.Println(time.Time.ToYYYY_MM_DD(parsed))  // 2024-01-15
@@ -170,7 +167,7 @@ if time.Time.IsNotZero(result) {
 }
 ```
 
-### 时间计算
+## 时间计算
 
 提供丰富的时间计算方法，包括日期增减和时间差计算。
 
@@ -214,7 +211,7 @@ age := time.Time.Age(birthDate)
 fmt.Println("年龄:", age)
 ```
 
-### 时间转换
+## 时间边界
 
 快速获取时间边界，如一天的开始/结束、一周的开始/结束等。
 
@@ -254,7 +251,7 @@ fmt.Printf("查询本月数据: %s - %s\n",
     time.Time.ToYYYY_MM_DD_HH_MM_SS(monthEnd))
 ```
 
-### 快速格式化和解析
+## 快速格式化和解析
 
 提供常用格式的快捷方法，简化代码。
 
@@ -299,7 +296,7 @@ fmt.Println(time.Time.ToYYYY_MM_DD(parsed3))
 fmt.Println(time.Time.ToYYYY_MM_DD_HH_MM_SS(parsed4))
 ```
 
-### 时区转换
+## 时区转换
 
 支持时区转换和 UTC 时间操作。
 
@@ -331,7 +328,7 @@ tokyoTime := time.Time.InLocation(now, tokyoLoc)
 londonTime := time.Time.InLocation(now, londonLoc)
 ```
 
-### 时间戳操作
+## 时间戳操作
 
 提供时间戳与时间的相互转换。
 
@@ -362,7 +359,7 @@ fromTimestampMillis := time.Time.FromUnixMilli(1705310400000)
 fmt.Println("从毫秒时间戳创建:", time.Time.ToYYYY_MM_DD_HH_MM_SS(fromTimestampMillis))
 ```
 
-### 时间工具方法
+## 时间工具方法
 
 提供各种实用的时间检查和转换方法。
 
@@ -416,7 +413,7 @@ fmt.Println("截断到小时:", time.Time.ToYYYY_MM_DD_HH_MM_SS(truncated))
 fmt.Println("四舍五入到小时:", time.Time.ToYYYY_MM_DD_HH_MM_SS(rounded))
 ```
 
-## API 参考
+## API 说明
 
 ### 基础时间检查
 
@@ -438,7 +435,7 @@ fmt.Println("四舍五入到小时:", time.Time.ToYYYY_MM_DD_HH_MM_SS(rounded))
 | `Unix(sec, nsec int64) time.Time` | 根据Unix时间戳创建时间 |
 | `Parse(layout, value string) (time.Time, error)` | 使用Go标准格式解析时间 |
 
-### Java风格格式化
+### Java 风格格式化
 
 | 方法 | 说明 |
 |------|------|
@@ -446,7 +443,7 @@ fmt.Println("四舍五入到小时:", time.Time.ToYYYY_MM_DD_HH_MM_SS(rounded))
 | `FormatWithJava(tim time.Time, javaFormat string) string` | 使用Java风格格式化时间 |
 | `FormatWithJavaOrDefault(tim time.Time, javaFormat, defaultValue string) string` | 格式化时间，零值返回默认值 |
 
-### Java风格解析
+### Java 风格解析
 
 | 方法 | 说明 |
 |------|------|
@@ -470,18 +467,18 @@ fmt.Println("四舍五入到小时:", time.Time.ToYYYY_MM_DD_HH_MM_SS(rounded))
 | `DurationBetween(tim, other time.Time) int64` | 计算毫秒数差值 |
 | `DaysBetween(tim, other time.Time) int` | 计算天数差 |
 
-### 时间转换
+### 时间边界
 
 | 方法 | 说明 |
 |------|------|
-| `StartOfDay(tim time.Time) time.Time` | 获取一天的开始时间 |
-| `EndOfDay(tim time.Time) time.Time` | 获取一天的结束时间 |
-| `StartOfWeek(tim time.Time) time.Time` | 获取一周的开始时间（周一） |
-| `EndOfWeek(tim time.Time) time.Time` | 获取一周的结束时间（周日） |
-| `StartOfMonth(tim time.Time) time.Time` | 获取一个月的开始时间 |
-| `EndOfMonth(tim time.Time) time.Time` | 获取一个月的结束时间 |
-| `StartOfYear(tim time.Time) time.Time` | 获取一年的开始时间 |
-| `EndOfYear(tim time.Time) time.Time` | 获取一年的结束时间 |
+| `StartOfDay(tim time.Time) time.Time` | 获取一天的开始时间（00:00:00） |
+| `EndOfDay(tim time.Time) time.Time` | 获取一天的结束时间（23:59:59） |
+| `StartOfWeek(tim time.Time) time.Time` | 获取一周的开始时间（周一 00:00:00） |
+| `EndOfWeek(tim time.Time) time.Time` | 获取一周的结束时间（周日 23:59:59） |
+| `StartOfMonth(tim time.Time) time.Time` | 获取一个月的开始时间（1日 00:00:00） |
+| `EndOfMonth(tim time.Time) time.Time` | 获取一个月的结束时间（最后一天 23:59:59） |
+| `StartOfYear(tim time.Time) time.Time` | 获取一年的开始时间（1月1日 00:00:00） |
+| `EndOfYear(tim time.Time) time.Time` | 获取一年的结束时间（12月31日 23:59:59） |
 
 ### 时间工具
 
@@ -599,7 +596,6 @@ time 包完全兼容 Java 风格的日期格式语法。下表列出了所有支
 ```go
 parsed, err := time.Time.ParseWithJava(dateStr, "yyyy-MM-dd")
 if err != nil {
-    // 处理错误
     return fmt.Errorf("日期解析失败: %w", err)
 }
 ```
@@ -674,6 +670,8 @@ endOfMonth := time.Time.EndOfMonth(time.Time.Now())
 lastDay := endOfMonth.Day()
 ```
 
-## 许可证
+## 相关文档
 
-本包是 litecore-go 项目的一部分，遵循项目的开源许可证。
+- [doc.go](./doc.go) - 包级文档
+- [AGENTS.md](../../AGENTS.md) - 项目开发指南
+- [docs/SOP-package-document.md](../../docs/SOP-package-document.md) - 包文档撰写规范

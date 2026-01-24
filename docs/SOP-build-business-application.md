@@ -2,17 +2,19 @@
 
 ## 概述
 
-LiteCore 是一个基于 Go 1.25+ 的轻量级 Web 框架，采用 5 层分层架构（Entity → Repository → Service → Controller → Middleware）和依赖注入设计，内置了 Gin、GORM、 Zap 等常用组件，帮助开发者快速构建企业级应用。
+LiteCore 是一个基于 Go 1.25+ 的轻量级 Web 框架，采用 7 层分层架构（Entity → Repository → Service → Controller → Middleware → Listener → Scheduler）和依赖注入设计，内置了 Gin、GORM、 Zap 等常用组件，帮助开发者快速构建企业级应用。
 
 ### 核心特性
 
-- **5 层分层架构**：清晰的依赖关系，遵循单向依赖原则
+- **7 层分层架构**：清晰的依赖关系，遵循单向依赖原则
 - **依赖注入**：自动管理组件依赖，通过 `inject:""` 标签注入
 - **内置组件**：Manager 组件自动初始化并注入，开箱即用
 - **代码生成**：自动生成容器代码，减少重复工作
 - **多种数据库支持**：MySQL、PostgreSQL、SQLite 无缝切换
 - **可观测性**：日志、指标、链路追踪支持
 - **限流与锁**：基于 Redis/Memory 的分布式限流和锁
+- **消息监听**：支持 RabbitMQ/Memory 消息队列监听
+- **定时任务**：基于 Cron 表达式的定时任务调度
 
 ### 项目结构
 
@@ -29,12 +31,16 @@ myapp/
 │   │   ├── service_container.go
 │   │   ├── controller_container.go
 │   │   ├── middleware_container.go
+│   │   ├── listener_container.go
+│   │   ├── scheduler_container.go
 │   │   └── engine.go
 │   ├── entities/                # 实体层（无依赖）
 │   ├── repositories/            # 仓储层（依赖 Manager）
 │   ├── services/                # 服务层（依赖 Repository）
 │   ├── controllers/             # 控制器层（依赖 Service）
 │   ├── middlewares/             # 中间件层（依赖 Service）
+│   ├── listeners/               # 消息监听层（依赖 Service）
+│   ├── schedulers/              # 定时任务层（依赖 Service）
 │   └── dtos/                    # 数据传输对象
 └── go.mod
 ```
@@ -129,6 +135,12 @@ limiter:
 # 消息队列配置
 mq:
   driver: "memory"              # rabbitmq, memory
+
+# 定时任务配置
+scheduler:
+  driver: "cron"                # cron
+  cron_config:
+    validate_on_startup: true   # 启动时是否检查所有 Scheduler 配置
 ```
 
 ### 3. 应用入口规范
@@ -202,7 +214,7 @@ func main() {
 }
 ```
 
-### 5. 5 层架构使用规范
+### 5. 7 层架构使用规范
 
 #### 依赖注入规则
 
@@ -213,6 +225,8 @@ func main() {
 | Service | Repository + Config + Manager（内置） + Service |
 | Controller | Service + Config + Manager（内置） |
 | Middleware | Service + Config + Manager（内置） |
+| Listener | Service + Config + Manager（内置） |
+| Scheduler | Service + Config + Manager（内置） |
 
 #### Entity 层规范
 
@@ -534,6 +548,148 @@ func NewRateLimiterMiddleware() IRateLimiterMiddleware {
 }
 ```
 
+#### Listener 层规范
+
+**位置**: `internal/listeners/`
+
+```go
+package listeners
+
+import (
+    "context"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IMessageCreatedListener interface {
+    common.IBaseListener
+}
+
+type messageCreatedListenerImpl struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+}
+
+func NewMessageCreatedListener() IMessageCreatedListener {
+    return &messageCreatedListenerImpl{}
+}
+
+func (l *messageCreatedListenerImpl) ListenerName() string {
+    return "MessageCreatedListener"
+}
+
+func (l *messageCreatedListenerImpl) GetQueue() string {
+    return "message.created"
+}
+
+func (l *messageCreatedListenerImpl) GetSubscribeOptions() []common.ISubscribeOption {
+    return []common.ISubscribeOption{}
+}
+
+func (l *messageCreatedListenerImpl) OnStart() error {
+    if l.LoggerMgr != nil {
+        l.LoggerMgr.Ins().Info("Message created listener started")
+    }
+    return nil
+}
+
+func (l *messageCreatedListenerImpl) OnStop() error {
+    if l.LoggerMgr != nil {
+        l.LoggerMgr.Ins().Info("Message created listener stopped")
+    }
+    return nil
+}
+
+func (l *messageCreatedListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error {
+    if l.LoggerMgr != nil {
+        l.LoggerMgr.Ins().Info("Received message created event",
+            "message_id", msg.ID(),
+            "body", string(msg.Body()),
+            "headers", msg.Headers())
+    }
+    return nil
+}
+
+var _ IMessageCreatedListener = (*messageCreatedListenerImpl)(nil)
+var _ common.IBaseListener = (*messageCreatedListenerImpl)(nil)
+```
+
+#### Scheduler 层规范
+
+**位置**: `internal/schedulers/`
+
+```go
+package schedulers
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/logger"
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
+    "github.com/lite-lake/litecore-go/myapp/internal/services"
+)
+
+type IStatisticsScheduler interface {
+    common.IBaseScheduler
+}
+
+type statisticsSchedulerImpl struct {
+    MessageService services.IMessageService `inject:""`
+    LoggerMgr      loggermgr.ILoggerManager `inject:""`
+    logger         logger.ILogger
+}
+
+func NewStatisticsScheduler() IStatisticsScheduler {
+    return &statisticsSchedulerImpl{}
+}
+
+func (s *statisticsSchedulerImpl) SchedulerName() string {
+    return "statisticsScheduler"
+}
+
+func (s *statisticsSchedulerImpl) GetRule() string {
+    return "0 0 * * * *"
+}
+
+func (s *statisticsSchedulerImpl) GetTimezone() string {
+    return "Asia/Shanghai"
+}
+
+func (s *statisticsSchedulerImpl) OnTick(tickID int64) error {
+    s.initLogger()
+    s.logger.Info("Starting statistics task", "tick_id", tickID)
+
+    stats, err := s.MessageService.GetStatistics()
+    if err != nil {
+        s.logger.Error("Failed to get statistics", "error", err)
+        return err
+    }
+
+    s.logger.Info("Statistics task completed", "tick_id", tickID, "total", stats["total"])
+    return nil
+}
+
+func (s *statisticsSchedulerImpl) OnStart() error {
+    s.initLogger()
+    s.logger.Info("Statistics scheduler started")
+    return nil
+}
+
+func (s *statisticsSchedulerImpl) OnStop() error {
+    s.initLogger()
+    s.logger.Info("Statistics scheduler stopped")
+    return nil
+}
+
+func (s *statisticsSchedulerImpl) initLogger() {
+    if s.logger == nil && s.LoggerMgr != nil {
+        s.logger = s.LoggerMgr.Ins()
+    }
+}
+
+var _ IStatisticsScheduler = (*statisticsSchedulerImpl)(nil)
+var _ common.IBaseScheduler = (*statisticsSchedulerImpl)(nil)
+```
+
 ### 6. 内置组件使用规范
 
 #### 可用的内置 Manager
@@ -548,6 +704,7 @@ func NewRateLimiterMiddleware() IRateLimiterMiddleware {
 - `lockmgr.ILockManager`: 分布式锁（Redis/Memory）
 - `limitermgr.ILimiterManager`: 限流器（Redis/Memory）
 - `mqmgr.IMQManager`: 消息队列（RabbitMQ/Memory）
+- `schedulermgr.ISchedulerManager`: 定时任务调度器（Cron）
 
 #### 日志使用
 
@@ -610,20 +767,30 @@ if !allowed {
 
 #### 消息队列使用
 
+消息队列用于发布订阅模式的消息处理。Listener 组件自动订阅指定队列并处理消息。
+
+**发布消息（Service 层）**:
+
 ```go
-func (s *notificationService) OnStart() error {
-    s.MQMgr.Subscribe("notifications", func(msg []byte) error {
-        fmt.Printf("收到通知: %s\n", string(msg))
-        return nil
-    })
-    return nil
+type MyService struct {
+    MQMgr mqmgr.IMQManager `inject:""`
 }
 
-func (s *notificationService) PublishNotification(message string) error {
+func (s *MyService) CreateMessage(message string) error {
     ctx := context.Background()
-    return s.MQMgr.Publish(ctx, "notifications", []byte(message))
+
+    err := s.MQMgr.Publish(ctx, "message.created", []byte(message))
+    if err != nil {
+        return fmt.Errorf("发布消息失败: %w", err)
+    }
+
+    return nil
 }
 ```
+
+**监听消息（Listener 层）**:
+
+见上文 Listener 层规范部分，Listener 会自动订阅 `GetQueue()` 返回的队列名称，并通过 `Handle()` 方法处理消息。
 
 ## 注意点
 
@@ -724,6 +891,8 @@ func NewCustomRateLimiterMiddleware() IRateLimiterMiddleware {
 - 数据库自动迁移
 - 日志记录（Gin 格式）
 - 静态资源服务
+- 消息监听器（留言创建、审核事件）
+- 定时任务（统计任务、清理任务）
 
 #### 运行示例项目
 
@@ -766,6 +935,12 @@ samples/messageboard/
 │   │   ├── auth_middleware.go
 │   │   ├── rate_limiter_middleware.go
 │   │   └── ...
+│   ├── listeners/               # 消息监听层
+│   │   ├── message_created_listener.go
+│   │   └── message_audit_listener.go
+│   ├── schedulers/              # 定时任务层
+│   │   ├── statistics_scheduler.go
+│   │   └── cleanup_scheduler.go
 │   └── dtos/                    # 数据传输对象
 └── go.mod
 ```

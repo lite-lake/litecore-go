@@ -85,22 +85,56 @@ port := configmgr.Get[int](mgr, "server.port")
 timeout := configmgr.GetWithDefault(mgr, "server.timeout", 30)
 ```
 
-## 路径语法
+## 配置文件格式
 
-配置路径使用点（.）分隔各层键名，支持数组索引语法：
+### YAML 格式
 
 ```yaml
 app:
   name: "myapp"
+  version: "1.0.0"
+
 server:
   host: "localhost"
   port: 8080
+  mode: "debug"
+
 servers:
   - host: "s1.example.com"
     port: 8001
   - host: "s2.example.com"
     port: 8002
 ```
+
+### JSON 格式
+
+```json
+{
+  "app": {
+    "name": "myapp",
+    "version": "1.0.0"
+  },
+  "server": {
+    "host": "localhost",
+    "port": 8080,
+    "mode": "debug"
+  },
+  "servers": [
+    {
+      "host": "s1.example.com",
+      "port": 8001
+    },
+    {
+      "host": "s2.example.com",
+      "port": 8002
+    }
+  ]
+}
+```
+
+## 路径语法
+
+配置路径使用点（.）分隔各层键名，支持数组索引语法：
 
 ```go
 // 简单键
@@ -114,35 +148,62 @@ configmgr.Get[int](mgr, "servers[0].port")         // 返回 8001
 configmgr.Get[string](mgr, "servers[1].host")      // 返回 "s2.example.com"
 ```
 
-## 类型安全获取
+## API 说明
 
-### 基本类型
+### 工厂函数
+
+| 函数 | 说明 |
+|------|------|
+| `Build(driver, filePath)` | 根据驱动类型创建配置管理器 |
+| `NewConfigManager(driver, filePath)` | 创建配置管理器实例（已废弃，使用 Build） |
+
+### 工具函数
+
+| 函数 | 说明 |
+|------|------|
+| `Get[T](mgr, key)` | 类型安全获取配置值 |
+| `GetWithDefault[T](mgr, key, defaultValue)` | 带默认值获取配置 |
+| `IsConfigKeyNotFound(err)` | 判断是否为键不存在错误 |
+
+### 接口方法
+
+#### IConfigManager
 
 ```go
-// 获取字符串
-name, err := configmgr.Get[string](mgr, "app.name")
-
-// 获取整数
-port, err := configmgr.Get[int](mgr, "server.port")
-
-// 获取布尔值
-enabled, err := configmgr.Get[bool](mgr, "debug")
-
-// 获取浮点数
-timeout, err := configmgr.Get[float64](mgr, "timeout")
+type IConfigManager interface {
+    common.IBaseManager
+    Get(key string) (any, error)
+    Has(key string) bool
+}
 ```
 
-### 默认值
+| 方法 | 说明 |
+|------|------|
+| `Get(key string) (any, error)` | 获取配置项，支持路径语法 |
+| `Has(key string) bool` | 检查配置项是否存在 |
 
-```go
-// 配置不存在时使用默认值
-port := configmgr.GetWithDefault(mgr, "server.port", 8080)
+### 加载函数
 
-// 获取失败时返回默认值
-unknown := configmgr.GetWithDefault(mgr, "unknown.key", "default")
-```
+| 函数 | 说明 |
+|------|------|
+| `LoadJSON(filePath)` | 加载 JSON 配置文件 |
+| `LoadYAML(filePath)` | 加载 YAML 配置文件 |
 
-### 类型转换
+### 错误类型
+
+| 变量 | 说明 |
+|------|------|
+| `ErrKeyNotFound` | 配置键不存在 |
+| `ErrTypeMismatch` | 类型不匹配 |
+
+## 支持的驱动类型
+
+| 驱动 | 说明 | 文件扩展名 |
+|------|------|------------|
+| `yaml` | YAML 格式配置文件 | `.yaml`, `.yml` |
+| `json` | JSON 格式配置文件 | `.json` |
+
+## 类型转换
 
 `Get` 函数支持智能类型转换：
 
@@ -157,62 +218,6 @@ enabled, err := configmgr.Get[bool](mgr, "enabled")  // true
 
 // 字符串转 int
 port, err := configmgr.Get[int](mgr, "port")  // "8080" -> 8080
-```
-
-## 工厂函数
-
-### NewConfigManager
-
-```go
-// 从 YAML 文件创建
-yamlMgr, err := configmgr.NewConfigManager("yaml", "config.yaml")
-
-// 从 JSON 文件创建
-jsonMgr, err := configmgr.NewConfigManager("json", "config.json")
-```
-
-### Build
-
-```go
-// 通过 Build 函数创建
-mgr, err := configmgr.Build("yaml", "config.yaml")
-if err != nil {
-    log.Fatal(err)
-}
-```
-
-支持的驱动类型：
-- `"yaml"` - YAML 格式配置文件
-- `"json"` - JSON 格式配置文件
-
-## 接口方法
-
-### IConfigManager
-
-```go
-type IConfigManager interface {
-    common.IBaseManager
-    Get(key string) (any, error)
-    Has(key string) bool
-}
-```
-
-#### Get(key string) (any, error)
-
-获取配置项，支持路径语法：
-
-```go
-value, err := mgr.Get("server.host")
-```
-
-#### Has(key string) bool
-
-检查配置项是否存在：
-
-```go
-if mgr.Has("server.port") {
-    // 配置存在
-}
 ```
 
 ## 错误处理
@@ -230,43 +235,6 @@ if err != nil {
     }
 }
 ```
-
-## API
-
-### 工厂函数
-
-| 函数 | 说明 |
-|------|------|
-| `NewConfigManager(driver, filePath)` | 创建配置管理器实例 |
-| `Build(driver, filePath)` | 根据驱动类型创建配置管理器 |
-
-### 工具函数
-
-| 函数 | 说明 |
-|------|------|
-| `Get[T](mgr, key)` | 类型安全获取配置值 |
-| `GetWithDefault[T](mgr, key, defaultValue)` | 带默认值获取配置 |
-| `IsConfigKeyNotFound(err)` | 判断是否为键不存在错误 |
-
-### 加载函数
-
-| 函数 | 说明 |
-|------|------|
-| `LoadJSON(filePath)` | 加载 JSON 配置文件 |
-| `LoadYAML(filePath)` | 加载 YAML 配置文件 |
-
-## 错误类型
-
-| 变量 | 说明 |
-|------|------|
-| `ErrKeyNotFound` | 配置键不存在 |
-| `ErrTypeMismatch` | 类型不匹配 |
-
-## 性能特性
-
-- 路径解析使用预编译正则表达式，提升性能
-- 配置数据在加载后不可变，无需锁保护
-- 支持高并发读取场景
 
 ## 使用示例
 
@@ -302,3 +270,9 @@ func (r *MessageRepository) OnStart() error {
     return nil
 }
 ```
+
+## 性能特性
+
+- 路径解析使用预编译正则表达式，提升性能
+- 配置数据在加载后不可变，无需锁保护
+- 支持高并发读取场景
