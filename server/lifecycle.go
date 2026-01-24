@@ -10,6 +10,7 @@ import (
 	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/logger"
 	"github.com/lite-lake/litecore-go/manager/mqmgr"
+	"github.com/lite-lake/litecore-go/manager/schedulermgr"
 )
 
 // logStartup 记录启动日志
@@ -165,6 +166,50 @@ func (e *Engine) startListeners() error {
 	return nil
 }
 
+// startSchedulers 启动所有定时器
+func (e *Engine) startSchedulers() error {
+	e.logPhaseStart(PhaseStartup, "开始启动 Scheduler 层")
+
+	if e.Scheduler == nil {
+		e.getLogger().Info("未配置 Scheduler 层，跳过启动")
+		return nil
+	}
+
+	schedulers := e.Scheduler.GetAll()
+	if len(schedulers) == 0 {
+		e.getLogger().Info("没有注册的 Scheduler，跳过启动")
+		return nil
+	}
+
+	schedulerMgr, err := container.GetManager[schedulermgr.ISchedulerManager](e.Manager)
+	if err != nil {
+		return fmt.Errorf("SchedulerManager 未初始化，但存在 %d 个 Scheduler: %w", len(schedulers), err)
+	}
+
+	startedCount := 0
+
+	for _, scheduler := range schedulers {
+		e.getLogger().Info("注册定时器",
+			logger.F("scheduler", scheduler.SchedulerName()),
+			logger.F("rule", scheduler.GetRule()),
+			logger.F("timezone", scheduler.GetTimezone()))
+
+		if err := schedulerMgr.RegisterScheduler(scheduler); err != nil {
+			return fmt.Errorf("注册定时器 %s 失败: %w", scheduler.SchedulerName(), err)
+		}
+
+		if err := scheduler.OnStart(); err != nil {
+			return fmt.Errorf("启动定时器 %s 失败: %w", scheduler.SchedulerName(), err)
+		}
+
+		e.logStartup(PhaseStartup, scheduler.SchedulerName()+": 启动完成")
+		startedCount++
+	}
+
+	e.logPhaseEnd(PhaseStartup, "Scheduler 层启动完成", logger.F("count", startedCount))
+	return nil
+}
+
 // stopManagers 停止所有管理器
 func (e *Engine) stopManagers() []error {
 	managers := e.Manager.GetAll()
@@ -232,6 +277,36 @@ func (e *Engine) stopListeners() []error {
 	return errors
 }
 
+// stopSchedulers 停止所有定时器
+func (e *Engine) stopSchedulers() []error {
+	if e.Scheduler == nil {
+		return nil
+	}
+
+	schedulers := e.Scheduler.GetAll()
+	var errors []error
+
+	for i := len(schedulers) - 1; i >= 0; i-- {
+		scheduler := schedulers[i]
+
+		if err := scheduler.OnStop(); err != nil {
+			errors = append(errors, fmt.Errorf("停止定时器 %s 失败: %w", scheduler.SchedulerName(), err))
+		}
+
+		schedulerMgr, err := container.GetManager[schedulermgr.ISchedulerManager](e.Manager)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("获取 SchedulerManager 失败: %w", err))
+			continue
+		}
+
+		if err := schedulerMgr.UnregisterScheduler(scheduler); err != nil {
+			errors = append(errors, fmt.Errorf("注销定时器 %s 失败: %w", scheduler.SchedulerName(), err))
+		}
+	}
+
+	return errors
+}
+
 // Stop 停止引擎（实现 LiteServer 接口）
 func (e *Engine) Stop() error {
 	e.mu.Lock()
@@ -260,6 +335,9 @@ func (e *Engine) Stop() error {
 	listenerErrors := e.stopListeners()
 	e.logStartup(PhaseShutdown, "Listener 层停止完成")
 
+	schedulerErrors := e.stopSchedulers()
+	e.logStartup(PhaseShutdown, "Scheduler 层停止完成")
+
 	serviceErrors := e.stopServices()
 	e.logStartup(PhaseShutdown, "Service 层停止完成")
 
@@ -269,9 +347,10 @@ func (e *Engine) Stop() error {
 	managerErrors := e.stopManagers()
 	e.logStartup(PhaseShutdown, "Manager 层停止完成")
 
-	allErrors := make([]error, 0, len(middlewareErrors)+len(listenerErrors)+len(serviceErrors)+len(repositoryErrors)+len(managerErrors))
+	allErrors := make([]error, 0, len(middlewareErrors)+len(listenerErrors)+len(schedulerErrors)+len(serviceErrors)+len(repositoryErrors)+len(managerErrors))
 	allErrors = append(allErrors, middlewareErrors...)
 	allErrors = append(allErrors, listenerErrors...)
+	allErrors = append(allErrors, schedulerErrors...)
 	allErrors = append(allErrors, serviceErrors...)
 	allErrors = append(allErrors, repositoryErrors...)
 	allErrors = append(allErrors, managerErrors...)

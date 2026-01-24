@@ -12,6 +12,7 @@ import (
 	"github.com/lite-lake/litecore-go/manager/lockmgr"
 	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/manager/mqmgr"
+	"github.com/lite-lake/litecore-go/manager/schedulermgr"
 	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
@@ -144,7 +145,17 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	}
 	logStartup(tempLogger, PhaseManagers, "初始化完成: MQManager")
 
-	logPhaseEnd(tempLogger, PhaseManagers, "管理器初始化完成", logger.F("count", 8))
+	// 9. 初始化定时任务管理器（依赖配置管理器）
+	schedulerMgr, err := schedulermgr.BuildWithConfigProvider(configManager)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create scheduler manager: %w", err)
+	}
+	if err := container.RegisterManager[schedulermgr.ISchedulerManager](cntr, schedulerMgr); err != nil {
+		return nil, fmt.Errorf("failed to register scheduler manager: %w", err)
+	}
+	logStartup(tempLogger, PhaseManagers, "初始化完成: SchedulerManager")
+
+	logPhaseEnd(tempLogger, PhaseManagers, "管理器初始化完成", logger.F("count", 9))
 
 	return cntr, nil
 }

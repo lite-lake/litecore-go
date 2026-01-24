@@ -156,3 +156,9 @@ mq:
   memory_config:
     max_queue_size: 10000                       # 最大队列大小
     channel_buffer: 100                         # 通道缓冲区大小
+
+# 定时任务配置
+scheduler:
+  driver: "cron"                               # 驱动类型：cron
+  cron_config:
+    validate_on_startup: true                  # 启动时是否检查所有 Scheduler 配置

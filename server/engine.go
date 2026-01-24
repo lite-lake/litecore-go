@@ -17,6 +17,7 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/container"
 	"github.com/lite-lake/litecore-go/logger"
+	"github.com/lite-lake/litecore-go/manager/schedulermgr"
 )
 
 // Engine 服务引擎
@@ -32,6 +33,7 @@ type Engine struct {
 	Controller *container.ControllerContainer
 	Middleware *container.MiddlewareContainer
 	Listener   *container.ListenerContainer
+	Scheduler  *container.SchedulerContainer
 
 	// HTTP 服务器
 	httpServer *http.Server
@@ -72,6 +74,7 @@ func NewEngine(
 	controller *container.ControllerContainer,
 	middleware *container.MiddlewareContainer,
 	listener *container.ListenerContainer,
+	scheduler *container.SchedulerContainer,
 ) *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultConfig := defaultServerConfig()
@@ -83,6 +86,7 @@ func NewEngine(
 		Controller:       controller,
 		Middleware:       middleware,
 		Listener:         listener,
+		Scheduler:        scheduler,
 		serverConfig:     defaultConfig,
 		shutdownTimeout:  defaultConfig.ShutdownTimeout,
 		ctx:              ctx,
@@ -150,7 +154,28 @@ func (e *Engine) Initialize() error {
 		fmt.Fprintf(os.Stderr, "Failed to get logger manager: %v, using default logger\n", err)
 	}
 
-	// 4. 自动依赖注入
+	// 2. 验证 Scheduler 配置（在依赖注入之前）
+	if e.Scheduler != nil {
+		e.logPhaseStart(PhaseValidation, "开始验证 Scheduler 配置")
+
+		// 2.1 Container 层基础验证
+		e.Scheduler.ValidateAll()
+
+		// 2.2 Manager 层完整验证
+		schedulerMgr, err := container.GetManager[schedulermgr.ISchedulerManager](e.Manager)
+		if err == nil {
+			schedulers := e.Scheduler.GetAll()
+			for _, scheduler := range schedulers {
+				if err := schedulerMgr.ValidateScheduler(scheduler); err != nil {
+					panic(fmt.Sprintf("scheduler %s crontab validation failed: %v", scheduler.SchedulerName(), err))
+				}
+			}
+		}
+
+		e.logPhaseEnd(PhaseValidation, "Scheduler 配置验证完成", logger.F("count", e.Scheduler.Count()))
+	}
+
+	// 3. 自动依赖注入
 	if err := e.autoInject(); err != nil {
 		return fmt.Errorf("auto inject failed: %w", err)
 	}
@@ -254,9 +279,24 @@ func (e *Engine) autoInject() error {
 		}
 	}
 
+	// 7. Scheduler 层（新增）
+	if e.Scheduler != nil {
+		e.Scheduler.SetManagerContainer(e.Manager)
+		if err := e.Scheduler.InjectAll(); err != nil {
+			return fmt.Errorf("scheduler inject failed: %w", err)
+		}
+		schedulers := e.Scheduler.GetAll()
+		for _, scheduler := range schedulers {
+			e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Scheduler", scheduler.SchedulerName()))
+		}
+	}
+
 	totalCount := len(repos) + len(svcs) + len(ctrls) + len(mws)
 	if e.Listener != nil {
 		totalCount += len(e.Listener.GetAll())
+	}
+	if e.Scheduler != nil {
+		totalCount += len(e.Scheduler.GetAll())
 	}
 	e.logPhaseEnd(PhaseInjection, "依赖注入完成", logger.F("count", totalCount))
 
@@ -297,7 +337,12 @@ func (e *Engine) Start() error {
 		return fmt.Errorf("start middlewares failed: %w", err)
 	}
 
-	// 5. 启动所有 Listener
+	// 5. 启动所有 Scheduler（新增）
+	if err := e.startSchedulers(); err != nil {
+		return fmt.Errorf("start schedulers failed: %w", err)
+	}
+
+	// 6. 启动所有 Listener
 	if err := e.startListeners(); err != nil {
 		return fmt.Errorf("start listeners failed: %w", err)
 	}

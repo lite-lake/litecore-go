@@ -45,6 +45,10 @@ mq:
   memory_config:
     max_queue_size: 10000
     channel_buffer: 100
+scheduler:
+  driver: cron
+  cron_config:
+    validate_on_startup: true
 `
 		configPath := t.TempDir() + "/test-config.yaml"
 		if err := os.WriteFile(configPath, []byte(configFile), 0644); err != nil {
@@ -63,6 +67,7 @@ mq:
 			serviceContainer,
 			controllerContainer,
 			middlewareContainer,
+			nil,
 			nil,
 		)
 
