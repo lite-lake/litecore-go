@@ -17,6 +17,7 @@ const (
 	LayerService    Layer = "service"
 	LayerController Layer = "controller"
 	LayerMiddleware Layer = "middleware"
+	LayerListener   Layer = "listener"
 )
 
 // ComponentInfo 组件信息
@@ -157,6 +158,9 @@ func (a *Analyzer) detectLayer(filename, packageName string) Layer {
 		if strings.Contains(part, "middlewares") {
 			return LayerMiddleware
 		}
+		if strings.Contains(part, "listeners") {
+			return LayerListener
+		}
 	}
 
 	return ""
@@ -283,7 +287,7 @@ func (a *Analyzer) getPackagePath(filename string) string {
 func IsLitecoreLayer(layer Layer) bool {
 	switch layer {
 	case LayerEntity, LayerRepository, LayerService,
-		LayerController, LayerMiddleware:
+		LayerController, LayerMiddleware, LayerListener:
 		return true
 	default:
 		return false
@@ -303,6 +307,8 @@ func GetBaseInterface(layer Layer) string {
 		return "BaseController"
 	case LayerMiddleware:
 		return "BaseMiddleware"
+	case LayerListener:
+		return "BaseListener"
 	default:
 		return ""
 	}
@@ -321,6 +327,8 @@ func GetContainerName(layer Layer) string {
 		return "ControllerContainer"
 	case LayerMiddleware:
 		return "MiddlewareContainer"
+	case LayerListener:
+		return "ListenerContainer"
 	default:
 		return ""
 	}
@@ -339,6 +347,8 @@ func GetRegisterFunction(layer Layer) string {
 		return "RegisterController"
 	case LayerMiddleware:
 		return "RegisterMiddleware"
+	case LayerListener:
+		return "RegisterListener"
 	default:
 		return "Register"
 	}

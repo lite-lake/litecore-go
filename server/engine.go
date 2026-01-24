@@ -31,6 +31,7 @@ type Engine struct {
 	Service    *container.ServiceContainer
 	Controller *container.ControllerContainer
 	Middleware *container.MiddlewareContainer
+	Listener   *container.ListenerContainer
 
 	// HTTP 服务器
 	httpServer *http.Server
@@ -70,6 +71,7 @@ func NewEngine(
 	service *container.ServiceContainer,
 	controller *container.ControllerContainer,
 	middleware *container.MiddlewareContainer,
+	listener *container.ListenerContainer,
 ) *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultConfig := defaultServerConfig()
@@ -80,6 +82,7 @@ func NewEngine(
 		Service:          service,
 		Controller:       controller,
 		Middleware:       middleware,
+		Listener:         listener,
 		serverConfig:     defaultConfig,
 		shutdownTimeout:  defaultConfig.ShutdownTimeout,
 		ctx:              ctx,
@@ -239,7 +242,22 @@ func (e *Engine) autoInject() error {
 		e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Middleware", mw.MiddlewareName()))
 	}
 
+	// 6. Listener 层
+	if e.Listener != nil {
+		e.Listener.SetManagerContainer(e.Manager)
+		if err := e.Listener.InjectAll(); err != nil {
+			return fmt.Errorf("listener inject failed: %w", err)
+		}
+		listeners := e.Listener.GetAll()
+		for _, listener := range listeners {
+			e.logStartup(PhaseInjection, fmt.Sprintf("[%s 层] %s: 注入完成", "Listener", listener.ListenerName()))
+		}
+	}
+
 	totalCount := len(repos) + len(svcs) + len(ctrls) + len(mws)
+	if e.Listener != nil {
+		totalCount += len(e.Listener.GetAll())
+	}
 	e.logPhaseEnd(PhaseInjection, "依赖注入完成", logger.F("count", totalCount))
 
 	return nil
@@ -279,13 +297,18 @@ func (e *Engine) Start() error {
 		return fmt.Errorf("start middlewares failed: %w", err)
 	}
 
+	// 5. 启动所有 Listener
+	if err := e.startListeners(); err != nil {
+		return fmt.Errorf("start listeners failed: %w", err)
+	}
+
 	// 停止异步日志器
 	if e.asyncLogger != nil {
 		e.asyncLogger.Stop()
 		e.asyncLogger = nil
 	}
 
-	// 5. 启动 HTTP 服务器
+	// 6. 启动 HTTP 服务器
 	e.logger().Info("HTTP server listening", "addr", e.httpServer.Addr)
 
 	errChan := make(chan error, 1)

@@ -6,7 +6,7 @@ import (
 )
 
 // InjectableLayerContainer 可注入层容器基类
-// 为 Controller 和 Middleware 容器提供公共实现
+// 为 Controller、Middleware 和 Listener 容器提供公共实现
 type InjectableLayerContainer[T any] struct {
 	base             *injectableContainer[T]
 	managerContainer *ManagerContainer

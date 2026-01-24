@@ -52,6 +52,10 @@ func (b *Builder) Generate(info *analyzer.ProjectInfo) error {
 		return fmt.Errorf("generate middleware container failed: %w", err)
 	}
 
+	if err := b.generateListenerContainer(info); err != nil {
+		return fmt.Errorf("generate listener container failed: %w", err)
+	}
+
 	if err := b.generateEngine(info); err != nil {
 		return fmt.Errorf("generate engine failed: %w", err)
 	}
@@ -147,6 +151,24 @@ func (b *Builder) generateMiddlewareContainer(info *analyzer.ProjectInfo) error 
 	}
 
 	return b.writeFile("middleware_container.go", code)
+}
+
+// generateListenerContainer 生成监听器容器代码
+func (b *Builder) generateListenerContainer(info *analyzer.ProjectInfo) error {
+	components := b.convertComponents(info.Layers[analyzer.LayerListener])
+
+	data := &TemplateData{
+		PackageName: b.packageName,
+		Imports:     b.collectImports(info, analyzer.LayerListener),
+		Components:  components,
+	}
+
+	code, err := GenerateListenerContainer(data)
+	if err != nil {
+		return err
+	}
+
+	return b.writeFile("listener_container.go", code)
 }
 
 // generateEngine 生成引擎代码

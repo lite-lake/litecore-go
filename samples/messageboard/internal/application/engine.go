@@ -11,6 +11,7 @@ func NewEngine() (*server.Engine, error) {
 	repositoryContainer := InitRepositoryContainer(entityContainer)
 	serviceContainer := InitServiceContainer(repositoryContainer)
 	controllerContainer := InitControllerContainer(serviceContainer)
+	listenerContainer := InitListenerContainer(serviceContainer)
 	middlewareContainer := InitMiddlewareContainer(serviceContainer)
 
 	return server.NewEngine(
@@ -23,5 +24,6 @@ func NewEngine() (*server.Engine, error) {
 		serviceContainer,
 		controllerContainer,
 		middlewareContainer,
+		listenerContainer,
 	), nil
 }
