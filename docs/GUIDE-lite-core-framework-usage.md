@@ -720,14 +720,7 @@ func (s *userService) ServiceName() string {
     return "UserService"
 }
 
-func (s *userService) initLogger() {
-    if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
-}
-
 func (s *userService) OnStart() error {
-    s.initLogger()
     return nil
 }
 
@@ -924,12 +917,6 @@ func (c *userController) ControllerName() string {
     return "userController"
 }
 
-func (c *userController) initLogger() {
-    if c.LoggerMgr != nil {
-        c.logger = c.LoggerMgr.Ins()
-    }
-}
-
 // RegisterUser 注册用户
 // @Router /api/users/register [POST]
 func (c *userController) GetRouter() string {
@@ -937,7 +924,6 @@ func (c *userController) GetRouter() string {
 }
 
 func (c *userController) Handle(ctx *gin.Context) {
-    c.initLogger()
 
     var req dtos.RegisterUserRequest
     if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -1287,15 +1273,8 @@ func (m *authMiddleware) Order() int {
     return 100
 }
 
-func (m *authMiddleware) initLogger() {
-    if m.LoggerMgr != nil {
-        m.logger = m.LoggerMgr.Ins()
-    }
-}
-
 func (m *authMiddleware) Wrapper() gin.HandlerFunc {
     return func(c *gin.Context) {
-        m.initLogger()
 
         // 跳过公开路由
         if strings.HasPrefix(c.Request.URL.Path, "/api/public") {

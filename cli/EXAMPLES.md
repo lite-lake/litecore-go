@@ -665,15 +665,8 @@ func (s *cleanupSchedulerImpl) OnStart() error {
 }
 
 func (s *cleanupSchedulerImpl) OnStop() error {
-	s.initLogger()
-	s.logger.Info("Cleanup scheduler stopped")
+	s.LoggerMgr.Ins().Info("Cleanup scheduler stopped")
 	return nil
-}
-
-func (s *cleanupSchedulerImpl) initLogger() {
-	if s.logger == nil && s.LoggerMgr != nil {
-		s.logger = s.LoggerMgr.Ins()
-	}
 }
 
 var _ ICleanupScheduler = (*cleanupSchedulerImpl)(nil)
@@ -1153,17 +1146,10 @@ A: 生成器只识别以 `I` 开头的接口和 `New` 开头的工厂函数。�
 
 ### Q: 如何在服务中使用日志？
 
-A: 在服务结构体中注入 `loggermgr.ILoggerManager`，然后初始化：
+A: 在服务结构体中注入 `loggermgr.ILoggerManager`，直接使用：
 ```go
 type userServiceImpl struct {
     LoggerMgr loggermgr.ILoggerManager `inject:""`
-    logger    logger.ILogger
-}
-
-func (s *userServiceImpl) initLogger() {
-    if s.logger == nil && s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
 }
 ```
 

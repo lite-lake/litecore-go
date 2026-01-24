@@ -147,18 +147,10 @@ engine.Run()
 ```go
 type MyService struct {
     LoggerMgr loggermgr.ILoggerManager `inject:""`
-    logger     loggermgr.ILogger
-}
-
-func (s *MyService) initLogger() {
-    if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
 }
 
 func (s *MyService) SomeMethod() {
-    s.initLogger()
-    s.logger.Info("操作开始", "param", value)
+    s.LoggerMgr.Ins().Info("操作开始", "param", value)
 }
 ```
 

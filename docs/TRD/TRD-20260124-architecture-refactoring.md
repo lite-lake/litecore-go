@@ -289,12 +289,6 @@ type MyService struct {
     CacheMgr   cachemgr.ICacheManager   `inject:""`
     DBMgr      databasemgr.IDatabaseManager `inject:""`
 }
-
-func (s *MyService) initLogger() {
-    if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
-}
 ```
 
 **组件注入**：

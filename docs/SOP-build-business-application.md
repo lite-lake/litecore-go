@@ -587,26 +587,20 @@ func (l *messageCreatedListenerImpl) GetSubscribeOptions() []common.ISubscribeOp
 }
 
 func (l *messageCreatedListenerImpl) OnStart() error {
-    if l.LoggerMgr != nil {
-        l.LoggerMgr.Ins().Info("Message created listener started")
-    }
+    l.LoggerMgr.Ins().Info("Message created listener started")
     return nil
 }
 
 func (l *messageCreatedListenerImpl) OnStop() error {
-    if l.LoggerMgr != nil {
-        l.LoggerMgr.Ins().Info("Message created listener stopped")
-    }
+    l.LoggerMgr.Ins().Info("Message created listener stopped")
     return nil
 }
 
 func (l *messageCreatedListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error {
-    if l.LoggerMgr != nil {
-        l.LoggerMgr.Ins().Info("Received message created event",
-            "message_id", msg.ID(),
-            "body", string(msg.Body()),
-            "headers", msg.Headers())
-    }
+    l.LoggerMgr.Ins().Info("Received message created event",
+        "message_id", msg.ID(),
+        "body", string(msg.Body()),
+        "headers", msg.Headers())
     return nil
 }
 
@@ -675,15 +669,8 @@ func (s *statisticsSchedulerImpl) OnStart() error {
 }
 
 func (s *statisticsSchedulerImpl) OnStop() error {
-    s.initLogger()
-    s.logger.Info("Statistics scheduler stopped")
+    s.LoggerMgr.Ins().Info("Statistics scheduler stopped")
     return nil
-}
-
-func (s *statisticsSchedulerImpl) initLogger() {
-    if s.logger == nil && s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
 }
 
 var _ IStatisticsScheduler = (*statisticsSchedulerImpl)(nil)
@@ -799,13 +786,7 @@ func (s *MyService) CreateMessage(message string) error {
 - 不要跨层注入：例如 Controller 不能直接注入 Repository
 - 接口注入：优先注入接口，而非具体实现
 - 空标签：`inject:""` 表示自动注入，无需指定名称
-- 空值检查：使用 Manager 前应检查是否为 nil
-
-```go
-if m.LoggerMgr != nil {
-    m.LoggerMgr.Ins().Info("处理请求")
-}
-```
+- 直接使用：Manager 一定会被注入，无需 nil 检查
 
 ### 2. 代码生成
 

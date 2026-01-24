@@ -275,12 +275,10 @@ func (l *messageCreatedListenerImpl) GetQueue() string {
 }
 
 func (l *messageCreatedListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error {
-    if l.LoggerMgr != nil {
-        l.LoggerMgr.Ins().Info("Received message created event",
-            "message_id", msg.ID(),
-            "body", string(msg.Body()),
-            "headers", msg.Headers())
-    }
+    l.LoggerMgr.Ins().Info("Received message created event",
+        "message_id", msg.ID(),
+        "body", string(msg.Body()),
+        "headers", msg.Headers())
     return nil
 }
 ```

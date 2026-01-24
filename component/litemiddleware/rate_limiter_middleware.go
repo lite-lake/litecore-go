@@ -115,9 +115,7 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 		}
 
 		if m.LimiterMgr == nil {
-			if m.LoggerMgr != nil {
-				m.LoggerMgr.Ins().Warn("Rate limiter manager not initialized, skipping rate limit check")
-			}
+			m.LoggerMgr.Ins().Warn("Rate limiter manager not initialized, skipping rate limit check")
 			c.Next()
 			return
 		}
@@ -129,9 +127,7 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 
 		allowed, err := m.LimiterMgr.Allow(ctx, fullKey, *m.config.Limit, *m.config.Window)
 		if err != nil {
-			if m.LoggerMgr != nil {
-				m.LoggerMgr.Ins().Error("Rate limit check failed", "error", err, "key", fullKey)
-			}
+			m.LoggerMgr.Ins().Error("Rate limit check failed", "error", err, "key", fullKey)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "Rate limiter service error",
 				"code":  "INTERNAL_SERVER_ERROR",
@@ -146,9 +142,7 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 		c.Header(RateLimitRemainingHeader, fmt.Sprintf("%d", remaining))
 
 		if !allowed {
-			if m.LoggerMgr != nil {
-				m.LoggerMgr.Ins().Warn("Request rate limited", "key", fullKey, "limit", *m.config.Limit, "window", *m.config.Window)
-			}
+			m.LoggerMgr.Ins().Warn("Request rate limited", "key", fullKey, "limit", *m.config.Limit, "window", *m.config.Window)
 
 			c.Header("Retry-After", fmt.Sprintf("%d", int(m.config.Window.Seconds())))
 

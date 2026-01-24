@@ -230,16 +230,8 @@ func (s *cleanupSchedulerImpl) OnStart() error {
 
 // OnStop 停止时清理
 func (s *cleanupSchedulerImpl) OnStop() error {
-    s.initLogger()
-    s.logger.Info("清理定时器已停止")
+    s.LoggerMgr.Ins().Info("清理定时器已停止")
     return nil
-}
-
-// initLogger 初始化日志器
-func (s *cleanupSchedulerImpl) initLogger() {
-    if s.logger == nil && s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Logger(s.SchedulerName())
-    }
 }
 
 var _ ICleanupScheduler = (*cleanupSchedulerImpl)(nil)
@@ -1093,19 +1085,10 @@ Scheduler 应使用注入的 `LoggerManager` 记录日志，遵循框架的日�
 ```go
 type mySchedulerImpl struct {
     LoggerMgr loggermgr.ILoggerManager `inject:""`
-    logger     loggermgr.ILogger
-}
-
-func (s *mySchedulerImpl) initLogger() {
-    if s.logger == nil && s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Logger(s.SchedulerName())
-    }
 }
 
 func (s *mySchedulerImpl) OnTick(tickID int64) error {
-    s.initLogger()
-
-    s.logger.Info("开始执行定时任务",
+    s.LoggerMgr.Ins().Info("开始执行定时任务",
         "scheduler", s.SchedulerName(),
         "tick_id", tickID)
 
@@ -1310,15 +1293,8 @@ func (s *cleanupSchedulerImpl) OnStart() error {
 }
 
 func (s *cleanupSchedulerImpl) OnStop() error {
-    s.initLogger()
-    s.logger.Info("清理定时器已停止")
+    s.LoggerMgr.Ins().Info("清理定时器已停止")
     return nil
-}
-
-func (s *cleanupSchedulerImpl) initLogger() {
-    if s.logger == nil && s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Logger(s.SchedulerName())
-    }
 }
 
 var _ ICleanupScheduler = (*cleanupSchedulerImpl)(nil)

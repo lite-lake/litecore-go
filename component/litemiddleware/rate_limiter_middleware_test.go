@@ -13,10 +13,55 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/logger"
 )
 
 type MockLimiterManager struct {
 	mock.Mock
+}
+
+type MockLoggerManager struct {
+	mock.Mock
+}
+
+func (m *MockLoggerManager) ManagerName() string {
+	return "mockLogger"
+}
+
+func (m *MockLoggerManager) Health() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLoggerManager) OnStart() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLoggerManager) OnStop() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLoggerManager) Ins() logger.ILogger {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(logger.ILogger)
+}
+
+func (m *MockLoggerManager) SetLogLevel(level string) {
+	m.Called(level)
 }
 
 func (m *MockLimiterManager) ManagerName() string {
@@ -57,6 +102,50 @@ func (m *MockLimiterManager) GetRemaining(ctx context.Context, key string, limit
 	return args.Int(0), args.Error(1)
 }
 
+type MockLogger struct {
+	mock.Mock
+}
+
+func (m *MockLogger) Debug(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) Info(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) Warn(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) Error(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) Fatal(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) With(fields ...interface{}) logger.ILogger {
+	args := m.Called(fields...)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(logger.ILogger)
+}
+
+func (m *MockLogger) SetLevel(level logger.LogLevel) {
+	_ = m.Called(level)
+}
+
+func (m *MockLogger) Sync() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
 func setupRouter(middleware common.IBaseMiddleware) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -65,6 +154,18 @@ func setupRouter(middleware common.IBaseMiddleware) *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
 	return router
+}
+
+func setupMockLogger() (*MockLoggerManager, *MockLogger) {
+	mockLoggerMgr := new(MockLoggerManager)
+	mockLogger := new(MockLogger)
+	mockLoggerMgr.On("Ins").Return(mockLogger).Maybe()
+	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Info", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Warn", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Fatal", mock.Anything, mock.Anything).Maybe()
+	return mockLoggerMgr, mockLogger
 }
 
 func TestNewRateLimiter(t *testing.T) {
@@ -134,6 +235,8 @@ func TestRateLimiterMiddleware_Allow(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(true, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(99, nil)
 
+		mockLoggerMgr, _ := setupMockLogger()
+
 		limit := 100
 		window := time.Minute
 		keyPrefix := "ip"
@@ -145,6 +248,7 @@ func TestRateLimiterMiddleware_Allow(t *testing.T) {
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
 
 		router := setupRouter(mw)
 
@@ -168,6 +272,8 @@ func TestRateLimiterMiddleware_Reject(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(false, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(0, nil)
 
+		mockLoggerMgr, _ := setupMockLogger()
+
 		limit := 100
 		window := time.Minute
 		keyPrefix := "ip"
@@ -179,6 +285,7 @@ func TestRateLimiterMiddleware_Reject(t *testing.T) {
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
 
 		router := setupRouter(mw)
 
@@ -200,6 +307,8 @@ func TestRateLimiterMiddleware_Error(t *testing.T) {
 		mockLimiter := new(MockLimiterManager)
 		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(false, errors.New("limiter error"))
 
+		mockLoggerMgr, _ := setupMockLogger()
+
 		limit := 100
 		window := time.Minute
 		keyPrefix := "ip"
@@ -211,6 +320,7 @@ func TestRateLimiterMiddleware_Error(t *testing.T) {
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
 
 		router := setupRouter(mw)
 
@@ -230,6 +340,8 @@ func TestRateLimiterMiddleware_Skip(t *testing.T) {
 	t.Run("跳过限流", func(t *testing.T) {
 		mockLimiter := new(MockLimiterManager)
 
+		mockLoggerMgr, _ := setupMockLogger()
+
 		limit := 100
 		window := time.Minute
 		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
@@ -242,6 +354,7 @@ func TestRateLimiterMiddleware_Skip(t *testing.T) {
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
 
 		router := setupRouter(mw)
 
@@ -266,6 +379,12 @@ func TestRateLimiterMiddleware_NilLimiter(t *testing.T) {
 			Window:    &window,
 			KeyPrefix: &keyPrefix,
 		})
+
+		mockLoggerMgr, _ := setupMockLogger()
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		rlmw.LoggerMgr = mockLoggerMgr
+
 		router := setupRouter(mw)
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -283,6 +402,8 @@ func TestRateLimiterMiddleware_CustomKeyFunc(t *testing.T) {
 		mockLimiter.On("Allow", mock.Anything, "custom:test-user", 50, time.Minute).Return(true, nil)
 		mockLimiter.On("GetRemaining", mock.Anything, "custom:test-user", 50, time.Minute).Return(49, nil)
 
+		mockLoggerMgr, _ := setupMockLogger()
+
 		limit := 50
 		window := time.Minute
 		keyPrefix := "custom"
@@ -297,6 +418,7 @@ func TestRateLimiterMiddleware_CustomKeyFunc(t *testing.T) {
 		rlmw, ok := mw.(*rateLimiterMiddleware)
 		assert.True(t, ok)
 		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
 
 		router := setupRouter(mw)
 

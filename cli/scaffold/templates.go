@@ -397,7 +397,6 @@ type exampleServiceImpl struct {
 	Config     configmgr.IConfigManager          ` + "`" + `inject:""` + "`" + `
 	Repository repositories.IExampleRepository ` + "`" + `inject:""` + "`" + `
 	LoggerMgr  loggermgr.ILoggerManager         ` + "`" + `inject:""` + "`" + `
-	logger     logger.ILogger
 }
 
 func NewExampleService() IExampleService {
@@ -416,12 +415,6 @@ func (s *exampleServiceImpl) OnStop() error {
 	return nil
 }
 
-func (s *exampleServiceImpl) initLogger() {
-	if s.logger == nil && s.LoggerMgr != nil {
-		s.logger = s.LoggerMgr.Ins()
-	}
-}
-
 func (s *exampleServiceImpl) CreateExample(name string) (*entities.Example, error) {
 	if name == "" {
 		return nil, errors.New("名称不能为空")
@@ -435,8 +428,7 @@ func (s *exampleServiceImpl) CreateExample(name string) (*entities.Example, erro
 		return nil, err
 	}
 
-	s.initLogger()
-	s.logger.Info("示例创建成功", "id", example.ID, "name", name)
+	s.LoggerMgr.Ins().Info("示例创建成功", "id", example.ID, "name", name)
 	return example, nil
 }
 
@@ -562,13 +554,10 @@ func (m *recoveryMiddlewareImpl) Order() int {
 
 func (m *recoveryMiddlewareImpl) Wrapper() gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
-		if m.LoggerMgr != nil {
-			logger := m.LoggerMgr.Ins()
-			logger.Error("panic recovered",
-				"error", recovered,
-				"path", c.Request.URL.Path,
-				"method", c.Request.Method)
-		}
+		m.LoggerMgr.Ins().Error("panic recovered",
+			"error", recovered,
+			"path", c.Request.URL.Path,
+			"method", c.Request.Method)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": "内部服务器错误",
 		})
