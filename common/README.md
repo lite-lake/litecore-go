@@ -1,6 +1,6 @@
 # Common - 公共基础接口
 
-定义 5 层依赖注入架构的基础接口，规范各层的行为契约和生命周期管理，并提供类型转换工具函数。
+定义 7 层依赖注入架构的基础接口，规范各层的行为契约和生命周期管理，并提供类型转换工具函数。
 
 ## 概述
 
@@ -10,8 +10,8 @@ common 包是框架的核心基础模块，定义了标准化的分层架构接�
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                   Controller/Middleware                   │
-│              (HTTP 请求处理和请求拦截)                       │
+│              Controller / Middleware                      │
+│           (HTTP 请求处理和请求拦截)                        │
 ├──────────────────────────────────────────────────────────┤
 │                      Service                             │
 │                   (业务逻辑层)                             │
@@ -22,20 +22,29 @@ common 包是框架的核心基础模块，定义了标准化的分层架构接�
 │                      Entity                               │
 │                   (数据实体层)                             │
 └──────────────────────────────────────────────────────────┘
-            ↑                                              ↑
-            └───────────────── Manager Layer ───────────────┘
-          (configmgr、databasemgr、loggermgr、cachemgr、
-           lockmgr、limitermgr、mqmgr、telemetrymgr)
+                        ↑
+             ┌──────────┴──────────┐
+             │   Manager Layer     │
+             │ (基础设施管理器)     │
+             └─────────────────────┘
+     configmgr、databasemgr、loggermgr、cachemgr、
+      lockmgr、limitermgr、mqmgr、telemetrymgr
+
+┌──────────────────────────────────────────────────────────┐
+│                    Listener / Scheduler                   │
+│              (消息监听和定时任务)                          │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## 特性
 
-- **标准接口定义** - 定义 Entity、Manager、Repository、Service、Controller、Middleware 的标准接口
+- **标准接口定义** - 定义 Entity、Manager、Repository、Service、Controller、Middleware、Listener、Scheduler 的标准接口
 - **生命周期管理** - 提供统一的 OnStart 和 OnStop 钩子方法
 - **命名规范** - 每层接口要求实现对应的名称方法，便于调试和日志
 - **依赖注入支持** - 为容器提供标准接口类型，支持类型安全的依赖注入
 - **类型转换工具** - 提供安全的类型转换函数，避免 panic 并支持默认值
 - **HTTP 状态码常量** - 定义完整的 HTTP 状态码常量，便于统一使用
+- **7层架构规范** - 明确各层的职责边界和依赖关系，确保架构清晰
 
 ## 快速开始
 
@@ -77,6 +86,110 @@ func (s *UserService) OnStart() error {
 func (s *UserService) OnStop() error {
     return nil
 }
+
+// 定义控制器，实现 IBaseController 接口
+type UserController struct {
+    Service   UserService                `inject:""`
+    LoggerMgr loggermgr.ILoggerManager   `inject:""`
+}
+
+func (c *UserController) ControllerName() string {
+    return "UserController"
+}
+
+func (c *UserController) GetRouter() string {
+    return "/api/users [GET]"
+}
+
+func (c *UserController) Handle(ctx *gin.Context) {
+    ctx.JSON(common.HTTPStatusOK, gin.H{"message": "success"})
+}
+
+// 定义中间件，实现 IBaseMiddleware 接口
+type AuthMiddleware struct {
+    Service   UserService                `inject:""`
+}
+
+func (m *AuthMiddleware) MiddlewareName() string {
+    return "AuthMiddleware"
+}
+
+func (m *AuthMiddleware) Order() int {
+    return 100
+}
+
+func (m *AuthMiddleware) Wrapper() gin.HandlerFunc {
+    return func(ctx *gin.Context) {
+        // 中间件逻辑
+        ctx.Next()
+    }
+}
+
+func (m *AuthMiddleware) OnStart() error {
+    return nil
+}
+
+func (m *AuthMiddleware) OnStop() error {
+    return nil
+}
+
+// 定义监听器，实现 IBaseListener 接口
+type UserCreatedListener struct {
+    LoggerMgr loggermgr.ILoggerManager   `inject:""`
+}
+
+func (l *UserCreatedListener) ListenerName() string {
+    return "UserCreatedListener"
+}
+
+func (l *UserCreatedListener) GetQueue() string {
+    return "user.created"
+}
+
+func (l *UserCreatedListener) GetSubscribeOptions() []common.ISubscribeOption {
+    return nil
+}
+
+func (l *UserCreatedListener) Handle(ctx context.Context, msg common.IMessageListener) error {
+    return nil
+}
+
+func (l *UserCreatedListener) OnStart() error {
+    return nil
+}
+
+func (l *UserCreatedListener) OnStop() error {
+    return nil
+}
+
+// 定义定时器，实现 IBaseScheduler 接口
+type CleanupScheduler struct {
+    Service   UserService                `inject:""`
+}
+
+func (s *CleanupScheduler) SchedulerName() string {
+    return "CleanupScheduler"
+}
+
+func (s *CleanupScheduler) GetRule() string {
+    return "0 0 2 * * *"
+}
+
+func (s *CleanupScheduler) GetTimezone() string {
+    return "Asia/Shanghai"
+}
+
+func (s *CleanupScheduler) OnTick(tickID int64) error {
+    return nil
+}
+
+func (s *CleanupScheduler) OnStart() error {
+    return nil
+}
+
+func (s *CleanupScheduler) OnStop() error {
+    return nil
+}
 ```
 
 ## 核心接口
@@ -92,6 +205,10 @@ type IBaseEntity interface {
     GetId() string       // 返回实体唯一标识
 }
 ```
+
+**命名规范**：
+- 实体结构体使用 PascalCase（如 `Message`、`User`）
+- 方法返回实体名称（如 `"Message"`）
 
 ### IBaseManager - 管理器层接口
 
@@ -123,10 +240,15 @@ type IBaseManager interface {
 ```go
 type IBaseRepository interface {
     RepositoryName() string  // 返回存储库名称
-    OnStart() error         // 启动时触发
-    OnStop() error          // 停止时触发
+    OnStart() error          // 启动时触发
+    OnStop() error           // 停止时触发
 }
 ```
+
+**命名规范**：
+- 接口使用 `I` + 功能名 + `Repository`（如 `IMessageRepository`）
+- 实现使用小驼峰 + `Impl` 后缀（如 `messageRepositoryImpl`）
+- RepositoryName 返回实现类的名称（如 `"MessageRepository"`）
 
 ### IBaseService - 服务层接口
 
@@ -140,6 +262,11 @@ type IBaseService interface {
 }
 ```
 
+**命名规范**：
+- 接口使用 `I` + 功能名 + `Service`（如 `IMessageService`）
+- 实现使用小驼峰 + `Impl` 后缀（如 `messageServiceImpl`）
+- ServiceName 返回实现类的名称（如 `"MessageService"`）
+
 ### IBaseController - 控制器层接口
 
 定义 HTTP 处理层的标准接口：
@@ -152,7 +279,11 @@ type IBaseController interface {
 }
 ```
 
-**路由格式**：`/path [METHOD]`，例如 `/api/messages [GET]`、`/api/messages [POST]`
+**命名规范**：
+- 接口使用 `I` + 功能名 + `Controller`（如 `IMsgCreateController`）
+- 实现使用小驼峰 + `Impl` 后缀（如 `msgCreateControllerImpl`）
+- ControllerName 返回实现类的名称（如 `"msgCreateControllerImpl"`）
+- GetRouter 返回路由格式：`/path [METHOD]`（如 `/api/messages [POST]`）
 
 ### IBaseMiddleware - 中间件层接口
 
@@ -168,6 +299,66 @@ type IBaseMiddleware interface {
 }
 ```
 
+**命名规范**：
+- 接口使用 `I` + 功能名 + `Middleware`（如 `IAuthMiddleware`）
+- 实现使用小驼峰 + `Impl` 后缀（如 `authMiddlewareImpl`）
+- MiddlewareName 返回中间件名称（如 `"AuthMiddleware"`）
+- Order 返回执行顺序，数值越小越先执行（如 100）
+
+### IBaseListener - 监听器层接口
+
+定义消息监听器的标准接口，用于处理消息队列事件：
+
+```go
+type IBaseListener interface {
+    ListenerName() string                    // 返回监听器名称
+    GetQueue() string                        // 返回监听的队列名称
+    GetSubscribeOptions() []ISubscribeOption // 返回订阅选项
+    Handle(ctx context.Context, msg IMessageListener) error  // 处理消息
+    OnStart() error                          // 启动时触发
+    OnStop() error                           // 停止时触发
+}
+```
+
+**IMessageListener 接口**：
+```go
+type IMessageListener interface {
+    ID() string              // 获取消息 ID
+    Body() []byte           // 获取消息体
+    Headers() map[string]any // 获取消息头
+}
+```
+
+**命名规范**：
+- 接口使用 `I` + 功能名 + `Listener`（如 `IMessageCreatedListener`）
+- 实现使用小驼峰 + `Impl` 后缀（如 `messageCreatedListenerImpl`）
+- ListenerName 返回监听器名称（如 `"MessageCreatedListener"`）
+- GetQueue 返回队列名称（如 `"message.created"`）
+- Handle 方法处理消息，返回 error 会触发 Nack
+
+### IBaseScheduler - 定时器层接口
+
+定义定时任务的标准接口，用于处理周期性任务：
+
+```go
+type IBaseScheduler interface {
+    SchedulerName() string  // 返回定时器名称
+    GetRule() string       // 返回 Crontab 定时规则（6 段式）
+    GetTimezone() string   // 返回时区（空字符串使用服务器本地时间）
+    OnTick(tickID int64) error  // 定时触发时调用
+    OnStart() error       // 启动时触发
+    OnStop() error        // 停止时触发
+}
+```
+
+**命名规范**：
+- 接口使用 `I` + 功能名 + `Scheduler`（如 `ICleanupScheduler`）
+- 实现使用小驼峰 + `Impl` 后缀（如 `cleanupSchedulerImpl`）
+- SchedulerName 返回定时器名称（如 `"cleanupScheduler"`）
+- GetRule 返回 Crontab 规则（如 `"0 0 2 * * *"` 表示每天凌晨 2 点）
+- GetTimezone 返回时区（如 `"Asia/Shanghai"`、`"UTC"`）
+- OnTick 方法接收 tickID（Unix 时间戳秒级）
+
 ## 依赖规则
 
 各层之间有明确的依赖关系：
@@ -177,8 +368,10 @@ type IBaseMiddleware interface {
 - **Service 层**：可依赖 Repository、Entity、Manager、其他 Service
 - **Controller 层**：可依赖 Service、Manager
 - **Middleware 层**：可依赖 Service、Manager
+- **Listener 层**：可依赖 Service、Manager、Repository
+- **Scheduler 层**：可依赖 Service、Manager、Repository
 
-**原则**：上层可以依赖下层，下层不能依赖上层。
+**原则**：上层可以依赖下层，下层不能依赖上层。Listener 和 Scheduler 作为独立的事件处理层，可以依赖 Service 和 Repository 层。
 
 ## 依赖注入
 
@@ -272,6 +465,134 @@ ctx.JSON(common.HTTPStatusNotFound, gin.H{"error": "not found"})
 ctx.JSON(common.HTTPStatusInternalServerError, gin.H{"error": "internal error"})
 ```
 
+## 7 层架构统一接口规范
+
+### 接口命名规律
+
+| 层级 | 接口命名 | 实现命名 | 示例 |
+|------|---------|---------|------|
+| Entity | 不需要单独接口 | PascalCase | `Message` |
+| Repository | `I` + 功能名 + `Repository` | 小驼峰 + `Impl` | `IMessageRepository` / `messageRepositoryImpl` |
+| Service | `I` + 功能名 + `Service` | 小驼峰 + `Impl` | `IMessageService` / `messageServiceImpl` |
+| Controller | `I` + 功能名 + `Controller` | 小驼峰 + `Impl` | `IMsgCreateController` / `msgCreateControllerImpl` |
+| Middleware | `I` + 功能名 + `Middleware` | 小驼峰 + `Impl` | `IAuthMiddleware` / `authMiddlewareImpl` |
+| Listener | `I` + 功能名 + `Listener` | 小驼峰 + `Impl` | `IMessageCreatedListener` / `messageCreatedListenerImpl` |
+| Scheduler | `I` + 功能名 + `Scheduler` | 小驼峰 + `Impl` | `ICleanupScheduler` / `cleanupSchedulerImpl` |
+
+### 接口方法统一规范
+
+| 接口类型 | 名称方法 | 生命周期方法 | 特殊方法 |
+|---------|---------|-------------|---------|
+| IBaseEntity | `EntityName()` | - | `TableName()`, `GetId()` |
+| IBaseManager | `ManagerName()` | `OnStart()`, `OnStop()` | `Health()` |
+| IBaseRepository | `RepositoryName()` | `OnStart()`, `OnStop()` | - |
+| IBaseService | `ServiceName()` | `OnStart()`, `OnStop()` | - |
+| IBaseController | `ControllerName()` | - | `GetRouter()`, `Handle()` |
+| IBaseMiddleware | `MiddlewareName()` | `OnStart()`, `OnStop()` | `Order()`, `Wrapper()` |
+| IBaseListener | `ListenerName()` | `OnStart()`, `OnStop()` | `GetQueue()`, `GetSubscribeOptions()`, `Handle()` |
+| IBaseScheduler | `SchedulerName()` | `OnStart()`, `OnStop()` | `GetRule()`, `GetTimezone()`, `OnTick()` |
+
+### 依赖注入规范
+
+所有组件统一使用 `inject:""` 标签进行依赖注入：
+
+```go
+type messageServiceImpl struct {
+    // 内置管理器（由引擎自动注入）
+    Config    configmgr.IConfigManager    `inject:""`
+    LoggerMgr loggermgr.ILoggerManager   `inject:""`
+    DBManager databasemgr.IDatabaseManager `inject:""`
+
+    // 业务依赖（手动注入到容器）
+    Repository IMessageRepository `inject:""`
+    CacheMgr  cachemgr.ICacheManager `inject:""`
+}
+```
+
+### 接口编译时检查
+
+所有实现都应在文件末尾添加编译时接口检查：
+
+```go
+var _ IMessageService = (*messageServiceImpl)(nil)
+var _ common.IBaseService = (*messageServiceImpl)(nil)
+```
+
+### 组件注册规范
+
+1. **Entity**：在 `entity_container.go` 中注册
+2. **Repository**：在 `repository_container.go` 中注册
+3. **Service**：在 `service_container.go` 中注册
+4. **Controller**：在 `controller_container.go` 中注册
+5. **Middleware**：在 `middleware_container.go` 中注册
+6. **Listener**：在 `listener_container.go` 中注册
+7. **Scheduler**：在 `scheduler_container.go` 中注册
+
+### 层级职责边界
+
+| 层级 | 职责 | 允许依赖 |
+|------|------|---------|
+| Entity | 数据模型定义 | 无 |
+| Repository | 数据访问、持久化 | Entity、Manager |
+| Service | 业务逻辑、编排 | Repository、Entity、Manager、其他 Service |
+| Controller | HTTP 请求处理、响应 | Service、Manager |
+| Middleware | 请求预处理、后处理 | Service、Manager |
+| Listener | 消息队列事件处理 | Service、Manager、Repository |
+| Scheduler | 定时任务执行 | Service、Manager、Repository |
+
+### 生命周期方法规范
+
+**OnStart** 方法用于：
+- 初始化资源（连接数据库、连接缓存等）
+- 预热缓存
+- 注册定时任务
+- 启动消息监听
+
+**OnStop** 方法用于：
+- 关闭数据库连接
+- 刷新缓存数据
+- 停止定时任务
+- 取消消息订阅
+- 释放其他资源
+
+生命周期方法返回 `error`，如果初始化失败会阻止服务器启动。
+
+### 快速开发模板
+
+```go
+// 接口定义
+type IXxxService interface {
+    common.IBaseService
+    // 业务方法
+    DoSomething() error
+}
+
+// 实现结构体
+type xxxServiceImpl struct {
+    Config    configmgr.IConfigManager    `inject:""`
+    LoggerMgr loggermgr.ILoggerManager   `inject:""`
+}
+
+// 构造函数
+func NewXxxService() IXxxService {
+    return &xxxServiceImpl{}
+}
+
+// 实现 IBaseService
+func (s *xxxServiceImpl) ServiceName() string { return "XxxService" }
+func (s *xxxServiceImpl) OnStart() error { return nil }
+func (s *xxxServiceImpl) OnStop() error { return nil }
+
+// 实现业务方法
+func (s *xxxServiceImpl) DoSomething() error {
+    return nil
+}
+
+// 编译时接口检查
+var _ IXxxService = (*xxxServiceImpl)(nil)
+var _ common.IBaseService = (*xxxServiceImpl)(nil)
+```
+
 ## 最佳实践
 
 1. **接口实现** - 确保所有组件实现对应的基础接口（以 `I` 开头）
@@ -302,25 +623,25 @@ func (m *Message) TableName() string { return "messages" }
 func (m *Message) GetId() string { return fmt.Sprintf("%d", m.ID) }
 
 // repositories/message_repository.go
-type messageRepository struct {
+type messageRepositoryImpl struct {
     Config  configmgr.IConfigManager    `inject:""`
     Manager databasemgr.IDatabaseManager `inject:""`
 }
 
-func (r *messageRepository) RepositoryName() string { return "MessageRepository" }
-func (r *messageRepository) OnStart() error { return r.Manager.AutoMigrate(&Message{}) }
-func (r *messageRepository) OnStop() error { return nil }
+func (r *messageRepositoryImpl) RepositoryName() string { return "MessageRepository" }
+func (r *messageRepositoryImpl) OnStart() error { return nil }
+func (r *messageRepositoryImpl) OnStop() error { return nil }
 
 // services/message_service.go
-type messageService struct {
+type messageServiceImpl struct {
     Config     configmgr.IConfigManager     `inject:""`
     Repository IMessageRepository           `inject:""`
     LoggerMgr  loggermgr.ILoggerManager    `inject:""`
 }
 
-func (s *messageService) ServiceName() string { return "MessageService" }
-func (s *messageService) OnStart() error { return nil }
-func (s *messageService) OnStop() error { return nil }
+func (s *messageServiceImpl) ServiceName() string { return "MessageService" }
+func (s *messageServiceImpl) OnStart() error { return nil }
+func (s *messageServiceImpl) OnStop() error { return nil }
 
 // controllers/msg_create_controller.go
 type msgCreateControllerImpl struct {
@@ -333,15 +654,40 @@ func (c *msgCreateControllerImpl) GetRouter() string { return "/api/messages [PO
 func (c *msgCreateControllerImpl) Handle(ctx *gin.Context) { /* ... */ }
 
 // middlewares/auth_middleware.go
-type authMiddleware struct {
+type authMiddlewareImpl struct {
     AuthService IAuthService `inject:""`
 }
 
-func (m *authMiddleware) MiddlewareName() string { return "AuthMiddleware" }
-func (m *authMiddleware) Order() int { return 100 }
-func (m *authMiddleware) Wrapper() gin.HandlerFunc { /* ... */ }
-func (m *authMiddleware) OnStart() error { return nil }
-func (m *authMiddleware) OnStop() error { return nil }
+func (m *authMiddlewareImpl) MiddlewareName() string { return "AuthMiddleware" }
+func (m *authMiddlewareImpl) Order() int { return 100 }
+func (m *authMiddlewareImpl) Wrapper() gin.HandlerFunc { /* ... */ }
+func (m *authMiddlewareImpl) OnStart() error { return nil }
+func (m *authMiddlewareImpl) OnStop() error { return nil }
+
+// listeners/message_created_listener.go
+type messageCreatedListenerImpl struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+}
+
+func (l *messageCreatedListenerImpl) ListenerName() string { return "MessageCreatedListener" }
+func (l *messageCreatedListenerImpl) GetQueue() string { return "message.created" }
+func (l *messageCreatedListenerImpl) GetSubscribeOptions() []common.ISubscribeOption { return nil }
+func (l *messageCreatedListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error { /* ... */ }
+func (l *messageCreatedListenerImpl) OnStart() error { return nil }
+func (l *messageCreatedListenerImpl) OnStop() error { return nil }
+
+// schedulers/cleanup_scheduler.go
+type cleanupSchedulerImpl struct {
+    MessageService IMessageService        `inject:""`
+    LoggerMgr      loggermgr.ILoggerManager `inject:""`
+}
+
+func (s *cleanupSchedulerImpl) SchedulerName() string { return "cleanupScheduler" }
+func (s *cleanupSchedulerImpl) GetRule() string { return "0 0 2 * * *" }
+func (s *cleanupSchedulerImpl) GetTimezone() string { return "Asia/Shanghai" }
+func (s *cleanupSchedulerImpl) OnTick(tickID int64) error { /* ... */ }
+func (s *cleanupSchedulerImpl) OnStart() error { return nil }
+func (s *cleanupSchedulerImpl) OnStop() error { return nil }
 ```
 
 ## 与其他包的关系
@@ -350,3 +696,4 @@ func (m *authMiddleware) OnStop() error { return nil }
 - **container/** - 依赖注入容器使用 common 包定义的接口类型进行类型安全的依赖注入
 - **component/** - 业务组件实现 IBaseEntity、IBaseRepository、IBaseService、IBaseController、IBaseMiddleware 接口
 - **util/** - 工具函数包提供特定功能的工具函数，common 包提供通用的类型转换函数
+- **server/** - 服务器引擎负责管理所有组件的生命周期（OnStart/OnStop），并按规则调度 Listener 和 Scheduler

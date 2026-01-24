@@ -1,42 +1,175 @@
 # Container
 
-依赖注入容器，提供 5 层分层架构的自动依赖管理。
+依赖注入容器，支持 7 层分层架构的自动依赖管理。
 
 ## 特性
 
-- **5 层容器** - Entity、Manager、Repository、Service、Controller、Middleware 六层容器
+- **7 层容器** - Entity、Manager、Repository、Service、Controller、Middleware、Scheduler、Listener 八层容器
 - **类型安全** - 泛型注册与获取，编译时类型检查
 - **自动注入** - 通过 `inject:""` 结构体标签自动注入依赖
 - **拓扑排序** - Service 层使用 Kahn 算法检测并解决循环依赖
 - **线程安全** - 所有容器操作使用读写锁保护
+- **分层依赖** - 严格的依赖层级，Controller/Middleware/Scheduler/Listener 禁止直接注入 Repository
 - **Manager 自动初始化** - Engine 自动初始化并注册内置 Manager
 
 ## 快速开始
 
 ```go
-// 创建容器链
-entityContainer := container.NewEntityContainer()
-repositoryContainer := container.NewRepositoryContainer(entityContainer)
-serviceContainer := container.NewServiceContainer(repositoryContainer)
-controllerContainer := container.NewControllerContainer(serviceContainer)
-middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
+package application
 
-// 注册实例
-container.RegisterEntity(entityContainer, &Message{})
-container.RegisterRepository[IMessageRepository](repositoryContainer, NewMessageRepository())
-container.RegisterService[IMessageService](serviceContainer, NewMessageService())
-container.RegisterController[IMessageController](controllerContainer, NewMessageController())
-container.RegisterMiddleware[IAuthMiddleware](middlewareContainer, NewAuthMiddleware())
-
-// 创建 Engine（自动初始化 Manager 和执行依赖注入）
-engine := server.NewEngine(
-    &server.BuiltinConfig{Driver: "yaml", FilePath: "configs/config.yaml"},
-    entityContainer, repositoryContainer, serviceContainer,
-    controllerContainer, middlewareContainer,
+import (
+	"github.com/lite-lake/litecore-go/container"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/server"
+	entities "yourproject/internal/entities"
+	repositories "yourproject/internal/repositories"
+	services "yourproject/internal/services"
+	controllers "yourproject/internal/controllers"
 )
-engine.Initialize()
-engine.Run()
+
+// InitEntityContainer 初始化实体容器
+func InitEntityContainer() *container.EntityContainer {
+	entityContainer := container.NewEntityContainer()
+	container.RegisterEntity[common.IBaseEntity](entityContainer, &entities.Message{})
+	return entityContainer
+}
+
+// InitRepositoryContainer 初始化仓储容器
+func InitRepositoryContainer(entityContainer *container.EntityContainer) *container.RepositoryContainer {
+	repositoryContainer := container.NewRepositoryContainer(entityContainer)
+	container.RegisterRepository[repositories.IMessageRepository](repositoryContainer, repositories.NewMessageRepository())
+	return repositoryContainer
+}
+
+// InitServiceContainer 初始化服务容器
+func InitServiceContainer(repositoryContainer *container.RepositoryContainer) *container.ServiceContainer {
+	serviceContainer := container.NewServiceContainer(repositoryContainer)
+	container.RegisterService[services.IMessageService](serviceContainer, services.NewMessageService())
+	return serviceContainer
+}
+
+// InitControllerContainer 初始化控制器容器
+func InitControllerContainer(serviceContainer *container.ServiceContainer) *container.ControllerContainer {
+	controllerContainer := container.NewControllerContainer(serviceContainer)
+	container.RegisterController[controllers.IMessageController](controllerContainer, controllers.NewMessageController())
+	return controllerContainer
+}
+
+// NewEngine 创建并启动应用引擎
+func NewEngine() (*server.Engine, error) {
+	entityContainer := InitEntityContainer()
+	repositoryContainer := InitRepositoryContainer(entityContainer)
+	serviceContainer := InitServiceContainer(repositoryContainer)
+	controllerContainer := InitControllerContainer(serviceContainer)
+
+	return server.NewEngine(
+		&server.BuiltinConfig{Driver: "yaml", FilePath: "configs/config.yaml"},
+		entityContainer, repositoryContainer, serviceContainer,
+		controllerContainer, nil, nil, nil,
+	), nil
+}
 ```
+
+## 分层架构
+
+容器支持 7 层分层架构，严格遵循依赖方向：
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Controller Layer                       │
+│              (HTTP 请求处理和响应)                        │
+├─────────────────────────────────────────────────────────┤
+│                  Middleware Layer                        │
+│              (请求预处理和后处理)                         │
+├─────────────────────────────────────────────────────────┤
+│                   Service Layer                          │
+│              (业务逻辑和数据处理)                         │
+│            【支持服务间依赖 + 拓扑排序】                    │
+├─────────────────────────────────────────────────────────┤
+│                 Repository Layer                         │
+│              (数据访问和持久化)                           │
+├─────────────────────────────────────────────────────────┤
+│                   Entity Layer                           │
+│              (数据模型和领域对象)                         │
+└─────────────────────────────────────────────────────────┘
+            ↑                                              ↑
+            └───────────────── Manager Layer ───────────────┘
+             (configmgr、loggermgr、databasemgr、cachemgr、
+              lockmgr、limitermgr、mqmgr、telemetrymgr)
+```
+
+### 依赖规则
+
+| 层 | 可依赖的层 | 说明 |
+|---|---|---|
+| Entity | 无 | 纯数据模型，无依赖 |
+| Manager | 其他 Manager | 基础能力组件，可相互依赖 |
+| Repository | Manager + Entity | 数据访问层 |
+| Service | Manager + Repository + Service | 业务逻辑，支持服务间依赖 |
+| Controller | Manager + Service | HTTP 请求处理 |
+| Middleware | Manager + Service | 请求拦截器 |
+| Scheduler | Manager + Service | 定时任务 |
+| Listener | Manager + Service | 事件监听器 |
+
+## 依赖注入
+
+### 基本用法
+
+使用 `inject:""` 标签标记需要注入的字段：
+
+```go
+import (
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/databasemgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type MessageServiceImpl struct {
+	ConfigMgr   configmgr.IConfigManager    `inject:""`
+	LoggerMgr   loggermgr.ILoggerManager   `inject:""`
+	DBManager   databasemgr.IDatabaseManager `inject:""`
+	MessageRepo IMessageRepository          `inject:""`
+	AuthService IAuthService               `inject:""`
+}
+
+func (s *MessageServiceImpl) SomeMethod() error {
+	s.logger = s.LoggerMgr.Ins()
+	s.logger.Info("处理消息")
+	// ...
+}
+```
+
+### 注入顺序
+
+依赖注入按以下优先级解析：
+
+1. **本层容器** - 优先从当前容器查找（Service → Service）
+2. **下层容器** - 从下层容器查找（Service → Repository）
+3. **Manager 容器** - 从 Manager 容器查找（所有层 → Manager）
+
+### Service 层拓扑排序
+
+Service 层支持服务间依赖，并使用拓扑排序确保注入顺序：
+
+```go
+// ServiceA 依赖 ServiceB
+type ServiceA struct {
+	ServiceB IServiceB `inject:""`
+}
+
+// ServiceB 依赖 ServiceC
+type ServiceB struct {
+	ServiceC IServiceC `inject:""`
+}
+
+// ServiceC 无依赖
+type ServiceC struct{}
+
+// 注入顺序：ServiceC → ServiceB → ServiceA
+serviceContainer.InjectAll()
+```
+
+如果存在循环依赖，系统会抛出 `CircularDependencyError`。
 
 ## 分层容器
 
@@ -46,63 +179,135 @@ Entity 层无依赖，仅存储数据实体。
 
 ```go
 entityContainer := container.NewEntityContainer()
-container.RegisterEntity(entityContainer, &Message{})
+container.RegisterEntity[common.IBaseEntity](entityContainer, &Message{})
+
+// 按名称获取
+entity, err := entityContainer.GetByName("Message")
+
+// 按类型获取（可返回多个）
+entities, err := entityContainer.GetByType(reflect.TypeOf(&Message{}))
+
+// 获取所有
+all := entityContainer.GetAll()
+```
+
+### Manager 容器
+
+Manager 容器存储管理器实例，由 Engine 自动初始化。
+
+```go
+managerContainer := container.NewManagerContainer()
+container.RegisterManager[configmgr.IConfigManager](managerContainer, configMgr)
+
+// 按类型获取
+cfg, err := container.GetManager[configmgr.IConfigManager](managerContainer)
+
+// 获取所有（按名称排序）
+all := managerContainer.GetAllSorted()
 ```
 
 ### Repository 容器
 
-依赖 Manager 和 Entity 层。
+Repository 层依赖 Manager 和 Entity 层。
 
 ```go
 repositoryContainer := container.NewRepositoryContainer(entityContainer)
-container.RegisterRepository[IMessageRepository](repositoryContainer, NewMessageRepository())
+repositoryContainer.SetManagerContainer(managerContainer)
+
+container.RegisterRepository[IMessageRepository](repositoryContainer, repo)
+
+// 执行依赖注入
+repositoryContainer.InjectAll()
+
+// 按类型获取
+repo, err := container.GetRepository[IMessageRepository](repositoryContainer)
 ```
 
 ### Service 容器
 
-依赖 Manager、Repository 和其他 Service 层，支持拓扑排序。
+Service 层依赖 Manager、Repository 和其他 Service 层，支持拓扑排序。
 
 ```go
 serviceContainer := container.NewServiceContainer(repositoryContainer)
-container.RegisterService[IMessageService](serviceContainer, NewMessageService())
-container.RegisterService[IAuthService](serviceContainer, NewAuthService())
+serviceContainer.SetManagerContainer(managerContainer)
+
+container.RegisterService[IMessageService](serviceContainer, messageService)
+container.RegisterService[IAuthService](serviceContainer, authService)
+
+// 执行依赖注入（自动拓扑排序）
+serviceContainer.InjectAll()
+
+// 按类型获取
+svc, err := container.GetService[IMessageService](serviceContainer)
 ```
 
 ### Controller 容器
 
-依赖 Manager 和 Service 层。
+Controller 层依赖 Manager 和 Service 层。
+
+**注意**：Controller 禁止直接注入 Repository，必须通过 Service 访问数据。
 
 ```go
 controllerContainer := container.NewControllerContainer(serviceContainer)
-container.RegisterController[IMessageController](controllerContainer, NewMessageController())
+container.RegisterController[IMessageController](controllerContainer, messageController)
+
+// 执行依赖注入
+controllerContainer.InjectAll()
+
+// 按类型获取
+ctrl, err := container.GetController[IMessageController](controllerContainer)
 ```
 
 ### Middleware 容器
 
-依赖 Manager 和 Service 层。
+Middleware 层依赖 Manager 和 Service 层。
+
+**注意**：Middleware 禁止直接注入 Repository，必须通过 Service 访问数据。
 
 ```go
 middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
-container.RegisterMiddleware[IAuthMiddleware](middlewareContainer, NewAuthMiddleware())
+container.RegisterMiddleware[IAuthMiddleware](middlewareContainer, authMiddleware)
+
+// 执行依赖注入
+middlewareContainer.InjectAll()
+
+// 按类型获取
+mw, err := container.GetMiddleware[IAuthMiddleware](middlewareContainer)
 ```
 
-## 依赖注入
+### Scheduler 容器
 
-### 基本用法
+Scheduler 层依赖 Manager 和 Service 层，用于定时任务。
 
-使用 `inject:""` 标签标记需要注入的字段：
+**注意**：Scheduler 禁止直接注入 Repository，必须通过 Service 访问数据。
 
 ```go
-type MessageService struct {
-    LoggerMgr loggermgr.ILoggerManager   `inject:""`
-    DBManager databasemgr.IDatabaseManager `inject:""`
-    Repo      IMessageRepository           `inject:""`
-}
+schedulerContainer := container.NewSchedulerContainer(serviceContainer)
+container.RegisterScheduler[ICleanupScheduler](schedulerContainer, cleanupScheduler)
+
+// 执行依赖注入
+schedulerContainer.InjectAll()
+
+// 按类型获取
+scheduler, err := container.GetScheduler[ICleanupScheduler](schedulerContainer)
 ```
 
-### 可选依赖
+### Listener 容器
 
-项目为了保证简洁，不允许可选依赖。标记了`inject:""`但没有被注入依赖的，必须报错。
+Listener 层依赖 Manager 和 Service 层，用于事件监听。
+
+**注意**：Listener 禁止直接注入 Repository，必须通过 Service 访问数据。
+
+```go
+listenerContainer := container.NewListenerContainer(serviceContainer)
+container.RegisterListener[IMessageListener](listenerContainer, messageListener)
+
+// 执行依赖注入
+listenerContainer.InjectAll()
+
+// 按类型获取
+listener, err := container.GetListener[IMessageListener](listenerContainer)
+```
 
 ## 容器 API
 
@@ -115,6 +320,22 @@ func (e *EntityContainer) GetByName(name string) (common.IBaseEntity, error)
 func (e *EntityContainer) GetByType(typ reflect.Type) ([]common.IBaseEntity, error)
 func (e *EntityContainer) GetAll() []common.IBaseEntity
 func (e *EntityContainer) Count() int
+func (e *EntityContainer) GetDependency(fieldType reflect.Type) (interface{}, error)
+```
+
+### ManagerContainer
+
+```go
+func NewManagerContainer() *ManagerContainer
+func RegisterManager[T common.IBaseManager](m *ManagerContainer, impl T) error
+func GetManager[T common.IBaseManager](m *ManagerContainer) (T, error)
+func (m *ManagerContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseManager) error
+func (m *ManagerContainer) GetByType(ifaceType reflect.Type) common.IBaseManager
+func (m *ManagerContainer) GetAll() []common.IBaseManager
+func (m *ManagerContainer) GetAllSorted() []common.IBaseManager
+func (m *ManagerContainer) GetNames() []string
+func (m *ManagerContainer) Count() int
+func (m *ManagerContainer) GetDependency(fieldType reflect.Type) (interface{}, error)
 ```
 
 ### RepositoryContainer
@@ -123,11 +344,14 @@ func (e *EntityContainer) Count() int
 func NewRepositoryContainer(entity *EntityContainer) *RepositoryContainer
 func RegisterRepository[T common.IBaseRepository](r *RepositoryContainer, impl T) error
 func GetRepository[T common.IBaseRepository](r *RepositoryContainer) (T, error)
-func (r *RepositoryContainer) SetManagerContainer(container *ManagerContainer)
+func (r *RepositoryContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseRepository) error
 func (r *RepositoryContainer) InjectAll() error
 func (r *RepositoryContainer) GetByType(ifaceType reflect.Type) common.IBaseRepository
 func (r *RepositoryContainer) GetAll() []common.IBaseRepository
+func (r *RepositoryContainer) GetAllSorted() []common.IBaseRepository
 func (r *RepositoryContainer) Count() int
+func (r *RepositoryContainer) SetManagerContainer(container *ManagerContainer)
+func (r *RepositoryContainer) GetDependency(fieldType reflect.Type) (interface{}, error)
 ```
 
 ### ServiceContainer
@@ -136,11 +360,14 @@ func (r *RepositoryContainer) Count() int
 func NewServiceContainer(repository *RepositoryContainer) *ServiceContainer
 func RegisterService[T common.IBaseService](s *ServiceContainer, impl T) error
 func GetService[T common.IBaseService](s *ServiceContainer) (T, error)
-func (s *ServiceContainer) SetManagerContainer(container *ManagerContainer)
+func (s *ServiceContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseService) error
 func (s *ServiceContainer) InjectAll() error
 func (s *ServiceContainer) GetByType(ifaceType reflect.Type) common.IBaseService
 func (s *ServiceContainer) GetAll() []common.IBaseService
+func (s *ServiceContainer) GetAllSorted() []common.IBaseService
 func (s *ServiceContainer) Count() int
+func (s *ServiceContainer) SetManagerContainer(container *ManagerContainer)
+func (s *ServiceContainer) GetDependency(fieldType reflect.Type) (interface{}, error)
 ```
 
 ### ControllerContainer
@@ -149,11 +376,14 @@ func (s *ServiceContainer) Count() int
 func NewControllerContainer(service *ServiceContainer) *ControllerContainer
 func RegisterController[T common.IBaseController](c *ControllerContainer, impl T) error
 func GetController[T common.IBaseController](c *ControllerContainer) (T, error)
-func (c *ControllerContainer) SetManagerContainer(container *ManagerContainer)
 func (c *ControllerContainer) InjectAll() error
+func (c *ControllerContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseController) error
 func (c *ControllerContainer) GetByType(ifaceType reflect.Type) common.IBaseController
 func (c *ControllerContainer) GetAll() []common.IBaseController
+func (c *ControllerContainer) GetAllSorted() []common.IBaseController
 func (c *ControllerContainer) Count() int
+func (c *ControllerContainer) SetManagerContainer(container *ManagerContainer)
+func (c *ControllerContainer) GetDependency(fieldType reflect.Type) (interface{}, error)
 ```
 
 ### MiddlewareContainer
@@ -162,11 +392,76 @@ func (c *ControllerContainer) Count() int
 func NewMiddlewareContainer(service *ServiceContainer) *MiddlewareContainer
 func RegisterMiddleware[T common.IBaseMiddleware](m *MiddlewareContainer, impl T) error
 func GetMiddleware[T common.IBaseMiddleware](m *MiddlewareContainer) (T, error)
-func (m *MiddlewareContainer) SetManagerContainer(container *ManagerContainer)
 func (m *MiddlewareContainer) InjectAll() error
+func (m *MiddlewareContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseMiddleware) error
 func (m *MiddlewareContainer) GetByType(ifaceType reflect.Type) common.IBaseMiddleware
 func (m *MiddlewareContainer) GetAll() []common.IBaseMiddleware
+func (m *MiddlewareContainer) GetAllSorted() []common.IBaseMiddleware
 func (m *MiddlewareContainer) Count() int
+func (m *MiddlewareContainer) SetManagerContainer(container *ManagerContainer)
+func (m *MiddlewareContainer) GetDependency(fieldType reflect.Type) (interface{}, error)
+```
+
+### SchedulerContainer
+
+```go
+func NewSchedulerContainer(service *ServiceContainer) *SchedulerContainer
+func RegisterScheduler[T common.IBaseScheduler](c *SchedulerContainer, impl T) error
+func GetScheduler[T common.IBaseScheduler](c *SchedulerContainer) (T, error)
+func (c *SchedulerContainer) InjectAll() error
+func (c *SchedulerContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseScheduler) error
+func (c *SchedulerContainer) GetByType(ifaceType reflect.Type) common.IBaseScheduler
+func (c *SchedulerContainer) GetAll() []common.IBaseScheduler
+func (c *SchedulerContainer) GetAllSorted() []common.IBaseScheduler
+func (c *SchedulerContainer) Count() int
+func (c *SchedulerContainer) SetManagerContainer(container *ManagerContainer)
+func (c *SchedulerContainer) GetDependency(fieldType reflect.Type) (interface{}, error)
+```
+
+### ListenerContainer
+
+```go
+func NewListenerContainer(service *ServiceContainer) *ListenerContainer
+func RegisterListener[T common.IBaseListener](l *ListenerContainer, impl T) error
+func GetListener[T common.IBaseListener](l *ListenerContainer) (T, error)
+func (l *ListenerContainer) InjectAll() error
+func (l *ListenerContainer) RegisterByType(ifaceType reflect.Type, impl common.IBaseListener) error
+func (l *ListenerContainer) GetByType(ifaceType reflect.Type) common.IBaseListener
+func (l *ListenerContainer) GetAll() []common.IBaseListener
+func (l *ListenerContainer) GetAllSorted() []common.IBaseListener
+func (l *ListenerContainer) Count() int
+func (l *ListenerContainer) SetManagerContainer(container *ManagerContainer)
+func (l *ListenerContainer) GetDependency(fieldType reflect.Type) (interface{}, error)
+```
+
+## 错误处理
+
+### 错误类型
+
+| 错误类型 | 说明 |
+|---------|------|
+| `DependencyNotFoundError` | 依赖未找到 |
+| `CircularDependencyError` | Service 层循环依赖 |
+| `AmbiguousMatchError` | 多重匹配（Entity 层同类型多个实例） |
+| `DuplicateRegistrationError` | 重复注册 |
+| `InstanceNotFoundError` | 实例未找到 |
+| `InterfaceAlreadyRegisteredError` | 接口已注册 |
+| `ImplementationDoesNotImplementInterfaceError` | 实现未实现接口 |
+| `InterfaceNotRegisteredError` | 接口未注册 |
+| `ManagerContainerNotSetError` | ManagerContainer 未设置 |
+| `UninjectedFieldError` | 标记 `inject:""` 的字段注入后仍为 nil |
+
+### 错误处理示例
+
+```go
+svc, err := container.GetService[IMessageService](serviceContainer)
+if err != nil {
+	var notFound *container.InstanceNotFoundError
+	if errors.As(err, &notFound) {
+		log.Fatal("服务未注册:", notFound.Name)
+	}
+	log.Fatal("获取服务失败:", err)
+}
 ```
 
 ## Manager 自动初始化
@@ -186,30 +481,103 @@ Engine 会按以下顺序自动初始化内置 Manager：
 
 ```go
 type MessageService struct {
-    Config    configmgr.IConfigManager    `inject:""`
-    LoggerMgr loggermgr.ILoggerManager   `inject:""`
-    DBManager databasemgr.IDatabaseManager `inject:""`
+	Config    configmgr.IConfigManager    `inject:""`
+	LoggerMgr loggermgr.ILoggerManager   `inject:""`
+	DBManager databasemgr.IDatabaseManager `inject:""`
+	CacheMgr  cachemgr.ICacheManager     `inject:""`
 }
 ```
 
-## 错误处理
-
-### 错误类型
-
-- `DependencyNotFoundError` - 依赖未找到
-- `CircularDependencyError` - 循环依赖
-- `AmbiguousMatchError` - 多重匹配
-- `DuplicateRegistrationError` - 重复注册
-- `InstanceNotFoundError` - 实例未找到
-- `UninjectedFieldError` - 标记 `inject:""` 的字段注入后仍为 nil
-- `InterfaceAlreadyRegisteredError` - 接口已注册
-- `ImplementationDoesNotImplementInterfaceError` - 实现未实现接口
-- `ManagerContainerNotSetError` - ManagerContainer 未设置
-
 ## 最佳实践
 
-1. **使用泛型函数注册和获取** - `RegisterService[T]` / `GetService[T]` 比按类型注册更安全
-2. **按依赖顺序初始化** - Entity → Repository → Service → Controller/Middleware
-3. **Manager 不手动注册** - 由 Engine 自动初始化和注册
-4. **避免循环依赖** - Service 之间的循环依赖会被检测到
-5. **日志使用统一接口** - 通过 `ILoggerManager` 使用日志，避免使用 `log.Fatal` 等标准库函数
+### 1. 使用泛型函数注册和获取
+
+泛型函数比按类型注册更安全，避免运行时错误：
+
+```go
+// 推荐
+container.RegisterService[IMessageService](serviceContainer, svc)
+svc, err := container.GetService[IMessageService](serviceContainer)
+
+// 不推荐
+serviceContainer.RegisterByType(reflect.TypeOf((*IMessageService)(nil)).Elem(), svc)
+```
+
+### 2. 按依赖顺序初始化
+
+严格遵循分层架构顺序：
+
+```go
+entityContainer := container.NewEntityContainer()
+repositoryContainer := container.NewRepositoryContainer(entityContainer)
+serviceContainer := container.NewServiceContainer(repositoryContainer)
+controllerContainer := container.NewControllerContainer(serviceContainer)
+```
+
+### 3. Manager 不手动注册
+
+Manager 由 Engine 自动初始化和注册，业务代码只需声明依赖：
+
+```go
+type MyService struct {
+	ConfigMgr configmgr.IConfigManager `inject:""`
+}
+```
+
+### 4. 避免循环依赖
+
+Service 层的循环依赖会被拓扑排序检测到：
+
+```go
+// 错误：循环依赖
+type ServiceA struct { ServiceB IServiceB `inject:""` }
+type ServiceB struct { ServiceA IServiceA `inject:""` } // ❌
+
+// 正确：通过接口解耦
+type ServiceA struct { IDataService IDataService `inject:""` }
+type ServiceB struct { IDataService IDataService `inject:""` } // ✅
+```
+
+### 5. 遵循分层依赖规则
+
+- Controller/Middleware/Scheduler/Listener 禁止直接注入 Repository
+- 必须通过 Service 访问数据
+
+```go
+// 错误
+type MyController struct {
+	Repo IMessageRepository `inject:""` // ❌
+}
+
+// 正确
+type MyController struct {
+	Service IMessageService `inject:""` // ✅
+}
+```
+
+### 6. 统一使用注入的日志
+
+避免使用标准库 `log.Fatal`，统一使用注入的 `ILoggerManager`：
+
+```go
+type MyService struct {
+	LoggerMgr loggermgr.ILoggerManager `inject:""`
+	logger    loggermgr.ILogger
+}
+
+func (s *MyService) SomeMethod() error {
+	s.logger = s.LoggerMgr.Ins()
+	s.logger.Info("操作开始")
+	// ...
+}
+```
+
+### 7. 使用 CLI 工具生成容器代码
+
+使用 `litecore` CLI 工具自动生成容器初始化代码：
+
+```bash
+litecore generate container
+```
+
+生成的代码位于 `internal/application/` 目录，自动处理所有容器的初始化和注册。

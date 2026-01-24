@@ -9,6 +9,7 @@
 - **上下文字段** - 通过 With 方法添加额外字段到日志中
 - **序列化支持** - LogLevel 类型支持 YAML/JSON 序列化
 - **Zap 集成** - 提供与 uber-go/zap 框架的级别转换
+- **多格式支持** - 支持 Gin、JSON、Default 三种日志格式
 
 ## 快速开始
 
@@ -87,6 +88,79 @@ logger.Info("这条不会被记录")   // 1 < 3，不记录
 logger.Warn("这条不会被记录")   // 2 < 3，不记录
 logger.Error("这条会被记录")    // 3 = 3，记录
 ```
+
+## 日志格式
+
+### 格式类型
+
+Logger 支持 Gin、JSON、Default 三种输出格式：
+
+| 格式 | 说明 | 适用场景 |
+|------|------|----------|
+| **gin** | Gin 风格，竖线分隔符，支持颜色 | 控制台输出、本地开发 |
+| **json** | JSON 格式，结构化数据 | 日志收集、分析平台 |
+| **default** | 默认 ConsoleEncoder 格式 | 兼容性需求 |
+
+### Gin 格式特点
+
+Gin 格式是默认的控制台输出格式，具有以下特点：
+
+- **统一格式**：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
+- **时间固定宽度**：`2006-01-02 15:04:05.000`（23 字符）
+- **级别固定宽度**：右对齐 5 字符（DEBUG、INFO 、WARN 、ERROR、FATAL）
+- **字段格式**：`key=value`，字符串值用引号包裹
+- **颜色支持**：自动检测终端支持，可手动配置
+
+### Gin 格式输出示例
+
+```go
+// 普通日志输出
+2026-01-24 15:04:05.123 | INFO  | 创建消息 | id=123 nickname="test"
+
+// 请求日志输出（Gin 格式）
+2026-01-24 15:04:05.123 | 200   | 1.234ms | 127.0.0.1 | GET | /api/messages
+2026-01-24 15:04:05.456 | 404   | 0.456ms | 192.168.1.1 | POST | /api/unknown
+```
+
+### 配置方法
+
+通过配置文件设置日志格式：
+
+```yaml
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"                               # 日志级别：debug, info, warn, error, fatal
+      format: "gin"                                # 格式：gin | json | default
+      color: true                                  # 是否启用颜色
+      time_format: "2006-01-02 15:04:05.000"     # 时间格式
+```
+
+### 颜色配置
+
+- **color**: 控制是否启用彩色输出（默认 true，由终端自动检测）
+- 支持在配置文件中手动关闭颜色：`color: false`
+
+### 日志级别颜色
+
+| 级别 | ANSI 颜色 | 说明 |
+|------|-----------|------|
+| DEBUG | 灰色 | 开发调试信息 |
+| INFO | 绿色 | 正常业务流程 |
+| WARN | 黄色 | 降级处理、慢查询 |
+| ERROR | 红色 | 业务错误、操作失败 |
+| FATAL | 红色+粗体 | 致命错误 |
+
+### HTTP 状态码颜色
+
+| 状态码范围 | 颜色 | 说明 |
+|-----------|------|------|
+| 2xx | 绿色 | 成功 |
+| 3xx | 黄色 | 重定向 |
+| 4xx | 橙色 | 客户端错误 |
+| 5xx | 红色 | 服务器错误 |
 
 ## 接口定义
 
@@ -194,6 +268,12 @@ var _ logger.ILogger = (*MyLogger)(nil)
 - **Error**: 业务错误、操作失败，需要人工关注
 - **Fatal**: 致命错误，需要立即终止程序
 
+### 格式选择建议
+
+- **开发环境**：使用 Gin 格式（`format: "gin"`），颜色输出更易读
+- **生产环境（控制台）**：使用 JSON 格式（`format: "json"`），便于日志收集
+- **生产环境（文件）**：使用 Default 格式，日志轮转和压缩
+
 ### 字段传递规范
 
 使用键值对方式传递字段：
@@ -253,3 +333,23 @@ logger.Info("用户登录", "user_id", 123, "has_password", true)
 | `LogLevel.Int()` | 返回日志级别的整数值 |
 | `LogLevel.MarshalText()` | 序列化为文本 |
 | `LogLevel.UnmarshalText(data)` | 从文本反序列化 |
+
+### 配置参数
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `driver` | string | `"zap"` | 驱动类型：zap、default、none |
+| `zap_config.console_enabled` | bool | `true` | 是否启用控制台日志 |
+| `zap_config.console_config.level` | string | `"info"` | 控制台日志级别 |
+| `zap_config.console_config.format` | string | `"gin"` | 控制台日志格式：gin、json、default |
+| `zap_config.console_config.color` | bool | `true` | 是否启用颜色输出 |
+| `zap_config.console_config.time_format` | string | `"2006-01-02 15:04:05.000"` | 时间格式 |
+| `zap_config.file_enabled` | bool | `false` | 是否启用文件日志 |
+| `zap_config.file_config.level` | string | `"debug"` | 文件日志级别 |
+| `zap_config.file_config.path` | string | `"./logs/app.log"` | 日志文件路径 |
+| `zap_config.file_config.rotation.max_size` | int | `100` | 单个文件最大大小（MB） |
+| `zap_config.file_config.rotation.max_age` | int | `30` | 日志文件保留天数 |
+| `zap_config.file_config.rotation.max_backups` | int | `10` | 保留的旧日志文件数量 |
+| `zap_config.file_config.rotation.compress` | bool | `true` | 是否压缩旧日志文件 |
+| `zap_config.telemetry_enabled` | bool | `false` | 是否启用 OpenTelemetry 集成 |
+| `zap_config.telemetry_config.level` | string | `"info"` | 观测日志级别 |

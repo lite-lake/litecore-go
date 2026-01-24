@@ -143,11 +143,15 @@ type authMiddleware struct {
 
 ```go
 type MiddlewareConfig struct {
-    Name  *string  // 中间件名称（可选）
-    Order *int     // 执行顺序（可选）
+    Name  *string  // 中间件名称（可选，默认为 "XxxMiddleware"）
+    Order *int     // 执行顺序（可选，默认为预定义常量）
     // ... 其他配置字段
 }
 ```
+
+**注意**：
+- 所有中间件配置的 `Order` 字段均为 `*int` 指针类型
+- 除 `TelemetryConfig` 的 `Name` 字段为 `string` 类型外，其他中间件配置的 `Name` 字段均为 `*string` 指针类型
 
 #### 5.2 创建中间件的方式
 
@@ -188,6 +192,31 @@ cfg := &litemiddleware.RateLimiterConfig{
 rateLimiter := litemiddleware.NewRateLimiterMiddleware(cfg)
 ```
 
+#### 5.3 RateLimiter 高级配置
+
+RateLimiter 支持自定义 KeyFunc 和 SkipFunc，用于灵活的限流策略：
+
+```go
+name := "LoginRateLimiter"
+order := 200
+limit := 5
+window := time.Minute
+keyPrefix := "login"
+cfg := &litemiddleware.RateLimiterConfig{
+    Name:      &name,
+    Order:     &order,
+    Limit:     &limit,
+    Window:    &window,
+    KeyPrefix: &keyPrefix,
+    KeyFunc: func(c *gin.Context) string {
+        return c.ClientIP()
+    },
+    SkipFunc: func(c *gin.Context) bool {
+        return c.Request.URL.Path != "/api/login"
+    },
+}
+```
+
 ### 6. Order 分配规范
 
 #### 6.1 预定义 Order 范围
@@ -195,16 +224,17 @@ rateLimiter := litemiddleware.NewRateLimiterMiddleware(cfg)
 所有预定义的 Order 常量位于 `component/litemiddleware/constants.go`：
 
 ```go
-// 系统中间件（0-300）
-OrderRecovery        = 0   // panic 恢复（最先执行）
-OrderRequestLogger   = 50  // 请求日志
-OrderCORS            = 100 // CORS 跨域
-OrderSecurityHeaders = 150 // 安全头
-OrderRateLimiter     = 200 // 限流（认证前执行）
-OrderTelemetry       = 250 // 遥测
-OrderAuth            = 300 // 认证
+const (
+    OrderRecovery        = 0   // panic 恢复中间件（最先执行）
+    OrderRequestLogger   = 50  // 请求日志中间件
+    OrderCORS            = 100 // CORS 跨域中间件
+    OrderSecurityHeaders = 150 // 安全头中间件
+    OrderRateLimiter     = 200 // 限流中间件（认证前执行）
+    OrderTelemetry       = 250 // 遥测中间件
+    OrderAuth            = 300 // 认证中间件
 
-// 预留空间用于业务中间件：350, 400, 450...
+    // 预留空间用于业务中间件：350, 400, 450...
+)
 ```
 
 #### 6.2 Order 选择原则
@@ -581,7 +611,98 @@ func NewRequestLoggerMiddleware() IRequestLoggerMiddleware {
 }
 ```
 
-### 示例 5：中间件容器注册
+### 示例 5：自定义 Recovery 中间件配置
+
+```go
+package middlewares
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    litemiddleware "github.com/lite-lake/litecore-go/component/litemiddleware"
+)
+
+// IRecoveryMiddleware panic 恢复中间件接口
+type IRecoveryMiddleware interface {
+    common.IBaseMiddleware
+}
+
+// NewRecoveryMiddleware 创建 panic 恢复中间件
+func NewRecoveryMiddleware() IRecoveryMiddleware {
+    printStack := false
+    customErrorBody := true
+    errorMessage := "服务暂时不可用，请稍后重试"
+    errorCode := "SERVICE_UNAVAILABLE"
+    cfg := &litemiddleware.RecoveryConfig{
+        PrintStack:      &printStack,
+        CustomErrorBody: &customErrorBody,
+        ErrorMessage:    &errorMessage,
+        ErrorCode:       &errorCode,
+    }
+    return litemiddleware.NewRecoveryMiddleware(cfg)
+}
+```
+
+### 示例 6：自定义 SecurityHeaders 中间件配置
+
+```go
+package middlewares
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    litemiddleware "github.com/lite-lake/litecore-go/component/litemiddleware"
+)
+
+// ISecurityHeadersMiddleware 安全头中间件接口
+type ISecurityHeadersMiddleware interface {
+    common.IBaseMiddleware
+}
+
+// NewSecurityHeadersMiddleware 创建安全头中间件
+func NewSecurityHeadersMiddleware() ISecurityHeadersMiddleware {
+    frameOptions := "SAMEORIGIN"
+    contentTypeOptions := "nosniff"
+    xssProtection := "1; mode=block"
+    referrerPolicy := "no-referrer"
+    csp := "default-src 'self'"
+    cfg := &litemiddleware.SecurityHeadersConfig{
+        FrameOptions:            &frameOptions,
+        ContentTypeOptions:      &contentTypeOptions,
+        XSSProtection:           &xssProtection,
+        ReferrerPolicy:          &referrerPolicy,
+        ContentSecurityPolicy:   &csp,
+    }
+    return litemiddleware.NewSecurityHeadersMiddleware(cfg)
+}
+```
+
+### 示例 7：自定义 Telemetry 中间件配置
+
+```go
+package middlewares
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    litemiddleware "github.com/lite-lake/litecore-go/component/litemiddleware"
+)
+
+// ITelemetryMiddleware 遥测中间件接口
+type ITelemetryMiddleware interface {
+    common.IBaseMiddleware
+}
+
+// NewTelemetryMiddleware 创建遥测中间件
+// 注意：TelemetryConfig 的 Name 字段为 string 类型（非指针）
+func NewTelemetryMiddleware() ITelemetryMiddleware {
+    order := 250
+    cfg := &litemiddleware.TelemetryConfig{
+        Name:  "CustomTelemetryMiddleware",
+        Order: &order,
+    }
+    return litemiddleware.NewTelemetryMiddleware(cfg)
+}
+```
+
+### 示例 8：中间件容器注册
 
 中间件容器由代码生成器自动生成，位于 `internal/application/middleware_container.go`：
 
@@ -594,7 +715,7 @@ import (
     middlewares "github.com/lite-lake/litecore-go/samples/messageboard/internal/middlewares"
 )
 
-// InitMiddlewareContainer 初始化中间件容器
+// InitMiddlewareContainer Initialize middleware container
 func InitMiddlewareContainer(serviceContainer *container.ServiceContainer) *container.MiddlewareContainer {
     middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
     container.RegisterMiddleware[middlewares.IAuthMiddleware](middlewareContainer, middlewares.NewAuthMiddleware())
@@ -604,6 +725,7 @@ func InitMiddlewareContainer(serviceContainer *container.ServiceContainer) *cont
     container.RegisterMiddleware[middlewares.IRequestLoggerMiddleware](middlewareContainer, middlewares.NewRequestLoggerMiddleware())
     container.RegisterMiddleware[middlewares.ISecurityHeadersMiddleware](middlewareContainer, middlewares.NewSecurityHeadersMiddleware())
     container.RegisterMiddleware[middlewares.ITelemetryMiddleware](middlewareContainer, middlewares.NewTelemetryMiddleware())
+
     return middlewareContainer
 }
 ```

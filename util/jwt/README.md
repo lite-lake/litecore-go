@@ -4,12 +4,12 @@ JWT（JSON Web Token）令牌生成、解析和验证工具库，支持多种签
 
 ## 特性
 
-- **多种签名算法支持**：支持 HMAC（HS256/HS384/HS512）、RSA（RS256/RS384/RS512）和 ECDSA（ES256/ES384/ES512）签名算法
-- **灵活的 Claims 结构**：提供标准 Claims（`StandardClaims`）和映射 Claims（`MapClaims`）两种数据结构
-- **完善的验证机制**：支持令牌过期时间、生效时间、签发者、主题、受众等字段验证
-- **便捷的辅助方法**：提供设置过期时间、签发时间、签发者等便捷方法
-- **无外部依赖**：纯 Go 标准库实现，轻量且高效
-- **性能优化**：使用 sync.Pool 复用对象，减少内存分配
+- **多算法支持** - 支持 HMAC（HS256/HS384/HS512）、RSA（RS256/RS384/RS512）和 ECDSA（ES256/ES384/ES512）签名算法
+- **灵活的 Claims** - 提供标准 `StandardClaims` 和映射 `MapClaims` 两种数据结构，支持自定义字段
+- **完善的验证机制** - 支持过期时间、生效时间、签发者、主题、受众等字段的验证
+- **便捷的辅助方法** - 提供设置过期时间、签发时间、签发者等便捷操作方法
+- **无外部依赖** - 纯 Go 标准库实现，轻量且高效
+- **性能优化** - 使用 sync.Pool 复用对象，减少内存分配
 
 ## 快速开始
 
@@ -74,25 +74,29 @@ token, err := jwt.JWT.GenerateHS256Token(claims, secretKey)
 parsedClaims, err := jwt.JWT.ParseHS256Token(token, secretKey)
 ```
 
+### HS384
+
+```go
+secretKey := []byte("your-384-bit-secret")
+
+token, err := jwt.JWT.GenerateHS384Token(claims, secretKey)
+parsedClaims, err := jwt.JWT.ParseHS384Token(token, secretKey)
+```
+
 ### HS512
 
 ```go
 secretKey := []byte("your-512-bit-secret")
 
-// 生成 Token
-claims := jwt.JWT.NewMapClaims()
-jwt.JWT.AddCustomClaim(claims, "user_id", 12345)
-jwt.JWT.SetExpiration(claims, 24*time.Hour)
-
 token, err := jwt.JWT.GenerateHS512Token(claims, secretKey)
-
-// 解析 Token
 parsedClaims, err := jwt.JWT.ParseHS512Token(token, secretKey)
 ```
 
 ## RSA 算法
 
 RSA 算法使用非对称密钥，私钥用于签名，公钥用于验证，适用于分布式系统。
+
+### RS256
 
 ```go
 import (
@@ -118,9 +122,17 @@ token, err := jwt.JWT.GenerateRS256Token(claims, privateKey)
 parsedClaims, err := jwt.JWT.ParseRS256Token(token, publicKey)
 ```
 
+### RS384 / RS512
+
+使用方式与 RS256 完全相同，只需调用对应的生成和解析方法：
+- `GenerateRS384Token` / `ParseRS384Token`
+- `GenerateRS512Token` / `ParseRS512Token`
+
 ## ECDSA 算法
 
 ECDSA 算法使用椭圆曲线加密，签名更短，性能更好。
+
+### ES256
 
 ```go
 import (
@@ -146,6 +158,12 @@ token, err := jwt.JWT.GenerateES256Token(claims, privateKey)
 // 解析 Token
 parsedClaims, err := jwt.JWT.ParseES256Token(token, publicKey)
 ```
+
+### ES384 / ES512
+
+使用方式与 ES256 完全相同，只需调用对应的生成和解析方法：
+- `GenerateES384Token` / `ParseES384Token`（使用 P-384 曲线）
+- `GenerateES512Token` / `ParseES512Token`（使用 P-521 曲线）
 
 ## Claims 验证
 
@@ -247,16 +265,21 @@ func (c *CustomClaims) SetCustomClaims(claims map[string]interface{}) {
 }
 ```
 
-## API 参考
+## API
 
 ### Token 生成
 
 | 方法 | 算法 | 参数 | 返回 |
 |------|------|------|------|
 | `GenerateHS256Token` | HMAC SHA-256 | `claims ILiteUtilJWTClaims`, `secretKey []byte` | `(string, error)` |
+| `GenerateHS384Token` | HMAC SHA-384 | `claims ILiteUtilJWTClaims`, `secretKey []byte` | `(string, error)` |
 | `GenerateHS512Token` | HMAC SHA-512 | `claims ILiteUtilJWTClaims`, `secretKey []byte` | `(string, error)` |
 | `GenerateRS256Token` | RSA SHA-256 | `claims ILiteUtilJWTClaims`, `privateKey *rsa.PrivateKey` | `(string, error)` |
+| `GenerateRS384Token` | RSA SHA-384 | `claims ILiteUtilJWTClaims`, `privateKey *rsa.PrivateKey` | `(string, error)` |
+| `GenerateRS512Token` | RSA SHA-512 | `claims ILiteUtilJWTClaims`, `privateKey *rsa.PrivateKey` | `(string, error)` |
 | `GenerateES256Token` | ECDSA P-256 | `claims ILiteUtilJWTClaims`, `privateKey *ecdsa.PrivateKey` | `(string, error)` |
+| `GenerateES384Token` | ECDSA P-384 | `claims ILiteUtilJWTClaims`, `privateKey *ecdsa.PrivateKey` | `(string, error)` |
+| `GenerateES512Token` | ECDSA P-521 | `claims ILiteUtilJWTClaims`, `privateKey *ecdsa.PrivateKey` | `(string, error)` |
 | `GenerateToken` | 通用 | `claims`, `algorithm`, `secretKey`, `rsaPrivateKey`, `ecdsaPrivateKey` | `(string, error)` |
 
 ### Token 解析
@@ -264,9 +287,14 @@ func (c *CustomClaims) SetCustomClaims(claims map[string]interface{}) {
 | 方法 | 算法 | 参数 | 返回 |
 |------|------|------|------|
 | `ParseHS256Token` | HMAC SHA-256 | `token string`, `secretKey []byte` | `(MapClaims, error)` |
+| `ParseHS384Token` | HMAC SHA-384 | `token string`, `secretKey []byte` | `(MapClaims, error)` |
 | `ParseHS512Token` | HMAC SHA-512 | `token string`, `secretKey []byte` | `(MapClaims, error)` |
 | `ParseRS256Token` | RSA SHA-256 | `token string`, `publicKey *rsa.PublicKey` | `(MapClaims, error)` |
+| `ParseRS384Token` | RSA SHA-384 | `token string`, `publicKey *rsa.PublicKey` | `(MapClaims, error)` |
+| `ParseRS512Token` | RSA SHA-512 | `token string`, `publicKey *rsa.PublicKey` | `(MapClaims, error)` |
 | `ParseES256Token` | ECDSA P-256 | `token string`, `publicKey *ecdsa.PublicKey` | `(MapClaims, error)` |
+| `ParseES384Token` | ECDSA P-384 | `token string`, `publicKey *ecdsa.PublicKey` | `(MapClaims, error)` |
+| `ParseES512Token` | ECDSA P-521 | `token string`, `publicKey *ecdsa.PublicKey` | `(MapClaims, error)` |
 | `ParseToken` | 通用 | `token`, `algorithm`, `secretKey`, `rsaPublicKey`, `ecdsaPublicKey` | `(MapClaims, error)` |
 
 ### Claims 验证

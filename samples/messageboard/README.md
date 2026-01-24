@@ -4,7 +4,9 @@
 
 ## 项目特性
 
-- ✅ 清晰的 5 层分层架构（Entity → Repository → Service → Controller → Middleware）
+- ✅ 完整的 5 层分层架构（Entity → Repository → Service → Controller → Middleware）
+- ✅ 事件驱动监听器（Listener）- 异步处理业务事件
+- ✅ 定时任务调度器（Scheduler）- 周期性执行后台任务
 - ✅ 内置组件自动初始化（Config、Database、Cache、Logger、Telemetry、Limiter、Lock、MQ）
 - ✅ 声明式依赖注入容器（通过 `inject:""` 标签自动注入）
 - ✅ 留言审核机制（待审核/已通过/已拒绝）
@@ -24,6 +26,8 @@
 - **数据库**: SQLite
 - **缓存**: Ristretto (高性能内存缓存)
 - **日志**: Zap (Gin 格式)
+- **消息队列**: Memory / RabbitMQ
+- **定时任务**: Cron
 - **前端**: Bootstrap 5 + jQuery 3
 - **密码加密**: bcrypt
 
@@ -85,13 +89,48 @@ samples/messageboard/
 │   │   ├── service_container.go
 │   │   ├── controller_container.go
 │   │   ├── middleware_container.go
+│   │   ├── listener_container.go
+│   │   ├── scheduler_container.go
 │   │   └── engine.go
 │   ├── controllers/            # 控制器层（处理 HTTP 请求）
-│   ├── middlewares/            # 中间件层（封装框架中间件）
+│   │   ├── admin_auth_controller.go      # 管理员认证
+│   │   ├── msg_all_controller.go         # 获取所有留言
+│   │   ├── msg_create_controller.go      # 创建留言
+│   │   ├── msg_delete_controller.go      # 删除留言
+│   │   ├── msg_list_controller.go        # 获取已审核留言
+│   │   ├── msg_status_controller.go      # 更新留言状态
+│   │   ├── page_admin_controller.go       # 管理页面
+│   │   ├── page_home_controller.go       # 首页
+│   │   ├── res_static_controller.go      # 静态资源
+│   │   ├── sys_health_controller.go      # 健康检查
+│   │   └── sys_metrics_controller.go     # 系统指标
 │   ├── dtos/                   # 数据传输对象
+│   │   ├── message_dto.go
+│   │   ├── response_dto.go
+│   │   └── session_dto.go
 │   ├── entities/               # 实体层（数据模型）
+│   │   └── message_entity.go
+│   ├── listeners/              # 监听器层（事件处理）
+│   │   ├── message_audit_listener.go      # 留言审核监听器
+│   │   └── message_created_listener.go   # 留言创建监听器
+│   ├── middlewares/            # 中间件层（封装框架中间件）
+│   │   ├── auth_middleware.go              # 认证中间件
+│   │   ├── cors_middleware.go              # CORS 中间件
+│   │   ├── rate_limiter_middleware.go     # 限流中间件
+│   │   ├── recovery_middleware.go         # 恢复中间件
+│   │   ├── request_logger_middleware.go    # 请求日志中间件
+│   │   ├── security_headers_middleware.go # 安全头中间件
+│   │   └── telemetry_middleware.go        # 遥测中间件
 │   ├── repositories/           # 仓储层（数据访问）
+│   │   └── message_repository.go
+│   ├── schedulers/             # 调度器层（定时任务）
+│   │   ├── cleanup_scheduler.go           # 清理调度器
+│   │   └── statistics_scheduler.go        # 统计调度器
 │   └── services/               # 服务层（业务逻辑）
+│       ├── auth_service.go
+│       ├── html_template_service.go
+│       ├── message_service.go
+│       └── session_service.go
 ├── static/                     # 静态资源
 │   ├── css/
 │   └── js/
@@ -102,29 +141,37 @@ samples/messageboard/
 
 ## 核心架构
 
-### 5 层分层架构
+### 7 层扩展架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Middlewares（中间件层）                     │
 │    Recovery → Logger → CORS → Security → RateLimit → Auth    │
 └─────────────────────────────────────────────────────────────┘
-                              ↓
+                               ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                  Controllers（控制器层）                      │
 │           接收 HTTP 请求，参数验证，调用 Service               │
 └─────────────────────────────────────────────────────────────┘
-                              ↓
+                               ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                   Services（服务层）                          │
 │              实现业务逻辑，协调多个 Repository                 │
+│              发送事件到 MQ，调用 Scheduler                    │
 └─────────────────────────────────────────────────────────────┘
-                              ↓
+                               ↓
+┌───────────────────────────────┬───────────────────────────────┐
+│               Listeners        │          Schedulers         │
+│          （监听器层）          │        （调度器层）          │
+│     监听 MQ 消息，异步处理     │    定时执行后台任务          │
+│     业务事件                  │    （统计、清理等）         │
+└───────────────────────────────┴───────────────────────────────┘
+                               ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                Repositories（仓储层）                         │
 │              数据访问层，封装数据库操作（GORM）                 │
 └─────────────────────────────────────────────────────────────┘
-                              ↓
+                               ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                   Entities（实体层）                          │
 │                  数据模型定义，实现 BaseEntity 接口             │
@@ -146,6 +193,16 @@ type MessageService struct {
     Config     configmgr.IConfigManager        `inject:""`  // 配置管理器
     Repository repositories.IMessageRepository `inject:""`  // 留言仓储
     LoggerMgr  loggermgr.ILoggerManager        `inject:""`  // 日志管理器
+    MQManager  mqmgr.IMQManager                `inject:""`  // 消息队列管理器
+}
+
+type MessageCreatedListener struct {
+    LoggerMgr  loggermgr.ILoggerManager `inject:""`  // 日志管理器
+}
+
+type StatisticsScheduler struct {
+    MessageService services.IMessageService `inject:""`  // 留言服务
+    LoggerMgr      loggermgr.ILoggerManager `inject:""`  // 日志管理器
 }
 ```
 
@@ -177,6 +234,248 @@ type MessageService struct {
 | RateLimiterMiddleware | 200 | 限流中间件（基于 IP，每分钟 100 次） |
 | TelemetryMiddleware | 250 | 遥测中间件 |
 | AuthMiddleware | 300 | 认证中间件（自定义，保护 /api/admin 路径） |
+
+## 监听器（Listener）
+
+监听器用于异步处理业务事件，实现事件驱动架构。
+
+### 监听器接口
+
+所有监听器需要实现 `common.IBaseListener` 接口：
+
+```go
+type IBaseListener interface {
+    ListenerName() string                     // 监听器名称
+    GetQueue() string                          // 监听的队列名称
+    GetSubscribeOptions() []ISubscribeOption  // 订阅配置选项
+    OnStart() error                            // 启动回调
+    OnStop() error                             // 停止回调
+    Handle(ctx context.Context, msg IMessageListener) error  // 处理消息
+}
+```
+
+### 监听器实现示例
+
+**留言创建监听器** (`internal/listeners/message_created_listener.go`)：
+
+```go
+type messageCreatedListenerImpl struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""` // 日志管理器
+}
+
+func NewMessageCreatedListener() IMessageCreatedListener {
+    return &messageCreatedListenerImpl{}
+}
+
+func (l *messageCreatedListenerImpl) ListenerName() string {
+    return "MessageCreatedListener"
+}
+
+func (l *messageCreatedListenerImpl) GetQueue() string {
+    return "message.created"  // 监听的队列名称
+}
+
+func (l *messageCreatedListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error {
+    if l.LoggerMgr != nil {
+        l.LoggerMgr.Ins().Info("Received message created event",
+            "message_id", msg.ID(),
+            "body", string(msg.Body()),
+            "headers", msg.Headers())
+    }
+    return nil
+}
+```
+
+**留言审核监听器** (`internal/listeners/message_audit_listener.go`)：
+
+```go
+type messageAuditListenerImpl struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""` // 日志管理器
+}
+
+func NewMessageAuditListener() IMessageAuditListener {
+    return &messageAuditListenerImpl{}
+}
+
+func (l *messageAuditListenerImpl) GetQueue() string {
+    return "message.audit"  // 监听的队列名称
+}
+```
+
+### 发送消息
+
+在 Service 中通过 `MQManager` 发送消息到指定队列：
+
+```go
+type MessageService struct {
+    MQManager  mqmgr.IMQManager `inject:""`  // 消息队列管理器
+}
+
+func (s *MessageService) CreateMessage(dto *MessageDTO) error {
+    // ... 创建留言逻辑 ...
+
+    // 发送消息到队列
+    if s.MQManager != nil {
+        messageBody, _ := json.Marshal(map[string]interface{}{
+            "id":       message.ID,
+            "nickname": message.Nickname,
+            "content":  message.Content,
+        })
+        s.MQManager.Publish(&mqmgr.Message{
+            Queue: "message.created",
+            Body:  messageBody,
+        })
+    }
+
+    return nil
+}
+```
+
+### 监听器容器注册
+
+监听器通过 CLI 工具自动注册到 `listener_container.go`：
+
+```go
+func InitListenerContainer(serviceContainer *container.ServiceContainer) *container.ListenerContainer {
+    listenerContainer := container.NewListenerContainer(serviceContainer)
+    container.RegisterListener[listeners.IMessageAuditListener](listenerContainer, listeners.NewMessageAuditListener())
+    container.RegisterListener[listeners.IMessageCreatedListener](listenerContainer, listeners.NewMessageCreatedListener())
+    return listenerContainer
+}
+```
+
+## 调度器（Scheduler）
+
+调度器用于执行定时任务，如数据统计、清理等后台任务。
+
+### 调度器接口
+
+所有调度器需要实现 `common.IBaseScheduler` 接口：
+
+```go
+type IBaseScheduler interface {
+    SchedulerName() string        // 调度器名称
+    GetRule() string             // Cron 表达式
+    GetTimezone() string         // 时区
+    OnTick(tickID int64) error   // 定时任务执行回调
+    OnStart() error              // 启动回调
+    OnStop() error               // 停止回调
+}
+```
+
+### 调度器实现示例
+
+**统计调度器** (`internal/schedulers/statistics_scheduler.go`)：
+
+```go
+type statisticsSchedulerImpl struct {
+    MessageService services.IMessageService `inject:""` // 留言服务
+    LoggerMgr      loggermgr.ILoggerManager `inject:""` // 日志管理器
+}
+
+func NewStatisticsScheduler() IStatisticsScheduler {
+    return &statisticsSchedulerImpl{}
+}
+
+func (s *statisticsSchedulerImpl) SchedulerName() string {
+    return "statisticsScheduler"
+}
+
+func (s *statisticsSchedulerImpl) GetRule() string {
+    return "0 0 * * * *"  // 每小时执行一次
+}
+
+func (s *statisticsSchedulerImpl) GetTimezone() string {
+    return "Asia/Shanghai"
+}
+
+func (s *statisticsSchedulerImpl) OnTick(tickID int64) error {
+    s.initLogger()
+    s.logger.Info("Starting statistics task", "tick_id", tickID)
+
+    stats, err := s.MessageService.GetStatistics()
+    if err != nil {
+        s.logger.Error("Failed to get statistics", "error", err)
+        return err
+    }
+
+    s.logger.Info("Statistics task completed",
+        "tick_id", tickID,
+        "pending", stats["pending"],
+        "approved", stats["approved"],
+        "rejected", stats["rejected"],
+        "total", stats["total"])
+    return nil
+}
+```
+
+**清理调度器** (`internal/schedulers/cleanup_scheduler.go`)：
+
+```go
+type cleanupSchedulerImpl struct {
+    MessageService services.IMessageService `inject:""` // 留言服务
+    LoggerMgr      loggermgr.ILoggerManager `inject:""` // 日志管理器
+}
+
+func NewCleanupScheduler() ICleanupScheduler {
+    return &cleanupSchedulerImpl{}
+}
+
+func (s *cleanupSchedulerImpl) GetRule() string {
+    return "0 0 2 * * *"  // 每天凌晨 2 点执行
+}
+
+func (s *cleanupSchedulerImpl) OnTick(tickID int64) error {
+    s.initLogger()
+    s.logger.Info("Starting cleanup task", "tick_id", tickID)
+
+    // 执行清理逻辑
+    stats, err := s.MessageService.GetStatistics()
+    if err != nil {
+        s.logger.Error("Failed to get statistics", "error", err)
+        return err
+    }
+
+    s.logger.Info("Mock cleanup task completed", "tick_id", tickID, "total_count", stats["total"])
+    return nil
+}
+```
+
+### Cron 表达式
+
+项目使用标准 Cron 表达式格式：`秒 分 时 日 月 周`
+
+| 表达式 | 说明 |
+|--------|------|
+| `0 * * * * *` | 每分钟执行 |
+| `0 0 * * * *` | 每小时执行 |
+| `0 0 2 * * *` | 每天凌晨 2 点执行 |
+| `0 0 0 * * 1` | 每周一凌晨执行 |
+| `0 0 0 1 * *` | 每月 1 号凌晨执行 |
+
+### 调度器容器注册
+
+调度器通过 CLI 工具自动注册到 `scheduler_container.go`：
+
+```go
+func InitSchedulerContainer(serviceContainer *container.ServiceContainer) *container.SchedulerContainer {
+    schedulerContainer := container.NewSchedulerContainer(serviceContainer)
+    container.RegisterScheduler[schedulers.ICleanupScheduler](schedulerContainer, schedulers.NewCleanupScheduler())
+    container.RegisterScheduler[schedulers.IStatisticsScheduler](schedulerContainer, schedulers.NewStatisticsScheduler())
+    return schedulerContainer
+}
+```
+
+### 调度器配置
+
+在 `configs/config.yaml` 中配置调度器：
+
+```yaml
+scheduler:
+  driver: "cron"               # 驱动类型：cron
+  cron_config:
+    validate_on_startup: true # 启动时是否检查所有 Scheduler 配置
+```
 
 ## 功能模块
 
@@ -321,6 +620,7 @@ server:
 ```yaml
 database:
   driver: "sqlite"                        # 驱动类型：mysql, postgresql, sqlite, none
+  auto_migrate: true                      # 是否自动迁移数据库表结构
   sqlite_config:
     dsn: "./data/messageboard.db"         # SQLite 数据库文件路径
     pool_config:
@@ -416,10 +716,27 @@ mq:
     channel_buffer: 100                   # 通道缓冲区大小
 ```
 
+**切换到 RabbitMQ**：
+```yaml
+mq:
+  driver: "rabbitmq"
+  rabbitmq_config:
+    url: "amqp://guest:guest@localhost:5672/"
+    durable: true                         # 是否持久化队列
+```
+
 ### 遥测配置
 ```yaml
 telemetry:
   driver: "none"                          # 驱动类型：none, otel
+```
+
+### 定时任务配置
+```yaml
+scheduler:
+  driver: "cron"                          # 驱动类型：cron
+  cron_config:
+    validate_on_startup: true             # 启动时是否检查所有 Scheduler 配置
 ```
 
 ## 开发指南
@@ -441,7 +758,94 @@ go run ./cmd/generate
 2. **添加仓储**: 在 `internal/repositories/` 创建仓储类
 3. **添加服务**: 在 `internal/services/` 创建服务类
 4. **添加控制器**: 在 `internal/controllers/` 创建控制器类
-5. **生成容器**: 运行 `go run ./cmd/generate` 重新生成容器代码
+5. **添加监听器**: 在 `internal/listeners/` 创建监听器类
+6. **添加调度器**: 在 `internal/schedulers/` 创建调度器类
+7. **生成容器**: 运行 `go run ./cmd/generate` 重新生成容器代码
+
+### 添加新监听器
+
+1. 在 `internal/listeners/` 创建监听器文件：
+
+```go
+package listeners
+
+import (
+    "context"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IMyListener interface {
+    common.IBaseListener
+}
+
+type myListenerImpl struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+}
+
+func NewMyListener() IMyListener {
+    return &myListenerImpl{}
+}
+
+func (l *myListenerImpl) ListenerName() string {
+    return "MyListener"
+}
+
+func (l *myListenerImpl) GetQueue() string {
+    return "my.queue"
+}
+
+func (l *myListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error {
+    // 处理消息
+    return nil
+}
+```
+
+2. 运行 `go run ./cmd/generate` 重新生成容器代码
+
+### 添加新调度器
+
+1. 在 `internal/schedulers/` 创建调度器文件：
+
+```go
+package schedulers
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IMyScheduler interface {
+    common.IBaseScheduler
+}
+
+type mySchedulerImpl struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+}
+
+func NewMyScheduler() IMyScheduler {
+    return &mySchedulerImpl{}
+}
+
+func (s *mySchedulerImpl) SchedulerName() string {
+    return "myScheduler"
+}
+
+func (s *mySchedulerImpl) GetRule() string {
+    return "0 0 * * * *"  // 每小时执行
+}
+
+func (s *mySchedulerImpl) GetTimezone() string {
+    return "Asia/Shanghai"
+}
+
+func (s *mySchedulerImpl) OnTick(tickID int64) error {
+    // 执行定时任务
+    return nil
+}
+```
+
+2. 运行 `go run ./cmd/generate` 重新生成容器代码
 
 ### 依赖注入
 
@@ -458,6 +862,7 @@ type MessageService struct {
     Config     configmgr.IConfigManager        `inject:""`  // 配置管理器
     Repository repositories.IMessageRepository `inject:""`  // 留言仓储（应用组件，自动注入）
     LoggerMgr  loggermgr.ILoggerManager        `inject:""`  // 日志管理器
+    MQManager  mqmgr.IMQManager                `inject:""`  // 消息队列管理器
 }
 ```
 
@@ -588,6 +993,15 @@ database:
     dsn: "root:password@tcp(localhost:3306)/messageboard?charset=utf8mb4&parseTime=True&loc=Local"
 ```
 
+**切换消息队列驱动**：
+```yaml
+mq:
+  driver: "rabbitmq"  # 从 "memory" 切换到 "rabbitmq"
+  rabbitmq_config:
+    url: "amqp://guest:guest@localhost:5672/"
+    durable: true
+```
+
 框架会自动根据配置创建对应的驱动实现，无需修改代码。
 
 ## 安全性
@@ -663,6 +1077,8 @@ go run cmd/generate/main.go
 - `internal/application/service_container.go`
 - `internal/application/controller_container.go`
 - `internal/application/middleware_container.go`
+- `internal/application/listener_container.go`
+- `internal/application/scheduler_container.go`
 - `internal/application/engine.go`
 
 ## 测试
