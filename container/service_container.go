@@ -108,8 +108,8 @@ func (s *ServiceContainer) buildDependencyGraph() (map[reflect.Type][]reflect.Ty
 		typ := val.Type()
 		for i := 0; i < val.NumField(); i++ {
 			field := typ.Field(i)
-			tagValue, ok := field.Tag.Lookup("inject")
-			if !ok || tagValue == "optional" {
+			_, ok := field.Tag.Lookup("inject")
+			if !ok {
 				continue
 			}
 

@@ -102,13 +102,7 @@ type MessageService struct {
 
 ### 可选依赖
 
-使用 `inject:"optional"` 标记可选依赖，注入失败不会报错：
-
-```go
-type MessageService struct {
-    CacheManager cachemgr.ICacheManager `inject:"optional"`
-}
-```
+项目为了保证简洁，不允许可选依赖。标记了`inject:""`但没有被注入依赖的，必须报错。
 
 ## 容器 API
 
