@@ -56,7 +56,7 @@ func TestRun(t *testing.T) {
 		err := Run(cfg)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "get project absolute path failed")
+		assert.Contains(t, err.Error(), "获取项目绝对路径失败")
 	})
 
 	t.Run("输出路径无效", func(t *testing.T) {
@@ -72,7 +72,7 @@ func TestRun(t *testing.T) {
 		err := Run(cfg)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "get output directory absolute path failed")
+		assert.Contains(t, err.Error(), "获取输出目录绝对路径失败")
 	})
 
 	t.Run("没有go.mod文件", func(t *testing.T) {
@@ -87,7 +87,7 @@ func TestRun(t *testing.T) {
 		err := Run(cfg)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "find module name failed")
+		assert.Contains(t, err.Error(), "查找模块名失败")
 	})
 }
 
