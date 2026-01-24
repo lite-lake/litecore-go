@@ -7,8 +7,9 @@
 - **多驱动支持** - 支持 Memory（内存）和 RabbitMQ 两种消息队列实现
 - **统一接口** - 提供一致的 API，方便在不同实现间切换
 - **消息确认机制** - 支持 Ack/Nack 机制，可配置是否重新入队
-- **观察性集成** - 内置日志、链路追踪和指标监控
-- **可配置性** - 支持队列大小、通道缓冲区等参数配置
+- **可观测性集成** - 内置日志、链路追踪和指标监控
+- **选项模式** - 使用选项模式灵活配置发布和订阅行为
+- **依赖注入** - 支持通过 DI 注入 LoggerManager 和 TelemetryManager
 
 ## 快速开始
 
@@ -225,13 +226,55 @@ err := manager.Purge(ctx, "my_queue")
 ### MQConfig
 
 ```yaml
-driver: "rabbitmq"  # "memory" 或 "rabbitmq"
-rabbitmq_config:
-  url: "amqp://guest:guest@localhost:5672/"
-  durable: true
-memory_config:
-  max_queue_size: 10000
-  channel_buffer: 100
+mq:
+  driver: "rabbitmq"  # "memory" 或 "rabbitmq"
+  rabbitmq_config:
+    url: "amqp://guest:guest@localhost:5672/"
+    durable: true
+  memory_config:
+    max_queue_size: 10000
+    channel_buffer: 100
+```
+
+### RabbitMQConfig
+
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|--------|
+| `URL` | string | 连接地址 | `amqp://guest:guest@localhost:5672/` |
+| `Durable` | bool | 是否持久化 | `true` |
+
+### MemoryConfig
+
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|--------|
+| `MaxQueueSize` | int | 最大队列大小 | `10000` |
+| `ChannelBuffer` | int | 通道缓冲区大小 | `100` |
+
+## 可观测性
+
+mqmgr 内置了完整的可观测性支持，包括：
+
+- **日志记录**: 自动记录操作成功/失败信息，包含操作类型、队列名、耗时等
+- **链路追踪**: 使用 OpenTelemetry 追踪消息队列操作，便于问题排查
+- **指标监控**: 提供以下指标：
+  - `mq.publish`: 消息发布次数
+  - `mq.consume`: 消息消费次数
+  - `mq.ack`: 消息确认次数
+  - `mq.nack`: 消息拒绝次数
+  - `mq.operation.duration`: 操作耗时（秒）
+
+### 依赖注入
+
+mqmgr 通过依赖注入接收 LoggerManager 和 TelemetryManager：
+
+```go
+type MyService struct {
+    MQManager mqmgr.IMQManager `inject:""`
+}
+
+func (s *MyService) init() {
+    // 注入的 MQManager 会自动初始化可观测性组件
+}
 ```
 
 ## 驱动对比
@@ -263,3 +306,17 @@ if err != nil {
 3. **合理设置队列大小** - 根据业务需求设置 `MaxQueueSize` 避免内存溢出
 4. **处理错误** - 在回调函数中处理错误，决定是否重新入队
 5. **及时关闭** - 使用 `defer manager.Close()` 确保资源释放
+6. **并发安全** - 两个驱动都支持并发操作，但请注意内存队列的 `MaxQueueSize` 限制
+
+## 测试
+
+```bash
+# 运行所有测试
+go test ./manager/mqmgr/...
+
+# 运行内存队列测试
+go test ./manager/mqmgr/ -run TestMemoryManager
+
+# 运行 RabbitMQ 测试（需要启动 RabbitMQ）
+go test ./manager/mqmgr/ -run TestRabbitMQManager
+```

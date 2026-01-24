@@ -110,23 +110,23 @@ LiteCore 提供了一系列实用的工具包，帮助开发者处理常见的�
 ┌─────────────────────────────────────────────────────────┐
 │                    HTTP Request                         │
 └─────────────────────────┬───────────────────────────────┘
-                           │
-                           ▼
+                            │
+                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Middleware 层（中间件）                                │
 │  - Recovery - CORS - Auth - Logger - Telemetry        │
 │  - RateLimiter - SecurityHeaders                       │
 └─────────────────────────┬───────────────────────────────┘
-                           │
-                           ▼
+                            │
+                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Controller 层（控制器）                                │
 │  - 请求参数验证                                          │
 │  - 调用 Service                                          │
 │  - 响应封装                                              │
 └─────────────────────────┬───────────────────────────────┘
-                           │
-                           ▼
+                            │
+                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Service 层（服务）                                      │
 │  - 业务逻辑                                              │
@@ -134,8 +134,8 @@ LiteCore 提供了一系列实用的工具包，帮助开发者处理常见的�
 │  - 事务管理                                              │
 │  - 缓存、锁、限流、消息队列                              │
 └─────────────────────────┬───────────────────────────────┘
-                           │
-                           ▼
+                            │
+                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Repository 层（仓储）                                    │
 │  - 数据访问                                              │
@@ -148,18 +148,18 @@ LiteCore 提供了一系列实用的工具包，帮助开发者处理常见的�
 │  - 数据模型定义          │    │  - ConfigManager     │
 │  - 表结构定义            │    │  - DatabaseManager   │
 └─────────────────────────┘    │  - CacheManager      │
-                               │  - LoggerManager     │
-                               │  - LockManager       │
-                               │  - LimiterManager    │
-                               │  - MQManager         │
-                               │  - TelemetryManager  │
-                               └──────────────────────┘
-                                         ↑ 依赖
-                               ┌──────────────────────┐
-                               │  Config    (独立包)  │
-                               │  - 配置文件加载       │
-                               │  - 配置项访问         │
-                               └──────────────────────┘
+                                │  - LoggerManager     │
+                                │  - LockManager       │
+                                │  - LimiterManager    │
+                                │  - MQManager         │
+                                │  - TelemetryManager  │
+                                └──────────────────────┘
+                                          ↑ 依赖
+                                ┌──────────────────────┐
+                                │  Config    (独立包)  │
+                                │  - 配置文件加载       │
+                                │  - 配置项访问         │
+                                └──────────────────────┘
 ```
 
 ### 3.2 依赖规则
@@ -250,7 +250,7 @@ go get github.com/lite-lake/litecore-go@latest
 
 # 创建项目结构
 mkdir -p cmd/server cmd/generate configs data
-mkdir -p internal/{application,entities,repositories,services,controllers,middlewares,dtos,infras/{configproviders,managers}}
+mkdir -p internal/{entities,repositories,services,controllers,middlewares,dtos}
 
 # 创建配置文件
 touch configs/config.yaml
@@ -680,8 +680,10 @@ Service 层实现业务逻辑，负责数据验证、事务管理、业务规则
 package services
 
 import (
+    "context"
     "errors"
     "fmt"
+    "time"
 
     "github.com/lite-lake/litecore-go/common"
     "github.com/lite-lake/litecore-go/manager/cachemgr"
@@ -1545,6 +1547,7 @@ package services
 
 import (
     "context"
+    "fmt"
     "time"
 
     "github.com/lite-lake/litecore-go/manager/configmgr"
@@ -1647,38 +1650,7 @@ package services
 
 import (
     "context"
-
-    "github.com/lite-lake/litecore-go/manager/mqmgr"
-)
-
-type OrderService struct {
-    MQMgr mqmgr.IMQManager `inject:""`
-}
-
-// CreateOrder 创建订单并发送消息
-func (s *OrderService) CreateOrder(ctx context.Context, order *Order) error {
-    // 创建订单逻辑
-    if err := s.createOrderInternal(ctx, order); err != nil {
-        return err
-    }
-
-    // 发布消息到队列
-    message, _ := json.Marshal(order)
-    if err := s.MQMgr.Publish(ctx, "order.created", message); err != nil {
-        return err
-    }
-
-    return nil
-}
-```
-
-**订阅消息**
-
-```go
-package services
-
-import (
-    "context"
+    "encoding/json"
 
     "github.com/lite-lake/litecore-go/manager/mqmgr"
 )
@@ -1687,68 +1659,103 @@ type NotificationService struct {
     MQMgr mqmgr.IMQManager `inject:""`
 }
 
-// StartSubscriber 启动消息订阅
-func (s *NotificationService) StartSubscriber(ctx context.Context) error {
-    // 使用回调函数订阅
-    handler := func(ctx context.Context, msg mqmgr.Message) error {
-        // 处理消息
-        var order Order
-        if err := json.Unmarshal(msg.Body(), &order); err != nil {
-            return err
-        }
-
-        // 发送通知
-        return s.sendNotification(ctx, order)
+// SendNotification 发送通知消息
+func (s *NotificationService) SendNotification(ctx context.Context, userID string, message string) error {
+    notification := map[string]interface{}{
+        "user_id": userID,
+        "message": message,
+        "timestamp": time.Now().Unix(),
     }
 
-    return s.MQMgr.SubscribeWithCallback(ctx, "order.created", handler)
+    data, err := json.Marshal(notification)
+    if err != nil {
+        return err
+    }
+
+    return s.MQMgr.Publish(ctx, "notifications", data)
+}
+```
+
+**订阅消息**
+
+```go
+// 在 Service 的 OnStart 方法中启动消费者
+func (s *NotificationService) OnStart() error {
+    ctx := context.Background()
+    return s.MQMgr.SubscribeWithCallback(ctx, "notifications", s.handleNotification)
+}
+
+func (s *NotificationService) handleNotification(ctx context.Context, msg mqmgr.Message) error {
+    var notification map[string]interface{}
+    if err := json.Unmarshal(msg.Body(), &notification); err != nil {
+        return err
+    }
+
+    // 处理通知
+    fmt.Printf("Received notification: %+v\n", notification)
+
+    // 确认消息已处理
+    return s.MQMgr.Ack(ctx, msg)
 }
 ```
 
 #### 6.5.3 使用场景
 
-- **异步处理**：耗时操作异步执行，提高响应速度
-- **系统解耦**：微服务间通过消息队列通信
-- **削峰填谷**：缓冲突发流量，保护后端系统
-- **事件驱动**：基于事件的系统架构
+- **异步任务**：邮件发送、短信发送等耗时操作
+- **事件驱动**：用户注册、订单创建等事件处理
+- **系统解耦**：模块间通过消息队列解耦
+- **流量削峰**：高并发场景下的缓冲处理
 
 ### 6.6 可用的内置 Manager
 
-| Manager | 功能 | 包路径 | 支持驱动 |
-|---------|------|--------|----------|
-| `ConfigManager` | 配置管理 | manager/configmgr | YAML, JSON |
-| `TelemetryManager` | 遥测管理 | manager/telemetrymgr | OpenTelemetry, None |
-| `LoggerManager` | 日志管理 | manager/loggermgr | Zap, Default, None |
-| `DatabaseManager` | 数据库管理 | manager/databasemgr | MySQL, PostgreSQL, SQLite, None |
-| `CacheManager` | 缓存管理 | manager/cachemgr | Redis, Memory(Ristretto), None |
-| `LockManager` | 锁管理 | manager/lockmgr | Redis, Memory, None |
-| `LimiterManager` | 限流管理 | manager/limitermgr | Redis, Memory, None |
-| `MQManager` | 消息队列管理 | manager/mqmgr | RabbitMQ, Memory, None |
+| Manager | 接口 | 功能 | 驱动 |
+|---------|------|------|------|
+| ConfigManager | IConfigManager | 配置管理 | YAML/JSON |
+| LoggerManager | ILoggerManager | 日志管理 | Zap/Default |
+| DatabaseManager | IDatabaseManager | 数据库管理 | MySQL/PostgreSQL/SQLite |
+| CacheManager | ICacheManager | 缓存管理 | Redis/Memory |
+| LockManager | ILockManager | 锁管理 | Redis/Memory |
+| LimiterManager | ILimiterManager | 限流管理 | Redis/Memory |
+| MQManager | IMQManager | 消息队列管理 | RabbitMQ/Memory |
+| TelemetryManager | ITelemetryManager | 遥测管理 | OpenTelemetry |
 
 ### 6.7 使用内置组件
 
-在任何层中，都可以通过 `inject:""` 标签自动注入 Manager：
+所有内置 Manager 都通过依赖注入自动注入到你的组件中，无需手动创建：
 
 ```go
-type UserServiceImpl struct {
-    // 内置组件（由引擎自动注入）
-    Config     configmgr.IConfigManager     `inject:""`
-    DBManager  databasemgr.IDatabaseManager `inject:""`
-    CacheMgr   cachemgr.ICacheManager      `inject:""`
-    LockMgr    lockmgr.ILockManager        `inject:""`
-    LimiterMgr limitermgr.ILimiterManager  `inject:""`
-    MQMgr      mqmgr.IMQManager           `inject:""`
-
-    // 业务依赖
-    UserRepo  IUserRepository             `inject:""`
+type userService struct {
+    Config    configmgr.IConfigManager    `inject:""`
+    Logger    loggermgr.ILoggerManager   `inject:""`
+    Database  databasemgr.IDatabaseManager `inject:""`
+    Cache     cachemgr.ICacheManager      `inject:""`
+    Lock      lockmgr.ILockManager       `inject:""`
+    Limiter   limitermgr.ILimiterManager `inject:""`
+    MQ        mqmgr.IMQManager           `inject:""`
+    Telemetry telemetrymgr.ITelemetryManager `inject:""`
 }
 ```
 
 ### 6.8 日志配置（Gin 格式）
 
-LoggerManager 支持多种日志格式，包括 Gin 风格、JSON 格式和默认格式。
+LiteCore 支持 Gin 风格、JSON 和 Default 三种日志格式。
 
-#### 6.8.1 配置格式
+#### 日志格式类型
+
+| 格式 | 说明 | 适用场景 |
+|------|------|----------|
+| `gin` | Gin 风格，竖线分隔符，彩色输出 | 控制台输出，开发环境 |
+| `json` | JSON 格式，结构化日志 | 日志收集系统，生产环境 |
+| `default` | Zap 默认 ConsoleEncoder 格式 | 默认日志格式 |
+
+#### Gin 格式特点
+
+- 统一格式：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
+- 时间固定宽度 23 字符：`2006-01-24 15:04:05.000`
+- 级别固定宽度 5 字符，右对齐，带颜色
+- 字段格式：`key=value`，字符串值用引号包裹
+
+#### 配置示例
 
 ```yaml
 logger:
@@ -1756,275 +1763,284 @@ logger:
   zap_config:
     console_enabled: true
     console_config:
-      level: "info"                         # 日志级别：debug, info, warn, error, fatal
-      format: "gin"                         # 格式：gin | json | default
-      color: true                           # 是否启用颜色
-      time_format: "2006-01-24 15:04:05.000"  # 时间格式
+      level: "info"               # 日志级别：debug, info, warn, error, fatal
+      format: "gin"                # 格式：gin | json | default
+      color: true                  # 是否启用颜色
+      time_format: "2006-01-24 15:04:05.000"
 ```
 
-#### 6.8.2 格式说明
+#### 颜色配置
 
-**Gin 格式（推荐）**：
-- 统一格式：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
-- 时间固定宽度 23 字符
-- 级别固定宽度 5 字符，右对齐，带颜色
-- 适合控制台输出
+- **color**: 控制是否启用彩色输出（默认 true，由终端自动检测）
+- 支持在配置文件中手动关闭颜色：`color: false`
 
-**示例输出**：
+#### 日志级别颜色
+
+| 级别 | ANSI 颜色 | 说明 |
+|------|-----------|------|
+| DEBUG | 灰色 | 开发调试信息 |
+| INFO | 绿色 | 正常业务流程 |
+| WARN | 黄色 | 降级处理、慢查询 |
+| ERROR | 红色 | 业务错误、操作失败 |
+| FATAL | 红色+粗体 | 致命错误 |
+
+#### HTTP 状态码颜色
+
+| 状态码范围 | 颜色 | 说明 |
+|-----------|------|------|
+| 2xx | 绿色 | 成功 |
+| 3xx | 黄色 | 重定向 |
+| 4xx | 橙色 | 客户端错误 |
+| 5xx | 红色 | 服务器错误 |
+
+#### 日志格式示例
+
 ```
+# Gin 格式输出示例
 2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23
 2026-01-24 15:04:05.456 | WARN  | 慢查询检测 | duration=1.2s
 2026-01-24 15:04:05.789 | ERROR | 数据库连接失败 | error="connection refused"
+
+# 请求日志（Gin 格式）
+2026-01-24 15:04:05.123 | 200   | 1.234ms | 127.0.0.1 | GET | /api/messages
+2026-01-24 15:04:05.456 | 404   | 0.456ms | 192.168.1.1 | POST | /api/unknown
 ```
-
-**JSON 格式**：
-- 标准化 JSON 格式
-- 适合日志分析和监控
-
-**Default 格式**：
-- Zap 默认 ConsoleEncoder 格式
-- 简洁但不统一
-
-#### 6.8.3 颜色配置
-
-| 配置 | 说明 |
-|------|------|
-| `color: true` | 启用彩色输出（默认，由终端自动检测） |
-| `color: false` | 关闭彩色输出 |
-
-**日志级别颜色**：
-- DEBUG: 灰色
-- INFO: 绿色
-- WARN: 黄色
-- ERROR: 红色
-- FATAL: 红色+粗体
 
 ### 6.9 启动日志
 
-框架支持启动日志功能，可以配置是否启用、是否异步等。
+框架提供详细的启动日志，记录应用启动过程中的各个阶段和耗时。
+
+#### 启动日志配置
 
 ```yaml
 server:
   startup_log:
-    enabled: true               # 是否启用启动日志
-    async: true                 # 是否异步日志
-    buffer: 100                 # 日志缓冲区大小
+    enabled: true      # 是否启用启动日志
+    async: true        # 是否异步日志（提高性能）
+    buffer: 100        # 日志缓冲区大小
 ```
 
-启动日志会记录框架初始化的各个阶段，包括：
-- 配置文件加载
-- 管理器初始化
-- 依赖注入
-- 路由注册
-- 服务启动等
+#### 启动阶段
+
+框架将启动过程分为以下几个阶段：
+
+| 阶段 | 说明 |
+|------|------|
+| PhaseConfig | 配置加载阶段 |
+| PhaseManagers | 管理器初始化阶段 |
+| PhaseInjection | 依赖注入阶段 |
+| PhaseRouter | 路由注册阶段 |
+| PhaseStartup | 服务启动阶段 |
+
+#### 启动日志示例
+
+```
+2026-01-24 15:04:05.001 | INFO  | 配置文件: configs/config.yaml
+2026-01-24 15:04:05.002 | INFO  | 配置驱动: yaml
+2026-01-24 15:04:05.003 | INFO  | 初始化完成: ConfigManager
+2026-01-24 15:04:05.010 | INFO  | 初始化完成: TelemetryManager
+2026-01-24 15:04:05.015 | INFO  | 初始化完成: LoggerManager
+2026-01-24 15:04:05.020 | INFO  | 初始化完成: DatabaseManager
+2026-01-24 15:04:05.025 | INFO  | 初始化完成: CacheManager
+2026-01-24 15:04:05.030 | INFO  | 初始化完成: LockManager
+2026-01-24 15:04:05.035 | INFO  | 初始化完成: LimiterManager
+2026-01-24 15:04:05.040 | INFO  | 初始化完成: MQManager
+2026-01-24 15:04:05.041 | INFO  | 管理器初始化完成 | count=8
+2026-01-24 15:04:05.042 | INFO  | 开始依赖注入
+2026-01-24 15:04:05.043 | INFO  | [Repository 层] MessageRepository: 注入完成
+2026-01-24 15:04:05.044 | INFO  | [Service 层] MessageService: 注入完成
+2026-01-24 15:04:05.045 | INFO  | [Controller 层] MsgCreateController: 注入完成
+2026-01-24 15:04:05.046 | INFO  | [Middleware 层] AuthMiddleware: 注入完成
+2026-01-24 15:04:05.047 | INFO  | 依赖注入完成 | count=4
+2026-01-24 15:04:05.048 | INFO  | 开始注册路由
+2026-01-24 15:04:05.049 | INFO  | 注册路由 | method=POST path=/api/messages controller=msgCreateControllerImpl
+2026-01-24 15:04:05.050 | INFO  | 路由注册完成 | route_count=1 controller_count=1
+2026-01-24 15:04:05.051 | INFO  | HTTP server listening | addr=0.0.0.0:8080
+2026-01-24 15:04:05.052 | INFO  | 服务启动完成，开始对外提供服务 | total_duration=51ms
+```
 
 ---
 
 ## 7. 代码生成器使用
 
-LiteCore 提供代码生成器，自动扫描项目中的组件并生成容器代码。
+### 7.1 代码生成器概述
 
-### 6.1 代码生成器配置
+LiteCore 提供了自动代码生成器，可以自动生成依赖注入容器代码和引擎代码，减少重复劳动。
 
-位置：`cmd/generate/main.go`
+### 7.2 代码生成器配置
 
 ```go
 package main
 
 import (
-    "flag"
-    "fmt"
-    "os"
-
     "github.com/lite-lake/litecore-go/cli/generator"
 )
 
 func main() {
     cfg := generator.DefaultConfig()
-
-    // 自定义配置
     cfg.OutputDir = "internal/application"
     cfg.PackageName = "application"
     cfg.ConfigPath = "configs/config.yaml"
 
     if err := generator.Run(cfg); err != nil {
-        fmt.Fprintf(os.Stderr, "错误: %v\n", err)
-        os.Exit(1)
+        panic(err)
     }
 }
 ```
 
-### 6.2 运行代码生成器
+### 7.3 代码生成器选项
 
-```bash
-# 使用默认配置生成
-go run ./cmd/generate
+| 选项 | 默认值 | 说明 |
+|------|--------|------|
+| ProjectPath | "." | 项目路径 |
+| OutputDir | "internal/application" | 输出目录 |
+| PackageName | "application" | 包名 |
+| ConfigPath | "configs/config.yaml" | 配置文件路径 |
 
-# 使用命令行参数生成
-go run ./cmd/generate -o internal/application -pkg application -c configs/config.yaml
-```
+### 7.4 生成的文件
 
-### 6.3 生成时机
-
-需要运行代码生成器的场景：
-
-1. **首次创建项目**：初始化容器代码
-2. **新增 Entity**：添加新的实体后
-3. **新增 Repository**：添加新的仓储后
-4. **新增 Service**：添加新的服务后
-5. **新增 Controller**：添加新的控制器后
-6. **新增 Middleware**：添加新的中间件后
-7. **修改依赖**：修改组件的 `inject` 标签后
-
-### 6.4 生成的文件
-
-代码生成器会自动扫描并生成以下文件：
+代码生成器会自动生成以下文件：
 
 | 文件 | 说明 |
 |------|------|
-| `entity_container.go` | 实体容器 |
-| `repository_container.go` | 仓储容器 |
-| `service_container.go` | 服务容器 |
-| `controller_container.go` | 控制器容器 |
-| `middleware_container.go` | 中间件容器 |
-| `engine.go` | 引擎创建函数 |
+| entity_container.go | 实体容器初始化代码 |
+| repository_container.go | 仓储容器初始化代码 |
+| service_container.go | 服务容器初始化代码 |
+| controller_container.go | 控制器容器初始化代码 |
+| middleware_container.go | 中间件容器初始化代码 |
+| engine.go | 引擎初始化代码 |
 
-**重要**：生成的文件头部标记 `// Code generated by litecore/cli. DO NOT EDIT.`，请勿手动修改。
+**注意**：所有生成的文件头部都有 `// Code generated by litecore/cli. DO NOT EDIT.` 注释，不要手动修改这些文件。
+
+### 7.5 代码生成流程
+
+1. **扫描代码**：扫描 `internal/entities`、`internal/repositories`、`internal/services`、`internal/controllers`、`internal/middlewares` 目录
+2. **解析组件**：解析实现了相应接口的组件
+3. **生成容器**：生成各个容器的初始化代码
+4. **生成引擎**：生成引擎初始化代码
+
+### 7.6 自定义代码生成
+
+你可以通过修改代码生成器的模板来定制生成的代码风格。模板文件位于 `cli/generator/template.go`。
 
 ---
 
 ## 8. 依赖注入机制
 
-LiteCore 提供自动化的依赖注入容器，简化组件管理。
+### 8.1 依赖注入概述
 
-### 8.1 注入语法
+LiteCore 使用标签驱动的依赖注入机制，通过 `inject:""` 标签自动注入依赖。
 
-使用 `inject:""` 标签声明依赖，Manager 由引擎自动注入：
-
-```go
-type userService struct {
-    // 内置组件（引擎自动注入）
-    Config     configmgr.IConfigManager      `inject:""`
-    DBManager  databasemgr.IDatabaseManager  `inject:""`
-    CacheMgr   cachemgr.ICacheManager       `inject:""`
-    LockMgr    lockmgr.ILockManager         `inject:""`
-    LimiterMgr limitermgr.ILimiterManager    `inject:""`
-    MQMgr      mqmgr.IMQManager             `inject:""`
-    LoggerMgr  loggermgr.ILoggerManager     `inject:""`
-
-    // 业务依赖
-    Repository repositories.IUserRepository  `inject:""`
-}
-```
-
-### 8.2 依赖规则
-
-| 层级 | 可注入的依赖 |
-|------|-------------|
-| Repository | Entity, Config, Manager（内置） |
-| Service | Repository, Config, Manager（内置）, Service |
-| Controller | Service, Config, Manager（内置） |
-| Middleware | Service, Config, Manager（内置） |
-
-### 8.3 注入示例
-
-#### Repository 层注入
-
-```go
-type userRepository struct {
-    // 内置组件（引擎自动注入）
-    Config  configmgr.IConfigManager     `inject:""`
-    Manager databasemgr.IDatabaseManager `inject:""`
-
-    // 业务依赖
-}
-```
-
-#### Service 层注入
+### 8.2 依赖注入标签
 
 ```go
 type userService struct {
-    // 内置组件（引擎自动注入）
-    Config     configmgr.IConfigManager      `inject:""`
-    DBManager  databasemgr.IDatabaseManager  `inject:""`
-    CacheMgr   cachemgr.ICacheManager       `inject:""`
-    LockMgr    lockmgr.ILockManager         `inject:""`
-    LimiterMgr limitermgr.ILimiterManager    `inject:""`
-    MQMgr      mqmgr.IMQManager             `inject:""`
-    LoggerMgr  loggermgr.ILoggerManager     `inject:""`
-
-    // 业务依赖
-    Repository   repositories.IUserRepository  `inject:""`
-    OtherService services.IOtherService        `inject:""`
+    Config    configmgr.IConfigManager    `inject:""`
+    Logger    loggermgr.ILoggerManager   `inject:""`
+    Repository repositories.IUserRepository `inject:""`
 }
 ```
 
-#### Controller 层注入
+### 8.3 依赖注入顺序
+
+依赖注入按以下顺序进行：
+
+1. **Manager 注入**：注入内置管理器
+2. **Repository 注入**：注入仓储依赖
+3. **Service 注入**：注入服务依赖
+4. **Controller 注入**：注入控制器依赖
+5. **Middleware 注入**：注入中间件依赖
+
+### 8.4 依赖注入规则
+
+- **标签识别**：只有带有 `inject:""` 标签的字段才会被注入
+- **类型匹配**：依赖项的类型必须与容器中注册的类型匹配
+- **单向依赖**：下层不能依赖上层，同层可以相互依赖
+- **自动注入**：框架会自动识别并注入所有依赖项
+
+### 8.5 依赖注入示例
 
 ```go
+// Service 依赖 Repository
+type userService struct {
+    Repository repositories.IUserRepository `inject:""`
+}
+
+// Controller 依赖 Service
 type userController struct {
-    // 内置组件（引擎自动注入）
-    Config    configmgr.IConfigManager `inject:""`
-
-    // 业务依赖
     UserService services.IUserService `inject:""`
 }
-```
 
-#### Middleware 层注入
-
-```go
+// Middleware 依赖 Service
 type authMiddleware struct {
-    // 内置组件（引擎自动注入）
-    Config    configmgr.IConfigManager `inject:""`
-    LoggerMgr loggermgr.ILoggerManager `inject:""`
-
-    // 业务依赖
     AuthService services.IAuthService `inject:""`
+}
+
+// Service 依赖 Manager
+type cacheService struct {
+    CacheMgr cachemgr.ICacheManager `inject:""`
 }
 ```
 
-### 8.4 注意事项
+### 8.6 依赖注入错误处理
 
-1. **不要跨层注入**：Controller 不能直接注入 Repository
-2. **接口注入**：优先注入接口，而非具体实现
-3. **空标签**：`inject:""` 表示自动注入，无需指定名称
-4. **循环依赖**：LiteCore 不支持循环依赖，需要重构代码
-5. **类型匹配**：依赖类型必须与声明的接口类型匹配
-6. **内置组件**：Manager 由引擎自动初始化和注入，无需手动创建
+如果依赖注入失败，框架会返回详细的错误信息，包括：
+
+- **依赖未注册**：依赖的类型未在容器中注册
+- **循环依赖**：检测到循环依赖关系
+- **类型不匹配**：依赖的类型与注册的类型不匹配
 
 ---
 
 ## 9. 配置管理
 
-LiteCore 提供统一的配置管理功能，支持 YAML 和 JSON 格式。配置管理器位于 `manager/configmgr` 包。
+### 9.1 配置文件格式
 
-### 9.1 配置文件结构
+LiteCore 支持 YAML 和 JSON 两种配置文件格式。
+
+### 9.2 配置加载
+
+框架会在引擎初始化时自动加载配置文件，无需手动加载。
+
+### 9.3 配置访问
+
+通过依赖注入的 `ConfigManager` 访问配置：
+
+```go
+type userService struct {
+    Config configmgr.IConfigManager `inject:""`
+}
+
+func (s *userService) GetConfig() {
+    // 获取配置值
+    appName := s.Config.GetString("app.name")
+    appVersion := s.Config.GetString("app.version")
+}
+```
+
+### 9.4 配置结构
 
 ```yaml
-# 应用配置
 app:
   name: "myapp"
   version: "1.0.0"
 
-# 服务器配置
 server:
   host: "0.0.0.0"
   port: 8080
-  mode: "debug"                 # debug, release, test
+  mode: "debug"
   read_timeout: "10s"
   write_timeout: "10s"
   idle_timeout: "60s"
   enable_recovery: true
   shutdown_timeout: "30s"
-  startup_log:                  # 启动日志配置
-    enabled: true               # 是否启用启动日志
-    async: true                 # 是否异步日志
-    buffer: 100                 # 日志缓冲区大小
+  startup_log:
+    enabled: true
+    async: true
+    buffer: 100
 
-# 数据库配置
 database:
-  driver: "sqlite"              # mysql, postgresql, sqlite, none
+  driver: "sqlite"
   sqlite_config:
     dsn: "./data/myapp.db"
     pool_config:
@@ -2034,667 +2050,345 @@ database:
     slow_query_threshold: "1s"
     log_sql: false
 
-# 缓存配置（基于 Ristretto）
 cache:
-  driver: "memory"              # redis, memory, none
-  redis_config:
-    host: "localhost"
-    port: 6379
-    password: ""
-    db: 1
-    max_idle_conns: 10
-    max_open_conns: 100
-    conn_max_lifetime: "30s"
+  driver: "memory"
   memory_config:
-    max_size: 100               # 最大缓存大小（MB）
-    max_age: "720h"             # 最大缓存时间
-    max_backups: 1000           # 最大备份项数
-    compress: false             # 是否压缩
+    max_size: 100
+    max_age: "720h"
+    max_backups: 1000
+    compress: false
 
-# 锁管理配置
 lock:
-  driver: "memory"              # redis, memory, none
-  redis_config:
-    host: "localhost"
-    port: 6379
-    password: ""
-    db: 2
-    max_idle_conns: 10
-    max_open_conns: 100
-    conn_max_lifetime: "30s"
+  driver: "memory"
   memory_config:
-    max_backups: 1000           # 最大备份项数
+    max_backups: 1000
 
-# 限流管理配置
 limiter:
-  driver: "memory"              # redis, memory, none
-  redis_config:
-    host: "localhost"
-    port: 6379
-    password: ""
-    db: 3
-    max_idle_conns: 10
-    max_open_conns: 100
-    conn_max_lifetime: "30s"
+  driver: "memory"
   memory_config:
-    max_backups: 1000           # 最大备份项数
+    max_backups: 1000
 
-# 消息队列配置
 mq:
-  driver: "memory"              # rabbitmq, memory, none
-  rabbitmq_config:
-    url: "amqp://guest:guest@localhost:5672/"
+  driver: "memory"
   memory_config:
-    max_queue_size: 10000       # 最大队列大小
-    channel_buffer: 100         # 通道缓冲区大小
+    max_queue_size: 10000
+    channel_buffer: 100
 
-# 日志配置
 logger:
-  driver: "zap"                 # zap, default, none
+  driver: "zap"
   zap_config:
-    telemetry_enabled: false    # 是否启用观测日志
+    telemetry_enabled: false
     telemetry_config:
-      level: "info"             # 日志级别
-    console_enabled: true       # 是否启用控制台日志
+      level: "info"
+    console_enabled: true
     console_config:
-      level: "info"             # 日志级别
-      format: "gin"             # 格式：gin | json | default
-      color: true               # 是否启用颜色
-      time_format: "2006-01-24 15:04:05.000"  # 时间格式
-    file_enabled: false         # 是否启用文件日志
+      level: "info"
+      format: "gin"
+      color: true
+      time_format: "2006-01-24 15:04:05.000"
+    file_enabled: false
     file_config:
-      level: "info"             # 日志级别
+      level: "info"
       path: "./logs/myapp.log"
       rotation:
-        max_size: 100           # 单个日志文件最大大小（MB）
-        max_age: 30             # 日志文件保留天数
-        max_backups: 10         # 保留的旧日志文件最大数量
-        compress: true          # 是否压缩旧日志文件
+        max_size: 100
+        max_age: 30
+        max_backups: 10
+        compress: true
 
-# 遥测配置
 telemetry:
-  driver: "none"                # none, otel
-  otel_config:
-    endpoint: "localhost:4317" # OTLP端点地址
-    insecure: false             # 是否使用不安全连接
-```
-
-### 9.2 使用配置
-
-```go
-import "github.com/lite-lake/litecore-go/manager/configmgr"
-
-// 获取配置值
-appName, _ := configProvider.Get("app.name")
-port, _ := configProvider.Get("server.port")
-enabled, _ := configProvider.Get("logger.console_enabled")
-
-// 检查配置是否存在
-if configProvider.Has("database.mysql_config.dsn") {
-    // 处理配置
-}
-```
-
-### 9.3 配置项路径
-
-使用点分隔的路径访问嵌套配置：
-
-```yaml
-database:
-  driver: "mysql"
-  mysql_config:
-    dsn: "root:pass@tcp(localhost:3306)/db"
-    pool_config:
-      max_open_conns: 100
-```
-
-访问方式：
-```go
-configProvider.Get("database.driver")
-configProvider.Get("database.mysql_config.dsn")
-configProvider.Get("database.mysql_config.pool_config.max_open_conns")
+  driver: "none"
 ```
 
 ---
 
 ## 10. 实用工具（util 包）
 
-LiteCore 提供了一系列实用工具包，帮助开发者处理常见的开发任务。
-
-### 9.1 JWT 工具（util/jwt）
-
-JWT 令牌生成、解析和验证。
+### 10.1 JWT 工具
 
 ```go
-import (
-    "time"
-    "github.com/lite-lake/litecore-go/util/jwt"
-)
+import "github.com/lite-lake/litecore-go/util/jwt"
 
-// 生成 JWT Token
-secretKey := []byte("your-secret-key")
-claims := jwt.MapClaims{
-    "user_id": float64(12345),
-    "exp":     float64(time.Now().Add(24 * time.Hour).Unix()),
-    "iat":     float64(time.Now().Unix()),
-}
+// 生成 JWT token
+token, err := jwt.GenerateHS256Token(claims, "your-secret-key")
 
-token, err := jwt.JWT.GenerateHS256Token(claims, secretKey)
+// 解析 JWT token
+claims, err := jwt.ParseHS256Token(token, "your-secret-key")
 
-// 解析 JWT Token
-parsedClaims, err := jwt.JWT.ParseHS256Token(token, secretKey)
-
-// 验证 Claims
-err = jwt.JWT.ValidateClaims(parsedClaims)
+// 验证 JWT token
+valid, err := jwt.ValidateHS256Token(token, "your-secret-key")
 ```
 
-### 9.2 哈希工具（util/hash）
-
-常见哈希算法。
+### 10.2 哈希工具
 
 ```go
 import "github.com/lite-lake/litecore-go/util/hash"
 
-// MD5
-md5Hash := hash.Hash.MD5String("hello")
+// MD5 哈希
+hash := hash.MD5("your-data")
 
-// SHA256
-sha256Hash := hash.Hash.SHA256String("hello")
+// SHA1 哈希
+hash := hash.SHA1("your-data")
+
+// SHA256 哈希
+hash := hash.SHA256("your-data")
 ```
 
-### 9.3 加密工具（util/crypt）
-
-密码加密、AES 加密。
+### 10.3 加密工具
 
 ```go
 import "github.com/lite-lake/litecore-go/util/crypt"
 
 // 密码加密
-hashedPassword, err := crypt.BcryptHash("password123")
+hashedPassword, err := crypt.HashPassword("your-password")
 
-// 密码验证
-err = crypt.BcryptVerify("password123", hashedPassword)
+// 验证密码
+valid, err := crypt.VerifyPassword("your-password", hashedPassword)
 
 // AES 加密
-encrypted, err := crypt.AESEncrypt("plaintext", "key")
+encrypted, err := crypt.AESGCMEncrypt(key, plaintext)
 
 // AES 解密
-decrypted, err := crypt.AESDecrypt(encrypted, "key")
+decrypted, err := crypt.AESGCMDecrypt(key, encrypted)
 ```
 
-### 9.4 ID 生成工具（util/id）
-
-唯一 ID 生成。
+### 10.4 ID 生成工具
 
 ```go
 import "github.com/lite-lake/litecore-go/util/id"
 
-// 雪花算法 ID
-snowflakeID := id.Snowflake.Generate()
+// 生成雪花算法 ID
+snowflakeID := id.NewSnowflakeID()
 
-// UUID
-uuid := id.UUID.Generate()
+// 生成 UUID
+uuid := id.NewUUID()
+```
+
+### 10.5 字符串工具
+
+```go
+import "github.com/lite-lake/litecore-go/util/stringutil"
+
+// 生成随机字符串
+randomStr := stringutil.RandomString(16)
+
+// 驼峰转下划线
+snakeStr := stringutil.CamelToSnake("MyString")
+
+// 下划线转驼峰
+camelStr := stringutil.SnakeToCamel("my_string")
 ```
 
 ---
 
 ## 11. 最佳实践
 
-### 11.1 目录组织
+### 11.1 项目组织
 
-```
-internal/
-├── application/         # 自动生成，不要手动修改
-├── entities/           # 纯数据实体，无业务逻辑
-├── repositories/       # 数据访问层，仅 CRUD
-├── services/           # 业务逻辑层，验证、事务、业务规则
-├── controllers/        # HTTP 层，仅请求响应处理
-└── middlewares/        # 中间件，横切关注点
-```
-
-框架管理器和中间件已独立为框架包，无需业务系统手动封装：
-- `manager/` - 管理器组件（configmgr, databasemgr, cachemgr, loggermgr, lockmgr, limitermgr, mqmgr, telemetrymgr）
-- `component/` - 内置组件（litecontroller, litemiddleware, liteservice）
+- **分层清晰**：严格按照 5 层架构组织代码
+- **职责明确**：每层只负责自己的职责，不越界
+- **依赖单向**：上层依赖下层，下层不依赖上层
 
 ### 11.2 错误处理
 
-```go
-// 在 Service 层包装错误
-return nil, fmt.Errorf("failed to create user: %w", err)
+- **错误包装**：使用 `fmt.Errorf()` 包装错误，保留原始错误信息
+- **日志记录**：关键错误必须记录日志
+- **用户友好**：向用户返回友好的错误信息
 
-// 在 Controller 层返回 HTTP 响应
-ctx.JSON(500, gin.H{"error": err.Error()})
+```go
+func (s *userService) CreateUser(name, email string) error {
+    if err := s.Repository.Create(user); err != nil {
+        s.logger.Error("创建用户失败", "error", err, "email", email)
+        return fmt.Errorf("创建用户失败: %w", err)
+    }
+    return nil
+}
 ```
 
 ### 11.3 日志记录
 
-在业务层组件中通过依赖注入使用日志：
+- **结构化日志**：使用结构化日志，便于查询和分析
+- **日志级别**：合理使用不同的日志级别
+- **敏感信息**：不要记录敏感信息（密码、token等）
 
 ```go
-import (
-    "github.com/lite-lake/litecore-go/manager/loggermgr"
-    "github.com/lite-lake/litecore-go/logger"
-)
-
-type MyService struct {
-    LoggerMgr loggermgr.ILoggerManager `inject:""`
-    logger     logger.ILogger
-}
-
-func (s *MyService) initLogger() {
-    if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
-}
-
-func (s *MyService) SomeMethod(userID string) {
-    s.initLogger()
-    s.logger.Info("操作开始", "user_id", userID)
-}
-
-// 注意：main函数中不要使用logger，直接使用fmt和os处理错误即可
-// 因为LoggerMgr需要通过引擎初始化后才能使用
+s.logger.Info("用户注册成功", "user_id", user.ID, "email", email)
+s.logger.Warn("登录失败", "email", email, "reason", "invalid_password")
+s.logger.Error("数据库连接失败", "error", err)
 ```
 
-### 11.4 数据库事务
+### 11.4 性能优化
 
-```go
-// 使用 Transaction 方法自动处理提交和回滚
-db := r.Manager.DB()
-err := db.Transaction(func(tx *gorm.DB) error {
-    if err := tx.Create(user).Error; err != nil {
-        return err
-    }
-    return nil
-})
-```
+- **使用缓存**：热点数据使用缓存
+- **批量操作**：尽量使用批量操作减少数据库访问
+- **异步处理**：耗时操作使用异步处理（消息队列）
 
-### 11.5 缓存使用
+### 11.5 安全实践
 
-```go
-// 在 Service 层使用缓存（基于 Ristretto）
-ctx := context.Background()
-cacheKey := fmt.Sprintf("user:%d", id)
+- **输入验证**：所有用户输入都必须验证
+- **SQL 注入**：使用参数化查询，防止 SQL 注入
+- **XSS 防护**：对用户输出进行转义，防止 XSS 攻击
+- **认证授权**：严格实施认证和授权机制
 
-var user entities.User
-if err := s.CacheMgr.Get(ctx, cacheKey, &user); err == nil {
-    return &user, nil
-}
+### 11.6 测试实践
 
-// 从数据库查询
-user, err := s.Repository.GetByID(id)
-if err != nil {
-    return nil, err
-}
+- **单元测试**：为每个函数编写单元测试
+- **集成测试**：编写集成测试验证组件协作
+- **覆盖率**：保持测试覆盖率在合理水平
 
-// 写入缓存
-s.CacheMgr.Set(ctx, cacheKey, user, time.Hour)
-```
+### 11.7 代码风格
 
-### 11.6 分布式锁使用
-
-```go
-// 在 Service 层使用分布式锁
-func (s *OrderService) ProcessOrder(ctx context.Context, orderID string) error {
-    lockKey := fmt.Sprintf("order:%s", orderID)
-
-    // 尝试获取锁
-    acquired, err := s.LockMgr.TryLock(ctx, lockKey, 30*time.Second)
-    if err != nil {
-        return err
-    }
-    if !acquired {
-        return errors.New("订单正在处理中")
-    }
-    defer s.LockMgr.Unlock(ctx, lockKey)
-
-    // 处理订单
-    return s.processOrderInternal(ctx, orderID)
-}
-```
-
-### 11.7 限流使用
-
-```go
-// 在 Service 层使用限流
-func (s *SMSService) SendSMS(ctx context.Context, phone string) error {
-    limitKey := fmt.Sprintf("sms:%s", phone)
-
-    // 检查是否允许发送
-    allowed, err := s.LimiterMgr.Allow(ctx, limitKey, 5, time.Minute)
-    if err != nil {
-        return err
-    }
-
-    if !allowed {
-        return errors.New("发送频率过高，请稍后重试")
-    }
-
-    // 发送短信
-    return s.sendSMSInternal(ctx, phone)
-}
-```
-
-### 11.8 消息队列使用
-
-```go
-// 在 Service 层使用消息队列
-func (s *OrderService) CreateOrder(ctx context.Context, order *Order) error {
-    // 创建订单
-    if err := s.createOrderInternal(ctx, order); err != nil {
-        return err
-    }
-
-    // 发布消息
-    message, _ := json.Marshal(order)
-    return s.MQMgr.Publish(ctx, "order.created", message)
-}
-```
-
-### 11.9 中间件配置
-
-使用内置中间件时，支持灵活的配置：
-
-```go
-package middlewares
-
-import "github.com/lite-lake/litecore-go/component/litemiddleware"
-
-// 使用默认配置
-func NewCorsMiddleware() common.IBaseMiddleware {
-    return litemiddleware.NewCorsMiddleware(nil)
-}
-
-// 自定义配置
-func NewProductionCorsMiddleware() common.IBaseMiddleware {
-    allowOrigins := []string{"https://example.com"}
-    return litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
-        AllowOrigins: &allowOrigins,
-    })
-}
-
-// 配置自定义顺序
-func NewCustomOrderMiddleware() common.IBaseMiddleware {
-    order := 350
-    limit := 100
-    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
-        Order: &order,
-        Limit: &limit,
-    })
-}
-```
-
-### 11.10 日志格式配置
-
-推荐在生产环境使用 Gin 格式日志：
-
-```yaml
-logger:
-  driver: "zap"
-  zap_config:
-    console_enabled: true
-    console_config:
-      level: "info"
-      format: "gin"             # 使用 Gin 格式
-      color: false             # 生产环境关闭颜色
-```
-
-开发环境可以启用颜色：
-
-```yaml
-logger:
-  driver: "zap"
-  zap_config:
-    console_enabled: true
-    console_config:
-      level: "debug"
-      format: "gin"             # 使用 Gin 格式
-      color: true              # 开发环境启用颜色
-```
-
-### 11.11 测试建议
-
-```go
-// 单元测试：使用 Mock 依赖
-type mockUserRepository struct {
-    repositories.IUserRepository
-    // mock 方法
-}
-
-// 集成测试：使用 SQLite 内存数据库
-sqlite_config:
-  dsn: ":memory:"
-
-// 限流测试：使用 Memory 驱动
-limiter:
-  driver: "memory"
-
-// 锁测试：使用 Memory 驱动
-lock:
-  driver: "memory"
-```
+- **遵循规范**：遵循 Go 语言官方代码规范
+- **命名清晰**：使用有意义的命名
+- **注释完整**：导出的函数和类型必须添加注释
 
 ---
 
 ## 12. 常见问题
 
-### Q: Manager 包的路径是什么？
+### Q1: 如何切换数据库？
 
-Manager 组件已迁移至 `manager` 目录，作为独立包使用：
-- `manager/configmgr` - 配置管理
-- `manager/databasemgr` - 数据库管理
-- `manager/cachemgr` - 缓存管理（基于 Ristretto）
-- `manager/loggermgr` - 日志管理
-- `manager/lockmgr` - 锁管理
-- `manager/limitermgr` - 限流管理
-- `manager/mqmgr` - 消息队列管理
-- `manager/telemetrymgr` - 遥测管理
+修改配置文件中的 `database.driver` 和对应的配置：
 
-### Q: 如何使用内置中间件？
-
-内置中间件位于 `component/litemiddleware` 包，支持可选配置：
-
-```go
-import "github.com/lite-lake/litecore-go/component/litemiddleware"
-
-// 使用默认配置
-middleware := litemiddleware.NewCorsMiddleware(nil)
-
-// 自定义配置
-allowOrigins := []string{"https://example.com"}
-middleware := litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
-    AllowOrigins: &allowOrigins,
-})
-
-// 自定义执行顺序
-order := 350
-middleware := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
-    Order: &order,
-})
-```
-
-### Q: 如何配置日志格式？
-
-在配置文件中设置 `logger.zap_config.console_config.format`：
-
-```yaml
-logger:
-  driver: "zap"
-  zap_config:
-    console_enabled: true
-    console_config:
-      level: "info"
-      format: "gin"           # gin | json | default
-      color: true             # 是否启用颜色
-```
-
-推荐使用 Gin 格式（`format: "gin"`），输出更友好和统一。
-
-### Q: 如何使用分布式锁？
-
-通过依赖注入使用 LockManager：
-
-```go
-type MyService struct {
-    LockMgr lockmgr.ILockManager `inject:""`
-}
-
-func (s *MyService) Process(ctx context.Context) error {
-    lockKey := "resource:123"
-
-    // 获取锁
-    acquired, err := s.LockMgr.TryLock(ctx, lockKey, 30*time.Second)
-    if err != nil {
-        return err
-    }
-    if !acquired {
-        return errors.New("资源被占用")
-    }
-    defer s.LockMgr.Unlock(ctx, lockKey)
-
-    // 执行业务逻辑
-    return nil
-}
-```
-
-### Q: 如何使用限流功能？
-
-通过依赖注入使用 LimiterManager：
-
-```go
-type MyService struct {
-    LimiterMgr limitermgr.ILimiterManager `inject:""`
-}
-
-func (s *MyService) DoSomething(ctx context.Context, userID string) error {
-    limitKey := fmt.Sprintf("action:%s", userID)
-
-    // 检查是否允许通过
-    allowed, err := s.LimiterMgr.Allow(ctx, limitKey, 100, time.Minute)
-    if err != nil {
-        return err
-    }
-
-    if !allowed {
-        return errors.New("操作过于频繁，请稍后重试")
-    }
-
-    // 执行业务逻辑
-    return nil
-}
-```
-
-### Q: 如何使用消息队列？
-
-通过依赖注入使用 MQManager：
-
-```go
-type OrderService struct {
-    MQMgr mqmgr.IMQManager `inject:""`
-}
-
-// 发布消息
-func (s *OrderService) CreateOrder(ctx context.Context, order *Order) error {
-    // 创建订单
-    if err := s.createOrder(ctx, order); err != nil {
-        return err
-    }
-
-    // 发布消息
-    message, _ := json.Marshal(order)
-    return s.MQMgr.Publish(ctx, "order.created", message)
-}
-
-// 订阅消息
-func (s *NotificationService) Subscribe(ctx context.Context) error {
-    handler := func(ctx context.Context, msg mqmgr.Message) error {
-        var order Order
-        if err := json.Unmarshal(msg.Body(), &order); err != nil {
-            return err
-        }
-        return s.sendNotification(ctx, order)
-    }
-    return s.MQMgr.SubscribeWithCallback(ctx, "order.created", handler)
-}
-```
-
-### Q: 如何自定义路由？
-
-Controller 的 `GetRouter()` 支持完整的路由语法：
-```go
-return "/api/users/:id [GET]"
-return "/api/users [POST]"
-return "/api/files/*filepath [GET]"
-```
-
-### Q: 如何支持多种数据库？
-
-在 `configs/config.yaml` 中切换 `database.driver`，无需修改代码：
 ```yaml
 database:
-  driver: "mysql"  # 或 "postgresql", "sqlite"
+  driver: "mysql"  # 从 sqlite 切换到 mysql
   mysql_config:
-    dsn: "user:pass@tcp(localhost:3306)/dbname"
+    dsn: "user:password@tcp(localhost:3306)/dbname?charset=utf8mb4&parseTime=True&loc=Local"
 ```
 
-### Q: 如何处理循环依赖？
+### Q2: 如何启用 Redis？
 
-LiteCore 的依赖注入不支持循环依赖。解决方法：
-- 重构代码，消除循环依赖
-- 使用事件驱动架构
-- 将共享逻辑提取到独立的服务
-
-### Q: 如何热重载开发？
-
-```bash
-# 安装 air
-go install github.com/cosmtrek/air@latest
-
-# 初始化配置
-air init
-
-# 运行
-air
-```
-
-### Q: 缓存驱动从 go-cache 改为了什么？
-
-缓存驱动从 go-cache 改为了 Ristretto，性能更高。配置和使用方式不变：
+修改配置文件中的 `cache.driver` 和 `lock.driver`：
 
 ```yaml
 cache:
-  driver: "memory"
-  memory_config:
-    max_size: 100               # 最大缓存大小（MB）
-    max_age: "720h"             # 最大缓存时间
-    max_backups: 1000           # 最大备份项数
-    compress: false             # 是否压缩
+  driver: "redis"  # 从 memory 切换到 redis
+  redis_config:
+    host: "localhost"
+    port: 6379
 ```
+
+### Q3: 如何自定义日志格式？
+
+修改配置文件中的 `logger.zap_config.console_config.format`：
+
+```yaml
+logger:
+  zap_config:
+    console_config:
+      format: "json"  # 从 gin 切换到 json
+```
+
+### Q4: 如何添加新的 Manager？
+
+1. 在 `manager/` 目录下创建新的包
+2. 实现 `common.IBaseManager` 接口
+3. 实现 `BuildWithConfigProvider()` 函数
+4. 在 `server/builtin.go` 中注册
+
+### Q5: 如何调试依赖注入问题？
+
+框架会在启动时输出详细的依赖注入日志，包括：
+
+- 每个组件的注入状态
+- 依赖关系的解析过程
+- 错误信息的详细描述
 
 ---
 
 ## 附录
 
-### A. 完整示例项目
+### A. HTTP 状态码
 
-参考 `samples/messageboard` 目录下的留言板示例项目，了解完整的项目结构和代码实现。
+| 状态码 | 名称 | 常量 |
+|--------|------|------|
+| 200 | OK | `HTTPStatusOK` |
+| 201 | Created | `HTTPStatusCreated` |
+| 204 | No Content | `HTTPStatusNoContent` |
+| 400 | Bad Request | `HTTPStatusBadRequest` |
+| 401 | Unauthorized | `HTTPStatusUnauthorized` |
+| 403 | Forbidden | `HTTPStatusForbidden` |
+| 404 | Not Found | `HTTPStatusNotFound` |
+| 429 | Too Many Requests | `HTTPStatusTooManyRequests` |
+| 500 | Internal Server Error | `HTTPStatusInternalServerError` |
+| 502 | Bad Gateway | `HTTPStatusBadGateway` |
+| 503 | Service Unavailable | `HTTPStatusServiceUnavailable` |
 
-### B. 相关文档
+### B. 日志级别
 
-- [SOP - 快速实现业务服务](./SOP-build-business-application.md)
-- [SOP - 功能包文档撰写](./SOP-package-document.md)
-- [Common - 公共基础接口](../common/README.md)
-- [Manager - 管理器组件](../manager/README.md)
-- [Config Manager - 配置管理器](../manager/configmgr/README.md)
-- [Database Manager - 数据库管理器](../manager/databasemgr/README.md)
-- [Cache Manager - 缓存管理器](../manager/cachemgr/README.md)
-- [Logger Manager - 日志管理器](../manager/loggermgr/README.md)
-- [Lock Manager - 锁管理器](../manager/lockmgr/README.md)
-- [Limiter Manager - 限流管理器](../manager/limitermgr/README.md)
-- [MQ Manager - 消息队列管理器](../manager/mqmgr/README.md)
-- [Lite Middleware - 内置中间件](../component/litemiddleware/README.md)
-- [JWT 工具包](../util/jwt/README.md)
+| 级别 | 值 | 说明 |
+|------|----|----|
+| Debug | 0 | 开发调试信息 |
+| Info | 1 | 正常业务流程 |
+| Warn | 2 | 降级处理、慢查询 |
+| Error | 3 | 业务错误、操作失败 |
+| Fatal | 4 | 致命错误 |
 
-### C. 技术支持
+### C. 配置驱动类型
 
-如有问题，请提交 Issue 或联系维护团队。
+| 驱动 | 说明 |
+|------|------|
+| `yaml` | YAML 格式配置文件 |
+| `json` | JSON 格式配置文件 |
+
+### D. 数据库驱动类型
+
+| 驱动 | 说明 |
+|------|------|
+| `mysql` | MySQL 数据库 |
+| `postgresql` | PostgreSQL 数据库 |
+| `sqlite` | SQLite 数据库 |
+| `none` | 不使用数据库 |
+
+### E. 缓存驱动类型
+
+| 驱动 | 说明 |
+|------|------|
+| `redis` | Redis 缓存 |
+| `memory` | 内存缓存（基于 Ristretto） |
+| `none` | 不使用缓存 |
+
+### F. 锁驱动类型
+
+| 驱动 | 说明 |
+|------|------|
+| `redis` | Redis 分布式锁 |
+| `memory` | 内存锁 |
+| `none` | 不使用锁 |
+
+### G. 限流驱动类型
+
+| 驱动 | 说明 |
+|------|------|
+| `redis` | Redis 限流 |
+| `memory` | 内存限流 |
+| `none` | 不使用限流 |
+
+### H. 消息队列驱动类型
+
+| 驱动 | 说明 |
+|------|------|
+| `rabbitmq` | RabbitMQ 消息队列 |
+| `memory` | 内存消息队列 |
+| `none` | 不使用消息队列 |
+
+### I. 日志驱动类型
+
+| 驱动 | 说明 |
+|------|------|
+| `zap` | Zap 高性能日志库 |
+| `default` | Go 标准库日志 |
+| `none` | 不使用日志 |
+
+### J. 遥测驱动类型
+
+| 驱动 | 说明 |
+|------|------|
+| `otel` | OpenTelemetry |
+| `none` | 不使用遥测 |
+
+---
+
+**文档版本**：v1.0.0
+**最后更新**：2026-01-24

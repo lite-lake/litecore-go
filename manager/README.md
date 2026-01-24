@@ -1,6 +1,6 @@
 # Manager 组件
 
-Manager 组件是 litecore-go 的基础能力层，提供可观测、日志、缓存、数据库、锁、限流器、队列等核心功能。每个 Manager 组件都是独立的模块，通过依赖注入的方式集成到应用中。
+Manager 组件是 litecore-go 的基础能力层，提供配置管理、日志、缓存、数据库、锁、限流器、消息队列、可观测性等核心功能。每个 Manager 组件都是独立的模块，通过依赖注入的方式集成到应用中。
 
 ## 目录结构
 
@@ -17,7 +17,30 @@ manager/
 └── telemetrymgr/      # 可观测性管理器
 ```
 
-## Manager 组件概览
+## 命名规范
+
+| 类型 | 规范 | 示例 |
+|------|------|------|
+| 包名 | `<功能名>mgr` | `cachemgr`、`configmgr` |
+| 接口 | `I<功能名>Manager` | `ICacheManager`、`IDatabaseManager` |
+| 实现类 | `<功能名>Manager<驱动名>Impl` | `cacheManagerRedisImpl` |
+| 构造函数 | `New<功能名>Manager<驱动名>Impl` | `NewCacheManagerRedisImpl` |
+| 配置结构 | `<功能名>Config`、`<驱动名>Config` | `CacheConfig`、`RedisConfig` |
+
+## 接口设计
+
+所有 Manager 接口都继承自 `common.IBaseManager`，该接口定义了以下方法：
+
+```go
+type IBaseManager interface {
+    ManagerName() string    // 返回管理器名称
+    Health() error          // 检查健康状态
+    OnStart() error         // 服务器启动时触发
+    OnStop() error          // 服务器停止时触发
+}
+```
+
+## 组件概览
 
 ### 1. cachemgr - 缓存管理器
 
@@ -144,12 +167,6 @@ manager/
 
 **接口：** `ILoggerManager`
 
-**Gin 格式特点：**
-- 统一格式：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
-- 时间固定宽度 23 字符
-- 级别固定宽度 5 字符，右对齐，带颜色
-- 字段格式：`key=value`
-
 ---
 
 ### 7. mqmgr - 消息队列管理器
@@ -183,6 +200,75 @@ manager/
 
 ---
 
+## 架构模式
+
+### 工厂模式
+
+每个 Manager 都提供两种工厂函数：
+
+1. **Build** - 直接创建实例
+```go
+mgr, err := cachemgr.Build("memory", map[string]any{
+    "max_age": "1h",
+})
+```
+
+2. **BuildWithConfigProvider** - 从配置提供者创建实例
+```go
+mgr, err := cachemgr.BuildWithConfigProvider(configProvider)
+```
+
+### 基类实现
+
+大部分 Manager 都有基类实现（`impl_base.go`），提供：
+- 可观测性支持（日志、指标、链路追踪）
+- 工具函数（上下文验证、键验证等）
+
+### 配置驱动
+
+支持通过配置文件切换驱动：
+
+```yaml
+cache:
+  driver: "memory"        # redis, memory, none
+  memory_config:
+    max_age: "1h"
+
+database:
+  driver: "sqlite"         # mysql, postgresql, sqlite, none
+  sqlite_config:
+    dsn: "./data/app.db"
+```
+
+## 依赖注入
+
+Manager 组件通过 `inject:""` 标签注入到各层：
+
+```go
+type MyService struct {
+    CacheMgr   cachemgr.ICacheManager      `inject:""`
+    DBMgr      databasemgr.IDatabaseManager `inject:""`
+    LoggerMgr  loggermgr.ILoggerManager    `inject:""`
+}
+```
+
+**注意：** `LoggerMgr.Ins()` 返回 `logger.ILogger` 实例，用于日志记录。
+
+### 日志记录模式
+
+```go
+func (s *MyService) initLogger() {
+    if s.LoggerMgr != nil {
+        s.logger = s.LoggerMgr.Ins()
+    }
+}
+
+func (s *MyService) SomeMethod() {
+    s.initLogger()
+    s.logger.Info("操作开始", "param", value)
+}
+```
+
 ## 依赖关系
 
 ```
@@ -210,34 +296,20 @@ configmgr
 ## 配置示例
 
 ```yaml
-# config.yaml
+# 缓存配置
 cache:
   driver: "memory"
   memory_config:
     max_size: 100
-    max_age: 720h  # 30 days
+    max_age: "720h"  # 30 days
 
+# 数据库配置
 database:
   driver: "mysql"
   mysql_config:
-    host: "localhost"
-    port: 3306
-    database: "mydb"
-    username: "root"
-    password: "password"
+    dsn: "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local"
 
-limiter:
-  driver: "memory"
-  memory_config:
-    max_backups: 1000
-
-lock:
-  driver: "redis"
-  redis_config:
-    host: "localhost"
-    port: 6379
-    db: 0
-
+# 日志配置
 logger:
   driver: "zap"
   zap_config:
@@ -246,115 +318,32 @@ logger:
       level: "info"
       format: "gin"      # gin | json | default
       color: true
-      time_format: "2006-01-24 15:04:05.000"
-    file_enabled: true
-    file_config:
-      level: "info"
-      path: "./logs/app.log"
-      rotation:
-        max_size: 100
-        max_age: 30
-        max_backups: 10
-        compress: true
 
+# 限流配置
+limiter:
+  driver: "memory"
+  memory_config:
+    max_backups: 1000
+
+# 锁配置
+lock:
+  driver: "redis"
+  redis_config:
+    host: "localhost"
+    port: 6379
+
+# 消息队列配置
 mq:
   driver: "rabbitmq"
   rabbitmq_config:
     url: "amqp://guest:guest@localhost:5672/"
-    durable: true
 
+# 遥测配置
 telemetry:
   driver: "otel"
   otel_config:
     endpoint: "http://localhost:4318"
-    enabled_traces: true
-    enabled_metrics: true
-    enabled_logs: true
 ```
-
-## 使用方式
-
-### 依赖注入
-
-```go
-type MyService struct {
-    CacheMgr   cachemgr.ICacheManager   `inject:""`
-    DBMgr      databasemgr.IDatabaseManager `inject:""`
-    LoggerMgr  loggermgr.ILoggerManager  `inject:""`
-}
-```
-
-### 初始化日志记录器
-
-```go
-func (s *MyService) initLogger() {
-    if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
-}
-```
-
-### 日志记录
-
-```go
-s.logger.Info("操作开始", "param", value)
-s.logger.Warn("慢查询检测", "duration", 1.2*time.Second)
-s.logger.Error("数据库连接失败", "error", err)
-```
-
-### 缓存操作
-
-```go
-// 设置缓存
-err := s.CacheMgr.Set(ctx, "user:123", user, 10*time.Minute)
-
-// 获取缓存
-err := s.CacheMgr.Get(ctx, "user:123", &user)
-```
-
-### 数据库操作
-
-```go
-// 查询
-result := s.DBMgr.WithContext(ctx).Where("id = ?", id).First(&user)
-
-// 事务
-err := s.DBMgr.Transaction(func(tx *gorm.DB) error {
-    return tx.Create(&user).Error
-})
-```
-
-### 限流
-
-```go
-allowed, err := s.LimiterMgr.Allow(ctx, "user:123", 100, time.Minute)
-if !allowed {
-    return errors.New("请求过于频繁")
-}
-```
-
-### 锁
-
-```go
-// 尝试获取锁
-ok, err := s.LockMgr.TryLock(ctx, "resource:123", 10*time.Second)
-if !ok {
-    return errors.New("资源已被占用")
-}
-defer s.LockMgr.Unlock(ctx, "resource:123")
-
-// 执行业务逻辑
-```
-
-## 日志级别
-
-| 级别 | 说明 |
-|------|------|
-| Debug | 开发调试信息 |
-| Info | 正常业务流程（请求开始/完成、资源创建） |
-| Warn | 降级处理、慢查询、重试 |
-| Error | 业务错误、操作失败（需人工关注） |
-| Fatal | 致命错误，需要立即终止 |
 
 ## 日志格式
 
@@ -372,8 +361,57 @@ defer s.LockMgr.Unlock(ctx, "resource:123")
 {"time":"2026-01-24T15:04:05.123Z","level":"INFO","msg":"开始依赖注入","count":23}
 ```
 
+## 日志级别
+
+| 级别 | 说明 |
+|------|------|
+| Debug | 开发调试信息 |
+| Info | 正常业务流程（请求开始/完成、资源创建） |
+| Warn | 降级处理、慢查询、重试 |
+| Error | 业务错误、操作失败（需人工关注） |
+| Fatal | 致命错误，需要立即终止 |
+
 ## 敏感信息处理
 
 日志管理器会自动过滤和脱敏敏感信息：
 - 密码、token、密钥等必须脱敏
 - 支持内置过滤规则或自定义脱敏函数
+
+## messageboard 使用示例
+
+### Repository 层
+
+```go
+type messageRepository struct {
+    Manager databasemgr.IDatabaseManager `inject:""`
+}
+
+func (r *messageRepository) Create(message *entities.Message) error {
+    db := r.Manager.DB()
+    return db.Create(message).Error
+}
+```
+
+### Service 层
+
+```go
+type messageService struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+}
+
+func (s *messageService) CreateMessage(nickname, content string) (*entities.Message, error) {
+    s.LoggerMgr.Ins().Info("创建留言成功", "id", message.ID, "nickname", message.Nickname)
+    return message, nil
+}
+```
+
+### Middleware 层
+
+```go
+func NewRateLimiterMiddleware() IRateLimiterMiddleware {
+    return litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+        Limit:  &limit,
+        Window: &window,
+    })
+}
+```
