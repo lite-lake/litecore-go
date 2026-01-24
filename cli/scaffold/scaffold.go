@@ -29,12 +29,17 @@ func Run(cfg *Config) error {
 		return fmt.Errorf("创建项目结构失败: %w", err)
 	}
 
+	absOutputDir, err := filepath.Abs(cfg.OutputDir)
+	if err != nil {
+		absOutputDir = cfg.OutputDir
+	}
+
 	fmt.Printf("\n项目 %s 创建成功!\n", cfg.ProjectName)
-	fmt.Printf("输出目录: %s\n\n", cfg.OutputDir)
+	fmt.Printf("输出目录: %s\n\n", absOutputDir)
 	fmt.Println("接下来可以执行:")
-	fmt.Printf("  cd %s\n", cfg.OutputDir)
-	fmt.Println("  make generate  # 生成容器代码")
-	fmt.Println("  make run       # 启动应用")
+	fmt.Printf("  cd %s\n", absOutputDir)
+	fmt.Println("  go run ./cmd/generate  # 生成容器代码")
+	fmt.Println("  go run ./cmd/server    # 启动应用")
 
 	return nil
 }
@@ -82,7 +87,6 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 		{"go.mod", GoMod},
 		{"README.md", Readme},
 		{"configs/config.yaml", ConfigYaml},
-		{"Makefile", Makefile},
 		{".gitignore", Gitignore},
 		{"cmd/server/main.go", ServerMain},
 		{"cmd/generate/main.go", GenerateMain},
@@ -114,9 +118,14 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 	}
 
 	if cfg.TemplateType == TemplateTypeStandard || cfg.TemplateType == TemplateTypeFull {
+		absBasePath, err := filepath.Abs(basePath)
+		if err != nil {
+			return fmt.Errorf("获取项目绝对路径失败: %w", err)
+		}
+
 		goGenCfg := &generator.Config{
-			ProjectPath: basePath,
-			OutputDir:   filepath.Join(basePath, "internal/application"),
+			ProjectPath: absBasePath,
+			OutputDir:   "internal/application",
 			PackageName: "application",
 			ConfigPath:  "configs/config.yaml",
 		}
@@ -181,6 +190,26 @@ func generateFullTemplate(basePath string, data *TemplateData) error {
 	controllerPath := filepath.Join(basePath, "internal/controllers", "example_controller.go")
 	if err := writeFile(controllerPath, controllerContent); err != nil {
 		return fmt.Errorf("写入控制器文件失败: %w", err)
+	}
+
+	listenerContent, err := Listener(data)
+	if err != nil {
+		return err
+	}
+
+	listenerPath := filepath.Join(basePath, "internal/listeners", "example_listener.go")
+	if err := writeFile(listenerPath, listenerContent); err != nil {
+		return fmt.Errorf("写入监听器文件失败: %w", err)
+	}
+
+	schedulerContent, err := Scheduler(data)
+	if err != nil {
+		return err
+	}
+
+	schedulerPath := filepath.Join(basePath, "internal/schedulers", "example_scheduler.go")
+	if err := writeFile(schedulerPath, schedulerContent); err != nil {
+		return fmt.Errorf("写入调度器文件失败: %w", err)
 	}
 
 	return nil

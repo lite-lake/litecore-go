@@ -167,3 +167,47 @@ func TestGenerateMiddlewareContainer(t *testing.T) {
 	assert.Contains(t, code, "RegisterMiddleware")
 	assert.Contains(t, code, "IAuthMiddleware")
 }
+
+func TestGenerateListenerContainer(t *testing.T) {
+	data := &TemplateData{
+		PackageName: "application",
+		Imports:     map[string]string{},
+		Components: []ComponentTemplateData{
+			{
+				InterfaceType: "listeners.IMessageListener",
+				PackagePath:   "github.com/lite-lake/litecore-go/listeners",
+				PackageAlias:  "listeners",
+				FactoryFunc:   "NewMessageListener",
+			},
+		},
+	}
+
+	code, err := GenerateListenerContainer(data)
+	assert.NoError(t, err)
+	assert.Contains(t, code, "package application")
+	assert.Contains(t, code, "InitListenerContainer")
+	assert.Contains(t, code, "RegisterListener")
+	assert.Contains(t, code, "IMessageListener")
+}
+
+func TestGenerateSchedulerContainer(t *testing.T) {
+	data := &TemplateData{
+		PackageName: "application",
+		Imports:     map[string]string{},
+		Components: []ComponentTemplateData{
+			{
+				InterfaceType: "schedulers.IMessageScheduler",
+				PackagePath:   "github.com/lite-lake/litecore-go/schedulers",
+				PackageAlias:  "schedulers",
+				FactoryFunc:   "NewMessageScheduler",
+			},
+		},
+	}
+
+	code, err := GenerateSchedulerContainer(data)
+	assert.NoError(t, err)
+	assert.Contains(t, code, "package application")
+	assert.Contains(t, code, "InitSchedulerContainer")
+	assert.Contains(t, code, "RegisterScheduler")
+	assert.Contains(t, code, "IMessageScheduler")
+}

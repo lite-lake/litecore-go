@@ -1189,22 +1189,6 @@ go run ./cmd/generate -c configs/config.test.yaml
 go run ./cmd/generate -o internal/container
 ```
 
-### 嵌入到 Makefile
-
-```makefile
-.PHONY: generate
-generate:
-	go run ./cmd/generate
-
-.PHONY: build
-build: generate
-	go build -o bin/app ./cmd/server
-
-.PHONY: run
-run: generate
-	go run ./cmd/server
-```
-
 ### 与 CI/CD 集成
 
 ```yaml

@@ -195,9 +195,22 @@ func (b *Builder) generateSchedulerContainer(info *analyzer.ProjectInfo) error {
 
 // generateEngine 生成引擎代码
 func (b *Builder) generateEngine(info *analyzer.ProjectInfo) error {
+	configPath := b.configPath
+	if !filepath.IsAbs(configPath) {
+		configPath = filepath.Join(b.projectPath, configPath)
+	}
+
+	absConfigPath, err := filepath.Abs(configPath)
+	if err == nil {
+		relConfigPath, err := filepath.Rel(b.projectPath, absConfigPath)
+		if err == nil {
+			configPath = relConfigPath
+		}
+	}
+
 	data := &TemplateData{
 		PackageName: b.packageName,
-		ConfigPath:  b.configPath,
+		ConfigPath:  configPath,
 	}
 
 	code, err := GenerateEngine(data)

@@ -30,8 +30,7 @@ const readmeTemplate = `# {{.ProjectName}}
 ` + "```go" + `
 replace github.com/lite-lake/litecore-go => /path/to/litecore-go
 ` + "```" + `
-
- 将 ` + "`" + `/path/to/litecore-go` + "`" + ` 替换为实际的本地项目路径。
+  将 ` + "`" + `/path/to/litecore-go` + "`" + ` 替换为实际的本地项目路径。
 
 ## 项目结构
 
@@ -49,7 +48,6 @@ replace github.com/lite-lake/litecore-go => /path/to/litecore-go
 │   ├── middlewares/      # 中间件层
 │   ├── listeners/       # 监听器层
 │   └── schedulers/      # 调度器层
-├── Makefile
 └── README.md
 ` + "```" + `
 
@@ -58,19 +56,19 @@ replace github.com/lite-lake/litecore-go => /path/to/litecore-go
 ### 1. 生成容器代码
 
 ` + "```bash" + `
-make generate
+go run ./cmd/generate
 ` + "```" + `
 
 ### 2. 启动应用
 
 ` + "```bash" + `
-make run
+go run ./cmd/server
 ` + "```" + `
 
 ### 3. 构建应用
 
 ` + "```bash" + `
-make build
+go build -o bin/{{.ProjectName}} ./cmd/server
 ` + "```" + `
 
 ## 开发指南
@@ -78,7 +76,7 @@ make build
 ### 添加新实体
 
 1. 在 ` + "internal/entities/" + ` 目录创建实体文件
-2. 运行 ` + "make generate" + ` 生成容器代码
+2. 运行 ` + "go run ./cmd/generate" + ` 生成容器代码
 3. 在业务逻辑中使用实体
 
 ### 添加新仓储
@@ -86,7 +84,7 @@ make build
 1. 在 ` + "internal/repositories/" + ` 目录创建仓储接口和实现
 2. 接口名以 ` + "I" + ` 开头，如 ` + "IUserRepository" + `
 3. 工厂函数以 ` + "New" + ` 开头，如 ` + "NewUserRepository()" + `
-4. 运行 ` + "make generate" + ` 生成容器代码
+4. 运行 ` + "go run ./cmd/generate" + ` 生成容器代码
 
 ### 添加新服务
 
@@ -94,7 +92,7 @@ make build
 2. 接口名以 ` + "I" + ` 开头，如 ` + "IUserService" + `
 3. 工厂函数以 ` + "New" + ` 开头，如 ` + "NewUserService()" + `
 4. 在结构体中使用 ` + `inject:""` + ` 标签注入依赖
-5. 运行 ` + "make generate" + ` 生成容器代码
+5. 运行 ` + "go run ./cmd/generate" + ` 生成容器代码
 
 ### 添加新控制器
 
@@ -103,7 +101,7 @@ make build
 3. 工厂函数以 ` + "New" + ` 开头，如 ` + "NewUserController()" + `
 4. 实现 ` + "GetRouter()" + ` 方法定义路由
 5. 实现 ` + "Handle()" + ` 方法处理请求
-6. 运行 ` + "make generate" + ` 生成容器代码
+6. 运行 ` + "go run ./cmd/generate" + ` 生成容器代码
 
 ## 更多信息
 
@@ -183,46 +181,6 @@ scheduler:
   driver: "cron"
   cron_config:
     validate_on_startup: true
-`
-
-const makefileTemplate = `.PHONY: help build run clean generate test fmt vet tidy
-
-help:
-	@echo "可用命令:"
-	@echo "  make build       - 构建应用"
-	@echo "  make run         - 运行应用"
-	@echo "  make clean       - 清理构建文件"
-	@echo "  make generate    - 生成容器代码"
-	@echo "  make test        - 运行测试"
-	@echo "  make fmt         - 格式化代码"
-	@echo "  make vet         - 检查代码"
-	@echo "  make tidy        - 整理依赖"
-
-build: generate
-	go build -o bin/{{.ProjectName}} ./cmd/server
-
-run: generate
-	go run ./cmd/server
-
-clean:
-	rm -rf bin/
-	rm -rf data/*.db
-	rm -rf logs/*.log
-
-generate:
-	go run ./cmd/generate
-
-test:
-	go test -v ./...
-
-fmt:
-	go fmt ./...
-
-vet:
-	go vet ./...
-
-tidy:
-	go mod tidy
 `
 
 const gitignoreTemplate = `# Binaries
@@ -628,11 +586,110 @@ func (m *recoveryMiddlewareImpl) OnStop() error {
 var _ IRecoveryMiddleware = (*recoveryMiddlewareImpl)(nil)
 `
 
+const listenerTemplate = `package listeners
+
+import (
+	"context"
+
+	"{{.ModulePath}}/internal/services"
+
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/mqmgr"
+)
+
+type IExampleListener interface {
+	common.IBaseListener
+}
+
+type exampleListenerImpl struct {
+	ExampleService services.IExampleService ` + "`" + `inject:""` + "`" + `
+	MQManager     mqmgr.IMQManager        ` + "`" + `inject:""` + "`" + `
+}
+
+func NewExampleListener() IExampleListener {
+	return &exampleListenerImpl{}
+}
+
+func (l *exampleListenerImpl) ListenerName() string {
+	return "ExampleListener"
+}
+
+func (l *exampleListenerImpl) Subscribe() mqmgr.SubscribeConfig {
+	return mqmgr.SubscribeConfig{
+		Channel: "example.events",
+		Handler: l.handleMessage,
+	}
+}
+
+func (l *exampleListenerImpl) handleMessage(ctx context.Context, msg []byte) error {
+	l.ExampleService.GetExample(1)
+	return nil
+}
+
+func (l *exampleListenerImpl) OnStart() error {
+	return nil
+}
+
+func (l *exampleListenerImpl) OnStop() error {
+	return nil
+}
+
+var _ IExampleListener = (*exampleListenerImpl)(nil)
+`
+
+const schedulerTemplate = `package schedulers
+
+import (
+	"{{.ModulePath}}/internal/services"
+
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/schedulermgr"
+)
+
+type IExampleScheduler interface {
+	common.IBaseScheduler
+}
+
+type exampleSchedulerImpl struct {
+	ExampleService  services.IExampleService ` + "`" + `inject:""` + "`" + `
+	SchedulerManager schedulermgr.ISchedulerManager ` + "`" + `inject:""` + "`" + `
+}
+
+func NewExampleScheduler() IExampleScheduler {
+	return &exampleSchedulerImpl{}
+}
+
+func (s *exampleSchedulerImpl) SchedulerName() string {
+	return "ExampleScheduler"
+}
+
+func (s *exampleSchedulerImpl) Schedule() schedulermgr.ScheduleConfig {
+	return schedulermgr.ScheduleConfig{
+		CronExpression: "0 */5 * * * *",
+		Handler:        s.handleTask,
+	}
+}
+
+func (s *exampleSchedulerImpl) handleTask() error {
+	s.ExampleService.GetExample(1)
+	return nil
+}
+
+func (s *exampleSchedulerImpl) OnStart() error {
+	return nil
+}
+
+func (s *exampleSchedulerImpl) OnStop() error {
+	return nil
+}
+
+var _ IExampleScheduler = (*exampleSchedulerImpl)(nil)
+`
+
 var (
 	goModTmpl      *template.Template
 	readmeTmpl     *template.Template
 	configYamlTmpl *template.Template
-	makefileTmpl   *template.Template
 	gitignoreTmpl  *template.Template
 
 	serverMainTmpl   *template.Template
@@ -643,13 +700,14 @@ var (
 	serviceTmpl    *template.Template
 	controllerTmpl *template.Template
 	middlewareTmpl *template.Template
+	listenerTmpl   *template.Template
+	schedulerTmpl  *template.Template
 )
 
 func init() {
 	goModTmpl = template.Must(template.New("go.mod").Parse(goModTemplate))
 	readmeTmpl = template.Must(template.New("README.md").Parse(readmeTemplate))
 	configYamlTmpl = template.Must(template.New("config.yaml").Parse(configYamlTemplate))
-	makefileTmpl = template.Must(template.New("Makefile").Parse(makefileTemplate))
 	gitignoreTmpl = template.Must(template.New(".gitignore").Parse(gitignoreTemplate))
 
 	serverMainTmpl = template.Must(template.New("server_main.go").Parse(serverMainTemplate))
@@ -660,6 +718,8 @@ func init() {
 	serviceTmpl = template.Must(template.New("service").Parse(serviceTemplate))
 	controllerTmpl = template.Must(template.New("controller").Parse(controllerTemplate))
 	middlewareTmpl = template.Must(template.New("middleware").Parse(middlewareTemplate))
+	listenerTmpl = template.Must(template.New("listener").Parse(listenerTemplate))
+	schedulerTmpl = template.Must(template.New("scheduler").Parse(schedulerTemplate))
 }
 
 type TemplateData struct {
@@ -686,10 +746,6 @@ func Readme(data *TemplateData) (string, error) {
 
 func ConfigYaml(data *TemplateData) (string, error) {
 	return render(configYamlTmpl, data)
-}
-
-func Makefile(data *TemplateData) (string, error) {
-	return render(makefileTmpl, data)
 }
 
 func Gitignore(data *TemplateData) (string, error) {
@@ -722,4 +778,12 @@ func Controller(data *TemplateData) (string, error) {
 
 func Middleware(data *TemplateData) (string, error) {
 	return render(middlewareTmpl, data)
+}
+
+func Listener(data *TemplateData) (string, error) {
+	return render(listenerTmpl, data)
+}
+
+func Scheduler(data *TemplateData) (string, error) {
+	return render(schedulerTmpl, data)
 }
