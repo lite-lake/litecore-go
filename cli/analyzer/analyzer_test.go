@@ -19,6 +19,8 @@ func TestLayerString(t *testing.T) {
 		{LayerService, "service"},
 		{LayerController, "controller"},
 		{LayerMiddleware, "middleware"},
+		{LayerListener, "listener"},
+		{LayerScheduler, "scheduler"},
 	}
 
 	for _, tt := range tests {
@@ -39,6 +41,8 @@ func TestIsLitecoreLayer(t *testing.T) {
 		{"服务层", LayerService, true},
 		{"控制器层", LayerController, true},
 		{"中间件层", LayerMiddleware, true},
+		{"监听器层", LayerListener, true},
+		{"调度器层", LayerScheduler, true},
 		{"未知层", Layer("unknown"), false},
 	}
 
@@ -60,6 +64,8 @@ func TestGetBaseInterface(t *testing.T) {
 		{"服务层", LayerService, "BaseService"},
 		{"控制器层", LayerController, "BaseController"},
 		{"中间件层", LayerMiddleware, "BaseMiddleware"},
+		{"监听器层", LayerListener, "BaseListener"},
+		{"调度器层", LayerScheduler, "IBaseScheduler"},
 		{"未知层", Layer("unknown"), ""},
 	}
 
@@ -81,6 +87,8 @@ func TestGetContainerName(t *testing.T) {
 		{"服务层", LayerService, "ServiceContainer"},
 		{"控制器层", LayerController, "ControllerContainer"},
 		{"中间件层", LayerMiddleware, "MiddlewareContainer"},
+		{"监听器层", LayerListener, "ListenerContainer"},
+		{"调度器层", LayerScheduler, "SchedulerContainer"},
 		{"未知层", Layer("unknown"), ""},
 	}
 
@@ -102,6 +110,8 @@ func TestGetRegisterFunction(t *testing.T) {
 		{"服务层", LayerService, "RegisterService"},
 		{"控制器层", LayerController, "RegisterController"},
 		{"中间件层", LayerMiddleware, "RegisterMiddleware"},
+		{"监听器层", LayerListener, "RegisterListener"},
+		{"调度器层", LayerScheduler, "RegisterScheduler"},
 		{"未知层", Layer("unknown"), "Register"},
 	}
 
@@ -166,6 +176,8 @@ func TestDetectLayer(t *testing.T) {
 		{"服务层", "internal/services/service.go", "services", LayerService},
 		{"控制器层", "internal/controllers/controller.go", "controllers", LayerController},
 		{"中间件层", "internal/middlewares/middleware.go", "middlewares", LayerMiddleware},
+		{"监听器层", "internal/listeners/listener.go", "listeners", LayerListener},
+		{"调度器层", "internal/schedulers/scheduler.go", "schedulers", LayerScheduler},
 		{"未知层", "internal/unknown/unknown.go", "unknown", ""},
 	}
 
