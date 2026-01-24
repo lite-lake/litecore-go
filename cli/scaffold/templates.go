@@ -48,6 +48,8 @@ replace github.com/lite-lake/litecore-go => /path/to/litecore-go
 │   ├── middlewares/      # 中间件层
 │   ├── listeners/       # 监听器层
 │   └── schedulers/      # 调度器层
+├── static/               # 静态文件（CSS/JS）
+├── templates/            # HTML 模板文件
 └── README.md
 ` + "```" + `
 
@@ -102,6 +104,22 @@ go build -o bin/{{.ProjectName}} ./cmd/server
 4. 实现 ` + "GetRouter()" + ` 方法定义路由
 5. 实现 ` + "Handle()" + ` 方法处理请求
 6. 运行 ` + "go run ./cmd/generate" + ` 生成容器代码
+
+## Web 开发
+
+### 静态文件
+
+静态文件位于 ` + "`" + `static/` + "`" + ` 目录，通过 ` + "`" + `/static/*filepath` + "`" + ` 路径访问：
+- CSS 文件: ` + "`" + `static/css/` + "`" + `
+- JS 文件: ` + "`" + `static/js/` + "`" + `
+
+### HTML 模板
+
+HTML 模板位于 ` + "`" + `templates/` + "`" + ` 目录，使用 Gin 模板引擎渲染。
+
+### 健康检查
+
+应用提供健康检查接口 ` + "`" + `/health` + "`" + `，返回所有 Manager 的状态。
 
 ## 更多信息
 
@@ -675,6 +693,463 @@ func (s *exampleSchedulerImpl) OnStop() error {
 var _ IExampleScheduler = (*exampleSchedulerImpl)(nil)
 `
 
+const htmlTemplateServiceTemplate = `package services
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/liteservice"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IHTMLTemplateService interface {
+	common.IBaseService
+	Render(ctx *gin.Context, name string, data interface{})
+	SetGinEngine(engine *gin.Engine)
+}
+
+type htmlTemplateServiceImpl struct {
+	inner     *liteservice.HTMLTemplateService
+	LoggerMgr loggermgr.ILoggerManager ` + "`" + `inject:""` + "`" + `
+}
+
+func NewHTMLTemplateService() IHTMLTemplateService {
+	return &htmlTemplateServiceImpl{
+		inner: liteservice.NewHTMLTemplateService("templates/*"),
+	}
+}
+
+func (s *htmlTemplateServiceImpl) ServiceName() string {
+	return "HTMLTemplateService"
+}
+
+func (s *htmlTemplateServiceImpl) OnStart() error {
+	return s.inner.OnStart()
+}
+
+func (s *htmlTemplateServiceImpl) OnStop() error {
+	return s.inner.OnStop()
+}
+
+func (s *htmlTemplateServiceImpl) Render(ctx *gin.Context, name string, data interface{}) {
+	s.inner.Render(ctx, name, data)
+}
+
+func (s *htmlTemplateServiceImpl) SetGinEngine(engine *gin.Engine) {
+	s.inner.SetGinEngine(engine)
+}
+
+var _ IHTMLTemplateService = (*htmlTemplateServiceImpl)(nil)
+`
+
+const staticControllerTemplate = `package controllers
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/litecontroller"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IStaticController interface {
+	common.IBaseController
+}
+
+type staticControllerImpl struct {
+	componentController *litecontroller.ResourceStaticController
+	LoggerMgr           loggermgr.ILoggerManager ` + "`" + `inject:""` + "`" + `
+}
+
+func NewStaticController() IStaticController {
+	return &staticControllerImpl{
+		componentController: litecontroller.NewResourceStaticController("/static", "./static"),
+	}
+}
+
+func (c *staticControllerImpl) ControllerName() string {
+	return "staticControllerImpl"
+}
+
+func (c *staticControllerImpl) GetRouter() string {
+	return c.componentController.GetRouter()
+}
+
+func (c *staticControllerImpl) Handle(ctx *gin.Context) {
+	c.componentController.Handle(ctx)
+}
+
+var _ IStaticController = (*staticControllerImpl)(nil)
+`
+
+const healthControllerTemplate = `package controllers
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/litecontroller"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IHealthController interface {
+	common.IBaseController
+}
+
+type healthControllerImpl struct {
+	componentController litecontroller.IHealthController
+	LoggerMgr           loggermgr.ILoggerManager ` + "`" + `inject:""` + "`" + `
+}
+
+func NewHealthController() IHealthController {
+	return &healthControllerImpl{
+		componentController: litecontroller.NewHealthController(),
+	}
+}
+
+func (c *healthControllerImpl) ControllerName() string {
+	return "healthControllerImpl"
+}
+
+func (c *healthControllerImpl) GetRouter() string {
+	return c.componentController.GetRouter()
+}
+
+func (c *healthControllerImpl) Handle(ctx *gin.Context) {
+	c.componentController.Handle(ctx)
+}
+
+var _ IHealthController = (*healthControllerImpl)(nil)
+`
+
+const pageControllerTemplate = `package controllers
+
+import (
+	"{{.ModulePath}}/internal/services"
+
+	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IPageController interface {
+	common.IBaseController
+}
+
+type pageControllerImpl struct {
+	HTMLTemplateService services.IHTMLTemplateService ` + "`" + `inject:""` + "`" + `
+	LoggerMgr           loggermgr.ILoggerManager      ` + "`" + `inject:""` + "`" + `
+}
+
+func NewPageController() IPageController {
+	return &pageControllerImpl{}
+}
+
+func (c *pageControllerImpl) ControllerName() string {
+	return "pageControllerImpl"
+}
+
+func (c *pageControllerImpl) GetRouter() string {
+	return "/ [GET]"
+}
+
+func (c *pageControllerImpl) Handle(ctx *gin.Context) {
+	c.HTMLTemplateService.Render(ctx, "index.html", gin.H{
+		"title": "{{.ProjectName}}",
+	})
+}
+
+var _ IPageController = (*pageControllerImpl)(nil)
+`
+
+const staticCSSTemplate = `* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	line-height: 1.6;
+	color: #333;
+}
+
+.container {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 20px;
+}
+
+header {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+	padding: 60px 0;
+	margin-bottom: 40px;
+}
+
+header h1 {
+	font-size: 3rem;
+	font-weight: 300;
+	margin-bottom: 10px;
+}
+
+header p {
+	font-size: 1.2rem;
+	opacity: 0.9;
+}
+
+.card {
+	border: none;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	margin-bottom: 20px;
+	transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+	transform: translateY(-5px);
+	box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.message-list {
+	margin-bottom: 30px;
+}
+
+.message-item {
+	padding: 20px;
+	margin-bottom: 15px;
+	border-radius: 8px;
+	background: white;
+	border-left: 4px solid #667eea;
+}
+
+.message-item .nickname {
+	font-weight: 600;
+	color: #667eea;
+	margin-bottom: 5px;
+}
+
+.message-item .content {
+	color: #555;
+	white-space: pre-wrap;
+}
+
+.message-item .timestamp {
+	font-size: 0.875rem;
+	color: #999;
+	margin-top: 10px;
+}
+
+.btn-primary {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	border: none;
+	padding: 12px 30px;
+	font-size: 1rem;
+	transition: all 0.3s;
+}
+
+.btn-primary:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+footer {
+	padding: 30px 0;
+	color: #999;
+	border-top: 1px solid #eee;
+}
+`
+
+const staticJSTemplate = `$(document).ready(function() {
+	// Load messages
+	loadMessages();
+
+	// Form validation and submit
+	$('#message-form').validate({
+		rules: {
+			nickname: {
+				required: true,
+				minlength: 2,
+				maxlength: 20
+			},
+			content: {
+				required: true,
+				minlength: 5,
+				maxlength: 500
+			}
+		},
+		messages: {
+			nickname: {
+				required: 'Please enter nickname',
+				minlength: 'Nickname must be at least 2 characters',
+				maxlength: 'Nickname must be no more than 20 characters'
+			},
+			content: {
+				required: 'Please enter message content',
+				minlength: 'Content must be at least 5 characters',
+				maxlength: 'Content must be no more than 500 characters'
+			}
+		},
+		submitHandler: function(form) {
+			submitMessage(form);
+		}
+	});
+
+	// Load messages
+	function loadMessages() {
+		$.ajax({
+			url: '/api/messages',
+			method: 'GET',
+			success: function(messages) {
+				renderMessages(messages);
+			},
+			error: function(xhr, status, error) {
+				console.error('Failed to load messages:', error);
+				$('#message-list').html(
+					'<div class="alert alert-warning">' +
+						'Failed to load messages, please refresh page' +
+					'</div>'
+				);
+			}
+		});
+	}
+
+	// Render messages
+	function renderMessages(messages) {
+		if (!messages || messages.length === 0) {
+			$('#message-list').html(
+				'<div class="alert alert-info">' +
+					'No messages yet, be the first to post!' +
+				'</div>'
+			);
+			return;
+		}
+
+		var html = '';
+		for (var i = 0; i < messages.length; i++) {
+			var msg = messages[i];
+			html += '<div class="message-item">' +
+					'<div class="nickname">' + escapeHtml(msg.nickname) + '</div>' +
+					'<div class="content">' + escapeHtml(msg.content) + '</div>' +
+					'<div class="timestamp">' + new Date(msg.created_at).toLocaleString('zh-CN') + '</div>' +
+				'</div>';
+		}
+
+		$('#message-list').html(html);
+	}
+
+	// Submit message
+	function submitMessage(form) {
+		var formData = {
+			nickname: $(form).find('#nickname').val(),
+			content: $(form).find('#content').val()
+		};
+
+		$.ajax({
+			url: '/api/messages',
+			method: 'POST',
+			contentType: 'application/json',
+			data: JSON.stringify(formData),
+			success: function(response) {
+				$(form)[0].reset();
+				loadMessages();
+				$('#form-section').before(
+					'<div class="alert alert-success" role="alert">' +
+						'Message posted successfully!' +
+					'</div>'
+				);
+				setTimeout(function() {
+					$('.alert-success').fadeOut();
+				}, 3000);
+			},
+			error: function(xhr, status, error) {
+				var errorMsg = xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Failed to submit, please try again later';
+				$('#form-section').before(
+					'<div class="alert alert-danger" role="alert">' +
+						errorMsg +
+					'</div>'
+				);
+				setTimeout(function() {
+					$('.alert-danger').fadeOut();
+				}, 3000);
+			}
+		});
+	}
+
+	// HTML escape
+	function escapeHtml(text) {
+		if (!text) return '';
+		const div = document.createElement('div');
+		div.textContent = text;
+		return div.innerHTML;
+	}
+});
+`
+
+const indexHTMLTemplate = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="text-center py-5">
+            <h1 class="display-4 fw-light">{{title}}</h1>
+            <p class="text-muted">欢迎使用 LiteCore 框架</p>
+        </header>
+
+        <!-- 留言列表 -->
+        <section id="messages-section" class="mb-5">
+            <h2 class="h4 mb-4 fw-light">最新留言</h2>
+            <div id="message-list" class="message-list">
+                <div class="text-center text-muted py-5">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <p class="mt-2">加载中...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 提交表单 -->
+        <section id="form-section" class="mt-5">
+            <h2 class="h4 mb-4 fw-light">发表留言</h2>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form id="message-form">
+                        <div class="mb-3">
+                            <label for="nickname" class="form-label">昵称</label>
+                            <input type="text" class="form-control" id="nickname" name="nickname"
+                                   placeholder="请输入您的昵称（2-20个字符）" required minlength="2" maxlength="20">
+                        </div>
+                        <div class="mb-3">
+                            <label for="content" class="form-label">留言内容</label>
+                            <textarea class="form-control" id="content" name="content" rows="5"
+                                      placeholder="请输入留言内容（5-500个字符）" required minlength="5" maxlength="500"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">提交留言</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center py-5 mt-5 text-muted">
+            <small>&copy; 2025 {{title}}. All rights reserved.</small>
+        </footer>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- jQuery Validation -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.21.0/dist/jquery.validate.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+`
+
 var (
 	goModTmpl      *template.Template
 	readmeTmpl     *template.Template
@@ -691,6 +1166,14 @@ var (
 	middlewareTmpl *template.Template
 	listenerTmpl   *template.Template
 	schedulerTmpl  *template.Template
+
+	htmlTemplateServiceTmpl *template.Template
+	staticControllerTmpl    *template.Template
+	healthControllerTmpl    *template.Template
+	pageControllerTmpl      *template.Template
+
+	staticCSSTmpl *template.Template
+	staticJSTmpl  *template.Template
 )
 
 func init() {
@@ -709,6 +1192,14 @@ func init() {
 	middlewareTmpl = template.Must(template.New("middleware").Parse(middlewareTemplate))
 	listenerTmpl = template.Must(template.New("listener").Parse(listenerTemplate))
 	schedulerTmpl = template.Must(template.New("scheduler").Parse(schedulerTemplate))
+
+	htmlTemplateServiceTmpl = template.Must(template.New("html_template_service").Parse(htmlTemplateServiceTemplate))
+	staticControllerTmpl = template.Must(template.New("static_controller").Parse(staticControllerTemplate))
+	healthControllerTmpl = template.Must(template.New("health_controller").Parse(healthControllerTemplate))
+	pageControllerTmpl = template.Must(template.New("page_controller").Parse(pageControllerTemplate))
+
+	staticCSSTmpl = template.Must(template.New("static_css").Parse(staticCSSTemplate))
+	staticJSTmpl = template.Must(template.New("static_js").Parse(staticJSTemplate))
 }
 
 type TemplateData struct {
@@ -775,4 +1266,28 @@ func Listener(data *TemplateData) (string, error) {
 
 func Scheduler(data *TemplateData) (string, error) {
 	return render(schedulerTmpl, data)
+}
+
+func StaticCSS(data *TemplateData) (string, error) {
+	return render(staticCSSTmpl, data)
+}
+
+func StaticJS(data *TemplateData) (string, error) {
+	return render(staticJSTmpl, data)
+}
+
+func StaticController(data *TemplateData) (string, error) {
+	return render(staticControllerTmpl, data)
+}
+
+func HTMLTemplateService(data *TemplateData) (string, error) {
+	return render(htmlTemplateServiceTmpl, data)
+}
+
+func PageController(data *TemplateData) (string, error) {
+	return render(pageControllerTmpl, data)
+}
+
+func HealthController(data *TemplateData) (string, error) {
+	return render(healthControllerTmpl, data)
 }

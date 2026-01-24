@@ -45,6 +45,30 @@ func RunInteractive(cfg *Config) error {
 		cfg.OutputDir = outputDir
 	}
 
+	if !cfg.WithStatic {
+		withStatic, err := promptWithStatic()
+		if err != nil {
+			return err
+		}
+		cfg.WithStatic = withStatic
+	}
+
+	if !cfg.WithHTML {
+		withHTML, err := promptWithHTML()
+		if err != nil {
+			return err
+		}
+		cfg.WithHTML = withHTML
+	}
+
+	if !cfg.WithHealth {
+		withHealth, err := promptWithHealth()
+		if err != nil {
+			return err
+		}
+		cfg.WithHealth = withHealth
+	}
+
 	return nil
 }
 
@@ -200,4 +224,55 @@ func confirmPrompt(message string) bool {
 		return false
 	}
 	return true
+}
+
+func promptWithStatic() (bool, error) {
+	prompt := promptui.Prompt{
+		Label:     "是否生成静态文件服务 (CSS/JS)",
+		IsConfirm: true,
+		Default:   "n",
+	}
+
+	_, err := prompt.Run()
+	if err != nil {
+		if err == promptui.ErrAbort {
+			return false, nil
+		}
+		return false, fmt.Errorf("输入取消: %w", err)
+	}
+	return true, nil
+}
+
+func promptWithHTML() (bool, error) {
+	prompt := promptui.Prompt{
+		Label:     "是否生成 HTML 模板服务",
+		IsConfirm: true,
+		Default:   "n",
+	}
+
+	_, err := prompt.Run()
+	if err != nil {
+		if err == promptui.ErrAbort {
+			return false, nil
+		}
+		return false, fmt.Errorf("输入取消: %w", err)
+	}
+	return true, nil
+}
+
+func promptWithHealth() (bool, error) {
+	prompt := promptui.Prompt{
+		Label:     "是否生成健康检查控制器",
+		IsConfirm: true,
+		Default:   "n",
+	}
+
+	_, err := prompt.Run()
+	if err != nil {
+		if err == promptui.ErrAbort {
+			return false, nil
+		}
+		return false, fmt.Errorf("输入取消: %w", err)
+	}
+	return true, nil
 }
