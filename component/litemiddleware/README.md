@@ -1,315 +1,214 @@
-# 中间件配置指南
+# litemiddleware
 
-本目录提供了开箱即用的内置中间件组件，所有中间件都支持灵活的配置方式。配置属性使用指针类型，支持可选配置，未配置的属性自动使用默认值。
+内置 HTTP 中间件组件，提供开箱即用的通用中间件实现。
 
-## 目录变更说明
+## 特性
 
-> **v1.0.0 (2026-01-24)**：中间件目录从 `component/middleware` 重构为 `component/litemiddleware`，包名从 `middleware` 变更为 `litemiddleware`。
+- **统一接口** - 所有中间件实现 `common.IBaseMiddleware` 接口
+- **灵活配置** - 配置属性使用指针类型，支持可选配置和默认值覆盖
+- **依赖注入** - 通过 `inject:""` 标签自动注入 Manager 组件
+- **执行顺序** - 预定义 Order 常量，支持自定义执行顺序
+- **完整测试** - 所有中间件包含单元测试和示例
 
-## 配置设计
-
-### 1. 可选配置（指针类型）
-
-所有配置属性都使用指针类型，这意味着：
-- **可选配置**：可以只配置需要修改的属性
-- **自动默认值**：未配置的属性自动使用默认值
-- **灵活组合**：支持任意属性组合
-
-### 2. 默认值覆盖机制
-
-每个 `NewXxxMiddleware` 函数内部都会：
-1. 接收 `*XxxConfig`（可以为 nil）
-2. 获取默认配置
-3. 用用户配置覆盖默认配置中的对应字段
+## 快速开始
 
 ```go
-func NewCorsMiddleware(config *CorsConfig) common.IBaseMiddleware {
-    cfg := config
-    if cfg == nil {
-        cfg = &CorsConfig{}
-    }
-    
-    defaultCfg := DefaultCorsConfig()
-    
-    // 只覆盖用户配置的字段
-    if cfg.Name == nil {
-        cfg.Name = defaultCfg.Name
-    }
-    if cfg.AllowOrigins == nil {
-        cfg.AllowOrigins = defaultCfg.AllowOrigins
-    }
-    // ...
-    
-    return &corsMiddleware{cfg: cfg}
-}
+import "github.com/lite-lake/litecore-go/component/litemiddleware"
+
+// 使用默认配置创建中间件
+recovery := litemiddleware.NewRecoveryMiddlewareWithDefaults()
+reqLogger := litemiddleware.NewRequestLoggerMiddlewareWithDefaults()
+cors := litemiddleware.NewCorsMiddlewareWithDefaults()
+security := litemiddleware.NewSecurityHeadersMiddlewareWithDefaults()
+
+// 注册到容器
+container.RegisterMiddleware(middlewareContainer, recovery)
+container.RegisterMiddleware(middlewareContainer, reqLogger)
+container.RegisterMiddleware(middlewareContainer, cors)
+container.RegisterMiddleware(middlewareContainer, security)
 ```
 
----
+## 中间件列表
 
-## 支持的中间件
+### Recovery 中间件
 
-### 1. CORS 中间件 (`cors_middleware.go`)
+Panic 恢复中间件，捕获 panic 并记录日志，返回友好的错误响应。
 
-**配置结构：**
-```go
-type CorsConfig struct {
-    Name             *string       // 中间件名称
-    Order            *int          // 执行顺序
-    AllowOrigins     *[]string     // 允许的源
-    AllowMethods     *[]string     // 允许的 HTTP 方法
-    AllowHeaders     *[]string     // 允许的请求头
-    ExposeHeaders    *[]string     // 暴露的响应头
-    AllowCredentials *bool         // 是否允许携带凭证
-    MaxAge           *time.Duration // 预检请求缓存时间
-}
-```
-
-**默认配置：**
-- `AllowOrigins: []string{"*"}`
-- `AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}`
-- `AllowHeaders: []string{"Origin", "Content-Type", "Authorization", ...}`
-- `AllowCredentials: true`
-- `MaxAge: 12 * time.Hour`
-
-**使用示例：**
-```go
-// 使用默认配置（允许所有源）
-devCors := litemiddleware.NewCorsMiddleware(nil)
-
-// 只修改允许的源（其他使用默认值）
-allowOrigins := []string{"https://example.com"}
-prodCors := litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
-    AllowOrigins: &allowOrigins,
-})
-
-// 修改多个属性
-allowOrigins := []string{"https://example.com", "https://app.example.com"}
-allowMethods := []string{"GET", "POST", "PUT"}
-allowCredentials := true
-customCors := litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
-    AllowOrigins:     &allowOrigins,
-    AllowMethods:     &allowMethods,
-    AllowCredentials: &allowCredentials,
-})
-```
-
----
-
-### 2. RequestLogger 中间件 (`request_logger_middleware.go`)
-
-**配置结构：**
-```go
-type RequestLoggerConfig struct {
-    Name            *string  // 中间件名称
-    Order           *int     // 执行顺序
-    Enable          *bool    // 是否启用请求日志
-    LogBody         *bool    // 是否记录请求 Body
-    MaxBodySize     *int     // 最大记录 Body 大小（字节）
-    SkipPaths       *[]string // 跳过日志记录的路径
-    LogHeaders      *[]string // 需要记录的请求头
-    SuccessLogLevel *string  // 成功请求日志级别（debug/info）
-}
-```
-
-**默认配置：**
-- `Enable: true`
-- `LogBody: true`
-- `MaxBodySize: 4096`
-- `SkipPaths: []string{"/health", "/metrics"}`
-- `LogHeaders: []string{"User-Agent", "Content-Type"}`
-- `SuccessLogLevel: "info"`
-
-**使用示例：**
 ```go
 // 使用默认配置
-reqLogger := litemiddleware.NewRequestLoggerMiddleware(nil)
-
-// 只禁用 Body 记录
-logBody := false
-prodLogger := litemiddleware.NewRequestLoggerMiddleware(&litemiddleware.RequestLoggerConfig{
-    LogBody: &logBody,
-})
-
-// 完全自定义
-enable := true
-logBody := false
-maxBodySize := 2048
-skipPaths := []string{"/health", "/metrics", "/ping"}
-logHeaders := []string{"User-Agent", "X-Request-ID"}
-successLogLevel := "debug"
-customLogger := litemiddleware.NewRequestLoggerMiddleware(&litemiddleware.RequestLoggerConfig{
-    Enable:          &enable,
-    LogBody:         &logBody,
-    MaxBodySize:     &maxBodySize,
-    SkipPaths:       &skipPaths,
-    LogHeaders:      &logHeaders,
-    SuccessLogLevel: &successLogLevel,
-})
-```
-
----
-
-### 3. SecurityHeaders 中间件 (`security_headers_middleware.go`)
-
-**配置结构：**
-```go
-type SecurityHeadersConfig struct {
-    Name                    *string // 中间件名称
-    Order                   *int    // 执行顺序
-    FrameOptions            *string // X-Frame-Options
-    ContentTypeOptions      *string // X-Content-Type-Options
-    XSSProtection           *string // X-XSS-Protection
-    ReferrerPolicy          *string // Referrer-Policy
-    ContentSecurityPolicy   *string // Content-Security-Policy
-    StrictTransportSecurity *string // Strict-Transport-Security
-}
-```
-
-**默认配置：**
-- `FrameOptions: "DENY"`
-- `ContentTypeOptions: "nosniff"`
-- `XSSProtection: "1; mode=block"`
-- `ReferrerPolicy: "strict-origin-when-cross-origin"`
-
-**使用示例：**
-```go
-// 使用默认配置
-security := litemiddleware.NewSecurityHeadersMiddleware(nil)
-
-// 添加 CSP
-csp := "default-src 'self'; script-src 'self'"
-customSecurity := litemiddleware.NewSecurityHeadersMiddleware(&litemiddleware.SecurityHeadersConfig{
-    ContentSecurityPolicy: &csp,
-})
-
-// 完全自定义
-frameOptions := "SAMEORIGIN"
-contentTypeOptions := "nosniff"
-xssProtection := "1; mode=block"
-referrerPolicy := "no-referrer"
-csp := "default-src 'self'"
-hsts := "max-age=31536000; includeSubDomains"
-prodSecurity := litemiddleware.NewSecurityHeadersMiddleware(&litemiddleware.SecurityHeadersConfig{
-    FrameOptions:            &frameOptions,
-    ContentTypeOptions:      &contentTypeOptions,
-    XSSProtection:           &xssProtection,
-    ReferrerPolicy:          &referrerPolicy,
-    ContentSecurityPolicy:   &csp,
-    StrictTransportSecurity: &hsts,
-})
-```
-
----
-
-### 4. Recovery 中间件 (`recovery_middleware.go`)
-
-**配置结构：**
-```go
-type RecoveryConfig struct {
-    Name            *string // 中间件名称
-    Order           *int    // 执行顺序
-    PrintStack      *bool   // 是否打印堆栈信息
-    CustomErrorBody *bool   // 是否使用自定义错误响应
-    ErrorMessage    *string // 自定义错误消息
-    ErrorCode       *string // 自定义错误代码
-}
-```
-
-**默认配置：**
-- `PrintStack: true`
-- `CustomErrorBody: true`
-- `ErrorMessage: "内部服务器错误"`
-- `ErrorCode: "INTERNAL_SERVER_ERROR"`
-
-**使用示例：**
-```go
-// 使用默认配置（打印堆栈）
 recovery := litemiddleware.NewRecoveryMiddleware(nil)
 
-// 生产环境（不打印堆栈）
+// 自定义配置（生产环境不打印堆栈）
 printStack := false
-customErrorBody := true
-errorMessage := "系统繁忙，请稍后重试"
-errorCode := "SYSTEM_BUSY"
-prodRecovery := litemiddleware.NewRecoveryMiddleware(&litemiddleware.RecoveryConfig{
+cfg := &litemiddleware.RecoveryConfig{
     PrintStack:      &printStack,
-    CustomErrorBody: &customErrorBody,
-    ErrorMessage:    &errorMessage,
-    ErrorCode:       &errorCode,
-})
-```
-
----
-
-### 5. RateLimiter 中间件 (`rate_limiter_middleware.go`)
-
-**配置结构：**
-```go
-type RateLimiterConfig struct {
-    Name      *string       // 中间件名称
-    Order     *int          // 执行顺序
-    Limit     *int          // 时间窗口内最大请求数
-    Window    *time.Duration // 时间窗口大小
-    KeyFunc   KeyFunc       // 自定义key生成函数
-    SkipFunc  SkipFunc      // 跳过限流的条件
-    KeyPrefix *string       // key前缀
+    CustomErrorBody: &[]bool{true}[0],
+    ErrorMessage:    &[]string{"系统繁忙，请稍后重试"}[0],
+    ErrorCode:       &[]string{"SYSTEM_BUSY"}[0],
 }
+recovery := litemiddleware.NewRecoveryMiddleware(cfg)
 ```
 
-**默认配置：**
-- `Limit: 100`
-- `Window: time.Minute`
-- `KeyPrefix: "rate_limit"`
-- `KeyFunc: 按IP生成key`
+### RequestLogger 中间件
 
-**使用示例：**
+请求日志中间件，记录请求和响应信息，支持日志级别控制和路径过滤。
+
 ```go
-// 使用默认配置（按IP限流）
+// 使用默认配置（记录 Body，跳过 /health 和 /metrics）
+reqLogger := litemiddleware.NewRequestLoggerMiddleware(nil)
+
+// 禁用 Body 记录，调整日志级别为 debug
+logBody := false
+successLogLevel := "debug"
+cfg := &litemiddleware.RequestLoggerConfig{
+    LogBody:         &logBody,
+    SuccessLogLevel: &successLogLevel,
+}
+reqLogger := litemiddleware.NewRequestLoggerMiddleware(cfg)
+```
+
+### CORS 中间件
+
+跨域资源共享中间件，支持灵活的跨域配置。
+
+```go
+// 使用默认配置（允许所有源）
+cors := litemiddleware.NewCorsMiddleware(nil)
+
+// 生产环境配置（仅允许特定域名）
+allowOrigins := []string{"https://example.com", "https://app.example.com"}
+allowCredentials := true
+cfg := &litemiddleware.CorsConfig{
+    AllowOrigins:     &allowOrigins,
+    AllowCredentials: &allowCredentials,
+}
+cors := litemiddleware.NewCorsMiddleware(cfg)
+```
+
+### SecurityHeaders 中间件
+
+安全头中间件，自动添加常见的安全 HTTP 头。
+
+```go
+// 使用默认配置（X-Frame-Options: DENY, X-Content-Type-Options: nosniff 等）
+security := litemiddleware.NewSecurityHeadersMiddleware(nil)
+
+// 添加 CSP 和 HSTS
+csp := "default-src 'self'; script-src 'self'"
+hsts := "max-age=31536000; includeSubDomains"
+cfg := &litemiddleware.SecurityHeadersConfig{
+    ContentSecurityPolicy:   &csp,
+    StrictTransportSecurity: &hsts,
+}
+security := litemiddleware.NewSecurityHeadersMiddleware(cfg)
+```
+
+### RateLimiter 中间件
+
+限流中间件，基于时间窗口的请求频率控制，支持多种限流策略。
+
+```go
+// 使用默认配置（按 IP 限流，每分钟 100 次请求）
 limiter := litemiddleware.NewRateLimiterMiddleware(nil)
 
-// 自定义限流规则
-limit := 200
+// 按用户 ID 限流，自定义跳过条件
+limit := 10
 window := time.Minute
-keyPrefix := "api"
-customLimiter := litemiddleware.NewRateLimiterMiddleware(&litemiddleware.RateLimiterConfig{
+keyPrefix := "user"
+cfg := &litemiddleware.RateLimiterConfig{
     Limit:     &limit,
     Window:    &window,
     KeyPrefix: &keyPrefix,
     KeyFunc: func(c *gin.Context) string {
-        return c.GetHeader("X-User-ID")
+        if userID, exists := c.Get("user_id"); exists {
+            return userID.(string)
+        }
+        return c.ClientIP()
     },
     SkipFunc: func(c *gin.Context) bool {
         return c.GetHeader("X-Internal") == "true"
     },
-})
-```
-
----
-
-### 6. Telemetry 中间件 (`telemetry_middleware.go`)
-
-**配置结构：**
-```go
-type TelemetryConfig struct {
-    Name  *string // 中间件名称
-    Order *int    // 执行顺序
 }
+limiter := litemiddleware.NewRateLimiterMiddleware(cfg)
 ```
 
-**默认配置：**
-- 无需额外配置，通过 DI 注入 TelemetryManager
+### Telemetry 中间件
 
-**使用示例：**
+遥测中间件，集成 OpenTelemetry 进行链路追踪和指标采集。
+
 ```go
-// 使用默认配置
+// 使用默认配置（依赖注入 TelemetryManager）
 telemetry := litemiddleware.NewTelemetryMiddleware(nil)
 ```
 
----
+## API
+
+### 配置结构
+
+| 配置结构 | 说明 |
+|----------|------|
+| `CorsConfig` | CORS 跨域配置 |
+| `RecoveryConfig` | Panic 恢复配置 |
+| `RequestLoggerConfig` | 请求日志配置 |
+| `SecurityHeadersConfig` | 安全头配置 |
+| `RateLimiterConfig` | 限流配置 |
+| `TelemetryConfig` | 遥测配置 |
+
+### 构造函数
+
+| 函数 | 说明 |
+|------|------|
+| `NewCorsMiddleware(*CorsConfig)` | 创建 CORS 中间件 |
+| `NewRecoveryMiddleware(*RecoveryConfig)` | 创建 Recovery 中间件 |
+| `NewRequestLoggerMiddleware(*RequestLoggerConfig)` | 创建 RequestLogger 中间件 |
+| `NewSecurityHeadersMiddleware(*SecurityHeadersConfig)` | 创建 SecurityHeaders 中间件 |
+| `NewRateLimiterMiddleware(*RateLimiterConfig)` | 创建 RateLimiter 中间件 |
+| `NewTelemetryMiddleware(*TelemetryConfig)` | 创建 Telemetry 中间件 |
+
+### 便捷函数
+
+| 函数 | 说明 |
+|------|------|
+| `NewCorsMiddlewareWithDefaults()` | 使用默认配置创建 CORS 中间件 |
+| `NewRecoveryMiddlewareWithDefaults()` | 使用默认配置创建 Recovery 中间件 |
+| `NewRequestLoggerMiddlewareWithDefaults()` | 使用默认配置创建 RequestLogger 中间件 |
+| `NewSecurityHeadersMiddlewareWithDefaults()` | 使用默认配置创建 SecurityHeaders 中间件 |
+| `NewRateLimiterMiddlewareWithDefaults()` | 使用默认配置创建 RateLimiter 中间件 |
+| `NewTelemetryMiddlewareWithDefaults()` | 使用默认配置创建 Telemetry 中间件 |
+
+### 接口方法
+
+所有中间件实现以下方法：
+
+```go
+type IBaseMiddleware interface {
+    MiddlewareName() string  // 返回中间件名称
+    Order() int              // 返回执行顺序
+    Wrapper() gin.HandlerFunc // 返回 Gin 中间件函数
+    OnStart() error           // 服务器启动时触发
+    OnStop() error            // 服务器停止时触发
+}
+```
+
+## 执行顺序
+
+预定义的中间件执行顺序（按 Order 值从小到大）：
+
+| Order | 中间件 | 说明 |
+|-------|--------|------|
+| 0 | Recovery | panic 恢复（最先执行） |
+| 50 | RequestLogger | 请求日志 |
+| 100 | CORS | 跨域处理 |
+| 150 | SecurityHeaders | 安全头 |
+| 200 | RateLimiter | 限流 |
+| 250 | Telemetry | 遥测 |
+| 300 | Auth | 认证（预留） |
+
+业务自定义中间件建议从 Order 350 开始。
 
 ## 依赖注入
 
-所有中间件的依赖注入使用 `inject:""` 标签注入 Manager：
+中间件通过依赖注入获取 Manager 组件：
 
 ```go
 type requestLoggerMiddleware struct {
@@ -322,193 +221,56 @@ type rateLimiterMiddleware struct {
     LoggerMgr  loggermgr.ILoggerManager   `inject:""`
     config     *RateLimiterConfig
 }
+
+type telemetryMiddleware struct {
+    TelemetryManager telemetrymgr.ITelemetryManager `inject:""`
+    cfg              *TelemetryConfig
+}
 ```
 
-依赖注入会在容器初始化时自动完成。
+## 业务层封装
 
----
-
-## 业务系统使用方式
-
-### 方式 1：使用默认配置（快速开发）
+在业务项目中，可以定义自己的中间件接口并封装 litemiddleware 的实现：
 
 ```go
 // internal/middlewares/cors_middleware.go
+package middlewares
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/component/litemiddleware"
+)
+
+type ICorsMiddleware interface {
+    common.IBaseMiddleware
+}
+
 func NewCorsMiddleware() ICorsMiddleware {
-    return litemiddleware.NewCorsMiddleware(nil)
+    return litemiddleware.NewCorsMiddlewareWithDefaults()
 }
-```
 
-### 方式 2：使用自定义配置（生产环境）
-
-```go
-// internal/middlewares/cors_middleware.go
 func NewProductionCorsMiddleware() ICorsMiddleware {
-    allowOrigins := []string{"https://example.com", "https://www.example.com"}
+    allowOrigins := []string{"https://example.com"}
     allowCredentials := true
-    maxAge := 12 * time.Hour
-    
     return litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
         AllowOrigins:     &allowOrigins,
         AllowCredentials: &allowCredentials,
-        MaxAge:           &maxAge,
     })
 }
 ```
 
-### 方式 3：配置驱动（从配置文件读取）
+## 性能优化建议
 
-```go
-// internal/middlewares/cors_middleware.go
-func NewConfigurableCorsMiddleware(cfg config.CorsConfig) ICorsMiddleware {
-    var allowOrigins []string
-    if cfg.AllowOrigins != nil {
-        allowOrigins = cfg.AllowOrigins
-    }
-    
-    allowCredentials := true
-    if cfg.AllowCredentials != nil {
-        allowCredentials = *cfg.AllowCredentials
-    }
-    
-    maxAge := 12 * time.Hour
-    if cfg.MaxAge != nil {
-        maxAge = *cfg.MaxAge
-    }
-    
-    return litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
-        AllowOrigins:     &allowOrigins,
-        AllowCredentials: &allowCredentials,
-        MaxAge:           &maxAge,
-    })
-}
-```
-
----
-
-## 中间件执行顺序
-
-预定义的中间件执行顺序（按 Order 值从小到大）：
-
-| 中间件 | Order | 说明 |
-|--------|-------|------|
-| Recovery | 0 | panic 恢复（最先执行） |
-| RequestLogger | 50 | 请求日志 |
-| CORS | 100 | 跨域处理 |
-| SecurityHeaders | 150 | 安全头 |
-| RateLimiter | 200 | 限流 |
-| Telemetry | 250 | 遥测 |
-| Auth | 300 | 认证（预留） |
-
-业务自定义中间件建议从 Order 350 开始。
-
----
-
-## 测试
-
-所有中间件都有完整的单元测试，测试包括：
-- 默认配置测试
-- 自定义配置测试
-- 功能正确性测试
-- 边界条件测试
-
-运行测试：
-```bash
-go test ./component/litemiddleware/... -v
-```
-
----
-
-## 文件清单
-
-### 中间件实现文件
-- `cors_middleware.go` - CORS 跨域中间件
-- `recovery_middleware.go` - Panic 恢复中间件
-- `request_logger_middleware.go` - 请求日志中间件
-- `security_headers_middleware.go` - 安全头中间件
-- `rate_limiter_middleware.go` - 限流中间件
-- `telemetry_middleware.go` - 遥测中间件
-
-### 测试文件
-- `cors_middleware_test.go` - CORS 测试
-- `rate_limiter_middleware_test.go` - RateLimiter 测试
-- `security_headers_middleware_test.go` - SecurityHeaders 测试
-- `telemetry_middleware_test.go` - Telemetry 测试
-- `example_test.go` - 使用示例
-
-### 配置文件
-- `constants.go` - 中间件执行顺序常量
-- `README.md` - 本文档
-
-### 示例项目
-- `samples/messageboard/internal/middlewares/` - 示例项目中间件封装
-
----
-
-## 使用建议
-
-### 开发环境
-使用默认配置，快速开发：
-```go
-container.RegisterMiddleware(middlewareContainer, litemiddleware.NewCorsMiddleware(nil))
-```
-
-### 生产环境
-自定义配置，增强安全性：
-```go
-allowOrigins := []string{"https://yourdomain.com"}
-allowCredentials := true
-container.RegisterMiddleware(middlewareContainer, litemiddleware.NewCorsMiddleware(&litemiddleware.CorsConfig{
-    AllowOrigins:     &allowOrigins,
-    AllowCredentials: &allowCredentials,
-}))
-```
-
-### 配置文件驱动
-建议将中间件配置纳入配置文件管理，支持不同环境使用不同配置：
-```yaml
-cors:
-  allow_origins:
-    - https://example.com
-    - https://app.example.com
-  allow_credentials: true
-  max_age: 12h
-
-request_logger:
-  enable: true
-  log_body: false
-  max_body_size: 2048
-  skip_paths:
-    - /health
-    - /metrics
-```
-
-### 性能优化
-- 关闭 RequestLogger 的 Body 记录（大文件场景）
-- 关闭 Recovery 的堆栈打印（生产环境）
-- 合理设置 RateLimiter 限制
-
----
-
-## 总结
-
-中间件配置设计特性：
-1. ✅ 所有配置属性都使用指针类型（可选配置）
-2. ✅ 未配置的属性自动使用默认值
-3. ✅ 支持依赖注入机制
-4. ✅ 支持通过配置自定义 Name 和 Order
-5. ✅ CORS 支持灵活的跨域配置
-6. ✅ RequestLogger 支持性能优化配置
-7. ✅ RateLimiter 支持多种限流策略（按 IP/用户/路径等）
-8. ✅ 所有中间件都有完整的单元测试和示例
-
-业务系统可以灵活地根据环境（开发/测试/生产）配置不同的中间件参数，支持任意属性组合。
+- **RequestLogger**：生产环境关闭 Body 记录（`LogBody: false`）
+- **Recovery**：生产环境关闭堆栈打印（`PrintStack: false`）
+- **RateLimiter**：合理设置 Limit 和 Window，避免过度限制
+- **SkipFunc**：使用 SkipFunc 跳过内部请求或健康检查的限流
 
 ## 版本历史
 
-### v1.0.0 (2026-01-24)
+### v2.0.0 (2026-01-24)
 
-- **目录重构**：`component/middleware` → `component/litemiddleware`
+- **目录重构**：从 `component/middleware` 迁移至 `component/litemiddleware`
 - **包名变更**：`middleware` → `litemiddleware`
 - **配置增强**：所有中间件支持通过配置自定义 Name 和 Order
 - **配置重构**：配置属性改为指针类型，支持可选配置

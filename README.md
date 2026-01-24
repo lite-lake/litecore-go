@@ -1,6 +1,6 @@
 # LiteCore-Go
 
-基于 Gin + GORM + Zap 的 5 层分层架构企业级 Go Web 开发框架
+基于 Gin + GORM + Zap 的 5 层分层架构企业级 Go Web 开发框架，内置 Manager 组件和依赖注入容器。
 
 ## 特性
 
@@ -40,26 +40,26 @@ mkdir -p internal/{entities,repositories,services,controllers,middlewares,infras
 mkdir -p cmd/{server,generate}
 mkdir -p {configs,templates,static}
 
- # 3. 创建配置文件
- cat > configs/config.yaml <<EOF
- server:
-   port: 8080
-   mode: "debug"
+# 3. 创建配置文件
+cat > configs/config.yaml <<EOF
+server:
+  port: 8080
+  mode: "debug"
 
- database:
-   driver: "sqlite"
-   sqlite_config:
-     dsn: "./data/myapp.db"
+database:
+  driver: "sqlite"
+  sqlite_config:
+    dsn: "./data/myapp.db"
 
- logger:
-   driver: "zap"
-   zap_config:
-     console_enabled: true
-     console_config:
-       level: "info"
-       format: "gin"
-       color: true
- EOF
+logger:
+  driver: "zap"
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: "info"
+      format: "gin"
+      color: true
+EOF
 
 # 4. 创建生成器入口
 cat > cmd/generate/main.go <<'MAINEOF'
@@ -77,45 +77,45 @@ MAINEOF
 # 5. 运行生成器
 go run ./cmd/generate
 
- # 6. 创建应用入口
- cat > cmd/server/main.go <<'SERVEREOF'
- package main
+# 6. 创建应用入口
+cat > cmd/server/main.go <<'SERVEREOF'
+package main
 
- import (
-     "os"
+import (
+    "os"
 
-     "github.com/lite-lake/litecore-go/server"
-     builtin "github.com/lite-lake/litecore-go/server/builtin"
-     "github.com/lite-lake/litecore-go/container"
- )
+    "github.com/lite-lake/litecore-go/server"
+    builtin "github.com/lite-lake/litecore-go/server/builtin"
+    "github.com/lite-lake/litecore-go/container"
+)
 
- func main() {
-     // 创建容器
-     entityContainer := container.NewEntityContainer()
-     repositoryContainer := container.NewRepositoryContainer(entityContainer)
-     serviceContainer := container.NewServiceContainer(repositoryContainer)
-     controllerContainer := container.NewControllerContainer(serviceContainer)
-     middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
+func main() {
+    // 创建容器
+    entityContainer := container.NewEntityContainer()
+    repositoryContainer := container.NewRepositoryContainer(entityContainer)
+    serviceContainer := container.NewServiceContainer(repositoryContainer)
+    controllerContainer := container.NewControllerContainer(serviceContainer)
+    middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 
-     // 创建引擎（Manager 组件会自动初始化）
-     engine := server.NewEngine(
-         &builtin.Config{
-             Driver:   "yaml",
-             FilePath: "configs/config.yaml",
-         },
-         entityContainer,
-         repositoryContainer,
-         serviceContainer,
-         controllerContainer,
-         middlewareContainer,
-     )
+    // 创建引擎（Manager 组件会自动初始化）
+    engine := server.NewEngine(
+        &builtin.Config{
+            Driver:   "yaml",
+            FilePath: "configs/config.yaml",
+        },
+        entityContainer,
+        repositoryContainer,
+        serviceContainer,
+        controllerContainer,
+        middlewareContainer,
+    )
 
-     // 启动引擎
-     if err := engine.Run(); err != nil {
-         os.Exit(1)
-     }
- }
- SERVEREOF
+    // 启动引擎
+    if err := engine.Run(); err != nil {
+        os.Exit(1)
+    }
+}
+SERVEREOF
 
 # 7. 运行应用
 go run ./cmd/server
@@ -207,7 +207,7 @@ go run ./cmd/server
 │  - 内置组件：component/litecontroller/*              │
 │  - 内置组件：component/litemiddleware/*              │
 └─────────────────────────────────────────────────────┘
-                           ↓ 依赖
+                            ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
 │  Service                           (服务层)         │
 │  - 编排业务逻辑                                          │
@@ -215,14 +215,14 @@ go run ./cmd/server
 │  - 调用 Repository 和其他 Service                      │
 │  - 内置组件：component/liteservice/*                   │
 └─────────────────────────────────────────────────────┘
-                           ↓ 依赖
+                            ↓ 依赖
 ┌─────────────────────────────────────────────────────┐
 │  Repository                       (仓储层)           │
 │  - 数据访问抽象                                        │
 │  - 与 Manager 和 Entity 交互                          │
 │  - 封装数据查询逻辑                                    │
 └─────────────────────────────────────────────────────┘
-              ↓ 依赖              ↑ 使用
+               ↓ 依赖              ↑ 使用
 ┌─────────────────────────┐    ┌──────────────────────┐
 │  Manager  (管理器层)     │    │  Entity    (实体层)   │
 │  - manager/             │    │  - 数据模型定义        │
@@ -320,20 +320,6 @@ err := r.DBMgr.Health()
 
 // 连接池统计
 stats := r.DBMgr.Stats()
-```
-
-// 自动迁移
-dbMgr.AutoMigrate(&User{})
-
-// 数据库操作
-var user User
-dbMgr.DB().First(&user, 1)
-
-// 健康检查
-err := dbMgr.Health()
-
-// 连接池统计
-stats := dbMgr.Stats()
 ```
 
 支持的数据库：

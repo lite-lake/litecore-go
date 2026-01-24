@@ -1,109 +1,147 @@
 # Logger Manager
 
-日志管理器模块，提供统一的日志管理接口，支持多种日志驱动。
+日志管理器，提供统一的日志管理接口，支持多种日志驱动。
 
 ## 特性
 
 - **多驱动支持** - 支持 zap（高性能）、default（简单）、none（空实现）三种日志驱动
+- **多输出支持** - 同时支持控制台、文件和观测日志三种输出方式
 - **多格式支持** - 控制台输出支持 Gin 风格、JSON、默认三种格式
-- **彩色输出** - 控制台输出支持彩色分级显示，可配置开关
-- **OpenTelemetry 集成** - 支持将日志输出到观测平台
-- **多输出支持** - 同时支持控制台、文件和观测日志输出
+- **彩色输出** - 自动检测终端支持，可配置彩色分级显示
 - **日志轮转** - 支持按大小、时间轮转日志文件，并可压缩旧日志
-- **级别过滤** - 支持动态调整日志级别
+- **OpenTelemetry 集成** - 支持将日志输出到可观测平台
+- **依赖注入** - 支持通过 DI 注入到各层组件
 - **线程安全** - 支持并发日志写入
-- **时间格式化** - 支持自定义日志时间格式
 
 ## 快速开始
+
+### 通过配置文件创建
+
+```yaml
+logger:
+  driver: zap
+  zap_config:
+    console_enabled: true
+    console_config:
+      level: info
+      format: gin
+      color: true
+    file_enabled: false
+    file_config:
+      level: debug
+      path: ./logs/app.log
+```
+
+### 依赖注入使用
+
+```go
+package services
+
+import (
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type MyService struct {
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
+    logger    loggermgr.ILogger
+}
+
+func (s *MyService) OnStart() error {
+    s.logger = s.LoggerMgr.Ins()
+    return nil
+}
+
+func (s *MyService) DoWork() {
+    s.logger.Info("开始处理", "task_id", 123)
+    s.logger.Debug("处理详情", "items", 10)
+    s.logger.Error("处理失败", "error", err)
+}
+```
+
+### 直接创建
 
 ```go
 import (
     "github.com/lite-lake/litecore-go/manager/loggermgr"
-    "github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
-// 创建 Zap 日志管理器
 cfg := &loggermgr.Config{
     Driver: "zap",
     ZapConfig: &loggermgr.DriverZapConfig{
         ConsoleEnabled: true,
-        ConsoleConfig: &loggermgr.LogLevelConfig{Level: "info"},
+        ConsoleConfig:  &loggermgr.LogLevelConfig{Level: "info"},
     },
 }
 
-mgr, err := loggermgr.Build(cfg, telemetryMgr)
+mgr, err := loggermgr.Build(cfg, nil)
 if err != nil {
     panic(err)
 }
 
-// 获取日志实例并使用
 log := mgr.Ins()
 log.Info("应用启动", "port", 8080)
-log.Warn("警告信息", "reason", "连接超时")
-log.Error("错误信息", "error", err)
 ```
 
-## 配置
+## 日志驱动
 
-### 驱动类型
+### Zap 驱动
 
-支持三种驱动类型：
+高性能日志驱动，支持多输出和轮转，适用于生产环境。
 
-| 驱动 | 说明 | 适用场景 |
-|------|------|----------|
-| zap | 高性能日志驱动，支持多输出和轮转 | 生产环境 |
-| default | 简单日志驱动，输出到标准输出 | 开发环境 |
-| none | 空日志驱动，不输出任何日志 | 测试环境 |
+```go
+cfg := &loggermgr.DriverZapConfig{
+    ConsoleEnabled: true,
+    ConsoleConfig:  &loggermgr.LogLevelConfig{Level: "info"},
+    FileEnabled: true,
+    FileConfig: &loggermgr.FileLogConfig{
+        Level: "debug",
+        Path:  "./logs/app.log",
+        Rotation: &loggermgr.RotationConfig{
+            MaxSize:    100,
+            MaxAge:     30,
+            MaxBackups: 10,
+            Compress:   true,
+        },
+    },
+}
 
-### Zap 驱动配置
-
-```yaml
-driver: zap
-zap_config:
-  # 控制台输出配置
-  console_enabled: true
-  console_config:
-    level: info  # debug, info, warn, error, fatal
-    format: gin  # 格式: gin | json | default
-    color: true  # 是否启用颜色（默认自动检测）
-    time_format: "2006-01-24 15:04:05.000"  # 时间格式
-
-  # 文件输出配置
-  file_enabled: true
-  file_config:
-    level: debug
-    path: ./logs/app.log
-    rotation:
-      max_size: 100    # 单文件最大 MB
-      max_age: 30      # 保留天数
-      max_backups: 10  # 保留文件数
-      compress: true   # 压缩旧文件
-
-  # 观测输出配置
-  telemetry_enabled: true
-  telemetry_config:
-    level: info
-    format: json  # 观测日志使用 JSON 格式
+mgr, err := loggermgr.NewDriverZapLoggerManager(cfg, telemetryMgr)
 ```
 
-### 日志格式说明
+### Default 驱动
 
-控制台输出支持三种格式：
+简单日志驱动，输出到标准输出，适用于开发环境。
 
-| 格式 | 说明 | 示例 |
-|------|------|------|
-| `gin` | Gin 风格格式，竖线分隔符，适合控制台输出（默认） | `2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23` |
-| `json` | JSON 格式，适合日志分析和监控 | `{"time":"2026-01-24T15:04:05.123Z","level":"INFO","msg":"开始依赖注入","count":23}` |
-| `default` | 默认 ConsoleEncoder 格式 | `{"level":"info","time":"2026-01-24T15:04:05.123Z","msg":"开始依赖注入","count":23}` |
+```go
+mgr := loggermgr.NewDriverDefaultLoggerManager()
+log := mgr.Ins()
+log.Info("简单日志输出")
+```
 
-**Gin 格式特点**：
-- 统一格式：`{时间} | {级别} | {消息} | {字段1}={值1} {字段2}={值2} ...`
-- 时间固定宽度 23 字符
-- 级别固定宽度 5 字符，右对齐，带颜色
-- 字段格式：`key=value`，字符串值用引号包裹
+### None 驱动
+
+空日志驱动，不输出任何日志，适用于测试环境。
+
+```go
+mgr := loggermgr.NewDriverNoneLoggerManager()
+log := mgr.Ins()
+log.Info("这条日志不会被输出")
+```
+
+## 日志格式
+
+### Gin 格式（推荐）
+
+竖线分隔符，适合控制台输出，支持彩色显示。
+
+```
+2026-01-24 15:04:05.123 | INFO  | 开始依赖注入 | count=23
+2026-01-24 15:04:05.456 | WARN  | 慢查询检测 | duration=1.2s
+2026-01-24 15:04:05.789 | ERROR | 数据库连接失败 | error="connection refused"
+```
 
 **颜色配置**：
-- `color: true`（默认）：根据终端自动检测
+- `color: true`：根据终端自动检测（默认）
 - `color: false`：关闭彩色输出
 
 **日志级别颜色**：
@@ -113,13 +151,39 @@ zap_config:
 - ERROR：红色
 - FATAL：红色+粗体
 
+### JSON 格式
+
+适合日志分析和监控系统。
+
+```json
+{"time":"2026-01-24T15:04:05.123Z","level":"INFO","msg":"开始依赖注入","count":23}
+```
+
+### Default 格式
+
+默认 ConsoleEncoder 格式。
+
+```json
+{"level":"info","time":"2026-01-24T15:04:05.123Z","msg":"开始依赖注入","count":23}
+```
+
+## 日志级别
+
+支持五个日志级别：
+
+| 级别 | 说明 | 使用场景 |
+|------|------|----------|
+| Debug | 调试信息 | 开发调试 |
+| Info | 正常业务流程 | 请求开始/完成、资源创建 |
+| Warn | 降级处理、慢查询、重试 | 需要关注但不影响运行 |
+| Error | 业务错误、操作失败 | 需人工关注 |
+| Fatal | 致命错误 | 需立即终止程序 |
+
 ## API
 
 ### 接口
 
 #### ILoggerManager
-
-日志管理器接口，继承自 `common.IBaseManager`。
 
 ```go
 type ILoggerManager interface {
@@ -128,7 +192,7 @@ type ILoggerManager interface {
 }
 ```
 
-### 主要函数
+### 工厂函数
 
 #### Build
 
@@ -140,10 +204,10 @@ func Build(config *Config, telemetryMgr telemetrymgr.ITelemetryManager) (ILogger
 
 #### BuildWithConfigProvider
 
-通过配置提供者创建日志管理器。
+通过配置提供者创建日志管理器（引擎自动调用）。
 
 ```go
-func BuildWithConfigProvider(configProvider IConfigProvider, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error)
+func BuildWithConfigProvider(configProvider configmgr.IConfigManager, telemetryMgr telemetrymgr.ITelemetryManager) (ILoggerManager, error)
 ```
 
 #### NewDriverZapLoggerManager
@@ -174,92 +238,59 @@ func NewDriverNoneLoggerManager() ILoggerManager
 
 #### Config
 
-日志管理器配置。
-
 ```go
 type Config struct {
-    Driver    string           // 驱动类型: zap, default, none
-    ZapConfig *DriverZapConfig // Zap 驱动配置
+    Driver    string           `yaml:"driver"`     // 驱动类型: zap, default, none
+    ZapConfig *DriverZapConfig `yaml:"zap_config"` // Zap 驱动配置
 }
 ```
 
 #### DriverZapConfig
 
-Zap 驱动配置。
-
 ```go
 type DriverZapConfig struct {
-    TelemetryEnabled bool            // 是否启用观测日志
-    TelemetryConfig  *LogLevelConfig // 观测日志配置
-    ConsoleEnabled   bool            // 是否启用控制台日志
-    ConsoleConfig    *LogLevelConfig // 控制台日志配置
-    FileEnabled      bool            // 是否启用文件日志
-    FileConfig       *FileLogConfig  // 文件日志配置
+    TelemetryEnabled bool            `yaml:"telemetry_enabled"` // 是否启用观测日志
+    TelemetryConfig  *LogLevelConfig `yaml:"telemetry_config"`  // 观测日志配置
+    ConsoleEnabled   bool            `yaml:"console_enabled"`   // 是否启用控制台日志
+    ConsoleConfig    *LogLevelConfig `yaml:"console_config"`    // 控制台日志配置
+    FileEnabled      bool            `yaml:"file_enabled"`      // 是否启用文件日志
+    FileConfig       *FileLogConfig  `yaml:"file_config"`       // 文件日志配置
 }
 ```
 
 #### LogLevelConfig
 
-日志级别配置。
-
 ```go
 type LogLevelConfig struct {
-    Level      string // 日志级别: debug, info, warn, error, fatal
-    Format     string // 日志格式: gin | json | default
-    Color      bool   // 是否启用颜色输出（默认根据终端自动检测）
-    TimeFormat string // 时间格式（默认：2006-01-02 15:04:05.000）
+    Level      string `yaml:"level"`       // 日志级别: debug, info, warn, error, fatal
+    Format     string `yaml:"format"`      // 日志格式: gin | json | default
+    Color      bool   `yaml:"color"`       // 是否启用颜色输出（默认根据终端自动检测）
+    TimeFormat string `yaml:"time_format"` // 时间格式（默认：2006-01-02 15:04:05.000）
 }
 ```
 
 #### FileLogConfig
 
-文件日志配置。
-
 ```go
 type FileLogConfig struct {
-    Level    string          // 日志级别
-    Path     string          // 日志文件路径
-    Rotation *RotationConfig // 日志轮转配置
+    Level    string          `yaml:"level"`    // 日志级别
+    Path     string          `yaml:"path"`     // 日志文件路径
+    Rotation *RotationConfig `yaml:"rotation"` // 日志轮转配置
 }
 ```
 
 #### RotationConfig
 
-日志轮转配置。
-
 ```go
 type RotationConfig struct {
-    MaxSize    int  // 单个日志文件最大大小（MB）
-    MaxAge     int  // 日志文件保留天数
-    MaxBackups int  // 保留的旧日志文件最大数量
-    Compress   bool // 是否压缩旧日志文件
+    MaxSize    int  `yaml:"max_size"`    // 单个日志文件最大大小（MB）
+    MaxAge     int  `yaml:"max_age"`     // 日志文件保留天数
+    MaxBackups int  `yaml:"max_backups"` // 保留的旧日志文件最大数量
+    Compress   bool `yaml:"compress"`    // 是否压缩旧日志文件
 }
 ```
 
-## 使用示例
-
-### 多输出配置
-
-```go
-cfg := &loggermgr.Config{
-    Driver: "zap",
-    ZapConfig: &loggermgr.DriverZapConfig{
-        ConsoleEnabled: true,
-        ConsoleConfig:  &loggermgr.LogLevelConfig{Level: "info"},
-        FileEnabled: true,
-        FileConfig: &loggermgr.FileLogConfig{
-            Level: "debug",
-            Path:  "./logs/app.log",
-            Rotation: &loggermgr.RotationConfig{
-                MaxSize:    100,
-                MaxAge:     30,
-                MaxBackups: 10,
-                Compress:   true,
-            },
-        },
-    },
-}
-```
+## 高级用法
 
 ### 带上下文的日志
 
@@ -305,11 +336,23 @@ cfg := &loggermgr.Config{
 mgr, err := loggermgr.Build(cfg, telemetryMgr)
 ```
 
+## 敏感信息处理
+
+日志输出时注意保护敏感信息：
+
+```go
+// 不推荐：直接输出密码
+log.Error("登录失败", "password", userPassword)
+
+// 推荐：脱敏处理
+log.Error("登录失败", "user", username, "error", err)
+```
+
 ## 注意事项
 
 1. **Fatal 级别** - 调用 `Fatal` 方法后程序会退出，仅在严重错误时使用
 2. **并发安全** - 所有日志操作都是线程安全的，可以在多个 goroutine 中并发使用
-3. **文件路径** - 确保日志文件目录有写入权限，目录不存在时会自动创建
+3. **文件权限** - 确保日志文件目录有写入权限，目录不存在时会自动创建
 4. **性能考虑** - 高并发场景下建议使用 zap 驱动以获得最佳性能
 5. **观测集成** - 启用观测输出需要正确配置 TelemetryManager
 
@@ -318,5 +361,6 @@ mgr, err := loggermgr.Build(cfg, telemetryMgr)
 1. **合理选择驱动** - 开发环境使用 default，生产环境使用 zap
 2. **分级输出** - 控制台输出 info 及以上级别，文件输出 debug 及以上级别
 3. **使用上下文** - 通过 `With` 方法添加服务、版本等元信息
-4. **避免过载** - 生产环境避免使用 debug 级别
-5. **结构化日志** - 使用 key-value 格式而非拼接字符串
+4. **结构化日志** - 使用 key-value 格式而非拼接字符串
+5. **避免过载** - 生产环境避免使用 debug 级别
+6. **依赖注入** - 通过 DI 注入 ILoggerManager，在 OnStart 中获取 logger 实例
