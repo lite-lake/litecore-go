@@ -35,9 +35,9 @@ func (r *messageRepositoryImpl) RepositoryName() string {
 	return "MessageRepository"
 }
 
-// OnStart 启动时自动迁移数据库表结构
+// OnStart 启动时初始化
 func (r *messageRepositoryImpl) OnStart() error {
-	return r.Manager.AutoMigrate(&entities.Message{})
+	return nil
 }
 
 // OnStop 停止时清理资源

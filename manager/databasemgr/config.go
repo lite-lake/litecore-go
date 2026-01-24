@@ -20,6 +20,7 @@ type DatabaseConfig struct {
 	PostgreSQLConfig    *PostgreSQLConfig    `yaml:"postgresql_config"`    // PostgreSQL 配置
 	MySQLConfig         *MySQLConfig         `yaml:"mysql_config"`         // MySQL 配置
 	ObservabilityConfig *ObservabilityConfig `yaml:"observability_config"` // 可观测性配置
+	AutoMigrate         bool                 `yaml:"auto_migrate"`         // 是否自动迁移数据库表结构（默认 false）
 }
 
 // PoolConfig 数据库连接池配置（所有驱动通用）
@@ -65,7 +66,8 @@ type ObservabilityConfig struct {
 // DefaultConfig 返回默认配置
 func DefaultConfig() *DatabaseConfig {
 	return &DatabaseConfig{
-		Driver: "none",
+		Driver:      "none",
+		AutoMigrate: false,
 		ObservabilityConfig: &ObservabilityConfig{
 			SlowQueryThreshold: 1 * time.Second,
 			LogSQL:             false,
@@ -245,6 +247,11 @@ func ParseDatabaseConfigFromMap(cfg map[string]any) (*DatabaseConfig, error) {
 			return nil, fmt.Errorf("failed to parse observability_config: %w", err)
 		}
 		databaseConfig.ObservabilityConfig = obsConfig
+	}
+
+	// 解析 auto_migrate
+	if autoMigrate, ok := cfg["auto_migrate"].(bool); ok {
+		databaseConfig.AutoMigrate = autoMigrate
 	}
 
 	return databaseConfig, nil
