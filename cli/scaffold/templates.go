@@ -1177,7 +1177,7 @@ const indexHTMLTemplate = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
+    <title>{{.title}}</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 自定义样式 -->
@@ -1186,7 +1186,7 @@ const indexHTMLTemplate = `<!DOCTYPE html>
 <body>
     <div class="container">
         <header class="text-center py-5">
-            <h1 class="display-4 fw-light">{{title}}</h1>
+            <h1 class="display-4 fw-light">{{.title}}</h1>
             <p class="text-muted">欢迎使用 LiteCore 框架</p>
         </header>
 
@@ -1224,7 +1224,7 @@ const indexHTMLTemplate = `<!DOCTYPE html>
         </section>
 
         <footer class="text-center py-5 mt-5 text-muted">
-            <small>&copy; 2025 {{title}}. All rights reserved.</small>
+            <small>&copy; 2025 {{.title}}. All rights reserved.</small>
         </footer>
     </div>
 
