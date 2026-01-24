@@ -39,28 +39,22 @@ func (l *messageCreatedListenerImpl) GetSubscribeOptions() []common.ISubscribeOp
 
 // OnStart 监听器启动回调
 func (l *messageCreatedListenerImpl) OnStart() error {
-	if l.LoggerMgr != nil {
-		l.LoggerMgr.Ins().Info("Message created listener started")
-	}
+	l.LoggerMgr.Ins().Info("Message created listener started")
 	return nil
 }
 
 // OnStop 监听器停止回调
 func (l *messageCreatedListenerImpl) OnStop() error {
-	if l.LoggerMgr != nil {
-		l.LoggerMgr.Ins().Info("Message created listener stopped")
-	}
+	l.LoggerMgr.Ins().Info("Message created listener stopped")
 	return nil
 }
 
 // Handle 处理收到的消息
 func (l *messageCreatedListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error {
-	if l.LoggerMgr != nil {
-		l.LoggerMgr.Ins().Info("Received message created event",
-			"message_id", msg.ID(),
-			"body", string(msg.Body()),
-			"headers", msg.Headers())
-	}
+	l.LoggerMgr.Ins().Info("Received message created event",
+		"message_id", msg.ID(),
+		"body", string(msg.Body()),
+		"headers", msg.Headers())
 	return nil
 }
 

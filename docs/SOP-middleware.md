@@ -303,9 +303,7 @@ type myMiddleware struct {
 
 func (m *myMiddleware) Wrapper() gin.HandlerFunc {
     return func(c *gin.Context) {
-        if m.LoggerMgr != nil {
-            m.LoggerMgr.Ins().Info("处理请求")
-        }
+        m.LoggerMgr.Ins().Info("处理请求")
         c.Next()
     }
 }

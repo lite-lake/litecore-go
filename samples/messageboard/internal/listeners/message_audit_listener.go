@@ -39,28 +39,22 @@ func (l *messageAuditListenerImpl) GetSubscribeOptions() []common.ISubscribeOpti
 
 // OnStart 监听器启动回调
 func (l *messageAuditListenerImpl) OnStart() error {
-	if l.LoggerMgr != nil {
-		l.LoggerMgr.Ins().Info("Message audit listener started")
-	}
+	l.LoggerMgr.Ins().Info("Message audit listener started")
 	return nil
 }
 
 // OnStop 监听器停止回调
 func (l *messageAuditListenerImpl) OnStop() error {
-	if l.LoggerMgr != nil {
-		l.LoggerMgr.Ins().Info("Message audit listener stopped")
-	}
+	l.LoggerMgr.Ins().Info("Message audit listener stopped")
 	return nil
 }
 
 // Handle 处理收到的消息
 func (l *messageAuditListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error {
-	if l.LoggerMgr != nil {
-		l.LoggerMgr.Ins().Info("Received message audit event",
-			"message_id", msg.ID(),
-			"body", string(msg.Body()),
-			"headers", msg.Headers())
-	}
+	l.LoggerMgr.Ins().Info("Received message audit event",
+		"message_id", msg.ID(),
+		"body", string(msg.Body()),
+		"headers", msg.Headers())
 	return nil
 }
 

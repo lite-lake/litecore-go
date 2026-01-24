@@ -116,18 +116,10 @@ LoggerMgr 需要使用 `Ins()` 获取实际的日志实例：
 ```go
 type MessageService struct {
     LoggerMgr loggermgr.ILoggerManager `inject:""`
-    logger    logger.ILogger            // 实际日志实例
-}
-
-func (s *MessageService) initLogger() {
-    if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
 }
 
 func (s *MessageService) SomeMethod() error {
-    s.initLogger()
-    s.logger.Info("操作开始", "param", value)
+    s.LoggerMgr.Ins().Info("操作开始", "param", value)
     return nil
 }
 ```
@@ -705,22 +697,13 @@ type RateLimiterMiddleware struct {
     Order     int
     Limiter   limitermgr.ILimiterManager `inject:""`
     LoggerMgr loggermgr.ILoggerManager   `inject:""`
-    logger    logger.ILogger
-}
-
-func (m *RateLimiterMiddleware) initLogger() {
-    if m.LoggerMgr != nil {
-        m.logger = m.LoggerMgr.Ins()
-    }
 }
 
 func (m *RateLimiterMiddleware) Handle(c *gin.Context) {
-    m.initLogger()
-
     // 限流检查
     allowed, err := m.Limiter.Allow(c, c.ClientIP(), 100, time.Minute)
     if err != nil {
-        m.logger.Error("限流检查失败", "error", err)
+        m.LoggerMgr.Ins().Error("限流检查失败", "error", err)
         c.JSON(500, gin.H{"error": "Internal Server Error"})
         c.Abort()
         return

@@ -45,23 +45,14 @@ func main() {
 ```go
 type MessageService struct {
     LoggerMgr loggermgr.ILoggerManager `inject:""`
-    logger     logger.ILogger
-}
-
-func (s *MessageService) initLogger() {
-    if s.LoggerMgr != nil {
-        s.logger = s.LoggerMgr.Ins()
-    }
 }
 
 func (s *MessageService) CreateMessage(msg string) error {
-    s.initLogger()
-
-    s.logger.Info("创建消息", "content", msg)
+    s.LoggerMgr.Ins().Info("创建消息", "content", msg)
 
     // 业务逻辑...
 
-    s.logger.Debug("消息创建完成", "id", 123)
+    s.LoggerMgr.Ins().Debug("消息创建完成", "id", 123)
     return nil
 }
 ```
