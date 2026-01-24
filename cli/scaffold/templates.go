@@ -128,77 +128,166 @@ HTML 模板位于 ` + "`" + `templates/` + "`" + ` 目录，使用 Gin 模板引
 - [示例项目](../../samples/)
 `
 
-const configYamlTemplate = `app:
-  name: "{{.ProjectName}}"
-  version: "1.0.0"
+const configYamlTemplate = `# 应用配置
+app:
+  name: "{{.ProjectName}}"                       # 应用名称
+  version: "1.0.0"                               # 应用版本
 
+# 服务器配置
 server:
-  host: "0.0.0.0"
-  port: 8080
-  mode: "debug"
-  read_timeout: 60
-  write_timeout: 60
-  max_header_bytes: 1048576
+  host: "0.0.0.0"                               # 监听主机地址
+  port: 8080                                    # 监听端口
+  mode: "debug"                                 # 运行模式：debug, release, test
+  read_timeout: "10s"                            # 读取超时时间
+  write_timeout: "10s"                           # 写入超时时间
+  idle_timeout: "60s"                           # 空闲超时时间
+  enable_recovery: true                         # 是否启用panic恢复
+  shutdown_timeout: "30s"                       # 优雅关闭超时时间
+  startup_log:                                  # 启动日志配置
+    enabled: true                               # 是否启用启动日志
+    async: true                                 # 是否异步日志
+    buffer: 100                                 # 日志缓冲区大小
 
+# 数据库配置
 database:
-  driver: "sqlite"
-  auto_migrate: true
+  driver: "sqlite"                              # 驱动类型：mysql, postgresql, sqlite, none
+  auto_migrate: true                            # 是否自动迁移数据库表结构（默认 false）
+  # MySQL 配置示例
+  # mysql_config:
+  #   dsn: "root:password@tcp(localhost:3306)/app?charset=utf8mb4&parseTime=True&loc=Local" # MySQL 数据源名称
+  #   pool_config:                             # 连接池配置
+  #     max_open_conns: 10                     # 最大打开连接数
+  #     max_idle_conns: 5                      # 最大空闲连接数
+  #     conn_max_lifetime: "30s"               # 连接最大存活时间
+  #     conn_max_idle_time: "5m"               # 连接最大空闲时间
+  # PostgreSQL 配置示例
+  # postgresql_config:
+  #   dsn: "host=localhost port=5432 user=postgres password= dbname=app sslmode=disable" # PostgreSQL 数据源名称
+  #   pool_config:                             # 连接池配置
+  #     max_open_conns: 10                     # 最大打开连接数
+  #     max_idle_conns: 5                      # 最大空闲连接数
+  #     conn_max_lifetime: "30s"               # 连接最大存活时间
+  #     conn_max_idle_time: "5m"               # 连接最大空闲时间
   sqlite_config:
-    dsn: "./data/app.db"
-  gorm_config:
-    skip_default_transaction: false
-    prepare_stmt: true
+    dsn: "./data/app.db"                        # SQLite 数据库文件路径
+    pool_config:                                # 连接池配置
+      max_open_conns: 1                         # 最大打开连接数（SQLite通常设置为1）
+      max_idle_conns: 1                         # 最大空闲连接数
+      conn_max_lifetime: "30s"                  # 连接最大存活时间
+      conn_max_idle_time: "5m"                  # 连接最大空闲时间
+  observability_config:                         # 可观测性配置
+    slow_query_threshold: "1s"                  # 慢查询阈值
+    log_sql: false                              # 是否记录完整SQL（生产环境建议关闭）
+    sample_rate: 1.0                            # 采样率（0.0-1.0）
 
-logger:
-  driver: "zap"
-  zap_config:
-    console_enabled: true
-    console_config:
-      level: "info"
-      format: "gin"
-      color: true
-      time_format: "2006-01-02 15:04:05.000"
-    file_enabled: true
-    file_config:
-      filename: "./logs/app.log"
-      max_size: 100
-      max_backups: 10
-      max_age: 30
-      compress: true
-      level: "info"
-
+# 缓存配置
 cache:
-  driver: "memory"
+  driver: "memory"                              # 驱动类型：redis, memory, none
+  # Redis 配置示例
+  # redis_config:
+  #   host: "localhost"                         # Redis主机地址
+  #   port: 6379                                # Redis端口
+  #   password: ""                              # Redis密码
+  #   db: 0                                    # Redis数据库编号
+  #   max_idle_conns: 10                        # 最大空闲连接数
+  #   max_open_conns: 100                       # 最大打开连接数
+  #   conn_max_lifetime: "30s"                  # 连接最大存活时间
   memory_config:
-    max_size: 100
-    max_age: "720h"
-    max_backups: 1000
-    compress: false
+    max_size: 100                               # 最大缓存大小（MB）
+    max_age: "720h"                             # 最大缓存时间（30天）
+    max_backups: 1000                           # 最大备份项数
+    compress: false                             # 是否压缩
 
-limiter:
-  driver: "memory"
-  memory_config:
-    max_requests: 1000
-    window: 60
+# 日志配置
+logger:
+  driver: "zap"                                 # 驱动类型：zap, default, none
+  zap_config:
+    telemetry_enabled: false                    # 是否启用观测日志
+    telemetry_config:                           # 观测日志配置
+      level: "info"                             # 日志级别：debug, info, warn, error, fatal
+    console_enabled: true                       # 是否启用控制台日志
+    console_config:                             # 控制台日志配置
+      level: "info"                             # 日志级别：debug, info, warn, error, fatal
+      format: "gin"                             # 格式：gin | json | default
+      color: true                               # 是否启用颜色
+      time_format: "2006-01-02 15:04:05.000"   # 时间格式（默认：2006-01-02 15:04:05.000）
+    file_enabled: false                         # 是否启用文件日志
+    file_config:                                # 文件日志配置
+      level: "info"                             # 日志级别：debug, info, warn, error, fatal
+      path: "./logs/app.log"                    # 日志文件路径
+      rotation:                                 # 日志轮转配置
+        max_size: 100                           # 单个日志文件最大大小（MB）
+        max_age: 30                             # 日志文件保留天数
+        max_backups: 10                         # 保留的旧日志文件最大数量
+        compress: true                          # 是否压缩旧日志文件
 
-lock:
-  driver: "memory"
-  memory_config:
-    max_locks: 10000
-
-mq:
-  driver: "memory"
-  memory_config:
-    max_queue_size: 10000
-    channel_buffer: 100
-
+# 遥测配置
 telemetry:
-  driver: "none"
+  driver: "none"                               # 驱动类型：none, otel
+  # OTEL 配置示例
+  # otel_config:
+  #   endpoint: "localhost:4317"               # OTLP端点地址
+  #   insecure: false                           # 是否使用不安全连接（默认false，使用TLS）
+  #   headers:                                 # 请求头（用于认证）
+  #     Authorization: "Bearer your-token"
+  #   resource_attributes:                     # 资源属性
+  #     - key: "service.name"
+  #       value: "app"
+  #     - key: "service.version"
+  #       value: "1.0.0"
+  #   traces:                                  # 链路追踪配置
+  #     enabled: false                         # 是否启用链路追踪
+  #   metrics:                                 # 指标配置
+  #     enabled: false                         # 是否启用指标
+  #   logs:                                    # 日志配置
+  #     enabled: false                         # 是否启用日志观测
 
+# 限流配置
+limiter:
+  driver: "memory"                              # 驱动类型：redis, memory
+  # Redis 配置示例
+  # redis_config:
+  #   host: "localhost"                         # Redis主机地址
+  #   port: 6379                                # Redis端口
+  #   password: ""                              # Redis密码
+  #   db: 0                                    # Redis数据库编号
+  #   max_idle_conns: 10                        # 最大空闲连接数
+  #   max_open_conns: 100                       # 最大打开连接数
+  #   conn_max_lifetime: "30s"                  # 连接最大存活时间
+  memory_config:
+    max_backups: 1000                           # 最大备份项数（清理策略相关）
+
+# 锁配置
+lock:
+  driver: "memory"                              # 驱动类型：redis, memory
+  # Redis 配置示例
+  # redis_config:
+  #   host: "localhost"                         # Redis主机地址
+  #   port: 6379                                # Redis端口
+  #   password: ""                              # Redis密码
+  #   db: 0                                    # Redis数据库编号
+  #   max_idle_conns: 10                        # 最大空闲连接数
+  #   max_open_conns: 100                       # 最大打开连接数
+  #   conn_max_lifetime: "30s"                  # 连接最大存活时间
+  memory_config:
+    max_backups: 1000                           # 最大备份项数（清理策略相关）
+
+# 消息队列配置
+mq:
+  driver: "memory"                              # 驱动类型：rabbitmq, memory
+  # RabbitMQ 配置示例
+  # rabbitmq_config:
+  #   url: "amqp://guest:guest@localhost:5672/" # RabbitMQ连接地址
+  #   durable: true                             # 是否持久化队列
+  memory_config:
+    max_queue_size: 10000                       # 最大队列大小
+    channel_buffer: 100                         # 通道缓冲区大小
+
+# 定时任务配置
 scheduler:
-  driver: "cron"
+  driver: "cron"                               # 驱动类型：cron
   cron_config:
-    validate_on_startup: true
+    validate_on_startup: true                  # 启动时是否检查所有 Scheduler 配置
 `
 
 const gitignoreTemplate = `# Binaries
