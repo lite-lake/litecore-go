@@ -15,6 +15,13 @@ CLI 是 LiteCore 框架的配套命令行工具，提供代码生成和项目脚
 
 ### 安装
 
+#### 方法 1：go install（推荐）
+```bash
+go install github.com/lite-lake/litecore-go/cli@latest
+```
+安装后直接使用 `cli` 命令
+
+#### 方法 2：本地构建
 ```bash
 # 构建可执行文件
 go build -o litecore-cli ./cli
