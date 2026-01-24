@@ -33,35 +33,35 @@ func NewBuilder(projectPath, outputDir, packageName, moduleName, configPath stri
 // Generate 生成所有容器代码
 func (b *Builder) Generate(info *analyzer.ProjectInfo) error {
 	if err := b.generateEntityContainer(info); err != nil {
-		return fmt.Errorf("generate entity container failed: %w", err)
+		return fmt.Errorf("生成实体容器失败: %w", err)
 	}
 
 	if err := b.generateRepositoryContainer(info); err != nil {
-		return fmt.Errorf("generate repository container failed: %w", err)
+		return fmt.Errorf("生成仓储容器失败: %w", err)
 	}
 
 	if err := b.generateServiceContainer(info); err != nil {
-		return fmt.Errorf("generate service container failed: %w", err)
+		return fmt.Errorf("生成服务容器失败: %w", err)
 	}
 
 	if err := b.generateControllerContainer(info); err != nil {
-		return fmt.Errorf("generate controller container failed: %w", err)
+		return fmt.Errorf("生成控制器容器失败: %w", err)
 	}
 
 	if err := b.generateMiddlewareContainer(info); err != nil {
-		return fmt.Errorf("generate middleware container failed: %w", err)
+		return fmt.Errorf("生成中间件容器失败: %w", err)
 	}
 
 	if err := b.generateListenerContainer(info); err != nil {
-		return fmt.Errorf("generate listener container failed: %w", err)
+		return fmt.Errorf("生成监听器容器失败: %w", err)
 	}
 
 	if err := b.generateSchedulerContainer(info); err != nil {
-		return fmt.Errorf("generate scheduler container failed: %w", err)
+		return fmt.Errorf("生成定时器容器失败: %w", err)
 	}
 
 	if err := b.generateEngine(info); err != nil {
-		return fmt.Errorf("generate engine failed: %w", err)
+		return fmt.Errorf("生成引擎失败: %w", err)
 	}
 
 	return nil
@@ -301,12 +301,12 @@ func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Laye
 // writeFile 写入文件
 func (b *Builder) writeFile(filename, content string) error {
 	if err := os.MkdirAll(b.outputDir, 0755); err != nil {
-		return fmt.Errorf("create output directory failed: %w", err)
+		return fmt.Errorf("创建输出目录失败: %w", err)
 	}
 
 	filePath := filepath.Join(b.outputDir, filename)
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
-		return fmt.Errorf("write file failed: %w", err)
+		return fmt.Errorf("写入文件失败: %w", err)
 	}
 
 	return nil

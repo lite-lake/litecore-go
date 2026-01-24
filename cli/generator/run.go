@@ -25,16 +25,16 @@ func isValidPath(path string) bool {
 // Run 运行代码生成器
 func Run(cfg *Config) error {
 	if !isValidPath(cfg.ProjectPath) {
-		return fmt.Errorf("get project absolute path failed: path contains invalid characters")
+		return fmt.Errorf("获取项目绝对路径失败: 路径包含无效字符")
 	}
 
 	if !isValidPath(cfg.OutputDir) {
-		return fmt.Errorf("get output directory absolute path failed: path contains invalid characters")
+		return fmt.Errorf("获取输出目录绝对路径失败: 路径包含无效字符")
 	}
 
 	absProjectPath, err := filepath.Abs(cfg.ProjectPath)
 	if err != nil {
-		return fmt.Errorf("get project absolute path failed: %w", err)
+		return fmt.Errorf("获取项目绝对路径失败: %w", err)
 	}
 
 	var absOutputDir string
@@ -44,27 +44,27 @@ func Run(cfg *Config) error {
 		absOutputDir = filepath.Join(absProjectPath, cfg.OutputDir)
 		absOutputDir, err = filepath.Abs(absOutputDir)
 		if err != nil {
-			return fmt.Errorf("get output directory absolute path failed: %w", err)
+			return fmt.Errorf("获取输出目录绝对路径失败: %w", err)
 		}
 	}
 
 	moduleName, err := FindModuleName(absProjectPath)
 	if err != nil {
-		return fmt.Errorf("find module name failed: %w", err)
+		return fmt.Errorf("查找模块名失败: %w", err)
 	}
 
 	parser := NewParser(absProjectPath)
 	info, err := parser.Parse(moduleName)
 	if err != nil {
-		return fmt.Errorf("parse project failed: %w", err)
+		return fmt.Errorf("解析项目失败: %w", err)
 	}
 
 	builder := NewBuilder(absProjectPath, absOutputDir, cfg.PackageName, moduleName, cfg.ConfigPath)
 	if err := builder.Generate(info); err != nil {
-		return fmt.Errorf("generate code failed: %w", err)
+		return fmt.Errorf("生成代码失败: %w", err)
 	}
 
-	fmt.Printf("Successfully generated container code to %s\n", absOutputDir)
+	fmt.Printf("成功生成容器代码到 %s\n", absOutputDir)
 	return nil
 }
 

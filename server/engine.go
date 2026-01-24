@@ -437,22 +437,25 @@ func (e *Engine) registerControllers() error {
 			continue
 		}
 
-		method, path, err := parseRoute(route)
-		if err != nil {
-			e.getLogger().Warn("Invalid route format",
-				logger.F("controller", ctrl.ControllerName()),
-				logger.F("error", err))
-			continue
+		routes := strings.Split(route, ",")
+		for _, r := range routes {
+			method, path, err := parseRoute(strings.TrimSpace(r))
+			if err != nil {
+				e.getLogger().Warn("Invalid route format",
+					logger.F("controller", ctrl.ControllerName()),
+					logger.F("error", err))
+				continue
+			}
+
+			handler := ctrl.Handle
+			e.registerRoute(method, path, handler)
+
+			e.logStartup(PhaseRouter, "Registered route",
+				logger.F("method", method),
+				logger.F("path", path),
+				logger.F("controller", ctrl.ControllerName()))
+			registeredCount++
 		}
-
-		handler := ctrl.Handle
-		e.registerRoute(method, path, handler)
-
-		e.logStartup(PhaseRouter, "Registered route",
-			logger.F("method", method),
-			logger.F("path", path),
-			logger.F("controller", ctrl.ControllerName()))
-		registeredCount++
 	}
 
 	e.logPhaseEnd(PhaseRouter, "Route registration complete",
