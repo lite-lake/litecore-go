@@ -2,23 +2,29 @@ package cachemgr
 
 import (
 	"fmt"
-	"github.com/lite-lake/litecore-go/manager/configmgr"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // Build 创建缓存管理器实例
-// driverType: 驱动类型 ("redis", "memory", "none")
-// driverConfig: 驱动配置 (根据驱动类型不同而不同)
+// 参数：
+//   - driverType: 驱动类型 ("redis", "memory", "none")
+//   - driverConfig: 驱动配置 (根据驱动类型不同而不同)
 //   - redis: 传递给 parseRedisConfig 的 map[string]any
 //   - memory: 传递给 parseMemoryConfig 的 map[string]any
 //   - none: 忽略
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
 //
 // 返回 ICacheManager 接口实例和可能的错误
-// 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
 func Build(
 	driverType string,
 	driverConfig map[string]any,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
 ) (ICacheManager, error) {
 	switch driverType {
 	case "redis":
@@ -27,7 +33,7 @@ func Build(
 			return nil, err
 		}
 
-		mgr, err := NewCacheManagerRedisImpl(redisConfig)
+		mgr, err := NewCacheManagerRedisImpl(redisConfig, loggerMgr, telemetryMgr)
 		if err != nil {
 			return nil, err
 		}
@@ -44,12 +50,14 @@ func Build(
 		mgr := NewCacheManagerMemoryImpl(
 			memoryConfig.MaxAge,
 			memoryConfig.MaxAge/2, // 清理间隔设为过期时间的一半
+			loggerMgr,
+			telemetryMgr,
 		)
 
 		return mgr, nil
 
 	case "none":
-		mgr := NewCacheManagerNoneImpl()
+		mgr := NewCacheManagerNoneImpl(loggerMgr, telemetryMgr)
 		return mgr, nil
 
 	default:
@@ -59,14 +67,22 @@ func Build(
 
 // BuildWithConfigProvider 从配置提供者创建缓存管理器实例
 // 自动从配置提供者读取 cache.driver 和对应驱动配置
+// 参数：
+//   - configProvider: 配置提供者
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//
 // 配置路径：
 //   - cache.driver: 驱动类型 ("redis", "memory", "none")
 //   - cache.redis_config: Redis 驱动配置（当 driver=redis 时使用）
 //   - cache.memory_config: Memory 驱动配置（当 driver=memory 时使用）
 //
 // 返回 ICacheManager 接口实例和可能的错误
-// 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
-func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheManager, error) {
+func BuildWithConfigProvider(
+	configProvider configmgr.IConfigManager,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) (ICacheManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("config provider cannot be nil")
 	}
@@ -115,5 +131,5 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ICacheMan
 	}
 
 	// 3. 调用 Build 函数创建实例
-	return Build(driverTypeStr, driverConfig)
+	return Build(driverTypeStr, driverConfig, loggerMgr, telemetryMgr)
 }

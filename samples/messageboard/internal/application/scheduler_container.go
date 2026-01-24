@@ -6,7 +6,7 @@ import (
 	schedulers "github.com/lite-lake/litecore-go/samples/messageboard/internal/schedulers"
 )
 
-// InitSchedulerContainer 初始化定时器容器
+// InitSchedulerContainer Initialize scheduler container
 func InitSchedulerContainer(serviceContainer *container.ServiceContainer) *container.SchedulerContainer {
 	schedulerContainer := container.NewSchedulerContainer(serviceContainer)
 	container.RegisterScheduler[schedulers.ICleanupScheduler](schedulerContainer, schedulers.NewCleanupScheduler())

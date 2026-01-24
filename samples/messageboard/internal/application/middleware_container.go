@@ -6,7 +6,7 @@ import (
 	middlewares "github.com/lite-lake/litecore-go/samples/messageboard/internal/middlewares"
 )
 
-// InitMiddlewareContainer 初始化中间件容器
+// InitMiddlewareContainer Initialize middleware container
 func InitMiddlewareContainer(serviceContainer *container.ServiceContainer) *container.MiddlewareContainer {
 	middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
 	container.RegisterMiddleware[middlewares.IAuthMiddleware](middlewareContainer, middlewares.NewAuthMiddleware())

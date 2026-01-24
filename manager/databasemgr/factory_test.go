@@ -71,7 +71,7 @@ func (m *MockConfigProvider) OnStop() error {
 
 // TestBuild_NoneDriver 测试 none 驱动
 func TestBuild_NoneDriver(t *testing.T) {
-	mgr, err := Build("none", nil)
+	mgr, err := Build("none", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -93,7 +93,7 @@ func TestBuild_SQLite(t *testing.T) {
 		"dsn": ":memory:",
 	}
 
-	mgr, err := Build("sqlite", cfg)
+	mgr, err := Build("sqlite", cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -125,7 +125,7 @@ func TestBuild_SQLite_WithPoolConfig(t *testing.T) {
 		},
 	}
 
-	mgr, err := Build("sqlite", cfg)
+	mgr, err := Build("sqlite", cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -143,7 +143,7 @@ func TestBuild_SQLite_WithPoolConfig(t *testing.T) {
 
 // TestBuild_InvalidDriver 测试无效驱动
 func TestBuild_InvalidDriver(t *testing.T) {
-	_, err := Build("invalid", nil)
+	_, err := Build("invalid", nil, nil, nil)
 	if err == nil {
 		t.Error("Build() should return error for invalid driver")
 	}
@@ -153,7 +153,7 @@ func TestBuild_InvalidDriver(t *testing.T) {
 func TestBuild_SQLite_MissingDSN(t *testing.T) {
 	cfg := map[string]any{}
 
-	_, err := Build("sqlite", cfg)
+	_, err := Build("sqlite", cfg, nil, nil)
 	if err == nil {
 		t.Error("Build() should return error for missing DSN")
 	}
@@ -167,7 +167,7 @@ func TestBuild_ImplementsManagerInterface(t *testing.T) {
 		"dsn": ":memory:",
 	}
 
-	mgr, err := Build("sqlite", cfg)
+	mgr, err := Build("sqlite", cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
@@ -203,7 +203,7 @@ func BenchmarkBuild(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mgr, _ := Build("sqlite", cfg)
+		mgr, _ := Build("sqlite", cfg, nil, nil)
 		if mgr != nil {
 			if dbMgr, ok := mgr.(IDatabaseManager); ok {
 				_ = dbMgr.Close()
@@ -220,7 +220,7 @@ func TestBuildWithConfigProvider_NoneDriver(t *testing.T) {
 		},
 	}
 
-	mgr, err := BuildWithConfigProvider(provider)
+	mgr, err := BuildWithConfigProvider(provider, nil, nil)
 	if err != nil {
 		t.Fatalf("BuildWithConfigProvider() error = %v", err)
 	}
@@ -247,7 +247,7 @@ func TestBuildWithConfigProvider_SQLite(t *testing.T) {
 		},
 	}
 
-	mgr, err := BuildWithConfigProvider(provider)
+	mgr, err := BuildWithConfigProvider(provider, nil, nil)
 	if err != nil {
 		t.Fatalf("BuildWithConfigProvider() error = %v", err)
 	}
@@ -265,7 +265,7 @@ func TestBuildWithConfigProvider_SQLite(t *testing.T) {
 
 // TestBuildWithConfigProvider_NilProvider 测试 nil provider
 func TestBuildWithConfigProvider_NilProvider(t *testing.T) {
-	_, err := BuildWithConfigProvider(nil)
+	_, err := BuildWithConfigProvider(nil, nil, nil)
 	if err == nil {
 		t.Error("BuildWithConfigProvider() should return error for nil provider")
 	}
@@ -279,7 +279,7 @@ func TestBuildWithConfigProvider_InvalidDriver(t *testing.T) {
 		},
 	}
 
-	_, err := BuildWithConfigProvider(provider)
+	_, err := BuildWithConfigProvider(provider, nil, nil)
 	if err == nil {
 		t.Error("BuildWithConfigProvider() should return error for invalid driver")
 	}
@@ -294,7 +294,7 @@ func TestBuildWithConfigProvider_MissingConfig(t *testing.T) {
 		},
 	}
 
-	_, err := BuildWithConfigProvider(provider)
+	_, err := BuildWithConfigProvider(provider, nil, nil)
 	if err == nil {
 		t.Error("BuildWithConfigProvider() should return error for missing configmgr")
 	}
@@ -317,7 +317,7 @@ func BenchmarkBuildWithConfigProvider(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mgr, _ := BuildWithConfigProvider(provider)
+		mgr, _ := BuildWithConfigProvider(provider, nil, nil)
 		if mgr != nil {
 			_ = mgr.Close()
 		}

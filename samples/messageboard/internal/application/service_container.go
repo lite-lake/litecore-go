@@ -6,7 +6,7 @@ import (
 	services "github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
 )
 
-// InitServiceContainer 初始化服务容器
+// InitServiceContainer Initialize service container
 func InitServiceContainer(repositoryContainer *container.RepositoryContainer) *container.ServiceContainer {
 	serviceContainer := container.NewServiceContainer(repositoryContainer)
 	container.RegisterService[services.IAuthService](serviceContainer, services.NewAuthService())

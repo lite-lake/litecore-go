@@ -6,7 +6,7 @@ import (
 	repositories "github.com/lite-lake/litecore-go/samples/messageboard/internal/repositories"
 )
 
-// InitRepositoryContainer 初始化仓储容器
+// InitRepositoryContainer Initialize repository container
 func InitRepositoryContainer(entityContainer *container.EntityContainer) *container.RepositoryContainer {
 	repositoryContainer := container.NewRepositoryContainer(entityContainer)
 	container.RegisterRepository[repositories.IMessageRepository](repositoryContainer, repositories.NewMessageRepository())

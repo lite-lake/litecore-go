@@ -4,6 +4,9 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // lockEntry 内存锁条目
@@ -21,11 +24,19 @@ type lockManagerMemoryImpl struct {
 }
 
 // NewLockManagerMemoryImpl 创建内存锁管理器实例
-// @param config 内存锁配置
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//   - config: 内存锁配置
+//
 // @return ILockManager 锁管理器接口
-func NewLockManagerMemoryImpl(config *MemoryLockConfig) ILockManager {
+func NewLockManagerMemoryImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+	config *MemoryLockConfig,
+) ILockManager {
 	impl := &lockManagerMemoryImpl{
-		lockManagerBaseImpl: newLockManagerBaseImpl(),
+		lockManagerBaseImpl: newLockManagerBaseImpl(loggerMgr, telemetryMgr, nil),
 		locks:               sync.Map{},
 		name:                "lockManagerMemoryImpl",
 	}

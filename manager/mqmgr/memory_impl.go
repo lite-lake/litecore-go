@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 
 	"github.com/google/uuid"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // memoryMessage 内存消息
@@ -56,9 +58,19 @@ type messageQueueManagerMemoryImpl struct {
 }
 
 // NewMessageQueueManagerMemoryImpl 创建内存消息队列管理器
-func NewMessageQueueManagerMemoryImpl(config *MemoryConfig) IMQManager {
+// 参数：
+//   - config: 内存队列配置
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//
+// 返回 IMQManager 接口实例
+func NewMessageQueueManagerMemoryImpl(
+	config *MemoryConfig,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) IMQManager {
 	return &messageQueueManagerMemoryImpl{
-		mqManagerBaseImpl: newMqManagerBaseImpl(),
+		mqManagerBaseImpl: newMqManagerBaseImpl(loggerMgr, telemetryMgr),
 		queues:            sync.Map{},
 		name:              "messageQueueManagerMemoryImpl",
 		config:            config,

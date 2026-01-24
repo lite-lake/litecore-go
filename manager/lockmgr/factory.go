@@ -2,20 +2,29 @@ package lockmgr
 
 import (
 	"fmt"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
 	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 
 	"github.com/lite-lake/litecore-go/common"
 )
 
 // Build 创建锁管理器实例
-// driverType: 驱动类型 ("redis", "memory")
-// driverConfig: 驱动配置 (根据驱动类型不同而不同)
+// 参数：
+//   - driverType: 驱动类型 ("redis", "memory")
+//   - driverConfig: 驱动配置 (根据驱动类型不同而不同)
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//   - cacheMgr: 缓存管理器（Redis 模式必需，Memory 模式可以为 nil）
 //
 // 返回 ILockManager 接口实例和可能的错误
-// 注意：loggerMgr、telemetryMgr 和 cacheMgr 需要通过容器注入
 func Build(
 	driverType string,
 	driverConfig map[string]any,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+	cacheMgr cachemgr.ICacheManager,
 ) (ILockManager, error) {
 	if driverType == "" {
 		driverType = "memory"
@@ -28,7 +37,7 @@ func Build(
 			return nil, err
 		}
 
-		mgr := NewLockManagerRedisImpl(redisConfig)
+		mgr := NewLockManagerRedisImpl(loggerMgr, telemetryMgr, cacheMgr, redisConfig)
 		return mgr, nil
 
 	case "memory":
@@ -37,7 +46,7 @@ func Build(
 			return nil, err
 		}
 
-		mgr := NewLockManagerMemoryImpl(memoryConfig)
+		mgr := NewLockManagerMemoryImpl(loggerMgr, telemetryMgr, memoryConfig)
 		return mgr, nil
 
 	default:
@@ -47,10 +56,19 @@ func Build(
 
 // BuildWithConfigProvider 从配置提供者创建锁管理器实例
 // 自动从配置提供者读取 lock.driver 和对应驱动配置
+// 参数：
+//   - configProvider: 配置提供者
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//   - cacheMgr: 缓存管理器（Redis 模式必需，Memory 模式可以为 nil）
 //
 // 返回 ILockManager 接口实例和可能的错误
-// 注意：loggerMgr、telemetryMgr 和 cacheMgr 需要通过容器注入
-func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ILockManager, error) {
+func BuildWithConfigProvider(
+	configProvider configmgr.IConfigManager,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+	cacheMgr cachemgr.ICacheManager,
+) (ILockManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}
@@ -92,5 +110,5 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ILockMana
 		return nil, fmt.Errorf("unsupported driver type: %s (must be redis or memory)", driverTypeStr)
 	}
 
-	return Build(driverTypeStr, driverConfig)
+	return Build(driverTypeStr, driverConfig, loggerMgr, telemetryMgr, cacheMgr)
 }

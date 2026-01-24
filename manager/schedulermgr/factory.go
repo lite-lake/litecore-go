@@ -2,24 +2,41 @@ package schedulermgr
 
 import (
 	"fmt"
+
 	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"strings"
 
 	"github.com/lite-lake/litecore-go/common"
 	"gopkg.in/yaml.v3"
 )
 
-func Build(config *CronConfig) (ISchedulerManager, error) {
+// Build 创建调度管理器实例
+// 参数：
+//   - config: Cron 配置
+//   - loggerMgr: 日志管理器
+func Build(
+	config *CronConfig,
+	loggerMgr loggermgr.ILoggerManager,
+) (ISchedulerManager, error) {
 	if config == nil {
 		config = &CronConfig{
 			ValidateOnStartup: true,
 		}
 	}
 
-	return NewSchedulerManagerCronImpl(config), nil
+	return NewSchedulerManagerCronImpl(config, loggerMgr), nil
 }
 
-func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ISchedulerManager, error) {
+// BuildWithConfigProvider 从配置提供者创建调度管理器实例
+// 自动从配置提供者读取 scheduler.driver 和 cron_config
+// 参数：
+//   - configProvider: 配置提供者
+//   - loggerMgr: 日志管理器
+func BuildWithConfigProvider(
+	configProvider configmgr.IConfigManager,
+	loggerMgr loggermgr.ILoggerManager,
+) (ISchedulerManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}
@@ -56,5 +73,5 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (ISchedule
 		}
 	}
 
-	return Build(cfg)
+	return Build(cfg, loggerMgr)
 }

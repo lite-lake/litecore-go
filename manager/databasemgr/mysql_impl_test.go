@@ -29,7 +29,7 @@ func TestNewDatabaseManagerMySQLImpl(t *testing.T) {
 		},
 	}
 
-	mgr, err := NewDatabaseManagerMySQLImpl(cfg)
+	mgr, err := NewDatabaseManagerMySQLImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerMySQLImpl() error = %v", err)
 	}
@@ -115,7 +115,7 @@ func TestMySQLImpl_PoolConfig(t *testing.T) {
 		},
 	}
 
-	mgr, err := NewDatabaseManagerMySQLImpl(cfg)
+	mgr, err := NewDatabaseManagerMySQLImpl(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewDatabaseManagerMySQLImpl() error = %v", err)
 	}
@@ -173,7 +173,7 @@ func TestMySQLImpl_ErrorHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &MySQLConfig{DSN: tt.dsn}
-			_, err := NewDatabaseManagerMySQLImpl(cfg)
+			_, err := NewDatabaseManagerMySQLImpl(cfg, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewDatabaseManagerMySQLImpl() error = %v, wantErr %v", err, tt.wantErr)
 			}

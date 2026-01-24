@@ -4,6 +4,9 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // limiterEntry 限流条目，存储单个限流键的状态
@@ -23,9 +26,17 @@ type limiterManagerMemoryImpl struct {
 }
 
 // NewLimiterManagerMemoryImpl 创建内存限流管理器实例
-func NewLimiterManagerMemoryImpl() ILimiterManager {
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//
+// 返回 ILimiterManager 接口实例
+func NewLimiterManagerMemoryImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) ILimiterManager {
 	impl := &limiterManagerMemoryImpl{
-		limiterManagerBaseImpl: newILimiterManagerBaseImpl(),
+		limiterManagerBaseImpl: newILimiterManagerBaseImpl(loggerMgr, telemetryMgr, nil),
 		limiters:               sync.Map{},
 		name:                   "limiterManagerMemoryImpl",
 	}

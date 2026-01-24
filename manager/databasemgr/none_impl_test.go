@@ -11,7 +11,7 @@ import (
 
 // TestNewDatabaseManagerNoneImpl 测试创建 None 驱动
 func TestNewDatabaseManagerNoneImpl(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	if mgr == nil {
 		t.Fatal("NewDatabaseManagerNoneImpl() returned nil")
@@ -28,7 +28,7 @@ func TestNewDatabaseManagerNoneImpl(t *testing.T) {
 
 // TestNoneImpl_Health 测试健康检查
 func TestNoneImpl_Health(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	err := mgr.Health()
 	if err == nil {
@@ -43,7 +43,7 @@ func TestNoneImpl_Health(t *testing.T) {
 
 // TestNoneImpl_OnStart 测试 OnStart
 func TestNoneImpl_OnStart(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	err := mgr.OnStart()
 	if err != nil {
@@ -53,7 +53,7 @@ func TestNoneImpl_OnStart(t *testing.T) {
 
 // TestNoneImpl_OnStop 测试 OnStop
 func TestNoneImpl_OnStop(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	err := mgr.OnStop()
 	if err != nil {
@@ -63,7 +63,7 @@ func TestNoneImpl_OnStop(t *testing.T) {
 
 // TestNoneImpl_DB 测试 DB 方法
 func TestNoneImpl_DB(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	db := mgr.DB()
 	if db != nil {
@@ -73,7 +73,7 @@ func TestNoneImpl_DB(t *testing.T) {
 
 // TestNoneImpl_Model 测试 Model 方法
 func TestNoneImpl_Model(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	result := mgr.Model("test")
 	if result != nil {
@@ -83,7 +83,7 @@ func TestNoneImpl_Model(t *testing.T) {
 
 // TestNoneImpl_Table 测试 Table 方法
 func TestNoneImpl_Table(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	result := mgr.Table("test_table")
 	if result != nil {
@@ -93,7 +93,7 @@ func TestNoneImpl_Table(t *testing.T) {
 
 // TestNoneImpl_WithContext 测试 WithContext 方法
 func TestNoneImpl_WithContext(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	ctx := context.Background()
 	result := mgr.WithContext(ctx)
@@ -104,7 +104,7 @@ func TestNoneImpl_WithContext(t *testing.T) {
 
 // TestNoneImpl_Transaction 测试 Transaction 方法
 func TestNoneImpl_Transaction(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	err := mgr.Transaction(func(db *gorm.DB) error {
 		return nil
@@ -121,7 +121,7 @@ func TestNoneImpl_Transaction(t *testing.T) {
 
 // TestNoneImpl_Begin 测试 Begin 方法
 func TestNoneImpl_Begin(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	result := mgr.Begin()
 	if result != nil {
@@ -131,7 +131,7 @@ func TestNoneImpl_Begin(t *testing.T) {
 
 // TestNoneImpl_AutoMigrate 测试 AutoMigrate 方法
 func TestNoneImpl_AutoMigrate(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	type TestModel struct {
 		ID   uint
@@ -151,7 +151,7 @@ func TestNoneImpl_AutoMigrate(t *testing.T) {
 
 // TestNoneImpl_Migrator 测试 Migrator 方法
 func TestNoneImpl_Migrator(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	migrator := mgr.Migrator()
 	if migrator != nil {
@@ -161,7 +161,7 @@ func TestNoneImpl_Migrator(t *testing.T) {
 
 // TestNoneImpl_Ping 测试 Ping 方法
 func TestNoneImpl_Ping(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	ctx := context.Background()
 	err := mgr.Ping(ctx)
@@ -177,7 +177,7 @@ func TestNoneImpl_Ping(t *testing.T) {
 
 // TestNoneImpl_Stats 测试 Stats 方法
 func TestNoneImpl_Stats(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	stats := mgr.Stats()
 	if stats != (sql.DBStats{}) {
@@ -187,7 +187,7 @@ func TestNoneImpl_Stats(t *testing.T) {
 
 // TestNoneImpl_Close 测试 Close 方法
 func TestNoneImpl_Close(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	err := mgr.Close()
 	if err != nil {
@@ -203,7 +203,7 @@ func TestNoneImpl_Close(t *testing.T) {
 
 // TestNoneImpl_Exec 测试 Exec 方法
 func TestNoneImpl_Exec(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	result := mgr.Exec("SELECT 1")
 	if result != nil {
@@ -213,7 +213,7 @@ func TestNoneImpl_Exec(t *testing.T) {
 
 // TestNoneImpl_Raw 测试 Raw 方法
 func TestNoneImpl_Raw(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	result := mgr.Raw("SELECT 1")
 	if result != nil {
@@ -223,7 +223,7 @@ func TestNoneImpl_Raw(t *testing.T) {
 
 // TestNoneImpl_InterfaceCompliance 测试接口实现
 func TestNoneImpl_InterfaceCompliance(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	// 验证实现了 IDatabaseManager 接口
 	var _ IDatabaseManager = mgr
@@ -251,7 +251,7 @@ func TestNoneImpl_InterfaceCompliance(t *testing.T) {
 
 // TestNoneImpl_ErrorConsistency 测试错误消息一致性
 func TestNoneImpl_ErrorConsistency(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	expectedErr := errors.New("database not available (none driver)")
 
@@ -281,7 +281,7 @@ func TestNoneImpl_ErrorConsistency(t *testing.T) {
 
 // TestNoneImpl_NilReturns 测试所有返回 *gorm.DB 的方法都返回 nil
 func TestNoneImpl_NilReturns(t *testing.T) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	tests := []struct {
 		name string
@@ -307,7 +307,7 @@ func TestNoneImpl_NilReturns(t *testing.T) {
 
 // BenchmarkNoneImpl_Operations 基准测试 None 驱动操作
 func BenchmarkNoneImpl_Operations(b *testing.B) {
-	mgr := NewDatabaseManagerNoneImpl()
+	mgr := NewDatabaseManagerNoneImpl(nil, nil)
 
 	b.Run("Health", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

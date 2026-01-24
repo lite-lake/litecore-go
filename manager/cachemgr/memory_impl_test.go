@@ -9,7 +9,7 @@ import (
 
 // setupMemoryManager 创建一个内存缓存管理器用于测试
 func setupMemoryManager(t *testing.T) ICacheManager {
-	return NewCacheManagerMemoryImpl(10*time.Minute, 5*time.Minute)
+	return NewCacheManagerMemoryImpl(10*time.Minute, 5*time.Minute, nil, nil)
 }
 
 // TestMemoryManager_ManagerName 测试管理器名称
@@ -534,7 +534,7 @@ func TestMemoryManager_Decrement(t *testing.T) {
 
 // TestMemoryManager_Expiration 测试过期
 func TestMemoryManager_Expiration(t *testing.T) {
-	mgr := NewCacheManagerMemoryImpl(100*time.Millisecond, 50*time.Millisecond)
+	mgr := NewCacheManagerMemoryImpl(100*time.Millisecond, 50*time.Millisecond, nil, nil)
 	defer mgr.Close()
 
 	ctx := context.Background()
@@ -657,7 +657,7 @@ func TestMemoryManager_ComplexValues(t *testing.T) {
 // TestMemoryManager_ItemCount 测试获取缓存项数量
 func TestMemoryManager_ItemCount(t *testing.T) {
 	// 使用类型断言获取内存实现
-	mgr := NewCacheManagerMemoryImpl(10*time.Minute, 5*time.Minute)
+	mgr := NewCacheManagerMemoryImpl(10*time.Minute, 5*time.Minute, nil, nil)
 	defer mgr.Close()
 
 	// 尝试类型断言

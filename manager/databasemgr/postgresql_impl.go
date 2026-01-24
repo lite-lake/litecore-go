@@ -9,6 +9,9 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // databaseManagerPostgresqlImpl PostgreSQL 数据库管理器实现
@@ -17,7 +20,15 @@ type databaseManagerPostgresqlImpl struct {
 }
 
 // NewDatabaseManagerPostgreSQLImpl 创建 PostgreSQL 数据库管理器
-func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (IDatabaseManager, error) {
+// 参数：
+//   - cfg: PostgreSQL 配置
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+func NewDatabaseManagerPostgreSQLImpl(
+	cfg *PostgreSQLConfig,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) (IDatabaseManager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("postgresql configmgr is required")
 	}
@@ -56,7 +67,7 @@ func NewDatabaseManagerPostgreSQLImpl(cfg *PostgreSQLConfig) (IDatabaseManager, 
 	}
 
 	// 创建基础实现
-	baseImpl := newIDatabaseManagerBaseImpl("databaseManagerPostgresqlImpl", "postgresql", db)
+	baseImpl := newIDatabaseManagerBaseImpl(loggerMgr, telemetryMgr, "databaseManagerPostgresqlImpl", "postgresql", db)
 
 	// 创建完整配置用于初始化可观测性
 	fullCfg := &DatabaseConfig{

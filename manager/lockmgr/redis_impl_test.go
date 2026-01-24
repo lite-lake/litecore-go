@@ -268,9 +268,8 @@ func (l *mockLogger) Fatal(msg string, keysAndValues ...interface{}) {}
 func TestLockManagerRedisImpl_TryLock(t *testing.T) {
 	t.Run("TryLock 成功获取锁", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
-		mgr.(*lockManagerRedisImpl).Logger = &mockLogger{}
 
 		ctx := context.Background()
 		key := "test-trylock-key1"
@@ -285,9 +284,8 @@ func TestLockManagerRedisImpl_TryLock(t *testing.T) {
 
 	t.Run("TryLock 失败获取锁", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
-		mgr.(*lockManagerRedisImpl).Logger = &mockLogger{}
 
 		ctx := context.Background()
 		key := "test-trylock-key2"
@@ -306,9 +304,8 @@ func TestLockManagerRedisImpl_TryLock(t *testing.T) {
 
 	t.Run("TryLock 释放后可再次获取", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
-		mgr.(*lockManagerRedisImpl).Logger = &mockLogger{}
 
 		ctx := context.Background()
 		key := "test-trylock-key3"
@@ -332,9 +329,8 @@ func TestLockManagerRedisImpl_TryLock(t *testing.T) {
 func TestLockManagerRedisImpl_LockUnlock(t *testing.T) {
 	t.Run("基础锁获取和释放", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
-		mgr.(*lockManagerRedisImpl).Logger = &mockLogger{}
 
 		ctx := context.Background()
 		key := "test-key"
@@ -348,9 +344,8 @@ func TestLockManagerRedisImpl_LockUnlock(t *testing.T) {
 
 	t.Run("重复释放锁", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
-		mgr.(*lockManagerRedisImpl).Logger = &mockLogger{}
 
 		ctx := context.Background()
 		key := "test-key2"
@@ -369,9 +364,8 @@ func TestLockManagerRedisImpl_LockUnlock(t *testing.T) {
 func TestLockManagerRedisImpl_LockTimeout(t *testing.T) {
 	t.Run("Lock 超时返回错误", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
-		mgr.(*lockManagerRedisImpl).Logger = &mockLogger{}
 
 		ctx := context.Background()
 		key := "test-timeout-key"
@@ -393,14 +387,14 @@ func TestLockManagerRedisImpl_LockTimeout(t *testing.T) {
 }
 
 func TestLockManagerRedisImpl_ManagerName(t *testing.T) {
-	mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+	mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 	assert.Equal(t, "lockManagerRedisImpl", mgr.ManagerName())
 }
 
 func TestLockManagerRedisImpl_Health(t *testing.T) {
 	t.Run("Health 正常", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
 
 		err := mgr.Health()
@@ -408,7 +402,7 @@ func TestLockManagerRedisImpl_Health(t *testing.T) {
 	})
 
 	t.Run("Health 无 cache manager", func(t *testing.T) {
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 
 		err := mgr.Health()
 		assert.Error(t, err)
@@ -419,7 +413,7 @@ func TestLockManagerRedisImpl_Health(t *testing.T) {
 func TestLockManagerRedisImpl_OnStart(t *testing.T) {
 	t.Run("OnStart 正常", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
 
 		err := mgr.OnStart()
@@ -427,7 +421,7 @@ func TestLockManagerRedisImpl_OnStart(t *testing.T) {
 	})
 
 	t.Run("OnStart 无 cache manager", func(t *testing.T) {
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 
 		err := mgr.OnStart()
 		assert.Error(t, err)
@@ -438,7 +432,7 @@ func TestLockManagerRedisImpl_OnStart(t *testing.T) {
 func TestLockManagerRedisImpl_OnStop(t *testing.T) {
 	t.Run("OnStop 正常", func(t *testing.T) {
 		mockCache := newMockCacheManager()
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 		mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
 
 		err := mgr.OnStop()
@@ -446,7 +440,7 @@ func TestLockManagerRedisImpl_OnStop(t *testing.T) {
 	})
 
 	t.Run("OnStop 无 cache manager", func(t *testing.T) {
-		mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+		mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 
 		err := mgr.OnStop()
 		assert.NoError(t, err)
@@ -455,7 +449,7 @@ func TestLockManagerRedisImpl_OnStop(t *testing.T) {
 
 func TestLockManagerRedisImpl_Validation(t *testing.T) {
 	mockCache := newMockCacheManager()
-	mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+	mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 	mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
 
 	t.Run("空上下文错误", func(t *testing.T) {
@@ -500,9 +494,8 @@ func TestLockManagerRedisImpl_Validation(t *testing.T) {
 
 func TestLockManagerRedisImpl_ZeroTTL(t *testing.T) {
 	mockCache := newMockCacheManager()
-	mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+	mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 	mgr.(*lockManagerRedisImpl).cacheMgr = mockCache
-	mgr.(*lockManagerRedisImpl).Logger = &mockLogger{}
 
 	ctx := context.Background()
 	key := "zero-ttl-key"
@@ -522,7 +515,7 @@ func TestLockManagerRedisImpl_ZeroTTL(t *testing.T) {
 }
 
 func TestLockManagerRedisImpl_NoCacheManager(t *testing.T) {
-	mgr := NewLockManagerRedisImpl(&RedisLockConfig{})
+	mgr := NewLockManagerRedisImpl(nil, nil, nil, &RedisLockConfig{})
 	ctx := context.Background()
 	key := "test-key"
 

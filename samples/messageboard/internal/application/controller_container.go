@@ -6,7 +6,7 @@ import (
 	controllers "github.com/lite-lake/litecore-go/samples/messageboard/internal/controllers"
 )
 
-// InitControllerContainer 初始化控制器容器
+// InitControllerContainer Initialize controller container
 func InitControllerContainer(serviceContainer *container.ServiceContainer) *container.ControllerContainer {
 	controllerContainer := container.NewControllerContainer(serviceContainer)
 	container.RegisterController[controllers.IAdminAuthController](controllerContainer, controllers.NewAdminAuthController())

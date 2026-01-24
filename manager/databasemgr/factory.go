@@ -2,24 +2,30 @@ package databasemgr
 
 import (
 	"fmt"
-	"github.com/lite-lake/litecore-go/manager/configmgr"
 
 	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // Build 创建数据库管理器实例
-// driverType: 驱动类型 ("mysql", "postgresql", "sqlite", "none")
-// driverConfig: 驱动配置 (根据驱动类型不同而不同)
+// 参数：
+//   - driverType: 驱动类型 ("mysql", "postgresql", "sqlite", "none")
+//   - driverConfig: 驱动配置 (根据驱动类型不同而不同)
 //   - mysql: 传递给 parseMySQLConfig 的 map[string]any
 //   - postgresql: 传递给 parsePostgreSQLConfig 的 map[string]any
 //   - sqlite: 传递给 parseSQLiteConfig 的 map[string]any
 //   - none: 忽略
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
 //
 // 返回 IDatabaseManager 接口实例和可能的错误
-// 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
 func Build(
 	driverType string,
 	driverConfig map[string]any,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
 ) (IDatabaseManager, error) {
 	switch driverType {
 	case "mysql":
@@ -28,7 +34,7 @@ func Build(
 			return nil, err
 		}
 
-		mgr, err := NewDatabaseManagerMySQLImpl(mysqlConfig)
+		mgr, err := NewDatabaseManagerMySQLImpl(mysqlConfig, loggerMgr, telemetryMgr)
 		if err != nil {
 			return nil, err
 		}
@@ -41,7 +47,7 @@ func Build(
 			return nil, err
 		}
 
-		mgr, err := NewDatabaseManagerPostgreSQLImpl(postgresqlConfig)
+		mgr, err := NewDatabaseManagerPostgreSQLImpl(postgresqlConfig, loggerMgr, telemetryMgr)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +60,7 @@ func Build(
 			return nil, err
 		}
 
-		mgr, err := NewDatabaseManagerSQLiteImpl(sqliteConfig)
+		mgr, err := NewDatabaseManagerSQLiteImpl(sqliteConfig, loggerMgr, telemetryMgr)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +68,7 @@ func Build(
 		return mgr, nil
 
 	case "none":
-		mgr := NewDatabaseManagerNoneImpl()
+		mgr := NewDatabaseManagerNoneImpl(loggerMgr, telemetryMgr)
 		return mgr, nil
 
 	default:
@@ -72,6 +78,11 @@ func Build(
 
 // BuildWithConfigProvider 从配置提供者创建数据库管理器实例
 // 自动从配置提供者读取 database.driver 和对应驱动配置
+// 参数：
+//   - configProvider: 配置提供者
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//
 // 配置路径：
 //   - database.driver: 驱动类型 ("mysql", "postgresql", "sqlite", "none")
 //   - database.mysql_config: MySQL 驱动配置（当 driver=mysql 时使用）
@@ -79,8 +90,11 @@ func Build(
 //   - database.sqlite_config: SQLite 驱动配置（当 driver=sqlite 时使用）
 //
 // 返回 IDatabaseManager 接口实例和可能的错误
-// 注意：loggerMgr 和 telemetryMgr 需要通过容器注入
-func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IDatabaseManager, error) {
+func BuildWithConfigProvider(
+	configProvider configmgr.IConfigManager,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) (IDatabaseManager, error) {
 	if configProvider == nil {
 		return nil, fmt.Errorf("configProvider cannot be nil")
 	}
@@ -139,5 +153,5 @@ func BuildWithConfigProvider(configProvider configmgr.IConfigManager) (IDatabase
 	}
 
 	// 3. 调用 Build 函数创建实例
-	return Build(driverTypeStr, driverConfig)
+	return Build(driverTypeStr, driverConfig, loggerMgr, telemetryMgr)
 }

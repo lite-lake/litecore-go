@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -41,14 +43,24 @@ type messageQueueManagerRabbitMQImpl struct {
 }
 
 // NewMessageQueueManagerRabbitMQImpl 创建 RabbitMQ 消息队列管理器
-func NewMessageQueueManagerRabbitMQImpl(config *RabbitMQConfig) (IMQManager, error) {
+// 参数：
+//   - config: RabbitMQ 配置
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//
+// 返回 IMQManager 接口实例和可能的错误
+func NewMessageQueueManagerRabbitMQImpl(
+	config *RabbitMQConfig,
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) (IMQManager, error) {
 	conn, err := amqp.Dial(config.URL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
 
 	impl := &messageQueueManagerRabbitMQImpl{
-		mqManagerBaseImpl: newMqManagerBaseImpl(),
+		mqManagerBaseImpl: newMqManagerBaseImpl(loggerMgr, telemetryMgr),
 		conn:              conn,
 		channels:          make(map[string]*amqp.Channel),
 		name:              "messageQueueManagerRabbitMQImpl",

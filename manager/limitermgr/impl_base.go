@@ -3,11 +3,11 @@ package limitermgr
 import (
 	"context"
 	"fmt"
-	"github.com/lite-lake/litecore-go/manager/cachemgr"
-	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"time"
 
-	"github.com/lite-lake/litecore-go/logger"
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -17,12 +17,12 @@ import (
 // limiterManagerBaseImpl 限流管理器基类实现
 // 提供可观测性（日志、指标、链路追踪）和工具函数
 type limiterManagerBaseImpl struct {
-	// Logger 日志记录器，通过依赖注入获取
-	Logger logger.ILogger `inject:""`
+	// loggerMgr 日志管理器，用于记录日志
+	loggerMgr loggermgr.ILoggerManager
 	// telemetryMgr 遥测管理器，用于指标和链路追踪
-	telemetryMgr telemetrymgr.ITelemetryManager `inject:""`
+	telemetryMgr telemetrymgr.ITelemetryManager
 	// cacheMgr 缓存管理器，用于 Redis 实现
-	cacheMgr cachemgr.ICacheManager `inject:""`
+	cacheMgr cachemgr.ICacheManager
 	// tracer 链路追踪器，用于记录操作链路
 	tracer trace.Tracer
 	// meter 指标记录器，用于记录性能指标
@@ -36,8 +36,20 @@ type limiterManagerBaseImpl struct {
 }
 
 // newILimiterManagerBaseImpl 创建基类
-func newILimiterManagerBaseImpl() *limiterManagerBaseImpl {
-	return &limiterManagerBaseImpl{}
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//   - cacheMgr: 缓存管理器（Redis 实现需要，memory 可传 nil）
+func newILimiterManagerBaseImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+	cacheMgr cachemgr.ICacheManager,
+) *limiterManagerBaseImpl {
+	return &limiterManagerBaseImpl{
+		loggerMgr:    loggerMgr,
+		telemetryMgr: telemetryMgr,
+		cacheMgr:     cacheMgr,
+	}
 }
 
 // initObservability 初始化可观测性组件
@@ -91,7 +103,7 @@ func (b *limiterManagerBaseImpl) recordOperation(
 	fn func() error,
 ) error {
 	// 如果没有配置任何可观测性组件，直接执行操作
-	if b.tracer == nil && b.Logger == nil && b.operationDuration == nil {
+	if b.tracer == nil && b.loggerMgr == nil && b.operationDuration == nil {
 		return fn()
 	}
 
@@ -123,10 +135,11 @@ func (b *limiterManagerBaseImpl) recordOperation(
 	}
 
 	// 记录日志
-	if b.Logger != nil {
+	if b.loggerMgr != nil {
+		logger := b.loggerMgr.Ins()
 		if err != nil {
 			// 操作失败，记录错误日志
-			b.Logger.Error("limiter operation failed",
+			logger.Error("limiter operation failed",
 				"operation", operation,
 				"key", sanitizeKey(key),
 				"error", err.Error(),
@@ -138,7 +151,7 @@ func (b *limiterManagerBaseImpl) recordOperation(
 			}
 		} else {
 			// 操作成功，记录调试日志
-			b.Logger.Debug("limiter operation success",
+			logger.Debug("limiter operation success",
 				"operation", operation,
 				"key", sanitizeKey(key),
 				"duration", duration,

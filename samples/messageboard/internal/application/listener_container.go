@@ -6,7 +6,7 @@ import (
 	listeners "github.com/lite-lake/litecore-go/samples/messageboard/internal/listeners"
 )
 
-// InitListenerContainer 初始化监听器容器
+// InitListenerContainer Initialize listener container
 func InitListenerContainer(serviceContainer *container.ServiceContainer) *container.ListenerContainer {
 	listenerContainer := container.NewListenerContainer(serviceContainer)
 	container.RegisterListener[listeners.IMessageAuditListener](listenerContainer, listeners.NewMessageAuditListener())

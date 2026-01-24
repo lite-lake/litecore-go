@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
+
 	"github.com/google/uuid"
 )
 
@@ -16,11 +20,21 @@ type lockManagerRedisImpl struct {
 }
 
 // NewLockManagerRedisImpl 创建Redis锁管理器实例
-// @param config Redis锁配置
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//   - cacheMgr: 缓存管理器
+//   - config: Redis锁配置
+//
 // @return ILockManager 锁管理器接口
-func NewLockManagerRedisImpl(config *RedisLockConfig) ILockManager {
+func NewLockManagerRedisImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+	cacheMgr cachemgr.ICacheManager,
+	config *RedisLockConfig,
+) ILockManager {
 	impl := &lockManagerRedisImpl{
-		lockManagerBaseImpl: newLockManagerBaseImpl(),
+		lockManagerBaseImpl: newLockManagerBaseImpl(loggerMgr, telemetryMgr, cacheMgr),
 		config:              config,
 		name:                "lockManagerRedisImpl",
 	}

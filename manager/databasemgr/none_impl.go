@@ -9,6 +9,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
+
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // databaseManagerNoneImpl 空数据库管理器实现
@@ -18,11 +21,14 @@ type databaseManagerNoneImpl struct {
 }
 
 // NewDatabaseManagerNoneImpl 创建空数据库管理器
-func NewDatabaseManagerNoneImpl() IDatabaseManager {
+func NewDatabaseManagerNoneImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+) IDatabaseManager {
 	// 创建一个空的 GORM DB 实例（使用 Dialector 但不打开连接）
 	db, _ := gorm.Open(&dummyDialector{}, &gorm.Config{})
 
-	baseImpl := newIDatabaseManagerBaseImpl("databaseManagerNoneImpl", "none", db)
+	baseImpl := newIDatabaseManagerBaseImpl(loggerMgr, telemetryMgr, "databaseManagerNoneImpl", "none", db)
 	// 不初始化可观测性（none 驱动不需要）
 
 	return &databaseManagerNoneImpl{

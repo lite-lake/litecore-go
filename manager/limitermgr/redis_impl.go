@@ -3,24 +3,36 @@ package limitermgr
 import (
 	"context"
 	"fmt"
-	"github.com/lite-lake/litecore-go/manager/cachemgr"
 	"time"
+
+	"github.com/lite-lake/litecore-go/manager/cachemgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
 
 // limiterManagerRedisImpl Redis 限流管理器实现
 // 使用 Redis 存储限流状态，支持分布式限流
 type limiterManagerRedisImpl struct {
-	*limiterManagerBaseImpl                        // 基类，提供可观测性功能
-	CacheMgr                cachemgr.ICacheManager `inject:""` // 缓存管理器，用于 Redis 操作
-	name                    string                 // 管理器名称
+	*limiterManagerBaseImpl        // 基类，提供可观测性功能
+	name                    string // 管理器名称
 }
 
 const limiterKeyPrefix = "limiter:" // Redis 限流键前缀
 
 // NewLimiterManagerRedisImpl 创建 Redis 限流管理器实例
-func NewLimiterManagerRedisImpl() ILimiterManager {
+// 参数：
+//   - loggerMgr: 日志管理器
+//   - telemetryMgr: 遥测管理器
+//   - cacheMgr: 缓存管理器
+//
+// 返回 ILimiterManager 接口实例
+func NewLimiterManagerRedisImpl(
+	loggerMgr loggermgr.ILoggerManager,
+	telemetryMgr telemetrymgr.ITelemetryManager,
+	cacheMgr cachemgr.ICacheManager,
+) ILimiterManager {
 	impl := &limiterManagerRedisImpl{
-		limiterManagerBaseImpl: newILimiterManagerBaseImpl(),
+		limiterManagerBaseImpl: newILimiterManagerBaseImpl(loggerMgr, telemetryMgr, cacheMgr),
 		name:                   "limiterManagerRedisImpl",
 	}
 	impl.initObservability()
@@ -35,10 +47,10 @@ func (r *limiterManagerRedisImpl) ManagerName() string {
 // Health 检查管理器健康状态
 // 检查缓存管理器是否已初始化及连接是否正常
 func (r *limiterManagerRedisImpl) Health() error {
-	if r.CacheMgr == nil {
+	if r.cacheMgr == nil {
 		return fmt.Errorf("cache manager is not initialized")
 	}
-	return r.CacheMgr.Health()
+	return r.cacheMgr.Health()
 }
 
 // OnStart 启动管理器时的回调
@@ -79,19 +91,19 @@ func (r *limiterManagerRedisImpl) Allow(ctx context.Context, key string, limit i
 			return err
 		}
 
-		if r.CacheMgr == nil {
+		if r.cacheMgr == nil {
 			return fmt.Errorf("cache manager is not initialized")
 		}
 
 		cacheKey := limiterKeyPrefix + key
 
-		count, err := r.CacheMgr.Increment(ctx, cacheKey, 1)
+		count, err := r.cacheMgr.Increment(ctx, cacheKey, 1)
 		if err != nil {
 			return fmt.Errorf("failed to increment counter: %w", err)
 		}
 
 		if count == 1 {
-			if err := r.CacheMgr.Expire(ctx, cacheKey, window); err != nil {
+			if err := r.cacheMgr.Expire(ctx, cacheKey, window); err != nil {
 				return fmt.Errorf("failed to set expiration: %w", err)
 			}
 		}
@@ -132,14 +144,14 @@ func (r *limiterManagerRedisImpl) GetRemaining(ctx context.Context, key string, 
 			return err
 		}
 
-		if r.CacheMgr == nil {
+		if r.cacheMgr == nil {
 			return fmt.Errorf("cache manager is not initialized")
 		}
 
 		cacheKey := limiterKeyPrefix + key
 
 		var count int64
-		err := r.CacheMgr.Get(ctx, cacheKey, &count)
+		err := r.cacheMgr.Get(ctx, cacheKey, &count)
 		if err != nil {
 			result = limit
 			return nil
