@@ -36,6 +36,9 @@ type Config struct {
 	TemplateType  TemplateType // 模板类型
 	Interactive   bool         // 是否交互式
 	LitecoreGoVer string       // LiteCore Go 版本
+	WithStatic    bool         // 是否生成静态文件
+	WithHTML      bool         // 是否生成 HTML 模板
+	WithHealth    bool         // 是否生成健康检查控制器
 }
 
 func DefaultConfig() *Config {
@@ -44,5 +47,8 @@ func DefaultConfig() *Config {
 		TemplateType:  TemplateTypeStandard,
 		Interactive:   false,
 		LitecoreGoVer: version.Version,
+		WithStatic:    false,
+		WithHTML:      false,
+		WithHealth:    false,
 	}
 }
