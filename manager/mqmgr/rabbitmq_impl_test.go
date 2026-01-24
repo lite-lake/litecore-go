@@ -5,16 +5,9 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
-
-type mockRabbitMQConnection struct {
-	closed bool
-}
-
-type mockRabbitMQChannel struct {
-	closed bool
-	queue  string
-}
 
 func setupRabbitMQManager(t *testing.T) IMQManager {
 	config := &RabbitMQConfig{
@@ -26,6 +19,115 @@ func setupRabbitMQManager(t *testing.T) IMQManager {
 		t.Skip("RabbitMQ not available:", err)
 	}
 	return mgr
+}
+
+func TestRabbitMQMessage_ID(t *testing.T) {
+	t.Run("获取消息 ID", func(t *testing.T) {
+		delivery := amqp.Delivery{DeliveryTag: 123}
+		msg := &rabbitMQMessage{delivery: &delivery}
+
+		id := msg.ID()
+		if id != "123" {
+			t.Errorf("expected ID '123', got '%s'", id)
+		}
+	})
+}
+
+func TestRabbitMQMessage_Body(t *testing.T) {
+	t.Run("获取消息体", func(t *testing.T) {
+		body := []byte("test message")
+		delivery := amqp.Delivery{Body: body}
+		msg := &rabbitMQMessage{delivery: &delivery}
+
+		result := msg.Body()
+		if string(result) != string(body) {
+			t.Errorf("expected body '%s', got '%s'", string(body), string(result))
+		}
+	})
+}
+
+func TestRabbitMQMessage_Headers(t *testing.T) {
+	t.Run("获取消息头", func(t *testing.T) {
+		headers := map[string]any{
+			"key1": "value1",
+			"key2": 123,
+		}
+		delivery := amqp.Delivery{Headers: headers}
+		msg := &rabbitMQMessage{delivery: &delivery}
+
+		result := msg.Headers()
+		if result["key1"] != "value1" {
+			t.Errorf("expected headers['key1'] = 'value1', got %v", result["key1"])
+		}
+		if result["key2"] != 123 {
+			t.Errorf("expected headers['key2'] = 123, got %v", result["key2"])
+		}
+	})
+}
+
+func TestRabbitMQMessage_NilHeaders(t *testing.T) {
+	t.Run("获取空消息头", func(t *testing.T) {
+		delivery := amqp.Delivery{Headers: nil}
+		msg := &rabbitMQMessage{delivery: &delivery}
+
+		result := msg.Headers()
+		if result != nil {
+			t.Errorf("expected nil headers, got %v", result)
+		}
+	})
+}
+
+func TestNewMessageQueueManagerRabbitMQImplInvalid(t *testing.T) {
+	t.Run("无效的连接 URL", func(t *testing.T) {
+		config := &RabbitMQConfig{
+			URL:     "invalid://url",
+			Durable: true,
+		}
+		_, err := NewMessageQueueManagerRabbitMQImpl(config, nil, nil)
+		if err == nil {
+			t.Error("expected error with invalid URL, got nil")
+		}
+	})
+}
+
+func TestRabbitMQManager_PublishWithNilContextAfterFailure(t *testing.T) {
+	t.Run("发布失败后使用 nil context", func(t *testing.T) {
+		config := &RabbitMQConfig{
+			URL:     "invalid://url",
+			Durable: true,
+		}
+		mgr, err := NewMessageQueueManagerRabbitMQImpl(config, nil, nil)
+		if err != nil {
+			return
+		}
+		defer mgr.Close()
+
+		ctx := context.Background()
+		err = mgr.Publish(ctx, "test_queue", []byte("hello"))
+		if err == nil {
+			t.Error("expected error with invalid connection, got nil")
+		}
+	})
+}
+
+func TestRabbitMQManager_SubscribeWithInvalidConnection(t *testing.T) {
+	t.Run("无效连接订阅", func(t *testing.T) {
+		config := &RabbitMQConfig{
+			URL:     "invalid://url",
+			Durable: true,
+		}
+		mgr, err := NewMessageQueueManagerRabbitMQImpl(config, nil, nil)
+		if err != nil {
+			return
+		}
+		defer mgr.Close()
+
+		ctx := context.Background()
+		_, err = mgr.Subscribe(ctx, "test_queue")
+		if err == nil {
+			t.Error("expected error with invalid connection, got nil")
+		}
+	})
 }
 
 func TestRabbitMQManager_ManagerName(t *testing.T) {
@@ -351,5 +453,193 @@ func TestRabbitMQManager_Close(t *testing.T) {
 	err = mgr.Publish(ctx, "test_queue", []byte("hello"))
 	if err == nil {
 		t.Error("expected error after close, got nil")
+	}
+}
+
+func TestRabbitMQManager_HealthClosed(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	mgr.Close()
+
+	if err := mgr.Health(); err == nil {
+		t.Error("Health() should return error when closed")
+	}
+}
+
+func TestRabbitMQManager_PublishWithDurable(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	err := mgr.Publish(ctx, "test_queue", []byte("hello"), WithPublishDurable(false))
+	if err != nil {
+		t.Fatalf("Publish() error = %v", err)
+	}
+}
+
+func TestRabbitMQManager_SubscribeWithNilContext(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	_, err := mgr.Subscribe(nil, "test_queue")
+	if err == nil {
+		t.Error("expected error with nil context, got nil")
+	}
+}
+
+func TestRabbitMQManager_SubscribeWithEmptyQueue(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	_, err := mgr.Subscribe(ctx, "")
+	if err == nil {
+		t.Error("expected error with empty queue name, got nil")
+	}
+}
+
+func TestRabbitMQManager_QueueLengthNonExistent(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	length, err := mgr.QueueLength(ctx, "non_existent_queue")
+	if err != nil {
+		t.Errorf("QueueLength() error = %v", err)
+	}
+
+	if length < 0 {
+		t.Errorf("expected non-negative length, got %d", length)
+	}
+}
+
+func TestRabbitMQManager_PurgeNonExistent(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	err := mgr.Purge(ctx, "non_existent_queue")
+	if err != nil {
+		t.Errorf("Purge() error = %v", err)
+	}
+}
+
+func TestRabbitMQManager_AckNonRabbitMQMessage(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	err := mgr.Ack(ctx, nil)
+	if err != nil {
+		t.Errorf("Ack() with non-rabbitmq message should not error, got %v", err)
+	}
+}
+
+func TestRabbitMQManager_NackNonRabbitMQMessage(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	err := mgr.Nack(ctx, nil, false)
+	if err != nil {
+		t.Errorf("Nack() with non-rabbitmq message should not error, got %v", err)
+	}
+}
+
+func TestRabbitMQManager_QueueLengthWithNilContext(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	_, err := mgr.QueueLength(nil, "test_queue")
+	if err == nil {
+		t.Error("expected error with nil context, got nil")
+	}
+}
+
+func TestRabbitMQManager_PurgeWithNilContext(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	err := mgr.Purge(nil, "test_queue")
+	if err == nil {
+		t.Error("expected error with nil context, got nil")
+	}
+}
+
+func TestRabbitMQManager_PurgeWithEmptyQueue(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	err := mgr.Purge(ctx, "")
+	if err == nil {
+		t.Error("expected error with empty queue name, got nil")
+	}
+}
+
+func TestRabbitMQManager_SubscribeWithCallbackNilContext(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	err := mgr.SubscribeWithCallback(nil, "test_queue", func(ctx context.Context, msg Message) error {
+		return nil
+	})
+	if err == nil {
+		t.Error("expected error with nil context, got nil")
+	}
+}
+
+func TestRabbitMQManager_SubscribeWithCallbackEmptyQueue(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	err := mgr.SubscribeWithCallback(ctx, "", func(ctx context.Context, msg Message) error {
+		return nil
+	})
+	if err == nil {
+		t.Error("expected error with empty queue name, got nil")
+	}
+}
+
+func TestRabbitMQManager_SubscribeWithNilHandler(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	err := mgr.SubscribeWithCallback(ctx, "test_queue", nil)
+	if err == nil {
+		t.Error("expected error with nil handler, got nil")
+	}
+}
+
+func TestRabbitMQManager_MultiplePublish(t *testing.T) {
+	mgr := setupRabbitMQManager(t)
+	defer mgr.Close()
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		err := mgr.Publish(ctx, "test_queue", []byte(fmt.Sprintf("msg%d", i)))
+		if err != nil {
+			t.Fatalf("Publish() error = %v", err)
+		}
+	}
+
+	length, err := mgr.QueueLength(ctx, "test_queue")
+	if err != nil {
+		t.Fatalf("QueueLength() error = %v", err)
+	}
+
+	if length != 10 {
+		t.Errorf("expected queue length 10, got %d", length)
 	}
 }

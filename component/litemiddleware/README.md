@@ -292,6 +292,156 @@ type telemetryMiddleware struct {
 }
 ```
 
+## API
+
+### 配置结构
+
+#### RecoveryConfig
+panic 恢复中间件配置
+```go
+type RecoveryConfig struct {
+    Name            *string // 中间件名称
+    Order           *int    // 执行顺序
+    PrintStack      *bool   // 是否打印堆栈信息
+    CustomErrorBody *bool   // 是否使用自定义错误响应
+    ErrorMessage    *string // 自定义错误消息
+    ErrorCode       *string // 自定义错误代码
+}
+```
+
+#### RequestLoggerConfig
+请求日志中间件配置
+```go
+type RequestLoggerConfig struct {
+    Name            *string   // 中间件名称
+    Order           *int      // 执行顺序
+    Enable          *bool     // 是否启用请求日志
+    LogBody         *bool     // 是否记录请求 Body
+    MaxBodySize     *int      // 最大记录 Body 大小（字节），0 表示不限制
+    SkipPaths       *[]string // 跳过日志记录的路径
+    LogHeaders      *[]string // 需要记录的请求头
+    SuccessLogLevel *string   // 成功请求日志级别（debug/info）
+}
+```
+
+#### CorsConfig
+CORS 跨域中间件配置
+```go
+type CorsConfig struct {
+    Name             *string        // 中间件名称
+    Order            *int           // 执行顺序
+    AllowOrigins     *[]string      // 允许的源
+    AllowMethods     *[]string      // 允许的 HTTP 方法
+    AllowHeaders     *[]string      // 允许的请求头
+    ExposeHeaders    *[]string      // 暴露的响应头
+    AllowCredentials *bool          // 是否允许携带凭证
+    MaxAge           *time.Duration // 预检请求缓存时间
+}
+```
+
+#### SecurityHeadersConfig
+安全头中间件配置
+```go
+type SecurityHeadersConfig struct {
+    Name                    *string // 中间件名称
+    Order                   *int    // 执行顺序
+    FrameOptions            *string // X-Frame-Options (DENY, SAMEORIGIN, ALLOW-FROM)
+    ContentTypeOptions      *string // X-Content-Type-Options (nosniff)
+    XSSProtection           *string // X-XSS-Protection (1; mode=block)
+    ReferrerPolicy          *string // Referrer-Policy (strict-origin-when-cross-origin, no-referrer, etc)
+    ContentSecurityPolicy   *string // Content-Security-Policy
+    StrictTransportSecurity *string // Strict-Transport-Security (max-age=31536000; includeSubDomains)
+}
+```
+
+#### RateLimiterConfig
+限流中间件配置
+```go
+type RateLimiterConfig struct {
+    Name      *string        // 中间件名称
+    Order     *int           // 执行顺序
+    Limit     *int           // 时间窗口内最大请求数
+    Window    *time.Duration // 时间窗口大小
+    KeyFunc   KeyFunc        // 自定义 key 生成函数（可选，默认按 IP）
+    SkipFunc  SkipFunc       // 跳过限流的条件（可选）
+    KeyPrefix *string        // key 前缀
+}
+
+type KeyFunc  func(c *gin.Context) string // key 生成函数类型
+type SkipFunc func(c *gin.Context) bool  // 跳过条件函数类型
+```
+
+#### TelemetryConfig
+遥测中间件配置
+```go
+type TelemetryConfig struct {
+    Name  string // 中间件名称
+    Order *int   // 执行顺序（指针类型用于判断是否设置）
+}
+```
+
+### 构造函数
+
+#### Recovery 中间件
+```go
+func NewRecoveryMiddleware(config *RecoveryConfig) common.IBaseMiddleware
+func NewRecoveryMiddlewareWithDefaults() common.IBaseMiddleware
+```
+
+#### RequestLogger 中间件
+```go
+func NewRequestLoggerMiddleware(config *RequestLoggerConfig) common.IBaseMiddleware
+func NewRequestLoggerMiddlewareWithDefaults() common.IBaseMiddleware
+```
+
+#### CORS 中间件
+```go
+func NewCorsMiddleware(config *CorsConfig) common.IBaseMiddleware
+func NewCorsMiddlewareWithDefaults() common.IBaseMiddleware
+```
+
+#### SecurityHeaders 中间件
+```go
+func NewSecurityHeadersMiddleware(config *SecurityHeadersConfig) common.IBaseMiddleware
+func NewSecurityHeadersMiddlewareWithDefaults() common.IBaseMiddleware
+```
+
+#### RateLimiter 中间件
+```go
+func NewRateLimiterMiddleware(config *RateLimiterConfig) common.IBaseMiddleware
+func NewRateLimiterMiddlewareWithDefaults() common.IBaseMiddleware
+```
+
+#### Telemetry 中间件
+```go
+func NewTelemetryMiddleware(config *TelemetryConfig) common.IBaseMiddleware
+func NewTelemetryMiddlewareWithDefaults() common.IBaseMiddleware
+```
+
+### 常量
+
+#### 执行顺序常量
+```go
+const (
+    OrderRecovery        = 0   // panic 恢复中间件（最先执行）
+    OrderRequestLogger   = 50  // 请求日志中间件
+    OrderCORS            = 100 // CORS 跨域中间件
+    OrderSecurityHeaders = 150 // 安全头中间件
+    OrderRateLimiter     = 200 // 限流中间件（认证前执行）
+    OrderTelemetry       = 250 // 遥测中间件
+    OrderAuth            = 300 // 认证中间件（预留）
+)
+```
+
+#### 响应头常量（RateLimiter）
+```go
+const (
+    RateLimitLimitHeader     = "X-RateLimit-Limit"     // 时间窗口内最大请求数
+    RateLimitRemainingHeader = "X-RateLimit-Remaining" // 剩余可用请求数
+    RateLimitResetHeader     = "X-RateLimit-Reset"     // 窗口重置时间
+)
+```
+
 ## 业务层封装
 
 在业务项目中，可以定义自己的中间件接口并封装 litemiddleware 的实现：
