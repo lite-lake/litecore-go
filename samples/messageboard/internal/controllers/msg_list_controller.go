@@ -37,11 +37,11 @@ func (c *msgListControllerImpl) GetRouter() string {
 
 // Handle 处理获取已审核留言列表请求（隐藏状态信息）
 func (c *msgListControllerImpl) Handle(ctx *gin.Context) {
-	c.LoggerMgr.Ins().Debug("开始获取已审核留言列表")
+	c.LoggerMgr.Ins().Debug("Starting to get approved messages")
 
 	messages, err := c.MessageService.GetApprovedMessages()
 	if err != nil {
-		c.LoggerMgr.Ins().Error("获取已审核留言失败", "error", err)
+		c.LoggerMgr.Ins().Error("Failed to get approved messages", "error", err)
 		ctx.JSON(common.HTTPStatusInternalServerError, dtos.ErrInternalServer)
 		return
 	}
@@ -61,7 +61,7 @@ func (c *msgListControllerImpl) Handle(ctx *gin.Context) {
 		responseList[i].Status = ""
 	}
 
-	c.LoggerMgr.Ins().Info("获取已审核留言成功", "count", len(responseList))
+	c.LoggerMgr.Ins().Info("Successfully retrieved approved messages", "count", len(responseList))
 
 	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithData(responseList))
 }

@@ -221,7 +221,7 @@ func TestRateLimiterMiddleware_Error(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "限流服务异常")
+		assert.Contains(t, w.Body.String(), "Rate limiter service error")
 		mockLimiter.AssertExpectations(t)
 	})
 }

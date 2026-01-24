@@ -50,7 +50,7 @@ func (s *authServiceImpl) OnStop() error {
 func (s *authServiceImpl) VerifyPassword(password string) bool {
 	storedPassword, err := configmgr.Get[string](s.Config, "app.admin.password")
 	if err != nil {
-		s.LoggerMgr.Ins().Error("获取管理员密码失败", "error", err)
+		s.LoggerMgr.Ins().Error("Failed to get admin password", "error", err)
 		return false
 	}
 	return hash.Hash.BcryptVerify(password, storedPassword)
@@ -59,24 +59,24 @@ func (s *authServiceImpl) VerifyPassword(password string) bool {
 // Login 管理员登录，验证密码后创建会话
 func (s *authServiceImpl) Login(password string) (string, error) {
 	if !s.VerifyPassword(password) {
-		s.LoggerMgr.Ins().Warn("登录失败：密码错误")
+		s.LoggerMgr.Ins().Warn("Login failed: invalid password")
 		return "", fmt.Errorf("invalid password")
 	}
 
 	token, err := s.SessionService.CreateSession()
 	if err != nil {
-		s.LoggerMgr.Ins().Error("登录失败：创建会话失败", "error", err)
+		s.LoggerMgr.Ins().Error("Login failed: failed to create session", "error", err)
 		return "", fmt.Errorf("failed to create session: %w", err)
 	}
 
-	s.LoggerMgr.Ins().Info("登录成功", "token", token)
+	s.LoggerMgr.Ins().Info("Login successful", "token", token)
 
 	return token, nil
 }
 
 // Logout 管理员退出登录，删除会话
 func (s *authServiceImpl) Logout(token string) error {
-	s.LoggerMgr.Ins().Info("退出登录", "token", token)
+	s.LoggerMgr.Ins().Info("Logout", "token", token)
 	return s.SessionService.DeleteSession(token)
 }
 

@@ -67,10 +67,10 @@ func (s *sessionServiceImpl) CreateSession() (string, error) {
 	ctx := context.Background()
 	sessionKey := fmt.Sprintf("session:%s", token)
 	if err := s.CacheMgr.Set(ctx, sessionKey, session, s.timeout); err != nil {
-		s.LoggerMgr.Ins().Error("创建会话失败", "token", token, "error", err)
+		s.LoggerMgr.Ins().Error("Failed to create session", "token", token, "error", err)
 		return "", fmt.Errorf("failed to store session: %w", err)
 	}
-	s.LoggerMgr.Ins().Info("创建会话成功", "token", token, "expires_at", session.ExpiresAt)
+	s.LoggerMgr.Ins().Info("Session created successfully", "token", token, "expires_at", session.ExpiresAt)
 
 	return token, nil
 }
@@ -82,24 +82,24 @@ func (s *sessionServiceImpl) ValidateSession(token string) (*dtos.AdminSession, 
 
 	var session dtos.AdminSession
 	if err := s.CacheMgr.Get(ctx, sessionKey, &session); err != nil {
-		s.LoggerMgr.Ins().Warn("验证会话失败：会话不存在", "token", token)
+		s.LoggerMgr.Ins().Warn("Failed to validate session: session not found", "token", token)
 		return nil, errors.New("session not found")
 	}
 
 	if time.Now().After(session.ExpiresAt) {
-		s.LoggerMgr.Ins().Warn("验证会话失败：会话已过期", "token", token)
+		s.LoggerMgr.Ins().Warn("Failed to validate session: session expired", "token", token)
 		s.DeleteSession(token)
 		return nil, errors.New("session expired")
 	}
 
-	s.LoggerMgr.Ins().Debug("验证会话成功", "token", token)
+	s.LoggerMgr.Ins().Debug("Session validated successfully", "token", token)
 
 	return &session, nil
 }
 
 // DeleteSession 从缓存删除指定 token 的会话
 func (s *sessionServiceImpl) DeleteSession(token string) error {
-	s.LoggerMgr.Ins().Info("删除会话", "token", token)
+	s.LoggerMgr.Ins().Info("Deleting session", "token", token)
 
 	ctx := context.Background()
 	sessionKey := fmt.Sprintf("session:%s", token)

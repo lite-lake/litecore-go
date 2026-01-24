@@ -38,21 +38,21 @@ func (c *adminAuthControllerImpl) GetRouter() string {
 func (c *adminAuthControllerImpl) Handle(ctx *gin.Context) {
 	var req dtos.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		c.LoggerMgr.Ins().Error("管理员登录失败：参数绑定失败", "error", err)
+		c.LoggerMgr.Ins().Error("Admin login failed: parameter binding error", "error", err)
 		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrBadRequest)
 		return
 	}
 
-	c.LoggerMgr.Ins().Debug("开始管理员登录")
+	c.LoggerMgr.Ins().Debug("Starting admin login")
 
 	token, err := c.AuthService.Login(req.Password)
 	if err != nil {
-		c.LoggerMgr.Ins().Warn("管理员登录失败：密码错误")
+		c.LoggerMgr.Ins().Warn("Admin login failed: incorrect password")
 		ctx.JSON(common.HTTPStatusUnauthorized, dtos.ErrorResponse(common.HTTPStatusUnauthorized, "管理员密码错误"))
 		return
 	}
 
-	c.LoggerMgr.Ins().Info("管理员登录成功", "token", token)
+	c.LoggerMgr.Ins().Info("Admin login successful", "token", token)
 
 	ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithData(dtos.LoginResponse{
 		Token: token,

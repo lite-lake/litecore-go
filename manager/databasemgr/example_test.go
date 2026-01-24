@@ -29,7 +29,7 @@ func Example_databasemgr_withConfigProvider() {
 	// dbMgr, err := databasemgr.BuildWithConfigProvider(provider)
 	// if err != nil {
 	//     loggerMgr := loggermgr.GetLoggerManager()
-	//     loggerMgr.Logger("main").Fatal("数据库管理器创建失败", "error", err)
+	//     loggerMgr.Logger("main").Fatal("Failed to create database manager", "error", err)
 	// }
 	// defer dbMgr.Close()
 
@@ -53,7 +53,7 @@ func Example_databasemgr_configuration() {
 	//       conn_max_lifetime: 3600  # 秒
 	//       conn_max_idle_time: 600   # 秒
 	//
-	// 或者使用 PostgreSQL:
+	// 或者使用 PostgreSQL 数据库：
 	//
 	// database:
 	//   driver: postgresql
@@ -63,7 +63,7 @@ func Example_databasemgr_configuration() {
 	//       max_open_conns: 50
 	//       max_idle_conns: 10
 	//
-	// 或者使用 SQLite:
+	// 或者使用 SQLite 数据库：
 	//
 	// database:
 	//   driver: sqlite
@@ -133,7 +133,7 @@ func Example_databasemgr_advancedOperations() {
 	// 6. 健康检查
 	// if err := dbMgr.Health(); err != nil {
 	//     loggerMgr := loggermgr.GetLoggerManager()
-	//     loggerMgr.Logger("main").Error("数据库健康检查失败", "error", err)
+	//     loggerMgr.Logger("main").Error("Database health check failed", "error", err)
 	// }
 
 	_ = dbMgr

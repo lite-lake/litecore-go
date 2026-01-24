@@ -406,15 +406,15 @@ func TestLoggerFormats(t *testing.T) {
 		assert.NotNil(t, log)
 
 		assert.NotPanics(t, func() {
-			log.Debug("debug消息", "user_id", 1001, "action", "login")
-			log.Info("info消息", "request_id", "abc123", "path", "/api/users")
-			log.Warn("warn消息", "retry_count", 3, "max_retries", 5)
-			log.Error("error消息", "error_code", 500, "error_msg", "内部错误")
+			log.Debug("debug message", "user_id", 1001, "action", "login")
+			log.Info("info message", "request_id", "abc123", "path", "/api/users")
+			log.Warn("warn message", "retry_count", 3, "max_retries", 5)
+			log.Error("error message", "error_code", 500, "error_msg", "internal error")
 		})
 
 		logWithCtx := log.With("service", "user-service", "version", "1.0.0")
 		assert.NotPanics(t, func() {
-			logWithCtx.Info("带上下文的消息", "status", "running")
+			logWithCtx.Info("message with context", "status", "running")
 		})
 	})
 
@@ -437,9 +437,9 @@ func TestLoggerFormats(t *testing.T) {
 		assert.NotNil(t, log)
 
 		assert.NotPanics(t, func() {
-			log.Info("info消息", "key1", "value1", "key2", 123)
-			log.Warn("warn消息", "warning", "something")
-			log.Error("error消息", "err", "错误详情")
+			log.Info("info message", "key1", "value1", "key2", 123)
+			log.Warn("warn message", "warning", "something")
+			log.Error("error message", "err", "error details")
 		})
 	})
 
@@ -462,10 +462,10 @@ func TestLoggerFormats(t *testing.T) {
 		assert.NotNil(t, log)
 
 		assert.NotPanics(t, func() {
-			log.Debug("debug消息")
-			log.Info("info消息", "data", "test")
-			log.Warn("warn消息")
-			log.Error("error消息", "error", "test error")
+			log.Debug("debug message")
+			log.Info("info message", "data", "test")
+			log.Warn("warn message")
+			log.Error("error message", "error", "test error")
 		})
 	})
 
@@ -485,9 +485,9 @@ func TestLoggerFormats(t *testing.T) {
 
 		log := mgr.Ins()
 		assert.NotPanics(t, func() {
-			log.Info("info消息", "key", "value")
-			log.Warn("warn消息", "key", "value")
-			log.Error("error消息", "key", "value")
+			log.Info("info message", "key", "value")
+			log.Warn("warn message", "key", "value")
+			log.Error("error message", "key", "value")
 		})
 	})
 
@@ -507,9 +507,9 @@ func TestLoggerFormats(t *testing.T) {
 
 		log := mgr.Ins()
 		assert.NotPanics(t, func() {
-			log.Info("info消息", "key", "value")
-			log.Warn("warn消息", "key", "value")
-			log.Error("error消息", "key", "value")
+			log.Info("info message", "key", "value")
+			log.Warn("warn message", "key", "value")
+			log.Error("error message", "key", "value")
 		})
 	})
 
@@ -539,7 +539,7 @@ func TestLoggerFormats(t *testing.T) {
 
 				log := mgr.Ins()
 				assert.NotPanics(t, func() {
-					log.Info("测试时间格式", "format", tf)
+					log.Info("test time format", "format", tf)
 				})
 			})
 		}
@@ -577,10 +577,10 @@ func TestLoggerFormats(t *testing.T) {
 		assert.NotNil(t, log)
 
 		assert.NotPanics(t, func() {
-			log.Debug("debug消息", "output", "both")
-			log.Info("info消息", "output", "both")
-			log.Warn("warn消息", "output", "both")
-			log.Error("error消息", "output", "both")
+			log.Debug("debug message", "output", "both")
+			log.Info("info message", "output", "both")
+			log.Warn("warn message", "output", "both")
+			log.Error("error message", "output", "both")
 		})
 
 		assert.NoError(t, mgr.OnStop())
@@ -618,10 +618,10 @@ func TestLoggerFormats(t *testing.T) {
 		assert.NotNil(t, log)
 
 		assert.NotPanics(t, func() {
-			log.Debug("debug消息-仅文件")
-			log.Info("info消息-仅控制台")
-			log.Warn("warn消息-两者都输出")
-			log.Error("error消息-两者都输出")
+			log.Debug("debug message - file only")
+			log.Info("info message - console only")
+			log.Warn("warn message - both outputs")
+			log.Error("error message - both outputs")
 		})
 
 		assert.NoError(t, mgr.OnStop())
@@ -662,7 +662,7 @@ func TestLoggerFormats(t *testing.T) {
 
 				logWithCtx := log.With("test_field", "test_value")
 				assert.NotPanics(t, func() {
-					logWithCtx.Info("带上下文", "format", f.format)
+					logWithCtx.Info("message with context", "format", f.format)
 				})
 			})
 		}
@@ -686,10 +686,10 @@ func TestLoggerFormats(t *testing.T) {
 		log := mgr.Ins()
 
 		assert.NotPanics(t, func() {
-			log.Info("字符串字段", "name", "张三", "email", "test@example.com")
-			log.Info("数字字段", "age", 25, "score", 98.5, "count", 1000)
-			log.Info("布尔字段", "enabled", true, "active", false)
-			log.Info("混合字段", "id", 123, "name", "李四", "active", true, "balance", 999.99)
+			log.Info("string fields", "name", "Zhang San", "email", "test@example.com")
+			log.Info("number fields", "age", 25, "score", 98.5, "count", 1000)
+			log.Info("boolean fields", "enabled", true, "active", false)
+			log.Info("mixed fields", "id", 123, "name", "Li Si", "active", true, "balance", 999.99)
 		})
 	})
 }

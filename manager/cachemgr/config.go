@@ -71,7 +71,7 @@ type MemoryConfig struct {
 // Validate 验证配置
 func (c *CacheConfig) Validate() error {
 	if c.Driver == "" {
-		return fmt.Errorf("driver is required")
+		return fmt.Errorf("driver type cannot be empty")
 	}
 
 	// 标准化驱动名称
@@ -82,17 +82,17 @@ func (c *CacheConfig) Validate() error {
 	case "redis", "memory", "none":
 		// 有效驱动
 	default:
-		return fmt.Errorf("unsupported driver: %s (must be redis, memory, or none)", c.Driver)
+		return fmt.Errorf("unsupported driver type: %s (must be redis, memory or none)", c.Driver)
 	}
 
 	// Redis 驱动需要 Redis 配置
 	if c.Driver == "redis" && c.RedisConfig == nil {
-		return fmt.Errorf("redis_config is required when driver is redis")
+		return fmt.Errorf("redis_config is required when using redis driver")
 	}
 
 	// Memory 驱动需要 Memory 配置
 	if c.Driver == "memory" && c.MemoryConfig == nil {
-		return fmt.Errorf("memory_config is required when driver is memory")
+		return fmt.Errorf("memory_config is required when using memory driver")
 	}
 
 	return nil
@@ -302,7 +302,7 @@ func parseDuration(v any) (time.Duration, error) {
 		// 支持: "30s", "5m", "1h", "30" (默认为秒)
 		s := strings.TrimSpace(val)
 		if s == "" {
-			return 0, fmt.Errorf("empty duration string")
+			return 0, fmt.Errorf("duration string cannot be empty")
 		}
 
 		// 先尝试解析标准时间格式（如 "5m", "1h"）

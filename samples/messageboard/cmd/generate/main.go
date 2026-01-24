@@ -30,7 +30,7 @@ func main() {
 	}
 
 	if err := generator.Run(cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "错误: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }

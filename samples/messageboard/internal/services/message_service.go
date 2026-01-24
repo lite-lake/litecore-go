@@ -54,11 +54,11 @@ func (s *messageServiceImpl) OnStop() error {
 // 验证昵称和内容长度，初始状态为 pending
 func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.Message, error) {
 	if len(nickname) < 2 || len(nickname) > 20 {
-		s.LoggerMgr.Ins().Warn("创建留言失败：昵称长度不符合要求", "nickname_length", len(nickname))
+		s.LoggerMgr.Ins().Warn("Failed to create message: invalid nickname length", "nickname_length", len(nickname))
 		return nil, errors.New("昵称长度必须在 2-20 个字符之间")
 	}
 	if len(content) < 5 || len(content) > 500 {
-		s.LoggerMgr.Ins().Warn("创建留言失败：内容长度不符合要求", "content_length", len(content))
+		s.LoggerMgr.Ins().Warn("Failed to create message: invalid content length", "content_length", len(content))
 
 		return nil, errors.New("留言内容长度必须在 5-500 个字符之间")
 	}
@@ -72,12 +72,12 @@ func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.
 	}
 
 	if err := s.Repository.Create(message); err != nil {
-		s.LoggerMgr.Ins().Error("创建留言失败", "nickname", nickname, "error", err)
+		s.LoggerMgr.Ins().Error("Failed to create message", "nickname", nickname, "error", err)
 
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
 
-	s.LoggerMgr.Ins().Info("创建留言成功", "id", message.ID, "nickname", message.Nickname, "status", message.Status)
+	s.LoggerMgr.Ins().Info("Message created successfully", "id", message.ID, "nickname", message.Nickname, "status", message.Status)
 
 	return message, nil
 }
@@ -85,30 +85,30 @@ func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.
 // GetApprovedMessages 获取已审核通过的留言列表
 func (s *messageServiceImpl) GetApprovedMessages() ([]*entities.Message, error) {
 
-	s.LoggerMgr.Ins().Debug("获取已审核留言列表")
+	s.LoggerMgr.Ins().Debug("Getting approved messages")
 
 	messages, err := s.Repository.GetApprovedMessages()
 	if err != nil {
-		s.LoggerMgr.Ins().Error("获取已审核留言失败", "error", err)
+		s.LoggerMgr.Ins().Error("Failed to get approved messages", "error", err)
 		return nil, fmt.Errorf("failed to get approved messages: %w", err)
 	}
 
-	s.LoggerMgr.Ins().Debug("获取已审核留言成功", "count", len(messages))
+	s.LoggerMgr.Ins().Debug("Approved messages retrieved successfully", "count", len(messages))
 
 	return messages, nil
 }
 
 // GetAllMessages 获取所有留言列表（管理员专用）
 func (s *messageServiceImpl) GetAllMessages() ([]*entities.Message, error) {
-	s.LoggerMgr.Ins().Debug("获取所有留言列表")
+	s.LoggerMgr.Ins().Debug("Getting all messages")
 
 	messages, err := s.Repository.GetAllMessages()
 	if err != nil {
-		s.LoggerMgr.Ins().Error("获取所有留言失败", "error", err)
+		s.LoggerMgr.Ins().Error("Failed to get all messages", "error", err)
 		return nil, fmt.Errorf("failed to get all messages: %w", err)
 	}
 
-	s.LoggerMgr.Ins().Debug("获取所有留言成功", "count", len(messages))
+	s.LoggerMgr.Ins().Debug("All messages retrieved successfully", "count", len(messages))
 
 	return messages, nil
 }
@@ -117,52 +117,52 @@ func (s *messageServiceImpl) GetAllMessages() ([]*entities.Message, error) {
 // 状态值必须是 pending、approved 或 rejected
 func (s *messageServiceImpl) UpdateMessageStatus(id uint, status string) error {
 	if status != "pending" && status != "approved" && status != "rejected" {
-		s.LoggerMgr.Ins().Warn("更新留言状态失败：无效的状态值", "id", id, "status", status)
+		s.LoggerMgr.Ins().Warn("Failed to update message status: invalid status value", "id", id, "status", status)
 		return errors.New("invalid status value")
 	}
 
-	s.LoggerMgr.Ins().Debug("准备更新留言状态", "id", id, "status", status)
+	s.LoggerMgr.Ins().Debug("Preparing to update message status", "id", id, "status", status)
 
 	message, err := s.Repository.GetByID(id)
 	if err != nil {
-		s.LoggerMgr.Ins().Error("更新留言状态失败：留言不存在", "id", id, "error", err)
+		s.LoggerMgr.Ins().Error("Failed to update message status: message not found", "id", id, "error", err)
 		return fmt.Errorf("message not found: %w", err)
 	}
 	if message == nil {
-		s.LoggerMgr.Ins().Warn("更新留言状态失败：留言不存在", "id", id)
+		s.LoggerMgr.Ins().Warn("Failed to update message status: message not found", "id", id)
 		return errors.New("message not found")
 	}
 
 	if err := s.Repository.UpdateStatus(id, status); err != nil {
-		s.LoggerMgr.Ins().Error("更新留言状态失败", "id", id, "status", status, "error", err)
+		s.LoggerMgr.Ins().Error("Failed to update message status", "id", id, "status", status, "error", err)
 		return fmt.Errorf("failed to update message status: %w", err)
 	}
 
-	s.LoggerMgr.Ins().Info("更新留言状态成功", "id", id, "old_status", message.Status, "new_status", status)
+	s.LoggerMgr.Ins().Info("Message status updated successfully", "id", id, "old_status", message.Status, "new_status", status)
 
 	return nil
 }
 
 // DeleteMessage 删除留言（管理员专用）
 func (s *messageServiceImpl) DeleteMessage(id uint) error {
-	s.LoggerMgr.Ins().Debug("准备删除留言", "id", id)
+	s.LoggerMgr.Ins().Debug("Preparing to delete message", "id", id)
 
 	message, err := s.Repository.GetByID(id)
 	if err != nil {
-		s.LoggerMgr.Ins().Error("删除留言失败：留言不存在", "id", id, "error", err)
+		s.LoggerMgr.Ins().Error("Failed to delete message: message not found", "id", id, "error", err)
 		return fmt.Errorf("message not found: %w", err)
 	}
 	if message == nil {
-		s.LoggerMgr.Ins().Warn("删除留言失败：留言不存在", "id", id)
+		s.LoggerMgr.Ins().Warn("Failed to delete message: message not found", "id", id)
 		return errors.New("message not found")
 	}
 
 	if err := s.Repository.Delete(id); err != nil {
-		s.LoggerMgr.Ins().Error("删除留言失败", "id", id, "nickname", message.Nickname, "error", err)
+		s.LoggerMgr.Ins().Error("Failed to delete message", "id", id, "nickname", message.Nickname, "error", err)
 		return fmt.Errorf("failed to delete message: %w", err)
 	}
 
-	s.LoggerMgr.Ins().Info("删除留言成功", "id", id, "nickname", message.Nickname, "status", message.Status)
+	s.LoggerMgr.Ins().Info("Message deleted successfully", "id", id, "nickname", message.Nickname, "status", message.Status)
 
 	return nil
 }

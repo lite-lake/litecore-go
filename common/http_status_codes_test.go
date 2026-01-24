@@ -164,7 +164,7 @@ func TestHTTPStatusCodes_常量唯一性(t *testing.T) {
 
 	for _, code := range codes {
 		if existing, exists := uniqueCodes[code.status]; exists {
-			t.Errorf("状态码 %d 被多个常量使用: %s 和 %s", code.status, existing, code.name)
+			t.Errorf("Status code %d is used by multiple constants: %s and %s", code.status, existing, code.name)
 		}
 		uniqueCodes[code.status] = code.name
 	}

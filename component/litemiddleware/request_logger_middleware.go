@@ -181,7 +181,7 @@ func (m *requestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 					fields = append(fields, "headers", headers)
 				}
 
-				m.LoggerMgr.Ins().Error("请求处理错误", fields...)
+				m.LoggerMgr.Ins().Error("Request processing error", fields...)
 			}
 		} else {
 			fields := []interface{}{
@@ -209,7 +209,7 @@ func (m *requestLoggerMiddleware) Wrapper() gin.HandlerFunc {
 				fields = append(fields, "headers", headers)
 			}
 
-			logFunc("请求处理完成", fields...)
+			logFunc("Request processed successfully", fields...)
 		}
 	}
 }

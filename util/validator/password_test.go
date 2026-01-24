@@ -13,12 +13,12 @@ import (
 func TestDefaultPasswordConfig(t *testing.T) {
 	config := DefaultPasswordConfig()
 
-	assert.Equal(t, 12, config.MinLength, "MinPasswordLength should be 12")
-	assert.Equal(t, 128, config.MaxLength, "MaxPasswordLength should be 128")
-	assert.True(t, config.RequireUpper, "RequireUpper should be true")
-	assert.True(t, config.RequireLower, "RequireLower should be true")
-	assert.True(t, config.RequireNumber, "RequireNumber should be true")
-	assert.True(t, config.RequireSpecial, "RequireSpecial should be true")
+	assert.Equal(t, 12, config.MinLength, "最小密码长度应为 12")
+	assert.Equal(t, 128, config.MaxLength, "最大密码长度应为 128")
+	assert.True(t, config.RequireUpper, "RequireUpper 应为 true")
+	assert.True(t, config.RequireLower, "RequireLower 应为 true")
+	assert.True(t, config.RequireNumber, "RequireNumber 应为 true")
+	assert.True(t, config.RequireSpecial, "RequireSpecial 应为 true")
 }
 
 // TestValidatePassword 测试密码验证函数

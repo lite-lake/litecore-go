@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	// 响应头
+	// 速率限制响应头
 	RateLimitLimitHeader     = "X-RateLimit-Limit"
 	RateLimitRemainingHeader = "X-RateLimit-Remaining"
 	RateLimitResetHeader     = "X-RateLimit-Reset"
@@ -116,7 +116,7 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 
 		if m.LimiterMgr == nil {
 			if m.LoggerMgr != nil {
-				m.LoggerMgr.Ins().Warn("限流管理器未初始化，跳过限流检查")
+				m.LoggerMgr.Ins().Warn("Rate limiter manager not initialized, skipping rate limit check")
 			}
 			c.Next()
 			return
@@ -130,10 +130,10 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 		allowed, err := m.LimiterMgr.Allow(ctx, fullKey, *m.config.Limit, *m.config.Window)
 		if err != nil {
 			if m.LoggerMgr != nil {
-				m.LoggerMgr.Ins().Error("限流检查失败", "error", err, "key", fullKey)
+				m.LoggerMgr.Ins().Error("Rate limit check failed", "error", err, "key", fullKey)
 			}
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "限流服务异常",
+				"error": "Rate limiter service error",
 				"code":  "INTERNAL_SERVER_ERROR",
 			})
 			c.Abort()
@@ -147,13 +147,13 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 
 		if !allowed {
 			if m.LoggerMgr != nil {
-				m.LoggerMgr.Ins().Warn("请求被限流", "key", fullKey, "limit", *m.config.Limit, "window", *m.config.Window)
+				m.LoggerMgr.Ins().Warn("Request rate limited", "key", fullKey, "limit", *m.config.Limit, "window", *m.config.Window)
 			}
 
 			c.Header("Retry-After", fmt.Sprintf("%d", int(m.config.Window.Seconds())))
 
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error": fmt.Sprintf("请求过于频繁，请 %v 后再试", *m.config.Window),
+				"error": fmt.Sprintf("Too many requests, please try again after %v", *m.config.Window),
 				"code":  "RATE_LIMIT_EXCEEDED",
 			})
 			c.Abort()

@@ -23,7 +23,7 @@ package databasemgr
 //
 //	dbMgr, err := databasemgr.Build("mysql", cfg)
 //	if err != nil {
-//	    logger.Fatal("创建数据库管理器失败", "error", err)
+//	logger.Fatal("Failed to create database manager", "error", err)
 //	}
 //	defer dbMgr.Close()
 //
@@ -80,7 +80,7 @@ package databasemgr
 // 所有数据库操作都应检查错误。Health() 方法可用于健康检查:
 //
 //	if err := dbMgr.Health(); err != nil {
-//	    logger.Error("数据库健康检查失败", "error", err)
+//	    logger.Error("Database health check failed", "error", err)
 //	}
 //
 // 性能考虑：

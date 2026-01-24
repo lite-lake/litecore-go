@@ -16,13 +16,13 @@ func (e *Engine) registerMiddlewares() error {
 
 	for _, mw := range sortedMiddlewares {
 		e.ginEngine.Use(mw.Wrapper())
-		e.logStartup(PhaseRouter, "注册中间件",
+		e.logStartup(PhaseRouter, "Registering middleware",
 			logger.F("middleware", mw.MiddlewareName()),
-			logger.F("type", "全局"))
+			logger.F("type", "global"))
 		registeredCount++
 	}
 
-	e.logStartup(PhaseRouter, "中间件注册完成",
+	e.logStartup(PhaseRouter, "Middleware registration completed",
 		logger.F("middleware_count", registeredCount))
 
 	return nil
