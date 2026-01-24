@@ -9,9 +9,8 @@ import (
 // InitListenerContainer 初始化监听器容器
 func InitListenerContainer(serviceContainer *container.ServiceContainer) *container.ListenerContainer {
 	listenerContainer := container.NewListenerContainer(serviceContainer)
-
-	container.RegisterListener[listeners.IMessageCreatedListener](listenerContainer, listeners.NewMessageCreatedListener())
 	container.RegisterListener[listeners.IMessageAuditListener](listenerContainer, listeners.NewMessageAuditListener())
+	container.RegisterListener[listeners.IMessageCreatedListener](listenerContainer, listeners.NewMessageCreatedListener())
 
 	return listenerContainer
 }

@@ -57,6 +57,10 @@ func (p *Parser) Parse(moduleName string) (*analyzer.ProjectInfo, error) {
 		return nil, fmt.Errorf("parse middlewares failed: %w", err)
 	}
 
+	if err := p.parseListeners(); err != nil {
+		return nil, fmt.Errorf("parse listeners failed: %w", err)
+	}
+
 	return p.info, nil
 }
 
@@ -342,6 +346,27 @@ func (p *Parser) parseMiddlewares() error {
 	return nil
 }
 
+// parseListeners 解析监听器
+func (p *Parser) parseListeners() error {
+	dir := filepath.Join(p.projectPath, "internal", "listeners")
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil
+	}
+
+	files, err := p.findGoFiles(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if err := p.parseListenerFile(file); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // parseMiddlewareFile 解析中间件文件
 func (p *Parser) parseMiddlewareFile(filename string) error {
 	fset := token.NewFileSet()
@@ -382,6 +407,51 @@ func (p *Parser) parseMiddlewareFile(filename string) error {
 
 	for _, comp := range componentMap {
 		p.info.Layers[analyzer.LayerMiddleware] = append(p.info.Layers[analyzer.LayerMiddleware], comp)
+	}
+
+	return nil
+}
+
+// parseListenerFile 解析监听器文件
+func (p *Parser) parseListenerFile(filename string) error {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	pkgName := node.Name.Name
+	packagePath := p.getPackagePath(filename)
+	componentMap := make(map[string]*analyzer.ComponentInfo)
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		if typeSpec, ok := n.(*ast.TypeSpec); ok {
+			if strings.HasPrefix(typeSpec.Name.Name, "I") {
+				comp := &analyzer.ComponentInfo{
+					InterfaceName: typeSpec.Name.Name,
+					InterfaceType: pkgName + "." + typeSpec.Name.Name,
+					PackagePath:   packagePath,
+					FileName:      filename,
+					Layer:         analyzer.LayerListener,
+				}
+				componentMap[typeSpec.Name.Name] = comp
+			}
+		}
+
+		if fn, ok := n.(*ast.FuncDecl); ok {
+			if strings.HasPrefix(fn.Name.Name, "New") {
+				interfaceName := strings.TrimPrefix(fn.Name.Name, "New")
+				if comp, exists := componentMap["I"+interfaceName]; exists && comp.FactoryFunc == "" {
+					comp.FactoryFunc = fn.Name.Name
+				}
+			}
+		}
+
+		return true
+	})
+
+	for _, comp := range componentMap {
+		p.info.Layers[analyzer.LayerListener] = append(p.info.Layers[analyzer.LayerListener], comp)
 	}
 
 	return nil

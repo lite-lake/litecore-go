@@ -20,7 +20,7 @@ func NewMessageCreatedListener() IMessageCreatedListener {
 }
 
 func (l *messageCreatedListenerImpl) ListenerName() string {
-	return "messageCreatedListenerImpl"
+	return "MessageCreatedListener"
 }
 
 func (l *messageCreatedListenerImpl) GetQueue() string {
