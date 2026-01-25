@@ -12,11 +12,11 @@ import (
 type IMessageRepository interface {
 	common.IBaseRepository
 	Create(message *entities.Message) error            // 创建留言
-	GetByID(id uint) (*entities.Message, error)        // 根据 ID 获取留言
+	GetByID(id string) (*entities.Message, error)      // 根据 ID 获取留言
 	GetApprovedMessages() ([]*entities.Message, error) // 获取已审核通过的留言列表
 	GetAllMessages() ([]*entities.Message, error)      // 获取所有留言列表
-	UpdateStatus(id uint, status string) error         // 更新留言状态
-	Delete(id uint) error                              // 删除留言
+	UpdateStatus(id string, status string) error       // 更新留言状态
+	Delete(id string) error                            // 删除留言
 	CountByStatus(status string) (int64, error)        // 根据状态统计留言数量
 }
 
@@ -52,10 +52,10 @@ func (r *messageRepositoryImpl) Create(message *entities.Message) error {
 }
 
 // GetByID 根据 ID 获取留言记录
-func (r *messageRepositoryImpl) GetByID(id uint) (*entities.Message, error) {
+func (r *messageRepositoryImpl) GetByID(id string) (*entities.Message, error) {
 	db := r.Manager.DB()
 	var message entities.Message
-	err := db.First(&message, id).Error
+	err := db.Where("id = ?", id).First(&message).Error
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (r *messageRepositoryImpl) GetAllMessages() ([]*entities.Message, error) {
 }
 
 // UpdateStatus 更新指定留言的状态
-func (r *messageRepositoryImpl) UpdateStatus(id uint, status string) error {
+func (r *messageRepositoryImpl) UpdateStatus(id string, status string) error {
 	db := r.Manager.DB()
 	return db.Model(&entities.Message{}).
 		Where("id = ?", id).
@@ -89,9 +89,9 @@ func (r *messageRepositoryImpl) UpdateStatus(id uint, status string) error {
 }
 
 // Delete 删除指定的留言记录
-func (r *messageRepositoryImpl) Delete(id uint) error {
+func (r *messageRepositoryImpl) Delete(id string) error {
 	db := r.Manager.DB()
-	return db.Delete(&entities.Message{}, id).Error
+	return db.Where("id = ?", id).Delete(&entities.Message{}).Error
 }
 
 // CountByStatus 统计指定状态的留言数量

@@ -397,17 +397,12 @@ func main() {
 const entityTemplate = `package entities
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/lite-lake/litecore-go/common"
 )
 
 type Example struct {
-	ID        uint      ` + "`" + `gorm:"primarykey" json:"id"` + "`" + `
-	Name      string    ` + "`" + `gorm:"type:varchar(100);not null" json:"name"` + "`" + `
-	CreatedAt time.Time ` + "`" + `json:"created_at"` + "`" + `
-	UpdatedAt time.Time ` + "`" + `json:"updated_at"` + "`" + `
+	common.BaseEntityWithTimestamps
+	Name string ` + "`" + `gorm:"type:varchar(100);not null" json:"name"` + "`" + `
 }
 
 func (e *Example) EntityName() string {
@@ -419,7 +414,7 @@ func (Example) TableName() string {
 }
 
 func (e *Example) GetId() string {
-	return fmt.Sprintf("%d", e.ID)
+	return e.ID
 }
 
 var _ common.IBaseEntity = (*Example)(nil)
@@ -438,7 +433,7 @@ import (
 type IExampleRepository interface {
 	common.IBaseRepository
 	Create(example *entities.Example) error
-	GetByID(id uint) (*entities.Example, error)
+	GetByID(id string) (*entities.Example, error)
 }
 
 type exampleRepositoryImpl struct {
@@ -467,10 +462,10 @@ func (r *exampleRepositoryImpl) Create(example *entities.Example) error {
 	return db.Create(example).Error
 }
 
-func (r *exampleRepositoryImpl) GetByID(id uint) (*entities.Example, error) {
+func (r *exampleRepositoryImpl) GetByID(id string) (*entities.Example, error) {
 	db := r.Manager.DB()
 	var example entities.Example
-	err := db.First(&example, id).Error
+	err := db.Where("id = ?", id).First(&example).Error
 	if err != nil {
 		return nil, err
 	}
@@ -491,13 +486,12 @@ import (
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/manager/configmgr"
 	"github.com/lite-lake/litecore-go/manager/loggermgr"
-	"github.com/lite-lake/litecore-go/logger"
 )
 
 type IExampleService interface {
 	common.IBaseService
 	CreateExample(name string) (*entities.Example, error)
-	GetExample(id uint) (*entities.Example, error)
+	GetExample(id string) (*entities.Example, error)
 }
 
 type exampleServiceImpl struct {
@@ -539,7 +533,7 @@ func (s *exampleServiceImpl) CreateExample(name string) (*entities.Example, erro
 	return example, nil
 }
 
-func (s *exampleServiceImpl) GetExample(id uint) (*entities.Example, error) {
+func (s *exampleServiceImpl) GetExample(id string) (*entities.Example, error) {
 	return s.Repository.GetByID(id)
 }
 
@@ -549,7 +543,6 @@ var _ IExampleService = (*exampleServiceImpl)(nil)
 const controllerTemplate = `package controllers
 
 import (
-	"fmt"
 	"net/http"
 
 	"{{.ModulePath}}/internal/services"
@@ -611,13 +604,8 @@ func (c *exampleControllerImpl) handleCreate(ctx *gin.Context) {
 
 func (c *exampleControllerImpl) handleGet(ctx *gin.Context) {
 	id := ctx.Param("id")
-	var exampleID uint
-	if _, err := fmt.Sscanf(id, "%d", &exampleID); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的ID"})
-		return
-	}
 
-	example, err := c.ExampleService.GetExample(exampleID)
+	example, err := c.ExampleService.GetExample(id)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "示例不存在"})
 		return

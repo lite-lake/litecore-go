@@ -4,7 +4,6 @@ package services
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/manager/configmgr"
@@ -19,8 +18,8 @@ type IMessageService interface {
 	CreateMessage(nickname, content string) (*entities.Message, error) // 创建留言
 	GetApprovedMessages() ([]*entities.Message, error)                 // 获取已审核留言列表
 	GetAllMessages() ([]*entities.Message, error)                      // 获取所有留言列表
-	UpdateMessageStatus(id uint, status string) error                  // 更新留言状态
-	DeleteMessage(id uint) error                                       // 删除留言
+	UpdateMessageStatus(id string, status string) error                // 更新留言状态
+	DeleteMessage(id string) error                                     // 删除留言
 	GetStatistics() (map[string]int64, error)                          // 获取留言统计信息
 }
 
@@ -64,11 +63,9 @@ func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.
 	}
 
 	message := &entities.Message{
-		Nickname:  nickname,
-		Content:   content,
-		Status:    "pending",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		Nickname: nickname,
+		Content:  content,
+		Status:   "pending",
 	}
 
 	if err := s.Repository.Create(message); err != nil {
@@ -115,7 +112,7 @@ func (s *messageServiceImpl) GetAllMessages() ([]*entities.Message, error) {
 
 // UpdateMessageStatus 更新留言状态（管理员专用）
 // 状态值必须是 pending、approved 或 rejected
-func (s *messageServiceImpl) UpdateMessageStatus(id uint, status string) error {
+func (s *messageServiceImpl) UpdateMessageStatus(id string, status string) error {
 	if status != "pending" && status != "approved" && status != "rejected" {
 		s.LoggerMgr.Ins().Warn("Failed to update message status: invalid status value", "id", id, "status", status)
 		return errors.New("invalid status value")
@@ -144,7 +141,7 @@ func (s *messageServiceImpl) UpdateMessageStatus(id uint, status string) error {
 }
 
 // DeleteMessage 删除留言（管理员专用）
-func (s *messageServiceImpl) DeleteMessage(id uint) error {
+func (s *messageServiceImpl) DeleteMessage(id string) error {
 	s.LoggerMgr.Ins().Debug("Preparing to delete message", "id", id)
 
 	message, err := s.Repository.GetByID(id)
