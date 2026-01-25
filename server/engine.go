@@ -143,6 +143,56 @@ func (e *Engine) Initialize() error {
 	}
 	e.Manager = builtInManagerContainer
 
+	// 读取服务器配置
+	if configMgr := e.Manager.GetByType(reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()); configMgr != nil {
+		if mgr, ok := configMgr.(configmgr.IConfigManager); ok {
+			if host, err := mgr.Get("server.host"); err == nil {
+				if hostStr, ok := host.(string); ok {
+					e.serverConfig.Host = hostStr
+				}
+			}
+			if port, err := mgr.Get("server.port"); err == nil {
+				if portInt, ok := port.(int); ok {
+					e.serverConfig.Port = portInt
+				}
+			}
+			if mode, err := mgr.Get("server.mode"); err == nil {
+				if modeStr, ok := mode.(string); ok {
+					e.serverConfig.Mode = modeStr
+				}
+			}
+			if readTimeout, err := mgr.Get("server.read_timeout"); err == nil {
+				if timeoutStr, ok := readTimeout.(string); ok {
+					if timeout, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.ReadTimeout = timeout
+					}
+				}
+			}
+			if writeTimeout, err := mgr.Get("server.write_timeout"); err == nil {
+				if timeoutStr, ok := writeTimeout.(string); ok {
+					if timeout, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.WriteTimeout = timeout
+					}
+				}
+			}
+			if idleTimeout, err := mgr.Get("server.idle_timeout"); err == nil {
+				if timeoutStr, ok := idleTimeout.(string); ok {
+					if timeout, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.IdleTimeout = timeout
+					}
+				}
+			}
+			if shutdownTimeout, err := mgr.Get("server.shutdown_timeout"); err == nil {
+				if timeoutStr, ok := shutdownTimeout.(string); ok {
+					if timeout, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.ShutdownTimeout = timeout
+						e.shutdownTimeout = timeout
+					}
+				}
+			}
+		}
+	}
+
 	// 读取自动迁移配置
 	e.autoMigrateDB = false
 	if configMgr := e.Manager.GetByType(reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()); configMgr != nil {
