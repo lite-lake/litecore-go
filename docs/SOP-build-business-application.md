@@ -2,7 +2,7 @@
 
 ## 概述
 
- LiteCore 是一个基于 Go 1.25+ 的轻量级 Web 框架，采用 5 层分层架构（内置管理器层 → Entity → Repository → Service → 交互层）和依赖注入设计，内置了 Gin、GORM、 Zap 等常用组件，帮助开发者快速构建企业级应用。
+ LiteCore 是一个基于 Go 1.25+ 的轻量级 Web 框架，采用 5 层分层架构（内置管理器层 → Entity → Repository → Service → 交互层）和依赖注入设计，内置了 Gin、GORM、 Zap 等常用组件，帮助开发者快速构建业务应用。
 
  ### 核心特性
 
