@@ -1,6 +1,6 @@
 # LiteCore-Go
 
- 基于 Gin + GORM + Zap 的企业级 Go Web 开发框架，采用 5 层分层架构（内置管理器层 → Entity → Repository → Service → 交互层）和声明式依赖注入。
+ 基于 Gin + GORM + Zap 的 Go Web 开发框架，采用 5 层分层架构（内置管理器层 → Entity → Repository → Service → 交互层）和声明式依赖注入。
 
 ## 核心特性
 
