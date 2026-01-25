@@ -48,7 +48,30 @@ import (
 - **私有结构体**: 小写 (例如: `jwtEngine`, `hashEngine`)
 - **公共结构体**: 大驼峰 (例如: `StandardClaims`, `ServerConfig`)
 - **函数**: 导出用大驼峰，私有用小驼峰
+- **工厂函数**: `Build()`, `BuildWithConfigProvider()`, `NewXxx()`
 - **枚举**: `iota` 配合中文注释
+
+### 实体命名规范
+
+使用预定义基类时，遵循以下规范：
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| ID | string | CUID2 25位字符串，由基类自动生成 |
+| ID 存储类型 | varchar(32) | 数据库字段类型，预留兼容空间 |
+| CreatedAt | time.Time | 创建时间，由基类 Hook 自动填充 |
+| UpdatedAt | time.Time | 更新时间，由基类 Hook 自动填充 |
+
+**Repository 层**：
+- 接口方法：`GetByID(id string)` (ID 类型为 string)
+- 查询方法：`Where("id = ?", id)` (使用 Where 而非 First)
+
+**Service 层**：
+- 不再手动设置 CreatedAt、UpdatedAt
+- 接口方法：`GetMessage(id string)` (ID 类型为 string)
+
+**Controller 层**：
+- 直接使用 `ctx.Param("id")` (ID 类型为 string，无需解析)
 
 ### 注释（中文）
 - 所有注释必须用中文
@@ -88,29 +111,83 @@ type UserServiceImpl struct {
 
 ### 依赖注入设置
 ```go
-entityContainer := container.NewEntityContainer()
-repositoryContainer := container.NewRepositoryContainer(entityContainer)
-serviceContainer := container.NewServiceContainer(repositoryContainer)
-controllerContainer := container.NewControllerContainer(serviceContainer)
-middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
-listenerContainer := container.NewListenerContainer(serviceContainer)
-schedulerContainer := container.NewSchedulerContainer(serviceContainer)
+ entityContainer := container.NewEntityContainer()
+ repositoryContainer := container.NewRepositoryContainer(entityContainer)
+ serviceContainer := container.NewServiceContainer(repositoryContainer)
+ controllerContainer := container.NewControllerContainer(serviceContainer)
+ middlewareContainer := container.NewMiddlewareContainer(serviceContainer)
+ listenerContainer := container.NewListenerContainer(serviceContainer)
+ schedulerContainer := NewSchedulerContainer(serviceContainer)
+```
 
-// Manager 由引擎通过 server.BuiltinConfig 自动初始化
-engine := server.NewEngine(
-    &server.BuiltinConfig{
-        Driver:   "yaml",
-        FilePath: "configs/config.yaml",
-    },
-    entityContainer,
-    repositoryContainer,
-    serviceContainer,
-    controllerContainer,
-    middlewareContainer,
-    listenerContainer,
-    schedulerContainer,
-)
-engine.Run()
+### 实体基类使用规范
+
+框架提供 3 种预定义的实体基类，使用 CUID2 ID 和 GORM Hook 自动填充：
+
+#### 基类选择
+
+| 基类 | 字段 | 适用场景 |
+|-----|------|---------|
+| `BaseEntityOnlyID` | ID | 配置表、字典表（无需时间戳） |
+| `BaseEntityWithCreatedAt` | ID, CreatedAt | 日志、审计记录（只需创建时间） |
+| `BaseEntityWithTimestamps` | ID, CreatedAt, UpdatedAt | 业务实体（最常用） |
+
+#### 代码示例
+
+```go
+// 推荐使用 BaseEntityWithTimestamps（最常用）
+type Message struct {
+    common.BaseEntityWithTimestamps  // 自动生成 ID、CreatedAt、UpdatedAt
+    Nickname string `gorm:"type:varChar(20);not null" json:"nickname"`
+    Content  string `gorm:"type:varChar(500);not null" json:"content"`
+}
+
+func (m *Message) EntityName() string { return "Message" }
+func (m *Message) TableName() string { return "messages" }
+func (m *Message) GetId() string { return m.ID }
+
+var _ common.IBaseEntity = (*Message)(nil)
+```
+
+#### 关键规范
+
+1. **ID 类型**：始终使用 string 类型（CUID2 25位）
+2. **Repository 查询**：`Where("id = ?", id)` 而非 `First(entity, id)`
+3. **时间戳填充**：通过 GORM Hook 自动填充，Service 层无需手动设置
+4. **Hook 继承**：GORM 不会自动调用嵌入结构体的 Hook，必须手动调用父类方法
+
+#### Service 层简化
+
+```go
+func (s *MessageService) CreateMessage(nickname, content string) (*Message, error) {
+    message := &Message{
+        Nickname: nickname,
+        Content:  content,
+        Status:   "pending",
+        // 无需手动设置 ID、CreatedAt、UpdatedAt
+    }
+    
+    if err := s.Repository.Create(message); err != nil {
+        return nil, err
+    }
+    
+    return message, nil
+}
+```
+
+#### Controller 层简化
+
+```go
+func (c *MessageController) HandleDelete(ctx *gin.Context) {
+    id := ctx.Param("id")  // ID 类型为 string，直接使用
+    
+    if err := c.MessageService.DeleteMessage(id); err != nil {
+        ctx.JSON(400, gin.H{"error": err.Error()})
+        return
+    }
+    
+    ctx.JSON(200, gin.H{"message": "success"})
+}
 ```
 
 ## 完成任务时

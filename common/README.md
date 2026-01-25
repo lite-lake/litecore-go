@@ -35,14 +35,81 @@ common 包是框架的核心基础模块，定义了标准化的分层架构接�
 ## 特性
 
  - **标准接口定义** - 定义 Entity、Manager、Repository、Service、Controller、Middleware、Listener、Scheduler 的标准接口
- - **生命周期管理** - 提供统一的 OnStart 和 OnStop 钩子方法
- - **命名规范** - 每层接口要求实现对应的名称方法，便于调试和日志
- - **依赖注入支持** - 为容器提供标准接口类型，支持类型安全的依赖注入
- - **类型转换工具** - 提供安全的类型转换函数，避免 panic 并支持默认值
- - **HTTP 状态码常量** - 定义完整的 HTTP 状态码常量，便于统一使用
- - **5层架构规范** - 明确各层的职责边界和依赖关系，确保架构清晰
+  - **实体基类** - 提供 3 种预定义的实体基类，支持 CUID2 ID 自动生成和时间戳自动填充
+  - **生命周期管理** - 提供统一的 OnStart 和 OnStop 钩子方法
+  - **命名规范** - 每层接口要求实现对应的名称方法，便于调试和日志
+  - **依赖注入支持** - 为容器提供标准接口类型，支持类型安全的依赖注入
+  - **类型转换工具** - 提供安全的类型转换函数，避免 panic 并支持默认值
+  - **HTTP 状态码常量** - 定义完整的 HTTP 状态码常量，便于统一使用
+  - **5层架构规范** - 明确各层的职责边界和依赖关系，确保架构清晰
 
-## 快速开始
+ ## 快速开始
+
+ ### 使用实体基类（推荐）
+
+ 框架提供了 3 种预定义的实体基类，支持 CUID2 ID 自动生成和时间戳自动填充：
+
+ ```go
+ import "github.com/lite-lake/litecore-go/common"
+
+ // 方式 1：最常用的基类（ID + 创建时间 + 更新时间）
+ type Message struct {
+     common.BaseEntityWithTimestamps  // 自动生成 ID、CreatedAt、UpdatedAt
+     Nickname  string `gorm:"type:varchar(20);not null"`
+     Content   string `gorm:"type:varchar(500);not null"`
+     Status    string `gorm:"type:varchar(20);default:'pending'"`
+ }
+
+ func (m *Message) EntityName() string {
+     return "Message"
+ }
+
+ func (m *Message) TableName() string {
+     return "messages"
+ }
+
+ func (m *Message) GetId() string {
+     return m.ID  // ID 由基类提供，类型为 string
+ }
+
+ var _ common.IBaseEntity = (*Message)(nil)
+ ```
+
+ ```go
+ // 方式 2：仅需要 ID 和创建时间（如日志实体）
+ type AuditLog struct {
+     common.BaseEntityWithCreatedAt  // 自动生成 ID、CreatedAt
+     Action  string
+     Details string
+ }
+
+ var _ common.IBaseEntity = (*AuditLog)(nil)
+ ```
+
+ ```go
+ // 方式 3：只需要 ID（如配置表）
+ type SystemConfig struct {
+     common.BaseEntityOnlyID  // 自动生成 ID
+     Key   string
+     Value string
+ }
+
+ var _ common.IBaseEntity = (*SystemConfig)(nil)
+ ```
+
+ **基类特性**：
+ - **CUID2 ID**：25 位字符串，时间有序、高唯一性、分布式安全
+ - **数据库存储**：varchar(32)，预留更多兼容空间
+ - **自动填充**：通过 GORM Hook 自动设置 ID 和时间戳
+ - **类型安全**：ID 类型为 string，避免类型转换
+
+ **注意事项**：
+ - GORM 不会自动调用嵌入结构体的 Hook，必须手动调用父类 Hook
+ - Repository 中查询 ID 时使用 `Where("id = ?", id)` 而不是 `First(entity, id)`
+
+ ### 自定义实体（不使用基类）
+
+ 如果需要自定义 ID 生成逻辑或不使用时间戳，可以手动定义实体：
 
 ```go
 import "github.com/lite-lake/litecore-go/common"
@@ -192,19 +259,162 @@ func (s *CleanupScheduler) OnStop() error {
 
 ### IBaseEntity - 实体层接口
 
-定义数据实体的标准接口，所有实体必须实现：
+ 定义数据实体的标准接口，所有实体必须实现：
 
-```go
-type IBaseEntity interface {
-    EntityName() string  // 返回实体名称，用于标识和调试
-    TableName() string   // 返回数据库表名
-    GetId() string       // 返回实体唯一标识
-}
-```
+ ```go
+ type IBaseEntity interface {
+     EntityName() string  // 返回实体名称，用于标识和调试
+     TableName() string   // 返回数据库表名
+     GetId() string       // 返回实体唯一标识
+ }
+ ```
 
-**命名规范**：
-- 实体结构体使用 PascalCase（如 `Message`、`User`）
-- 方法返回实体名称（如 `"Message"`）
+ **命名规范**：
+ - 实体结构体使用 PascalCase（如 `Message`、`User`）
+ - 方法返回实体名称（如 `"Message"`）
+
+ ### 实体基类（BaseEntity）
+
+ 框架提供了 3 种预定义的实体基类，支持 CUID2 ID 自动生成和时间戳自动填充：
+
+ #### 1. BaseEntityOnlyID - 仅 ID
+
+ **适用场景**：无需时间戳的实体（如配置表、字典表）
+
+ ```go
+ type BaseEntityOnlyID struct {
+     ID string `gorm:"type:varchar(32);primarykey" json:"id"`
+ }
+
+ func (b *BaseEntityOnlyID) BeforeCreate(tx *gorm.DB) error {
+     if b.ID == "" {
+         newID, err := id.NewCUID2()
+         if err != nil {
+             return err
+         }
+         b.ID = newID
+     }
+     return nil
+ }
+ ```
+
+ #### 2. BaseEntityWithCreatedAt - ID + 创建时间
+
+ **适用场景**：只需要记录创建时间的实体（如日志、审计记录）
+
+ ```go
+ type BaseEntityWithCreatedAt struct {
+     BaseEntityOnlyID
+     CreatedAt time.Time `gorm:"type:timestamp;not null" json:"created_at"`
+ }
+
+ func (b *BaseEntityWithCreatedAt) BeforeCreate(tx *gorm.DB) error {
+     if err := b.BaseEntityOnlyID.BeforeCreate(tx); err != nil {
+         return err
+     }
+     if b.CreatedAt.IsZero() {
+         b.CreatedAt = time.Now()
+     }
+     return nil
+ }
+ ```
+
+ #### 3. BaseEntityWithTimestamps - ID + 创建时间 + 更新时间（最常用）
+
+ **适用场景**：需要追踪创建和修改时间的实体
+
+ ```go
+ type BaseEntityWithTimestamps struct {
+     BaseEntityWithCreatedAt
+     UpdatedAt time.Time `gorm:"type:timestamp;not null" json:"updated_at"`
+ }
+
+ func (b *BaseEntityWithTimestamps) BeforeCreate(tx *gorm.DB) error {
+     if err := b.BaseEntityWithCreatedAt.BeforeCreate(tx); err != nil {
+         return err
+     }
+     if b.UpdatedAt.IsZero() {
+         b.UpdatedAt = time.Now()
+     }
+     return nil
+ }
+
+ func (b *BaseEntityWithTimestamps) BeforeUpdate(tx *gorm.DB) error {
+     b.UpdatedAt = time.Now()
+     return nil
+ }
+ ```
+
+ **使用示例**：
+
+ ```go
+ // 使用 BaseEntityWithTimestamps（最常用）
+ type Message struct {
+     common.BaseEntityWithTimestamps
+     Nickname string `gorm:"type:varchar(20);not null" json:"nickname"`
+     Content  string `gorm:"type:varchar(500);not null" json:"content"`
+     Status   string `gorm:"type:varchar(20);default:'pending'" json:"status"`
+ }
+
+ func (m *Message) EntityName() string {
+     return "Message"
+ }
+
+ func (m *Message) TableName() string {
+     return "messages"
+ }
+
+ func (m *Message) GetId() string {
+     return m.ID
+ }
+
+ var _ common.IBaseEntity = (*Message)(nil)
+ ```
+
+ **Repository 层无需修改**：
+
+ ```go
+ func (r *messageRepositoryImpl) Create(message *entities.Message) error {
+     db := r.Manager.DB()
+     return db.Create(message).Error  // Hook 自动填充 ID、CreatedAt、UpdatedAt
+ }
+ ```
+
+ **Service 层代码简化**：
+
+ ```go
+ func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.Message, error) {
+     // 验证逻辑...
+
+     message := &entities.Message{
+         Nickname: nickname,
+         Content:  content,
+         Status:   "pending",
+         // 不再需要手动设置 CreatedAt 和 UpdatedAt
+     }
+
+     if err := s.Repository.Create(message); err != nil {
+         return nil, fmt.Errorf("failed to create message: %w", err)
+     }
+
+     return message, nil
+ }
+ ```
+
+ **重要注意事项**：
+
+ 1. **GORM Hook 继承**：GORM 不会自动调用嵌入结构体的 Hook，必须手动调用父类的 Hook 方法
+ 2. **ID 类型**：使用 string 类型，CUID2 生成 25 位字符串，数据库存储 varchar(32)
+ 3. **Repository 查询**：使用 `Where("id = ?", id)` 而不是 `First(entity, id)`
+ 4. **并发安全**：CUID2 生成器可以在 goroutine 中并发使用
+
+ **性能考虑**：
+ - CUID2 生成比自增 ID 慢（约 10μs vs < 1μs）
+ - 批量插入 1000 条记录可能需要 10ms 的额外开销
+ - 如果性能是关键因素，可以考虑：
+   - 使用 goroutine 并发生成 ID
+   - 缓存一批预生成的 ID
+   - 对关键表保留自增 ID（不使用基类）
 
 ### IBaseManager - 管理器层接口
 
@@ -604,86 +814,272 @@ var _ common.IBaseService = (*xxxServiceImpl)(nil)
 参考 `samples/messageboard` 目录下的完整示例：
 
 ```go
-// entities/message_entity.go
+// entities/message_entity.go（使用基类）
 type Message struct {
-    ID        uint      `gorm:"primarykey"`
-    Nickname  string    `gorm:"type:varchar(20);not null"`
-    Content   string    `gorm:"type:varchar(500);not null"`
-    Status    string    `gorm:"type:varchar(20);default:'pending'"`
-    CreatedAt time.Time
-    UpdatedAt time.Time
+    common.BaseEntityWithTimestamps
+    Nickname  string `gorm:"type:varchar(20);not null"`
+    Content   string `gorm:"type:varchar(500);not null"`
+    Status    string `gorm:"type:varchar(20);default:'pending'"`
 }
 
 func (m *Message) EntityName() string { return "Message" }
 func (m *Message) TableName() string { return "messages" }
-func (m *Message) GetId() string { return fmt.Sprintf("%d", m.ID) }
+func (m *Message) GetId() string { return m.ID }
+
+var _ common.IBaseEntity = (*Message)(nil)
 
 // repositories/message_repository.go
+type IMessageRepository interface {
+    common.IBaseRepository
+    Create(message *entities.Message) error
+    GetByID(id string) (*entities.Message, error)  // ID 类型改为 string
+}
+
 type messageRepositoryImpl struct {
     Config  configmgr.IConfigManager    `inject:""`
     Manager databasemgr.IDatabaseManager `inject:""`
+}
+
+func NewMessageRepository() IMessageRepository {
+    return &messageRepositoryImpl{}
 }
 
 func (r *messageRepositoryImpl) RepositoryName() string { return "MessageRepository" }
 func (r *messageRepositoryImpl) OnStart() error { return nil }
 func (r *messageRepositoryImpl) OnStop() error { return nil }
 
+func (r *messageRepositoryImpl) Create(message *entities.Message) error {
+    db := r.Manager.DB()
+    return db.Create(message).Error
+}
+
+func (r *messageRepositoryImpl) GetByID(id string) (*entities.Message, error) {
+    db := r.Manager.DB()
+    var message entities.Message
+    err := db.Where("id = ?", id).First(&message).Error  // 使用 Where 查询
+    if err != nil {
+        return nil, err
+    }
+    return &message, nil
+}
+
+var _ IMessageRepository = (*messageRepositoryImpl)(nil)
+
 // services/message_service.go
+type IMessageService interface {
+    common.IBaseService
+    CreateMessage(nickname, content string) (*entities.Message, error)  // ID 类型改为 string
+    GetApprovedMessages() ([]*entities.Message, error)
+    UpdateMessageStatus(id string, status string) error  // ID 类型改为 string
+    DeleteMessage(id string) error  // ID 类型改为 string
+}
+
 type messageServiceImpl struct {
     Config     configmgr.IConfigManager     `inject:""`
     Repository IMessageRepository           `inject:""`
     LoggerMgr  loggermgr.ILoggerManager    `inject:""`
 }
 
+func NewMessageService() IMessageService {
+    return &messageServiceImpl{}
+}
+
 func (s *messageServiceImpl) ServiceName() string { return "MessageService" }
 func (s *messageServiceImpl) OnStart() error { return nil }
 func (s *messageServiceImpl) OnStop() error { return nil }
 
+func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.Message, error) {
+    // 验证逻辑...
+
+    message := &entities.Message{
+        Nickname: nickname,
+        Content:  content,
+        Status:   "pending",
+        // 不再需要手动设置 CreatedAt 和 UpdatedAt，由 Hook 自动填充
+    }
+
+    if err := s.Repository.Create(message); err != nil {
+        s.LoggerMgr.Ins().Error("Failed to create message", "nickname", nickname, "error", err)
+        return nil, fmt.Errorf("failed to create message: %w", err)
+    }
+
+    s.LoggerMgr.Ins().Info("Message created successfully", "id", message.ID, "nickname", message.Nickname)
+    return message, nil
+}
+
+func (s *messageServiceImpl) UpdateMessageStatus(id string, status string) error {
+    // ID 类型为 string，直接使用
+    message, err := s.Repository.GetByID(id)
+    if err != nil {
+        return fmt.Errorf("message not found: %w", err)
+    }
+
+    if err := s.Repository.UpdateStatus(id, status); err != nil {
+        return fmt.Errorf("failed to update message status: %w", err)
+    }
+
+    s.LoggerMgr.Ins().Info("Message status updated successfully", "id", id, "status", status)
+    return nil
+}
+
+func (s *messageServiceImpl) DeleteMessage(id string) error {
+    // ID 类型为 string，直接使用
+    message, err := s.Repository.GetByID(id)
+    if err != nil {
+        return fmt.Errorf("message not found: %w", err)
+    }
+
+    if err := s.Repository.Delete(id); err != nil {
+        return fmt.Errorf("failed to delete message: %w", err)
+    }
+
+    s.LoggerMgr.Ins().Info("Message deleted successfully", "id", id)
+    return nil
+}
+
+var _ IMessageService = (*messageServiceImpl)(nil)
+
 // controllers/msg_create_controller.go
+type IMsgCreateController interface {
+    common.IBaseController
+}
+
 type msgCreateControllerImpl struct {
     MessageService IMessageService         `inject:""`
     LoggerMgr      loggermgr.ILoggerManager `inject:""`
 }
 
+func NewMsgCreateController() IMsgCreateController {
+    return &msgCreateControllerImpl{}
+}
+
 func (c *msgCreateControllerImpl) ControllerName() string { return "msgCreateControllerImpl" }
 func (c *msgCreateControllerImpl) GetRouter() string { return "/api/messages [POST]" }
-func (c *msgCreateControllerImpl) Handle(ctx *gin.Context) { /* ... */ }
+
+func (c *msgCreateControllerImpl) Handle(ctx *gin.Context) {
+    var req dtos.CreateMessageRequest
+    if err := ctx.ShouldBindJSON(&req); err != nil {
+        c.LoggerMgr.Ins().Error("Failed to create message: parameter binding error", "error", err)
+        ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
+        return
+    }
+
+    message, err := c.MessageService.CreateMessage(req.Nickname, req.Content)
+    if err != nil {
+        c.LoggerMgr.Ins().Error("Failed to create message", "nickname", req.Nickname, "error", err)
+        ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
+        return
+    }
+
+    c.LoggerMgr.Ins().Info("Message created successfully", "id", message.ID)
+    ctx.JSON(common.HTTPStatusOK, dtos.SuccessResponse("留言提交成功，等待审核", gin.H{
+        "id": message.ID,
+    }))
+}
+
+var _ IMsgCreateController = (*msgCreateControllerImpl)(nil)
+
+// controllers/msg_delete_controller.go
+type IMsgDeleteController interface {
+    common.IBaseController
+}
+
+type msgDeleteControllerImpl struct {
+    MessageService IMessageService         `inject:""`
+    LoggerMgr      loggermgr.ILoggerManager `inject:""`
+}
+
+func NewMsgDeleteController() IMsgDeleteController {
+    return &msgDeleteControllerImpl{}
+}
+
+func (c *msgDeleteControllerImpl) ControllerName() string { return "msgDeleteControllerImpl" }
+func (c *msgDeleteControllerImpl) GetRouter() string { return "/api/admin/messages/:id/delete [POST]" }
+
+func (c *msgDeleteControllerImpl) Handle(ctx *gin.Context) {
+    id := ctx.Param("id")  // ID 类型为 string，直接使用，无需解析
+
+    if err := c.MessageService.DeleteMessage(id); err != nil {
+        c.LoggerMgr.Ins().Error("Failed to delete message", "id", id, "error", err)
+        ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
+        return
+    }
+
+    c.LoggerMgr.Ins().Info("Message deleted successfully", "id", id)
+    ctx.JSON(common.HTTPStatusOK, dtos.SuccessWithMessage("删除成功"))
+}
+
+var _ IMsgDeleteController = (*msgDeleteControllerImpl)(nil)
 
 // middlewares/auth_middleware.go
+type IAuthMiddleware interface {
+    common.IBaseMiddleware
+}
+
 type authMiddlewareImpl struct {
-    AuthService IAuthService `inject:""`
+    Service   IMessageService `inject:""`
+}
+
+func NewAuthMiddleware() IAuthMiddleware {
+    return &authMiddlewareImpl{}
 }
 
 func (m *authMiddlewareImpl) MiddlewareName() string { return "AuthMiddleware" }
 func (m *authMiddlewareImpl) Order() int { return 100 }
-func (m *authMiddlewareImpl) Wrapper() gin.HandlerFunc { /* ... */ }
+func (m *authMiddlewareImpl) Wrapper() gin.HandlerFunc {
+    return func(ctx *gin.Context) {
+        // 中间件逻辑
+        ctx.Next()
+    }
+}
 func (m *authMiddlewareImpl) OnStart() error { return nil }
 func (m *authMiddlewareImpl) OnStop() error { return nil }
 
+var _ IAuthMiddleware = (*authMiddlewareImpl)(nil)
+
 // listeners/message_created_listener.go
+type IMessageCreatedListener interface {
+    common.IBaseListener
+}
+
 type messageCreatedListenerImpl struct {
     LoggerMgr loggermgr.ILoggerManager `inject:""`
+}
+
+func NewMessageCreatedListener() IMessageCreatedListener {
+    return &messageCreatedListenerImpl{}
 }
 
 func (l *messageCreatedListenerImpl) ListenerName() string { return "MessageCreatedListener" }
 func (l *messageCreatedListenerImpl) GetQueue() string { return "message.created" }
 func (l *messageCreatedListenerImpl) GetSubscribeOptions() []common.ISubscribeOption { return nil }
-func (l *messageCreatedListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error { /* ... */ }
+func (l *messageCreatedListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error { return nil }
 func (l *messageCreatedListenerImpl) OnStart() error { return nil }
 func (l *messageCreatedListenerImpl) OnStop() error { return nil }
 
+var _ IMessageCreatedListener = (*messageCreatedListenerImpl)(nil)
+
 // schedulers/cleanup_scheduler.go
+type ICleanupScheduler interface {
+    common.IBaseScheduler
+}
+
 type cleanupSchedulerImpl struct {
-    MessageService IMessageService        `inject:""`
-    LoggerMgr      loggermgr.ILoggerManager `inject:""`
+    MessageService IMessageService `inject:""`
+}
+
+func NewCleanupScheduler() ICleanupScheduler {
+    return &cleanupSchedulerImpl{}
 }
 
 func (s *cleanupSchedulerImpl) SchedulerName() string { return "cleanupScheduler" }
 func (s *cleanupSchedulerImpl) GetRule() string { return "0 0 2 * * *" }
 func (s *cleanupSchedulerImpl) GetTimezone() string { return "Asia/Shanghai" }
-func (s *cleanupSchedulerImpl) OnTick(tickID int64) error { /* ... */ }
+func (s *cleanupSchedulerImpl) OnTick(tickID int64) error { return nil }
 func (s *cleanupSchedulerImpl) OnStart() error { return nil }
 func (s *cleanupSchedulerImpl) OnStop() error { return nil }
+
+var _ ICleanupScheduler = (*cleanupSchedulerImpl)(nil)
 ```
 
 ## 与其他包的关系

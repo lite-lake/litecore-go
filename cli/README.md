@@ -4,12 +4,13 @@ CLI 是 LiteCore 框架的配套命令行工具，提供代码生成和项目脚
 
 ## 特性
 
-- **智能扫描**：自动扫描项目中的 Entity、Repository、Service、Controller、Middleware、Listener、Scheduler 组件
-- **7 层架构支持**：完整的 7 层依赖注入架构（内置管理器层 → Entity → Repository → Service → 交互层）
-- **交互层生成**：自动生成 Controller/Middleware/Listener/Scheduler 四种容器初始化代码
-- **项目脚手架**：支持快速创建符合 LiteCore 架构的新项目
-- **灵活配置**：支持自定义项目路径、输出目录、包名和配置文件路径
-- **双模式使用**：既可作为命令行工具，也可作为库导入使用
+ - **智能扫描**：自动扫描项目中的 Entity、Repository、Service、Controller、Middleware、Listener、Scheduler 组件
+ - **7 层架构支持**：完整的 7 层依赖注入架构（内置管理器层 → Entity → Repository → Service → 交互层）
+ - **交互层生成**：自动生成 Controller/Middleware/Listener/Scheduler 四种容器初始化代码
+ - **实体基类支持**：生成的 Entity 使用 `common.BaseEntityWithTimestamps` 基类，自动生成 CUID2 ID 和时间戳
+ - **项目脚手架**：支持快速创建符合 LiteCore 架构的新项目
+ - **灵活配置**：支持自定义项目路径、输出目录、包名和配置文件路径
+ - **双模式使用**：既可作为命令行工具，也可作为库导入使用
 
 ## 快速开始
 
@@ -177,27 +178,268 @@ litecore-cli scaffold --module github.com/user/app --project myapp --template fu
 
 ### 组件示例
 
+#### Entity 示例（使用基类）
+
+```go
+package entities
+
+import (
+    "github.com/lite-lake/litecore-go/common"
+)
+
+// 使用 BaseEntityWithTimestamps 基类（最常用）
+// 基类提供：
+// - ID（25 位 CUID2 字符串）
+// - CreatedAt（创建时间）
+// - UpdatedAt（更新时间）
+// - GORM Hook 自动填充
+type Message struct {
+    common.BaseEntityWithTimestamps
+    Nickname string `gorm:"type:varchar(20);not null" json:"nickname"`
+    Content  string `gorm:"type:varchar(500);not null" json:"content"`
+    Status   string `gorm:"type:varchar(20);default:'pending'" json:"status"`
+}
+
+func (m *Message) EntityName() string {
+    return "Message"
+}
+
+func (m *Message) TableName() string {
+    return "messages"
+}
+
+func (m *Message) GetId() string {
+    return m.ID
+}
+
+var _ common.IBaseEntity = (*Message)(nil)
+```
+
+**其他基类选项**：
+
+```go
+// BaseEntityOnlyID - 仅 ID（适合配置表、字典表）
+type Config struct {
+    common.BaseEntityOnlyID
+    Key   string
+    Value string
+}
+
+// BaseEntityWithCreatedAt - ID + 创建时间（适合日志、审计记录）
+type AuditLog struct {
+    common.BaseEntityWithCreatedAt
+    Action  string
+    Details string
+}
+```
+
 #### Repository 示例
 
 ```go
 package repositories
 
 import (
+    "{{.ModulePath}}/internal/entities"
+
     "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/manager/configmgr"
     "github.com/lite-lake/litecore-go/manager/databasemgr"
 )
 
 type IMessageRepository interface {
     common.IBaseRepository
+    Create(message *entities.Message) error
+    GetByID(id string) (*entities.Message, error)  // ID 类型为 string
 }
 
 type messageRepositoryImpl struct {
-    DBManager databasemgr.IDatabaseManager `inject:""`
+    Config  configmgr.IConfigManager     `inject:""`
+    Manager databasemgr.IDatabaseManager `inject:""`
 }
 
 func NewMessageRepository() IMessageRepository {
     return &messageRepositoryImpl{}
 }
+
+func (r *messageRepositoryImpl) RepositoryName() string {
+    return "MessageRepository"
+}
+
+func (r *messageRepositoryImpl) OnStart() error {
+    return nil
+}
+
+func (r *messageRepositoryImpl) OnStop() error {
+    return nil
+}
+
+func (r *messageRepositoryImpl) Create(message *entities.Message) error {
+    db := r.Manager.DB()
+    return db.Create(message).Error
+}
+
+func (r *messageRepositoryImpl) GetByID(id string) (*entities.Message, error) {
+    db := r.Manager.DB()
+    var message entities.Message
+    err := db.Where("id = ?", id).First(&message).Error  // 使用 Where 查询
+    if err != nil {
+        return nil, err
+    }
+    return &message, nil
+}
+```
+
+#### Service 示例
+
+```go
+package services
+
+import (
+    "errors"
+
+    "{{.ModulePath}}/internal/entities"
+    "{{.ModulePath}}/internal/repositories"
+
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/manager/configmgr"
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IMessageService interface {
+    common.IBaseService
+    CreateMessage(name string) (*entities.Message, error)
+    GetMessage(id string) (*entities.Message, error)  // ID 类型为 string
+}
+
+type messageServiceImpl struct {
+    Config     configmgr.IConfigManager          `inject:""`
+    Repository repositories.IMessageRepository `inject:""`
+    LoggerMgr  loggermgr.ILoggerManager         `inject:""`
+}
+
+func NewMessageService() IMessageService {
+    return &messageServiceImpl{}
+}
+
+func (s *messageServiceImpl) ServiceName() string {
+    return "MessageService"
+}
+
+func (s *messageServiceImpl) OnStart() error {
+    return nil
+}
+
+func (s *messageServiceImpl) OnStop() error {
+    return nil
+}
+
+func (s *messageServiceImpl) CreateMessage(name string) (*entities.Message, error) {
+    if name == "" {
+        return nil, errors.New("名称不能为空")
+    }
+
+    message := &entities.Message{
+        Name: name,
+        // ID、CreatedAt、UpdatedAt 由 Hook 自动填充
+    }
+
+    if err := s.Repository.Create(message); err != nil {
+        return nil, err
+    }
+
+    s.LoggerMgr.Ins().Info("示例创建成功", "id", message.ID, "name", name)
+    return message, nil
+}
+
+func (s *messageServiceImpl) GetMessage(id string) (*entities.Message, error) {
+    return s.Repository.GetByID(id)
+}
+```
+
+#### Controller 示例
+
+```go
+package controllers
+
+import (
+    "net/http"
+
+    "{{.ModulePath}}/internal/services"
+
+    "github.com/gin-gonic/gin"
+    "github.com/lite-lake/litecore-go/common"
+    "github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IExampleController interface {
+    common.IBaseController
+}
+
+type exampleControllerImpl struct {
+    ExampleService services.IExampleService `inject:""`
+    LoggerMgr     loggermgr.ILoggerManager `inject:""`
+}
+
+func NewExampleController() IExampleController {
+    return &exampleControllerImpl{}
+}
+
+func (c *exampleControllerImpl) ControllerName() string {
+    return "ExampleController"
+}
+
+func (c *exampleControllerImpl) GetRouter() string {
+    return "/api/examples [POST],/api/examples/:id [GET]"
+}
+
+func (c *exampleControllerImpl) Handle(ctx *gin.Context) {
+    method := ctx.Request.Method
+
+    if method == "POST" {
+        c.handleCreate(ctx)
+    } else if method == "GET" {
+        c.handleGet(ctx)
+    }
+}
+
+func (c *exampleControllerImpl) handleCreate(ctx *gin.Context) {
+    var req struct {
+        Name string `json:"name" binding:"required"`
+    }
+
+    if err := ctx.ShouldBindJSON(&req); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    example, err := c.ExampleService.CreateExample(req.Name)
+    if err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    ctx.JSON(http.StatusOK, example)
+}
+
+func (c *exampleControllerImpl) handleGet(ctx *gin.Context) {
+    id := ctx.Param("id")  // ID 类型为 string，直接使用，无需解析
+
+    example, err := c.ExampleService.GetExample(id)
+    if err != nil {
+        ctx.JSON(http.StatusNotFound, gin.H{"error": "示例不存在"})
+        return
+    }
+
+    ctx.JSON(http.StatusOK, example)
+}
+```
+
+**重要提示**：
+- Entity 使用 `BaseEntityWithTimestamps` 基类，ID 类型为 string
+- Repository 中 ID 参数类型为 string，查询使用 `Where("id = ?", id)`
+- Service 中 ID 参数类型为 string
+- Controller 中 ID 直接从路径参数获取，无需类型转换
+- 时间戳由 GORM Hook 自动填充，无需在 Service 层手动设置
 
 var _ IMessageRepository = (*messageRepositoryImpl)(nil)
 ```

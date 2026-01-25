@@ -21,7 +21,7 @@ type LoginRequest struct {
 
 // MessageResponse 留言响应
 type MessageResponse struct {
-	ID        uint      `json:"id"`               // 留言 ID
+	ID        string    `json:"id"`               // 留言 ID
 	Nickname  string    `json:"nickname"`         // 昵称
 	Content   string    `json:"content"`          // 留言内容
 	Status    string    `json:"status,omitempty"` // 状态（管理端返回，用户端可选）
@@ -34,7 +34,7 @@ type LoginResponse struct {
 }
 
 // ToMessageResponse 将留言实体转换为响应 DTO
-func ToMessageResponse(id uint, nickname, content, status string, createdAt time.Time) MessageResponse {
+func ToMessageResponse(id, nickname, content, status string, createdAt time.Time) MessageResponse {
 	return MessageResponse{
 		ID:        id,
 		Nickname:  nickname,

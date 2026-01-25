@@ -5,15 +5,16 @@
 ## 核心特性
 
  - **5 层分层架构** - 内置管理器层 → Entity → Repository → Service → 交互层（Controller/Middleware/Listener/Scheduler），清晰的责任分离
-- **内置 Manager 组件** - Config、Telemetry、Logger、Database、Cache、Lock、Limiter、MQ、Scheduler 等 9 个管理器，自动初始化和注入
-- **声明式依赖注入** - 使用 `inject:""` 标签自动注入依赖，支持同层依赖和循环依赖检测
-- **统一配置管理** - 支持 YAML/JSON 配置文件，类型安全的配置读取
-- **多驱动支持** - 数据库（MySQL/PostgreSQL/SQLite）、缓存（Redis/Memory）、限流（Redis/Memory）、锁（Redis/Memory）、MQ（RabbitMQ/Memory）
-- **内置中间件** - Recovery、日志、CORS、安全头、限流、遥测等开箱即用
-- **可观测性** - 集成 OpenTelemetry、结构化日志、健康检查、指标采集
-- **Gin 风格日志** - 支持可配置日志格式（gin/json/default），彩色输出，结构化记录
-- **CLI 代码生成** - 自动生成容器初始化代码，简化项目搭建
-- **生命周期管理** - 统一的启动/停止机制，优雅关闭
+ - **实体基类** - 提供 3 种预定义基类，支持 CUID2 ID 自动生成和时间戳自动填充
+ - **内置 Manager 组件** - Config、Telemetry、Logger、Database、Cache、Lock、Limiter、MQ、Scheduler 等 9 个管理器，自动初始化和注入
+ - **声明式依赖注入** - 使用 `inject:""` 标签自动注入依赖，支持同层依赖和循环依赖检测
+ - **统一配置管理** - 支持 YAML/JSON 配置文件，类型安全的配置读取
+ - **多驱动支持** - 数据库（MySQL/PostgreSQL/SQLite）、缓存（Redis/Memory）、限流（Redis/Memory）、锁（Redis/Memory）、MQ（RabbitMQ/Memory）
+ - **内置中间件** - Recovery、日志、CORS、安全头、限流、遥测等开箱即用
+ - **可观测性** - 集成 OpenTelemetry、结构化日志、健康检查、指标采集
+ - **Gin 格式日志** - 支持可配置日志格式（gin/json/default），彩色输出，结构化记录
+ - **CLI 代码生成** - 自动生成容器初始化代码，简化项目搭建
+ - **生命周期管理** - 统一的启动/停止机制，优雅关闭
 
 ## 快速开始
 
@@ -160,31 +161,48 @@ import (
 SERVEREOF
 
 # 7. 运行应用
-go run ./cmd/server
-```
+ go run ./cmd/server
+ ```
 
 ### 添加第一个接口
 
 ```go
-// 1. 创建实体 (internal/entities/user.go)
+// 1. 创建实体 (internal/entities/user.go) - 使用基类
 type User struct {
-    ID   uint   `gorm:"primaryKey"`
-    Name string `json:"name"`
+    common.BaseEntityWithTimestamps  // 自动生成 ID、CreatedAt、UpdatedAt
+    Name string `gorm:"type:varchar(100);not null" json:"name"`
 }
 
 func (u *User) EntityName() string { return "User" }
-func (u *User) TableName() string  { return "users" }
-func (u *User) GetId() string     { return fmt.Sprintf("%d", u.ID) }
+func (u *User) TableName() string { return "users" }
+func (u *User) GetId() string     { return u.ID }
+
+var _ common.IBaseEntity = (*User)(nil)
 
 // 2. 创建仓储 (internal/repositories/user_repository.go)
 type IUserRepository interface {
     common.IBaseRepository
+    Create(user *User) error
+    GetByID(id string) (*User, error)  // ID 类型为 string
     List() ([]*User, error)
 }
 
 type UserRepository struct {
     Config    configmgr.IConfigManager     `inject:""`
     DBManager databasemgr.IDatabaseManager `inject:""`
+}
+
+func (r *UserRepository) Create(user *User) error {
+    return r.DBManager.DB().Create(user).Error  // Hook 自动填充 ID、CreatedAt、UpdatedAt
+}
+
+func (r *UserRepository) GetByID(id string) (*User, error) {
+    var user User
+    err := r.DBManager.DB().Where("id = ?", id).First(&user).Error  // 使用 Where 查询
+    if err != nil {
+        return nil, err
+    }
+    return &user, nil
 }
 
 func (r *UserRepository) List() ([]*User, error) {
@@ -196,36 +214,84 @@ func (r *UserRepository) List() ([]*User, error) {
 // 3. 创建服务 (internal/services/user_service.go)
 type IUserService interface {
     common.IBaseService
+    CreateUser(name string) (*User, error)
+    GetUser(id string) (*User, error)
     List() ([]*User, error)
 }
 
 type UserService struct {
-    Config configmgr.IConfigManager `inject:""`
-    Repo   IUserRepository          `inject:""`
-    LoggerMgr loggermgr.ILoggerManager `inject:""`
+    Config     configmgr.IConfigManager    `inject:""`
+    Repository IUserRepository             `inject:""`
+    LoggerMgr  loggermgr.ILoggerManager   `inject:""`
+}
+
+func (s *UserService) CreateUser(name string) (*User, error) {
+    user := &User{
+        Name: name,
+        // ID、CreatedAt、UpdatedAt 由 Hook 自动填充，无需手动设置
+    }
+    
+    if err := s.Repository.Create(user); err != nil {
+        return nil, err
+    }
+    
+    s.LoggerMgr.Ins().Info("用户创建成功", "id", user.ID, "name", name)
+    return user, nil
+}
+
+func (s *UserService) GetUser(id string) (*User, error) {
+    return s.Repository.GetByID(id)
 }
 
 func (s *UserService) List() ([]*User, error) {
-    return s.Repo.List()
+    return s.Repository.List()
 }
 
 // 4. 创建控制器 (internal/controllers/user_controller.go)
+type IUserController interface {
+    common.IBaseController
+}
+
 type UserController struct {
-    Config  configmgr.IConfigManager `inject:""`
-    Service IUserService             `inject:""`
+    Service  IUserService             `inject:""`
+    LoggerMgr loggermgr.ILoggerManager `inject:""`
 }
 
-func (ctrl *UserController) GetRouter() string {
-    return "/api/users [GET]"
+func (c *UserController) GetRouter() string {
+    return "/api/users [POST],/api/users/:id [GET]"
 }
 
-func (ctrl *UserController) Handle(c *gin.Context) {
-    users, err := ctrl.Service.List()
-    if err != nil {
-        c.JSON(500, gin.H{"error": err.Error()})
-        return
+func (c *UserController) Handle(ctx *gin.Context) {
+    method := ctx.Request.Method
+    
+    if method == "POST" {
+        var req struct {
+            Name string `json:"name" binding:"required"`
+        }
+        
+        if err := ctx.ShouldBindJSON(&req); err != nil {
+            ctx.JSON(400, gin.H{"error": err.Error()})
+            return
+        }
+        
+        user, err := c.Service.CreateUser(req.Name)
+        if err != nil {
+            ctx.JSON(500, gin.H{"error": err.Error()})
+            return
+        }
+        
+        ctx.JSON(200, gin.H{"data": user})
+    } else if method == "GET" {
+        id := ctx.Param("id")  // ID 类型为 string，直接使用
+        
+        user, err := c.Service.GetUser(id)
+        if err != nil {
+            ctx.JSON(404, gin.H{"error": "用户不存在"})
+            return
+        }
+        
+        ctx.JSON(200, gin.H{"data": user})
     }
-    c.JSON(200, gin.H{"data": users})
 }
 
 // 5. 重新生成容器代码（添加新组件后必须重新生成）
@@ -233,9 +299,14 @@ go run ./cmd/generate
 
 # 6. 启动应用
 go run ./cmd/server
-```
 
 访问 `http://localhost:8080/api/users` 查看接口
+
+**实体基类特性**：
+- **CUID2 ID**：25 位字符串，时间有序、高唯一性、分布式安全
+- **自动填充**：ID、CreatedAt、UpdatedAt 通过 GORM Hook 自动设置
+- **数据库存储**：varchar(32)，预留更多兼容空间
+- **类型安全**：ID 类型为 string，Repository/Service/Controller 无需类型转换
 
  ## 架构设计
 
@@ -643,16 +714,30 @@ hmacHash := hash.HMACSHA256String("data", "secret-key")
 ### ID 生成器
 
 ```go
-import "github.com/lite-lake/litecore-go/util/id"
+import "github.com/lite-lite-litecore-go/util/id"
 
-// 生成 CUID2 风格的唯一标识符
+// 生成 CUID2 格式的唯一标识符（25 位字符串）
 uniqueID := id.NewCUID2()
 // 输出: 2k4d2j3h8f9g3n7p6q5r4s3t (示例)
+
+// 在实体基类中自动使用
+// 无需手动调用，基类通过 GORM Hook 自动生成
 ```
+
+**特性**：
+- 时间有序：前缀包含时间戳
+- 高唯一性：结合时间戳和加密级随机数
+- 分布式安全：无需中央协调
+- 可读性：仅包含小写字母和数字
+
+**与实体基类集成**：
+- 基类使用 `id.NewCUID2()` 自动生成 ID
+- 数据库存储为 varchar(32)，预留更多兼容空间
+- 通过 GORM Hook 自动填充，Service 层无需手动设置
 
 ## 示例项目
 
-查看 `samples/messageboard` 目录，获取完整的使用示例：
+ 查看 `samples/messageboard/` 目录，获取完整的使用示例：
 
 ```bash
 cd samples/messageboard
@@ -669,21 +754,23 @@ go run cmd/server/main.go
 访问地址：
 - 用户首页: http://localhost:8080/
 - 管理页面: http://localhost:8080/admin.html
-- 健康检查: http://localhost:8080/health
 
 示例包含：
 - 完整的 5 层架构实现
+- 实体基类使用（CUID2 ID + 时间戳自动填充）
 - 9 个内置 Manager 组件自动初始化
-- 用户认证和会话管理（基于缓存）
-- 留言审核流程（待审核/已通过/已拒绝）
-- 数据库自动迁移
-- 事件监听器（留言创建/审核事件）
-- 定时任务调度器（统计/清理）
-- 完整的中间件链（恢复、日志、CORS、安全头、限流、遥测、认证）
-- Gin 风格日志输出
-- Bootstrap 5 + jQuery 3 前端界面
+- GORM 与 Ristretto 缓存集成
+- 内置中间件（CORS、RateLimiter、Telemetry）
+- 自定义路由和中间件
 
 详细文档请参考 [samples/messageboard/README.md](samples/messageboard/README.md)
+
+**实体基类应用**：
+示例中的 `Message` 实体使用 `common.BaseEntityWithTimestamps` 基类，自动获得以下特性：
+- **CUID2 ID**：25 位字符串 ID，通过 GORM Hook 自动生成
+- **时间戳自动填充**：CreatedAt 和 UpdatedAt 自动设置
+- **类型安全**：Repository/Service/Controller 层 ID 类型统一为 string
+- **数据库存储**：varchar(32)，预留更多兼容空间
 
 ## 测试
 

@@ -47,9 +47,16 @@ go mod tidy
 
 ## 架构概述
 
-  ### 5 层分层架构
-
   框架强制执行严格的层边界和单向依赖关系：
+
+  **实体层基类**：
+  - 提供 3 种预定义基类：`BaseEntityOnlyID`、`BaseEntityWithCreatedAt`、`BaseEntityWithTimestamps`
+  - 使用 CUID2 算法生成 25 位字符串 ID（时间有序、高唯一性、分布式安全）
+  - 数据库存储类型为 varchar(32)，预留更多兼容空间
+  - 通过 GORM Hook 自动填充 ID 和时间戳
+  - 推荐使用 `BaseEntityWithTimestamps`（包含 ID、CreatedAt、UpdatedAt）
+
+  **依赖关系**：
 
   ```
   ┌──────────────────────────────────────────────────────────────────┐
@@ -71,11 +78,11 @@ go mod tidy
   ```
 
   **依赖规则**:
-  - **Entity** - 无依赖
-  - **Manager** → Config, other Managers (同层依赖)
-  - **Repository** → Config, Manager, Entity
-  - **Service** → Config, Manager, Repository, other Services (同层)
-  - **交互层 (Controller/Middleware/Listener/Scheduler)** → Config, Manager, Service
+   - **Entity** - 使用基类（`BaseEntityOnlyID`/`BaseEntityWithCreatedAt`/`BaseEntityWithTimestamps`)，无其他依赖
+   - **Manager** → Config, other Managers (同层依赖)
+   - **Repository** → Config, Manager, Entity
+   - **Service** → Config, Manager, Repository, other Services (同层)
+   - **交互层 (Controller/Middleware/Listener/Scheduler)** → Config, Manager, Service
 
   **管理器组件** (`manager/*/`):
   - `configmgr` - 配置管理 (YAML/JSON)
@@ -289,17 +296,62 @@ func TestGenerateToken(t *testing.T) {
 
 ## 常见开发模式
 
- ### 添加新功能
- 1. 在 `entities/` 创建 Entity
- 2. 在 `repositories/` 创建 Repository 接口和实现
- 3. 在 `services/` 创建 Service 接口和实现
- 4. 创建交互层组件:
-     - Controller 在 `controllers/` (HTTP 请求处理)
-     - Middleware 在 `middlewares/` (请求拦截)
-     - Listener 在 `listeners/` (MQ 消息处理)
-     - Scheduler 在 `schedulers/` (定时任务)
- 5. 使用 `RegisterByType()` 在容器中注册所有组件
- 6. 在 `InjectAll()` 时自动注入依赖
+### 添加新实体
+
+1. 选择合适的基类：
+   - `BaseEntityOnlyID` - 仅需 ID（配置表、字典表）
+   - `BaseEntityWithCreatedAt` - ID + 创建时间（日志、审计记录）
+   - `BaseEntityWithTimestamps` - ID + 创建时间 + 更新时间（业务实体，最常用）
+
+2. 在 `entities/` 创建 Entity：
+   ```go
+   type Message struct {
+       common.BaseEntityWithTimestamps  // 嵌入基类
+       Nickname string `gorm:"type:varchar(20);not null" json:"nickname"`
+       Content  string `gorm:"type:varchar(500);not null" json:"content"`
+   }
+
+   func (m *Message) EntityName() string { return "Message" }
+   func (m *Message) TableName() string { return "messages" }
+   func (m *Message) GetId() string { return m.ID }
+   var _ common.IBaseEntity = (*Message)(nil)
+   ```
+
+3. 在 `repositories/` 创建 Repository 接口和实现（注意 ID 类型为 string）：
+   ```go
+   type IMessageRepository interface {
+       common.IBaseRepository
+       Create(message *entities.Message) error
+       GetByID(id string) (*entities.Message, error)  // ID 类型为 string
+   }
+
+   func (r *messageRepositoryImpl) GetByID(id string) (*entities.Message, error) {
+       var message entities.Message
+       err := r.Manager.DB().Where("id = ?", id).First(&message).Error
+       return &message, nil
+   }
+   ```
+
+4. 在 `services/` 创建 Service 接口和实现（无需手动设置时间戳）：
+   ```go
+   func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.Message, error) {
+       message := &entities.Message{
+           Nickname: nickname,
+           Content:  content,
+           Status:   "pending",
+           // ID、CreatedAt、UpdatedAt 由 Hook 自动填充
+       }
+       return s.Repository.Create(message)
+   }
+   ```
+
+5. 创建交互层组件:
+      - Controller 在 `controllers/` (HTTP 请求处理)
+      - Middleware 在 `middlewares/` (请求拦截)
+      - Listener 在 `listeners/` (MQ 消息处理)
+      - Scheduler 在 `schedulers/` (定时任务)
+6. 使用 `RegisterByType()` 在容器中注册所有组件
+7. 在 `InjectAll()` 时自动注入依赖
 
 ### 创建管理器
 1. 定义扩展 `common.IBaseManager` 的接口
@@ -411,10 +463,105 @@ mq:
      enabled_logs: true
 
  scheduler:
-   driver: cron
-   cron_config:
-     validate_on_startup: true  # 启动时验证 crontab 规则
-  ```
+    driver: cron
+    cron_config:
+      validate_on_startup: true # 启动时验证 crontab 规则
+```
+
+### 实体基类配置
+
+框架提供 3 种预定义的实体基类，自动处理 CUID2 ID 生成和时间戳填充：
+
+#### 基类选择
+
+| 基类 | 包含字段 | 适用场景 | GORM Hook |
+|-----|---------|---------|----------|
+| `BaseEntityOnlyID` | ID | 配置表、字典表（无需时间戳） | BeforeCreate（生成 ID） |
+| `BaseEntityWithCreatedAt` | ID, CreatedAt | 日志、审计记录（只需创建时间） | BeforeCreate（生成 ID + CreatedAt） |
+| `BaseEntityWithTimestamps` | ID, CreatedAt, UpdatedAt | 业务实体（最常用） | BeforeCreate（生成 ID + 时间戳）, BeforeUpdate（更新 UpdatedAt） |
+
+#### 数据库字段定义
+
+```yaml
+# 数据库配置（自动迁移表结构）
+database:
+  driver: sqlite
+  auto_migrate: true  # 启用自动迁移，会自动创建 varchar(32) 的 ID 字段
+  sqlite_config:
+    dsn: "./data/myapp.db"
+```
+
+**字段定义**：
+- `ID`：varchar(32) - 存储 CUID2 ID（25位字符串）
+- `CreatedAt`：timestamp - 创建时间
+- `UpdatedAt`：timestamp - 更新时间
+
+#### 实体定义示例
+
+```go
+// 推荐：使用 BaseEntityWithTimestamps
+type Message struct {
+    common.BaseEntityWithTimestamps  // 自动嵌入 ID、CreatedAt、UpdatedAt
+    Nickname string `gorm:"type:varchar(20);not null" json:"nickname"`
+    Content  string `gorm:"type:varchar(500);not null" json:"content"`
+    Status   string `gorm:"type:varchar(20);default:'pending'" json:"status"`
+}
+```
+
+#### Repository 层注意事项
+
+```go
+// 接口方法参数类型必须为 string
+GetByID(id string) (*Message, error)
+UpdateStatus(id string, status string) error
+Delete(id string) error
+
+// 查询必须使用 Where 子句
+func (r *messageRepositoryImpl) GetByID(id string) (*Message, error) {
+    var message entities.Message
+    err := r.Manager.DB().Where("id = ?", id).First(&message).Error
+    return &message, nil
+}
+
+// 不能使用 First(entity, id)，因为 ID 类型已改为 string
+```
+
+#### Service 层简化
+
+```go
+// 不再需要手动设置时间戳，Hook 会自动填充
+func (s *messageServiceImpl) CreateMessage(nickname, content string) (*entities.Message, error) {
+    message := &entities.Message{
+        Nickname: nickname,
+        Content:  content,
+        Status:   "pending",
+        // 无需设置 ID、CreatedAt、UpdatedAt
+    }
+    return s.Repository.Create(message)
+}
+```
+
+#### Controller 层简化
+
+```go
+// ID 类型为 string，直接从路径参数获取，无需类型转换
+func (c *msgDeleteControllerImpl) Handle(ctx *gin.Context) {
+    id := ctx.Param("id")  // 直接使用，无需 strconv.ParseUint
+
+    if err := c.MessageService.DeleteMessage(id); err != nil {
+        ctx.JSON(400, gin.H{"error": err.Error()})
+        return
+    }
+
+    ctx.JSON(200, gin.H{"message": "success"})
+}
+```
+
+**重要注意事项**：
+1. **GORM Hook 继承**：必须手动调用父类 Hook 方法（GORM 不会自动调用）
+2. **ID 查询方式**：Repository 层使用 `Where("id = ?", id)` 而不是 `First(entity, id)`
+3. **并发安全**：CUID2 生成器可以在 goroutine 中并发使用
+4. **性能考虑**：CUID2 生成比自增 ID �（约 10μs），批量插入时可能需要优化
 
  **内置管理器** (`manager/*/`):
   - `configmgr` - 配置管理

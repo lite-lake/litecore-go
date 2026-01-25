@@ -2,21 +2,22 @@
 
 基于 litecore-go 框架开发的留言板示例应用，演示框架的完整开发流程和核心功能。
 
-## 项目特性
+ ## 项目特性
 
  - ✅ 完整的 5 层分层架构（内置管理器层 → Entity → Repository → Service → 交互层）
-- ✅ 事件驱动监听器（Listener）- 异步处理业务事件
-- ✅ 定时任务调度器（Scheduler）- 周期性执行后台任务
-- ✅ 内置组件自动初始化（Config、Database、Cache、Logger、Telemetry、Limiter、Lock、MQ）
-- ✅ 声明式依赖注入容器（通过 `inject:""` 标签自动注入）
-- ✅ 留言审核机制（待审核/已通过/已拒绝）
-- ✅ 管理员认证与会话管理（Session 存储在缓存中）
-- ✅ 基于限流器的请求限流保护（每 IP 每分钟 100 次请求）
-- ✅ 完整的中间件链（恢复、日志、CORS、安全头、限流、遥测、认证）
-- ✅ SQLite 数据库存储 + GORM ORM
-- ✅ Ristretto 高性能内存缓存
-- ✅ Gin 格式化日志输出
-- ✅ Bootstrap 5 + jQuery 3 前端界面
+ - ✅ 实体基类（CUID2 ID 自动生成 + 时间戳自动填充）
+ - ✅ 事件驱动监听器（Listener）- 异步处理业务事件
+ - ✅ 定时任务调度器（Scheduler）- 周期性执行后台任务
+ - ✅ 内置组件自动初始化（Config、Database、Cache、Logger、Telemetry、Limiter、Lock、MQ）
+ - ✅ 声明式依赖注入容器（通过 `inject:""` 标签自动注入）
+ - ✅ 留言审核机制（待审核/已通过/已拒绝）
+ - ✅ 管理员认证与会话管理（Session 存储在缓存中）
+ - ✅ 基于限流器的请求限流保护（每 IP 每分钟 100 次请求）
+ - ✅ 完整的中间件链（恢复、日志、CORS、安全头、限流、遥测、认证）
+ - ✅ SQLite 数据库存储 + GORM ORM
+ - ✅ Ristretto 高性能内存缓存
+ - ✅ Gin 格式化日志输出
+ - ✅ Bootstrap 5 + jQuery 3 前端界面
 
 ## 技术栈
 
@@ -482,11 +483,20 @@ scheduler:
 - 昵称：2-20 个字符
 - 内容：5-500 个字符
 - 初始状态：pending（待审核）
+- ID：25 位 CUID2 字符串（自动生成）
+- 时间戳：创建时间和更新时间自动填充（GORM Hook）
 
 **查看留言**
 - 只显示已审核通过（approved）的留言
 - 按创建时间倒序排列
 - 隐藏状态信息
+
+**实体基类特性**
+Message 实体使用 `common.BaseEntityWithTimestamps` 基类，提供以下特性：
+- **CUID2 ID**：25 位字符串，时间有序、高唯一性、分布式安全
+- **自动填充**：ID、CreatedAt、UpdatedAt 通过 GORM Hook 自动设置
+- **数据库存储**：varchar(32)，预留更多兼容空间
+- **类型安全**：ID 类型为 string，Repository 和 Service 层无需类型转换
 
 ### 2. 留言管理（管理端）
 

@@ -2,13 +2,11 @@
 package controllers
 
 import (
+	"github.com/gin-gonic/gin"
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/dtos"
 	"github.com/lite-lake/litecore-go/samples/messageboard/internal/services"
-	"strconv"
-
-	"github.com/gin-gonic/gin"
 )
 
 // IMsgDeleteController 删除留言控制器接口（管理员专用）
@@ -38,17 +36,11 @@ func (c *msgDeleteControllerImpl) GetRouter() string {
 
 // Handle 处理删除留言请求（管理员专用）
 func (c *msgDeleteControllerImpl) Handle(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		c.LoggerMgr.Ins().Error("Failed to delete message: invalid message ID", "id_str", idStr, "error", err)
-		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, "无效的留言 ID"))
-		return
-	}
+	id := ctx.Param("id")
 
 	c.LoggerMgr.Ins().Debug("Starting to delete message", "id", id)
 
-	if err := c.MessageService.DeleteMessage(uint(id)); err != nil {
+	if err := c.MessageService.DeleteMessage(id); err != nil {
 		c.LoggerMgr.Ins().Error("Failed to delete message", "id", id, "error", err)
 		ctx.JSON(common.HTTPStatusBadRequest, dtos.ErrorResponse(common.HTTPStatusBadRequest, err.Error()))
 		return
