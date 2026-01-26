@@ -2,31 +2,31 @@
 
 # 应用配置
 app:
-  name: "litecore-messageboard"                 # 应用名称
-  version: "1.0.0"                              # 应用版本
+  name: "litecore-messageboard" # 应用名称
+  version: "1.0.0" # 应用版本
   admin:
     password: "$2a$10$OzRRxaA.5Njv.o0d6VuHdec2190L0zSD5OA11oUfEjJruMfXhYkVK" # 管理员密码（bcrypt加密）
-    session_timeout: 3600                       # 会话超时时间（秒）
+    session_timeout: 3600 # 会话超时时间（秒）
 
 # 服务器配置
 server:
-  host: "0.0.0.0"                               # 监听主机地址
-  port: 8080                                    # 监听端口
-  mode: "debug"                                 # 运行模式：debug, release, test
-  read_timeout: "10s"                           # 读取超时时间
-  write_timeout: "10s"                          # 写入超时时间
-  idle_timeout: "60s"                           # 空闲超时时间
-  enable_recovery: true                         # 是否启用panic恢复
-  shutdown_timeout: "30s"                       # 优雅关闭超时时间
-  startup_log:                                  # 启动日志配置
-    enabled: true                               # 是否启用启动日志
-    async: true                                 # 是否异步日志
-    buffer: 100                                 # 日志缓冲区大小
+  host: "0.0.0.0" # 监听主机地址
+  port: 8081 # 监听端口
+  mode: "debug" # 运行模式：debug, release, test
+  read_timeout: "10s" # 读取超时时间
+  write_timeout: "10s" # 写入超时时间
+  idle_timeout: "60s" # 空闲超时时间
+  enable_recovery: true # 是否启用panic恢复
+  shutdown_timeout: "30s" # 优雅关闭超时时间
+  startup_log: # 启动日志配置
+    enabled: true # 是否启用启动日志
+    async: true # 是否异步日志
+    buffer: 100 # 日志缓冲区大小
 
 # 数据库配置
 database:
-  driver: "sqlite"                              # 驱动类型：mysql, postgresql, sqlite, none
-  auto_migrate: true                            # 是否自动迁移数据库表结构（默认 false）
+  driver: "sqlite" # 驱动类型：mysql, postgresql, sqlite, none
+  auto_migrate: true # 是否自动迁移数据库表结构（默认 false）
   # MySQL 配置示例
   # mysql_config:
   #   dsn: "root:password@tcp(localhost:3306)/messageboard?charset=utf8mb4&parseTime=True&loc=Local" # MySQL 数据源名称
@@ -44,20 +44,20 @@ database:
   #     conn_max_lifetime: "30s"               # 连接最大存活时间
   #     conn_max_idle_time: "5m"               # 连接最大空闲时间
   sqlite_config:
-    dsn: "./data/messageboard.db"               # SQLite 数据库文件路径
-    pool_config:                                # 连接池配置
-      max_open_conns: 1                         # 最大打开连接数（SQLite通常设置为1）
-      max_idle_conns: 1                         # 最大空闲连接数
-      conn_max_lifetime: "30s"                  # 连接最大存活时间
-      conn_max_idle_time: "5m"                  # 连接最大空闲时间
-  observability_config:                         # 可观测性配置
-    slow_query_threshold: "1s"                  # 慢查询阈值
-    log_sql: false                              # 是否记录完整SQL（生产环境建议关闭）
-    sample_rate: 1.0                            # 采样率（0.0-1.0）
+    dsn: "./data/messageboard.db" # SQLite 数据库文件路径
+    pool_config: # 连接池配置
+      max_open_conns: 1 # 最大打开连接数（SQLite通常设置为1）
+      max_idle_conns: 1 # 最大空闲连接数
+      conn_max_lifetime: "30s" # 连接最大存活时间
+      conn_max_idle_time: "5m" # 连接最大空闲时间
+  observability_config: # 可观测性配置
+    slow_query_threshold: "1s" # 慢查询阈值
+    log_sql: false # 是否记录完整SQL（生产环境建议关闭）
+    sample_rate: 1.0 # 采样率（0.0-1.0）
 
 # 缓存配置
 cache:
-  driver: "memory"                              # 驱动类型：redis, memory, none
+  driver: "memory" # 驱动类型：redis, memory, none
   # Redis 配置示例
   # redis_config:
   #   host: "localhost"                         # Redis主机地址
@@ -68,37 +68,37 @@ cache:
   #   max_open_conns: 100                       # 最大打开连接数
   #   conn_max_lifetime: "30s"                  # 连接最大存活时间
   memory_config:
-    max_size: 100                               # 最大缓存大小（MB）
-    max_age: "720h"                             # 最大缓存时间（30天）
-    max_backups: 1000                           # 最大备份项数
-    compress: false                             # 是否压缩
+    max_size: 100 # 最大缓存大小（MB）
+    max_age: "720h" # 最大缓存时间（30天）
+    max_backups: 1000 # 最大备份项数
+    compress: false # 是否压缩
 
 # 日志配置
 logger:
-  driver: "zap"                                 # 驱动类型：zap, default, none
+  driver: "zap" # 驱动类型：zap, default, none
   zap_config:
-    telemetry_enabled: false                    # 是否启用观测日志
-    telemetry_config:                           # 观测日志配置
-      level: "info"                             # 日志级别：debug, info, warn, error, fatal
-    console_enabled: true                       # 是否启用控制台日志
-    console_config:                             # 控制台日志配置
-      level: "info"                             # 日志级别：debug, info, warn, error, fatal
-      format: "gin"                             # 格式：gin | json | default
-      color: true                               # 是否启用颜色
-      time_format: "2006-01-02 15:04:05.000"   # 时间格式（默认：2006-01-02 15:04:05.000）
-    file_enabled: false                         # 是否启用文件日志
-    file_config:                                # 文件日志配置
-      level: "info"                             # 日志级别：debug, info, warn, error, fatal
-      path: "./logs/messageboard.log"           # 日志文件路径
-      rotation:                                 # 日志轮转配置
-        max_size: 100                           # 单个日志文件最大大小（MB）
-        max_age: 30                             # 日志文件保留天数
-        max_backups: 10                         # 保留的旧日志文件最大数量
-        compress: true                          # 是否压缩旧日志文件
+    telemetry_enabled: false # 是否启用观测日志
+    telemetry_config: # 观测日志配置
+      level: "info" # 日志级别：debug, info, warn, error, fatal
+    console_enabled: true # 是否启用控制台日志
+    console_config: # 控制台日志配置
+      level: "info" # 日志级别：debug, info, warn, error, fatal
+      format: "gin" # 格式：gin | json | default
+      color: true # 是否启用颜色
+      time_format: "2006-01-02 15:04:05.000" # 时间格式（默认：2006-01-02 15:04:05.000）
+    file_enabled: false # 是否启用文件日志
+    file_config: # 文件日志配置
+      level: "info" # 日志级别：debug, info, warn, error, fatal
+      path: "./logs/messageboard.log" # 日志文件路径
+      rotation: # 日志轮转配置
+        max_size: 100 # 单个日志文件最大大小（MB）
+        max_age: 30 # 日志文件保留天数
+        max_backups: 10 # 保留的旧日志文件最大数量
+        compress: true # 是否压缩旧日志文件
 
 # 遥测配置
 telemetry:
-  driver: "none"                               # 驱动类型：none, otel
+  driver: "none" # 驱动类型：none, otel
   # OTEL 配置示例
   # otel_config:
   #   endpoint: "localhost:4317"               # OTLP端点地址
@@ -119,7 +119,7 @@ telemetry:
 
 # 限流配置
 limiter:
-  driver: "memory"                              # 驱动类型：redis, memory
+  driver: "memory" # 驱动类型：redis, memory
   # Redis 配置示例
   # redis_config:
   #   host: "localhost"                         # Redis主机地址
@@ -130,11 +130,11 @@ limiter:
   #   max_open_conns: 100                       # 最大打开连接数
   #   conn_max_lifetime: "30s"                  # 连接最大存活时间
   memory_config:
-    max_backups: 1000                           # 最大备份项数（清理策略相关）
+    max_backups: 1000 # 最大备份项数（清理策略相关）
 
 # 锁配置
 lock:
-  driver: "memory"                              # 驱动类型：redis, memory
+  driver: "memory" # 驱动类型：redis, memory
   # Redis 配置示例
   # redis_config:
   #   host: "localhost"                         # Redis主机地址
@@ -145,21 +145,21 @@ lock:
   #   max_open_conns: 100                       # 最大打开连接数
   #   conn_max_lifetime: "30s"                  # 连接最大存活时间
   memory_config:
-    max_backups: 1000                           # 最大备份项数（清理策略相关）
+    max_backups: 1000 # 最大备份项数（清理策略相关）
 
 # 消息队列配置
 mq:
-  driver: "memory"                              # 驱动类型：rabbitmq, memory
+  driver: "memory" # 驱动类型：rabbitmq, memory
   # RabbitMQ 配置示例
   # rabbitmq_config:
   #   url: "amqp://guest:guest@localhost:5672/" # RabbitMQ连接地址
   #   durable: true                             # 是否持久化队列
   memory_config:
-    max_queue_size: 10000                       # 最大队列大小
-    channel_buffer: 100                         # 通道缓冲区大小
+    max_queue_size: 10000 # 最大队列大小
+    channel_buffer: 100 # 通道缓冲区大小
 
 # 定时任务配置
 scheduler:
-  driver: "cron"                               # 驱动类型：cron
+  driver: "cron" # 驱动类型：cron
   cron_config:
-    validate_on_startup: true                  # 启动时是否检查所有 Scheduler 配置
+    validate_on_startup: true # 启动时是否检查所有 Scheduler 配置

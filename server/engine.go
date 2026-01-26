@@ -155,6 +155,72 @@ func (e *Engine) Initialize() error {
 		}
 	}
 
+	// 从配置文件中读取 server 配置并覆盖默认值
+	if configMgr := e.Manager.GetByType(reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()); configMgr != nil {
+		if mgr, ok := configMgr.(configmgr.IConfigManager); ok {
+			if host, err := mgr.Get("server.host"); err == nil {
+				if hostStr, ok := host.(string); ok && hostStr != "" {
+					e.serverConfig.Host = hostStr
+				}
+			}
+			if port, err := mgr.Get("server.port"); err == nil {
+				if portInt, ok := port.(int); ok && portInt > 0 {
+					e.serverConfig.Port = portInt
+				}
+			}
+			if mode, err := mgr.Get("server.mode"); err == nil {
+				if modeStr, ok := mode.(string); ok && modeStr != "" {
+					e.serverConfig.Mode = modeStr
+				}
+			}
+			if readTimeout, err := mgr.Get("server.read_timeout"); err == nil {
+				if timeoutStr, ok := readTimeout.(string); ok && timeoutStr != "" {
+					if duration, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.ReadTimeout = duration
+					}
+				}
+			}
+			if writeTimeout, err := mgr.Get("server.write_timeout"); err == nil {
+				if timeoutStr, ok := writeTimeout.(string); ok && timeoutStr != "" {
+					if duration, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.WriteTimeout = duration
+					}
+				}
+			}
+			if idleTimeout, err := mgr.Get("server.idle_timeout"); err == nil {
+				if timeoutStr, ok := idleTimeout.(string); ok && timeoutStr != "" {
+					if duration, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.IdleTimeout = duration
+					}
+				}
+			}
+			if shutdownTimeout, err := mgr.Get("server.shutdown_timeout"); err == nil {
+				if timeoutStr, ok := shutdownTimeout.(string); ok && timeoutStr != "" {
+					if duration, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.ShutdownTimeout = duration
+						e.shutdownTimeout = duration
+					}
+				}
+			}
+			if startupLog, err := mgr.Get("server.startup_log"); err == nil {
+				if startupLogMap, ok := startupLog.(map[string]interface{}); ok {
+					if e.serverConfig.StartupLog == nil {
+						e.serverConfig.StartupLog = DefaultStartupLogConfig()
+					}
+					if enabled, ok := startupLogMap["enabled"].(bool); ok {
+						e.serverConfig.StartupLog.Enabled = enabled
+					}
+					if async, ok := startupLogMap["async"].(bool); ok {
+						e.serverConfig.StartupLog.Async = async
+					}
+					if buffer, ok := startupLogMap["buffer"].(int); ok {
+						e.serverConfig.StartupLog.Buffer = buffer
+					}
+				}
+			}
+		}
+	}
+
 	// 切换到结构化日志
 	if loggerMgr, err := container.GetManager[loggermgr.ILoggerManager](e.Manager); err == nil {
 		e.setLogger(loggerMgr.Ins())
