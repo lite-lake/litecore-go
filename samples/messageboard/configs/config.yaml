@@ -11,7 +11,7 @@ app:
 # 服务器配置
 server:
   host: "0.0.0.0" # 监听主机地址
-  port: 8081 # 监听端口
+  port: 8080 # 监听端口
   mode: "debug" # 运行模式：debug, release, test
   read_timeout: "10s" # 读取超时时间
   write_timeout: "10s" # 写入超时时间
