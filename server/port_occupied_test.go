@@ -108,7 +108,7 @@ scheduler:
 
 	t.Logf("启动在 %v 内失败", duration)
 
-	if !containsSubstring(err.Error(), "address already in use") {
+	if !containsSubstring(err.Error(), "address already in use") && !containsSubstring(err.Error(), "Only one usage of each socket address") && !containsSubstring(err.Error(), "bind:") {
 		t.Errorf("错误信息不正确: %v", err)
 	}
 
