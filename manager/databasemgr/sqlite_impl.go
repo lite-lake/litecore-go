@@ -11,6 +11,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	_ "modernc.org/sqlite"
 
 	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
@@ -58,7 +59,10 @@ func NewDatabaseManagerSQLiteImpl(
 	}
 
 	// 打开数据库连接
-	db, err := gorm.Open(sqlite.Open(cfg.DSN), gormConfig)
+	db, err := gorm.Open(sqlite.Dialector{
+		DriverName: "sqlite",
+		DSN:        cfg.DSN,
+	}, gormConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite database: %w", err)
 	}
