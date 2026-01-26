@@ -204,7 +204,7 @@ func (b *Builder) generateEngine(info *analyzer.ProjectInfo) error {
 	if err == nil {
 		relConfigPath, err := filepath.Rel(b.projectPath, absConfigPath)
 		if err == nil {
-			configPath = relConfigPath
+			configPath = filepath.ToSlash(relConfigPath)
 		}
 	}
 
