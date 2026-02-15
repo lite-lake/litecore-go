@@ -81,6 +81,10 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 		dirs = append(dirs, "static/locales", "templates/partials")
 	}
 
+	if cfg.WithAIGuide {
+		dirs = append(dirs, "docs/ai-guide/snippets", "docs/ai-guide/reference")
+	}
+
 	for _, dir := range dirs {
 		dirPath := filepath.Join(basePath, dir)
 		if err := os.MkdirAll(dirPath, 0755); err != nil {
@@ -140,6 +144,12 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 	if cfg.WithI18n {
 		if err := generateI18nTemplate(basePath, data); err != nil {
 			return err
+		}
+	}
+
+	if cfg.WithAIGuide {
+		if err := generateAIGuide(basePath); err != nil {
+			return fmt.Errorf("生成 AI 指南失败: %w", err)
 		}
 	}
 

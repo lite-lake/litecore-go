@@ -40,6 +40,7 @@ type Config struct {
 	WithHTML      bool         // 是否生成 HTML 模板
 	WithI18n      bool         // 是否生成多语言支持
 	WithHealth    bool         // 是否生成健康检查控制器
+	WithAIGuide   bool         // 是否生成 AI 开发指南
 }
 
 func DefaultConfig() *Config {
@@ -52,5 +53,6 @@ func DefaultConfig() *Config {
 		WithHTML:      true,
 		WithI18n:      false,
 		WithHealth:    true,
+		WithAIGuide:   true,
 	}
 }
