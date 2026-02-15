@@ -17,6 +17,7 @@ func GetCommand() *cli.Command {
 	var interactive bool
 	var withStatic bool
 	var withHTML bool
+	var withI18n bool
 	var withHealth bool
 
 	return &cli.Command{
@@ -32,6 +33,7 @@ func GetCommand() *cli.Command {
 扩展选项：
   - --static: 生成静态文件服务（CSS/JS）
   - --html: 生成 HTML 模板服务
+  - --i18n: 生成多语言支持（en/zhs/ar），包含 partials 模板
   - --health: 生成健康检查控制器
 
 如果不指定参数，将进入交互式模式`,
@@ -77,6 +79,11 @@ func GetCommand() *cli.Command {
 				Destination: &withHTML,
 			},
 			&cli.BoolFlag{
+				Name:        "i18n",
+				Usage:       "生成多语言支持 (en/zhs/ar)",
+				Destination: &withI18n,
+			},
+			&cli.BoolFlag{
 				Name:        "health",
 				Usage:       "生成健康检查控制器",
 				Destination: &withHealth,
@@ -91,6 +98,7 @@ func GetCommand() *cli.Command {
 			cfg.Interactive = interactive
 			cfg.WithStatic = withStatic
 			cfg.WithHTML = withHTML
+			cfg.WithI18n = withI18n
 			cfg.WithHealth = withHealth
 
 			if templateType != "" {
