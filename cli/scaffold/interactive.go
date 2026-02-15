@@ -61,6 +61,14 @@ func RunInteractive(cfg *Config) error {
 		cfg.WithHTML = withHTML
 	}
 
+	if cfg.WithHTML && !cfg.WithI18n {
+		withI18n, err := promptWithI18n()
+		if err != nil {
+			return err
+		}
+		cfg.WithI18n = withI18n
+	}
+
 	if !cfg.WithHealth {
 		withHealth, err := promptWithHealth()
 		if err != nil {
@@ -265,6 +273,23 @@ func promptWithHealth() (bool, error) {
 		Label:     "是否生成健康检查控制器",
 		IsConfirm: true,
 		Default:   "y",
+	}
+
+	_, err := prompt.Run()
+	if err != nil {
+		if err == promptui.ErrAbort {
+			return false, nil
+		}
+		return false, fmt.Errorf("输入取消: %w", err)
+	}
+	return true, nil
+}
+
+func promptWithI18n() (bool, error) {
+	prompt := promptui.Prompt{
+		Label:     "是否生成多语言支持 (en/zhs/ar)",
+		IsConfirm: true,
+		Default:   "n",
 	}
 
 	_, err := prompt.Run()

@@ -589,17 +589,19 @@ func (c *exampleControllerImpl) handleCreate(ctx *gin.Context) {
 	}
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, common.ValidationResponse("参数验证失败", common.FieldErrors{
+			{Field: "name", Message: err.Error()},
+		}))
 		return
 	}
 
 	example, err := c.ExampleService.CreateExample(req.Name)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, common.ErrorResponse(http.StatusInternalServerError, err.Error()))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, example)
+	ctx.JSON(http.StatusOK, common.SuccessResponse("创建成功", example))
 }
 
 func (c *exampleControllerImpl) handleGet(ctx *gin.Context) {
@@ -607,11 +609,11 @@ func (c *exampleControllerImpl) handleGet(ctx *gin.Context) {
 
 	example, err := c.ExampleService.GetExample(id)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "示例不存在"})
+		ctx.JSON(http.StatusNotFound, common.ErrorResponse(http.StatusNotFound, "示例不存在"))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, example)
+	ctx.JSON(http.StatusOK, common.SuccessWithData(example))
 }
 
 var _ IExampleController = (*exampleControllerImpl)(nil)
@@ -653,9 +655,7 @@ func (m *recoveryMiddlewareImpl) Wrapper() gin.HandlerFunc {
 			"error", recovered,
 			"path", c.Request.URL.Path,
 			"method", c.Request.Method)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": "内部服务器错误",
-		})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, common.ErrInternalServer)
 	})
 }
 
@@ -706,7 +706,7 @@ func (l *exampleListenerImpl) Subscribe() mqmgr.SubscribeConfig {
 }
 
 func (l *exampleListenerImpl) handleMessage(ctx context.Context, msg []byte) error {
-	l.ExampleService.GetExample(1)
+	l.ExampleService.GetExample("example_id")
 	return nil
 }
 
@@ -755,7 +755,7 @@ func (s *exampleSchedulerImpl) Schedule() schedulermgr.ScheduleConfig {
 }
 
 func (s *exampleSchedulerImpl) handleTask() error {
-	s.ExampleService.GetExample(1)
+	s.ExampleService.GetExample("example_id")
 	return nil
 }
 
@@ -775,24 +775,29 @@ const htmlTemplateServiceTemplate = `package services
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/lite-lake/litecore-go/common"
-	"github.com/lite-lake/litecore-go/component/liteservice"
+	"github.com/lite-lake/litecore-go/component/liteservice/litehtmltemplatesvc"
 	"github.com/lite-lake/litecore-go/manager/loggermgr"
 )
 
 type IHTMLTemplateService interface {
 	common.IBaseService
 	Render(ctx *gin.Context, name string, data interface{})
+	RenderWithCode(ctx *gin.Context, code int, name string, data interface{})
 	SetGinEngine(engine *gin.Engine)
+	ReloadTemplates() error
 }
 
 type htmlTemplateServiceImpl struct {
-	inner     *liteservice.HTMLTemplateService
+	inner     litehtmltemplatesvc.ILiteHTMLTemplateService
 	LoggerMgr loggermgr.ILoggerManager ` + "`" + `inject:""` + "`" + `
 }
 
 func NewHTMLTemplateService() IHTMLTemplateService {
+	cfg := &litehtmltemplatesvc.Config{
+		TemplatePath: "templates/*",
+	}
 	return &htmlTemplateServiceImpl{
-		inner: liteservice.NewHTMLTemplateService("templates/*"),
+		inner: litehtmltemplatesvc.NewLiteHTMLTemplateServiceWithConfig(cfg),
 	}
 }
 
@@ -812,8 +817,16 @@ func (s *htmlTemplateServiceImpl) Render(ctx *gin.Context, name string, data int
 	s.inner.Render(ctx, name, data)
 }
 
+func (s *htmlTemplateServiceImpl) RenderWithCode(ctx *gin.Context, code int, name string, data interface{}) {
+	s.inner.RenderWithCode(ctx, code, name, data)
+}
+
 func (s *htmlTemplateServiceImpl) SetGinEngine(engine *gin.Engine) {
 	s.inner.SetGinEngine(engine)
+}
+
+func (s *htmlTemplateServiceImpl) ReloadTemplates() error {
+	return s.inner.ReloadTemplates()
 }
 
 var _ IHTMLTemplateService = (*htmlTemplateServiceImpl)(nil)
@@ -1227,6 +1240,383 @@ const indexHTMLTemplate = `<!DOCTYPE html>
 </html>
 `
 
+const partialHeadTemplate = `{{define "head"}}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{.Title}}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="/static/css/style.css" rel="stylesheet">
+{{end}}
+`
+
+const partialHeaderTemplate = `{{define "header"}}
+<header class="bg-white border-b border-gray-200 py-4">
+    <div class="container">
+        <div class="text-center">
+            <a href="/" class="text-2xl font-light text-gray-900 tracking-wide hover:text-gray-600">{{t .Lang "site.title"}}</a>
+            <p class="text-sm text-gray-500 mt-1">{{t .Lang "site.description"}}</p>
+        </div>
+    </div>
+</header>
+{{end}}
+`
+
+const partialFooterTemplate = `{{define "footer"}}
+<footer class="py-4 border-top border-gray-200 mt-5">
+    <div class="container text-center">
+        <p class="text-xs text-gray-400 mb-2">
+            <a href="/" class="hover:text-gray-600">{{t .Lang "nav.home"}}</a>
+            <span class="mx-2">|</span>
+            <a href="/about" class="hover:text-gray-600">{{t .Lang "nav.about"}}</a>
+        </p>
+        <div class="mb-2 text-xs text-gray-400">
+            {{range $i, $lang := .SupportedLangs}}
+                {{if gt $i 0}}<span class="text-gray-300 mx-1">|</span>{{end}}
+                <a href="/?lang={{$lang}}" class="hover:text-gray-600 {{if eq $.Lang $lang}}font-bold text-gray-600{{end}}">{{$lang}}</a>
+            {{end}}
+        </div>
+        <p class="text-xs text-gray-400">{{t .Lang "footer.copyright"}}</p>
+    </div>
+</footer>
+{{end}}
+`
+
+const partialNavTemplate = `{{define "nav"}}
+<nav class="bg-gray-50 border-b border-gray-200 py-2">
+    <div class="container">
+        <div class="d-flex justify-content-center align-items-center gap-4">
+            <a href="/" class="text-sm {{if eq .ActivePage "home"}}text-gray-900 fw-medium border-bottom border-2 border-gray-900 pb-1{{else}}text-gray-500 hover:text-gray-900{{end}}">{{t .Lang "nav.home"}}</a>
+            <a href="/about" class="text-sm {{if eq .ActivePage "about"}}text-gray-900 fw-medium border-bottom border-2 border-gray-900 pb-1{{else}}text-gray-500 hover:text-gray-900{{end}}">{{t .Lang "nav.about"}}</a>
+        </div>
+    </div>
+</nav>
+{{end}}
+`
+
+const i18nIndexHTMLTemplate = `<!DOCTYPE html>
+<html lang="{{.Lang}}" dir="{{if eq .Lang "ar"}}rtl{{else}}ltr{{end}}">
+<head>
+    {{template "head" .}}
+</head>
+<body class="bg-gray-50{{if eq .Lang "ar"}} text-right{{end}}">
+    <div class="min-vh-100 d-flex flex-column">
+        {{template "header" .}}
+        {{template "nav" (dict "Lang" .Lang "ActivePage" "home" "I18nService" .I18nService)}}
+
+        <main class="flex-grow-1 py-5">
+            <div class="container">
+                <section class="mb-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h2 class="h4 mb-3 fw-light">{{t .Lang "welcome.title"}}</h2>
+                            <p class="text-muted">{{t .Lang "welcome.desc"}}</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        {{template "footer" .}}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+`
+
+const i18nServiceTemplate = `package services
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"sync"
+
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type II18nService interface {
+	common.IBaseService
+	T(lang, key string) string
+	GetSupportedLanguages() []string
+	IsSupportedLanguage(lang string) bool
+	GetDefaultLanguage() string
+}
+
+type i18nServiceImpl struct {
+	Config    configmgr.IConfigManager ` + "`" + `inject:""` + "`" + `
+	LoggerMgr loggermgr.ILoggerManager ` + "`" + `inject:""` + "`" + `
+	locales   map[string]map[string]string
+	mu        sync.RWMutex
+}
+
+var i18nInstance *i18nServiceImpl
+
+func NewI18nService() II18nService {
+	i18nInstance = &i18nServiceImpl{
+		locales: make(map[string]map[string]string),
+	}
+	return i18nInstance
+}
+
+func (s *i18nServiceImpl) ServiceName() string {
+	return "I18nService"
+}
+
+func (s *i18nServiceImpl) OnStart() error {
+	s.loadLocales()
+	s.LoggerMgr.Ins().Info("I18n服务启动", "languages", s.GetSupportedLanguages())
+	return nil
+}
+
+func (s *i18nServiceImpl) OnStop() error {
+	return nil
+}
+
+func (s *i18nServiceImpl) loadLocales() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	languages := []string{"en", "zhs", "ar"}
+	localesDir := "static/locales"
+
+	for _, lang := range languages {
+		localePath := filepath.Join(localesDir, lang+".json")
+		data, err := os.ReadFile(localePath)
+		if err != nil {
+			s.LoggerMgr.Ins().Warn("加载语言包失败", "lang", lang, "error", err)
+			continue
+		}
+
+		var localeMap map[string]string
+		if err := json.Unmarshal(data, &localeMap); err != nil {
+			s.LoggerMgr.Ins().Warn("解析语言包失败", "lang", lang, "error", err)
+			continue
+		}
+
+		s.locales[lang] = localeMap
+		s.LoggerMgr.Ins().Info("加载语言包成功", "lang", lang, "keys", len(localeMap))
+	}
+}
+
+func (s *i18nServiceImpl) T(lang, key string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.isSupportedLanguageLocked(lang) {
+		if locale, ok := s.locales[lang]; ok {
+			if text, ok := locale[key]; ok {
+				return text
+			}
+		}
+	}
+
+	if lang != "en" && s.isSupportedLanguageLocked("en") {
+		if locale, ok := s.locales["en"]; ok {
+			if text, ok := locale[key]; ok {
+				return text
+			}
+		}
+	}
+
+	return key
+}
+
+func (s *i18nServiceImpl) isSupportedLanguageLocked(lang string) bool {
+	_, ok := s.locales[lang]
+	return ok
+}
+
+func (s *i18nServiceImpl) GetSupportedLanguages() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	languages := make([]string, 0, len(s.locales))
+	for lang := range s.locales {
+		languages = append(languages, lang)
+	}
+	return languages
+}
+
+func (s *i18nServiceImpl) IsSupportedLanguage(lang string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.isSupportedLanguageLocked(lang)
+}
+
+func (s *i18nServiceImpl) GetDefaultLanguage() string {
+	return "en"
+}
+
+func GetI18nService() II18nService {
+	return i18nInstance
+}
+
+var _ II18nService = (*i18nServiceImpl)(nil)
+`
+
+const i18nHTMLTemplateServiceTemplate = `package services
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/component/liteservice/litehtmltemplatesvc"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IHTMLTemplateService interface {
+	common.IBaseService
+	Render(ctx *gin.Context, name string, data interface{})
+	RenderWithCode(ctx *gin.Context, code int, name string, data interface{})
+	SetGinEngine(engine *gin.Engine)
+	ReloadTemplates() error
+}
+
+type htmlTemplateServiceImpl struct {
+	inner     litehtmltemplatesvc.ILiteHTMLTemplateService
+	LoggerMgr loggermgr.ILoggerManager ` + "`" + `inject:""` + "`" + `
+	I18nSvc   II18nService              ` + "`" + `inject:""` + "`" + `
+}
+
+func NewHTMLTemplateService() IHTMLTemplateService {
+	cfg := &litehtmltemplatesvc.Config{
+		TemplatePath: "templates/**/*",
+	}
+	svc := &htmlTemplateServiceImpl{
+		inner: litehtmltemplatesvc.NewLiteHTMLTemplateServiceWithConfig(cfg),
+	}
+	svc.inner.SetFuncMap(svc.getFuncMap())
+	return svc
+}
+
+func (s *htmlTemplateServiceImpl) getFuncMap() map[string]interface{} {
+	return map[string]interface{}{
+		"t": func(lang, key string) string {
+			if s.I18nSvc == nil {
+				return key
+			}
+			return s.I18nSvc.T(lang, key)
+		},
+	}
+}
+
+func (s *htmlTemplateServiceImpl) ServiceName() string {
+	return "HTMLTemplateService"
+}
+
+func (s *htmlTemplateServiceImpl) OnStart() error {
+	return s.inner.OnStart()
+}
+
+func (s *htmlTemplateServiceImpl) OnStop() error {
+	return s.inner.OnStop()
+}
+
+func (s *htmlTemplateServiceImpl) Render(ctx *gin.Context, name string, data interface{}) {
+	s.inner.Render(ctx, name, data)
+}
+
+func (s *htmlTemplateServiceImpl) RenderWithCode(ctx *gin.Context, code int, name string, data interface{}) {
+	s.inner.RenderWithCode(ctx, code, name, data)
+}
+
+func (s *htmlTemplateServiceImpl) SetGinEngine(engine *gin.Engine) {
+	s.inner.SetGinEngine(engine)
+}
+
+func (s *htmlTemplateServiceImpl) ReloadTemplates() error {
+	return s.inner.ReloadTemplates()
+}
+
+var _ IHTMLTemplateService = (*htmlTemplateServiceImpl)(nil)
+`
+
+const i18nPageControllerTemplate = `package controllers
+
+import (
+	"{{.ModulePath}}/internal/services"
+
+	"github.com/gin-gonic/gin"
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type IPageController interface {
+	common.IBaseController
+}
+
+type pageControllerImpl struct {
+	HTMLTemplateService services.IHTMLTemplateService ` + "`" + `inject:""` + "`" + `
+	I18nService         services.II18nService         ` + "`" + `inject:""` + "`" + `
+	LoggerMgr           loggermgr.ILoggerManager      ` + "`" + `inject:""` + "`" + `
+}
+
+func NewPageController() IPageController {
+	return &pageControllerImpl{}
+}
+
+func (c *pageControllerImpl) ControllerName() string {
+	return "pageControllerImpl"
+}
+
+func (c *pageControllerImpl) GetRouter() string {
+	return "/ [GET],/?lang=:lang [GET]"
+}
+
+func (c *pageControllerImpl) Handle(ctx *gin.Context) {
+	lang := ctx.DefaultQuery("lang", c.I18nService.GetDefaultLanguage())
+	if !c.I18nService.IsSupportedLanguage(lang) {
+		lang = c.I18nService.GetDefaultLanguage()
+	}
+
+	c.HTMLTemplateService.Render(ctx, "index.html", gin.H{
+		"Title":          "{{.ProjectName}}",
+		"Lang":           lang,
+		"SupportedLangs": c.I18nService.GetSupportedLanguages(),
+		"I18nService":    c.I18nService,
+	})
+}
+
+var _ IPageController = (*pageControllerImpl)(nil)
+`
+
+const localeEnJSON = `{
+  "site.title": "{{.ProjectName}}",
+  "site.description": "Welcome to {{.ProjectName}}",
+  "nav.home": "Home",
+  "nav.about": "About",
+  "welcome.title": "Welcome to {{.ProjectName}}",
+  "welcome.desc": "This is a multilingual web application built with LiteCore framework.",
+  "footer.copyright": "© 2026 {{.ProjectName}}. All rights reserved."
+}
+`
+
+const localeZhsJSON = `{
+  "site.title": "{{.ProjectName}}",
+  "site.description": "欢迎来到 {{.ProjectName}}",
+  "nav.home": "首页",
+  "nav.about": "关于",
+  "welcome.title": "欢迎来到 {{.ProjectName}}",
+  "welcome.desc": "这是一个使用 LiteCore 框架构建的多语言 Web 应用。",
+  "footer.copyright": "© 2026 {{.ProjectName}}. 保留所有权利。"
+}
+`
+
+const localeArJSON = `{
+  "site.title": "{{.ProjectName}}",
+  "site.description": "مرحباً بك في {{.ProjectName}}",
+  "nav.home": "الرئيسية",
+  "nav.about": "حول",
+  "welcome.title": "مرحباً بك في {{.ProjectName}}",
+  "welcome.desc": "هذا تطبيق ويب متعدد اللغات مبني بإطار LiteCore.",
+  "footer.copyright": "© 2026 {{.ProjectName}}. جميع الحقوق محفوظة."
+}
+`
+
 var (
 	goModTmpl      *template.Template
 	readmeTmpl     *template.Template
@@ -1251,6 +1641,14 @@ var (
 
 	staticCSSTmpl *template.Template
 	staticJSTmpl  *template.Template
+
+	i18nServiceTmpl             *template.Template
+	i18nHTMLTemplateServiceTmpl *template.Template
+	i18nPageControllerTmpl      *template.Template
+
+	localeEnTmpl  *template.Template
+	localeZhsTmpl *template.Template
+	localeArTmpl  *template.Template
 )
 
 func init() {
@@ -1277,6 +1675,14 @@ func init() {
 
 	staticCSSTmpl = template.Must(template.New("static_css").Parse(staticCSSTemplate))
 	staticJSTmpl = template.Must(template.New("static_js").Parse(staticJSTemplate))
+
+	i18nServiceTmpl = template.Must(template.New("i18n_service").Parse(i18nServiceTemplate))
+	i18nHTMLTemplateServiceTmpl = template.Must(template.New("i18n_html_template_service").Parse(i18nHTMLTemplateServiceTemplate))
+	i18nPageControllerTmpl = template.Must(template.New("i18n_page_controller").Parse(i18nPageControllerTemplate))
+
+	localeEnTmpl = template.Must(template.New("locale_en").Parse(localeEnJSON))
+	localeZhsTmpl = template.Must(template.New("locale_zhs").Parse(localeZhsJSON))
+	localeArTmpl = template.Must(template.New("locale_ar").Parse(localeArJSON))
 }
 
 type TemplateData struct {
@@ -1367,4 +1773,48 @@ func PageController(data *TemplateData) (string, error) {
 
 func HealthController(data *TemplateData) (string, error) {
 	return render(healthControllerTmpl, data)
+}
+
+func PartialHead() string {
+	return partialHeadTemplate
+}
+
+func PartialHeader() string {
+	return partialHeaderTemplate
+}
+
+func PartialFooter() string {
+	return partialFooterTemplate
+}
+
+func PartialNav() string {
+	return partialNavTemplate
+}
+
+func I18nService(data *TemplateData) (string, error) {
+	return render(i18nServiceTmpl, data)
+}
+
+func I18nHTMLTemplateService(data *TemplateData) (string, error) {
+	return render(i18nHTMLTemplateServiceTmpl, data)
+}
+
+func I18nPageController(data *TemplateData) (string, error) {
+	return render(i18nPageControllerTmpl, data)
+}
+
+func I18nIndexHTML() string {
+	return i18nIndexHTMLTemplate
+}
+
+func LocaleEn(data *TemplateData) (string, error) {
+	return render(localeEnTmpl, data)
+}
+
+func LocaleZhs(data *TemplateData) (string, error) {
+	return render(localeZhsTmpl, data)
+}
+
+func LocaleAr(data *TemplateData) (string, error) {
+	return render(localeArTmpl, data)
 }
