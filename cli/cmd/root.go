@@ -6,6 +6,7 @@ import (
 
 	"github.com/lite-lake/litecore-go/cli/cmd/generate"
 	"github.com/lite-lake/litecore-go/cli/cmd/scaffold"
+	"github.com/lite-lake/litecore-go/cli/cmd/upgrade"
 	"github.com/urfave/cli/v3"
 )
 
@@ -20,6 +21,7 @@ func NewApp() *cli.Command {
 		Commands: []*cli.Command{
 			generate.GetCommand(),
 			scaffold.GetCommand(),
+			upgrade.GetCommand(),
 			GetVersionCommand(),
 			GetCompletionCommand(),
 		},
