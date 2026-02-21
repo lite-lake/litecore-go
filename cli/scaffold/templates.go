@@ -687,7 +687,7 @@ type IExampleListener interface {
 
 type exampleListenerImpl struct {
 	ExampleService services.IExampleService ` + "`" + `inject:""` + "`" + `
-	MQManager     mqmgr.IMQManager        ` + "`" + `inject:""` + "`" + `
+	MQManager      mqmgr.IMQManager         ` + "`" + `inject:""` + "`" + `
 }
 
 func NewExampleListener() IExampleListener {
@@ -698,14 +698,15 @@ func (l *exampleListenerImpl) ListenerName() string {
 	return "ExampleListener"
 }
 
-func (l *exampleListenerImpl) Subscribe() mqmgr.SubscribeConfig {
-	return mqmgr.SubscribeConfig{
-		Channel: "example.events",
-		Handler: l.handleMessage,
-	}
+func (l *exampleListenerImpl) GetQueue() string {
+	return "example.events"
 }
 
-func (l *exampleListenerImpl) handleMessage(ctx context.Context, msg []byte) error {
+func (l *exampleListenerImpl) GetSubscribeOptions() []common.ISubscribeOption {
+	return nil
+}
+
+func (l *exampleListenerImpl) Handle(ctx context.Context, msg common.IMessageListener) error {
 	l.ExampleService.GetExample("example_id")
 	return nil
 }
@@ -735,7 +736,7 @@ type IExampleScheduler interface {
 }
 
 type exampleSchedulerImpl struct {
-	ExampleService  services.IExampleService ` + "`" + `inject:""` + "`" + `
+	ExampleService   services.IExampleService     ` + "`" + `inject:""` + "`" + `
 	SchedulerManager schedulermgr.ISchedulerManager ` + "`" + `inject:""` + "`" + `
 }
 
@@ -747,14 +748,15 @@ func (s *exampleSchedulerImpl) SchedulerName() string {
 	return "ExampleScheduler"
 }
 
-func (s *exampleSchedulerImpl) Schedule() schedulermgr.ScheduleConfig {
-	return schedulermgr.ScheduleConfig{
-		CronExpression: "0 */5 * * * *",
-		Handler:        s.handleTask,
-	}
+func (s *exampleSchedulerImpl) GetRule() string {
+	return "0 */5 * * * *"
 }
 
-func (s *exampleSchedulerImpl) handleTask() error {
+func (s *exampleSchedulerImpl) GetTimezone() string {
+	return ""
+}
+
+func (s *exampleSchedulerImpl) OnTick(tickID int64) error {
 	s.ExampleService.GetExample("example_id")
 	return nil
 }
@@ -793,8 +795,9 @@ type htmlTemplateServiceImpl struct {
 }
 
 func NewHTMLTemplateService() IHTMLTemplateService {
+	templatePath := "templates/*"
 	cfg := &litehtmltemplatesvc.Config{
-		TemplatePath: "templates/*",
+		TemplatePath: &templatePath,
 	}
 	return &htmlTemplateServiceImpl{
 		inner: litehtmltemplatesvc.NewLiteHTMLTemplateServiceWithConfig(cfg),
@@ -1240,7 +1243,7 @@ const indexHTMLTemplate = `<!DOCTYPE html>
 </html>
 `
 
-const partialHeadTemplate = `{{define "head"}}
+const partialHeadTemplate = `{{define "_head"}}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{.Title}}</title>
@@ -1249,7 +1252,7 @@ const partialHeadTemplate = `{{define "head"}}
 {{end}}
 `
 
-const partialHeaderTemplate = `{{define "header"}}
+const partialHeaderTemplate = `{{define "_header"}}
 <header class="bg-white border-b border-gray-200 py-4">
     <div class="container">
         <div class="text-center">
@@ -1261,7 +1264,7 @@ const partialHeaderTemplate = `{{define "header"}}
 {{end}}
 `
 
-const partialFooterTemplate = `{{define "footer"}}
+const partialFooterTemplate = `{{define "_footer"}}
 <footer class="py-4 border-top border-gray-200 mt-5">
     <div class="container text-center">
         <p class="text-xs text-gray-400 mb-2">
@@ -1281,7 +1284,7 @@ const partialFooterTemplate = `{{define "footer"}}
 {{end}}
 `
 
-const partialNavTemplate = `{{define "nav"}}
+const partialNavTemplate = `{{define "_nav"}}
 <nav class="bg-gray-50 border-b border-gray-200 py-2">
     <div class="container">
         <div class="d-flex justify-content-center align-items-center gap-4">
@@ -1296,12 +1299,12 @@ const partialNavTemplate = `{{define "nav"}}
 const i18nIndexHTMLTemplate = `<!DOCTYPE html>
 <html lang="{{.Lang}}" dir="{{if eq .Lang "ar"}}rtl{{else}}ltr{{end}}">
 <head>
-    {{template "head" .}}
+    {{template "_head" .}}
 </head>
 <body class="bg-gray-50{{if eq .Lang "ar"}} text-right{{end}}">
     <div class="min-vh-100 d-flex flex-column">
-        {{template "header" .}}
-        {{template "nav" (dict "Lang" .Lang "ActivePage" "home" "I18nService" .I18nService)}}
+        {{template "_header" .}}
+        {{template "_nav" (dict "Lang" .Lang "ActivePage" "home" "I18nService" .I18nService)}}
 
         <main class="flex-grow-1 py-5">
             <div class="container">
@@ -1316,7 +1319,7 @@ const i18nIndexHTMLTemplate = `<!DOCTYPE html>
             </div>
         </main>
 
-        {{template "footer" .}}
+        {{template "_footer" .}}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1462,6 +1465,8 @@ var _ II18nService = (*i18nServiceImpl)(nil)
 const i18nHTMLTemplateServiceTemplate = `package services
 
 import (
+	"html/template"
+
 	"github.com/gin-gonic/gin"
 	"github.com/lite-lake/litecore-go/common"
 	"github.com/lite-lake/litecore-go/component/liteservice/litehtmltemplatesvc"
@@ -1483,18 +1488,19 @@ type htmlTemplateServiceImpl struct {
 }
 
 func NewHTMLTemplateService() IHTMLTemplateService {
+	templatePath := "templates/*.html"
 	cfg := &litehtmltemplatesvc.Config{
-		TemplatePath: "templates/**/*",
+		TemplatePath: &templatePath,
 	}
 	svc := &htmlTemplateServiceImpl{
 		inner: litehtmltemplatesvc.NewLiteHTMLTemplateServiceWithConfig(cfg),
 	}
-	svc.inner.SetFuncMap(svc.getFuncMap())
+	svc.inner.AddFuncMap(svc.getFuncMap())
 	return svc
 }
 
-func (s *htmlTemplateServiceImpl) getFuncMap() map[string]interface{} {
-	return map[string]interface{}{
+func (s *htmlTemplateServiceImpl) getFuncMap() template.FuncMap {
+	return template.FuncMap{
 		"t": func(lang, key string) string {
 			if s.I18nSvc == nil {
 				return key
