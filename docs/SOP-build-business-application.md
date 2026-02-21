@@ -15,6 +15,104 @@
 - **限流与锁**：基于 Redis/Memory 的分布式限流和锁
 - **消息监听**：支持 RabbitMQ/Memory 消息队列监听
 - **定时任务**：基于 Cron 表达式的定时任务调度
+- **多语言支持**：内置 i18n 脚手架，支持路径式语言路由
+
+## 快速开始
+
+### 方式一：使用脚手架创建项目（推荐）
+
+LiteCore CLI 提供脚手架功能，可快速创建符合框架规范的项目：
+
+```bash
+# 安装 CLI
+go install github.com/lite-lake/litecore-go/cli@latest
+
+# 创建标准项目
+litecore-cli scaffold --module github.com/yourname/myapp --project myapp --template standard
+
+# 创建多语言项目
+litecore-cli scaffold --module github.com/yourname/myapp --project myapp --i18n --html --static
+```
+
+#### i18n 多语言项目
+
+使用 `--i18n` 参数创建支持多语言的 Web 应用：
+
+**特性**：
+- **路径式语言路由**：`/:lang` 格式（如 `/en`, `/zhs`, `/ar`）
+- **自动语言重定向**：`/` 自动重定向到默认语言 `/en`
+- **三语言支持**：英文（en）、简体中文（zhs）、阿拉伯语（ar）
+- **RTL 支持**：阿拉伯语自动启用从右到左布局
+- **页面示例**：包含首页和关于页面
+
+**项目结构**：
+
+```
+myapp/
+├── cmd/
+│   ├── server/main.go
+│   └── generate/main.go
+├── configs/config.yaml
+├── internal/
+│   ├── application/        # 自动生成的容器
+│   ├── controllers/
+│   │   └── page_controller.go   # 支持多路由：/ /:lang /:lang/about
+│   └── services/
+│       ├── i18n_service.go
+│       └── html_template_service.go
+├── templates/
+│   ├── _head.html          # partial 模板
+│   ├── _header.html
+│   ├── _footer.html
+│   ├── _nav.html
+│   ├── index.html          # 首页
+│   └── about.html          # 关于页面
+├── static/
+│   ├── css/style.css
+│   ├── js/app.js
+│   └── locales/            # 翻译文件
+│       ├── en.json
+│       ├── zhs.json
+│       └── ar.json
+└── go.mod
+```
+
+**路由配置示例**：
+
+```go
+func (c *pageControllerImpl) GetRouter() string {
+    return "/ [GET],/:lang [GET],/:lang/about [GET]"
+}
+
+func (c *pageControllerImpl) Handle(ctx *gin.Context) {
+    lang := ctx.Param("lang")
+    if lang == "" {
+        // 根路径重定向到默认语言
+        ctx.Redirect(302, "/"+c.I18nService.GetDefaultLanguage())
+        return
+    }
+    
+    // 判断页面类型
+    path := ctx.Request.URL.Path
+    if strings.HasSuffix(path, "/about") {
+        c.HTMLTemplateService.Render(ctx, "about.html", ...)
+        return
+    }
+    
+    c.HTMLTemplateService.Render(ctx, "index.html", ...)
+}
+```
+
+**访问地址**：
+- `http://localhost:8080/` → 重定向到 `/en`
+- `http://localhost:8080/en` → 英文首页
+- `http://localhost:8080/en/about` → 英文关于页面
+- `http://localhost:8080/zhs` → 中文首页
+- `http://localhost:8080/ar/about` → 阿拉伯语关于页面（RTL）
+
+### 方式二：手动创建项目
+
+如果需要完全自定义项目结构，可以手动创建：
 
 ### 项目结构
 

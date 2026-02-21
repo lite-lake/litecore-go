@@ -116,6 +116,41 @@ go build -o bin/{{.ProjectName}} ./cmd/server
 ### HTML 模板
 
 HTML 模板位于 ` + "`" + `templates/` + "`" + ` 目录，使用 Gin 模板引擎渲染。
+{{- if .WithI18n }}
+
+### 多语言支持 (i18n)
+
+本项目支持多语言，使用路径式语言路由：
+
+**访问地址**：
+- ` + "`" + `http://localhost:8080/` + "`" + ` → 自动重定向到默认语言 ` + "`" + `/en` + "`" + `
+- ` + "`" + `http://localhost:8080/en` + "`" + ` → 英文首页
+- ` + "`" + `http://localhost:8080/en/about` + "`" + ` → 英文关于页面
+- ` + "`" + `http://localhost:8080/zhs` + "`" + ` → 简体中文首页
+- ` + "`" + `http://localhost:8080/ar` + "`" + ` → 阿拉伯语首页
+- ` + "`" + `http://localhost:8080/ar/about` + "`" + ` → 阿拉伯语关于页面（RTL 布局）
+
+**语言文件**：
+翻译文件位于 ` + "`" + `static/locales/` + "`" + ` 目录：
+- ` + "`" + `en.json` + "`" + ` - 英文翻译
+- ` + "`" + `zhs.json` + "`" + ` - 简体中文翻译
+- ` + "`" + `ar.json` + "`" + ` - 阿拉伯语翻译
+
+**模板中使用翻译**：
+` + "```html" + `
+<h1>{{"{{"}}t .Lang "welcome.title"}}</h1>
+<p>{{"{{"}}t .Lang "welcome.desc"}}</p>
+` + "```" + `
+
+
+**添加新语言**：
+1. 在 ` + "`" + `static/locales/` + "`" + ` 目录创建新的 JSON 文件
+2. 在 ` + "`" + `internal/services/i18n_service.go` + "`" + ` 中添加新语言到支持列表
+3. 重新生成容器代码：
+   ` + "```bash" + `
+   go run ./cmd/generate
+   ` + "```" + `
+{{- end }}
 
 ### 健康检查
 
@@ -1256,7 +1291,7 @@ const partialHeaderTemplate = `{{define "_header"}}
 <header class="bg-white border-b border-gray-200 py-4">
     <div class="container">
         <div class="text-center">
-            <a href="/" class="text-2xl font-light text-gray-900 tracking-wide hover:text-gray-600">{{t .Lang "site.title"}}</a>
+            <a href="/{{.Lang}}" class="text-2xl font-light text-gray-900 tracking-wide hover:text-gray-600">{{t .Lang "site.title"}}</a>
             <p class="text-sm text-gray-500 mt-1">{{t .Lang "site.description"}}</p>
         </div>
     </div>
@@ -1268,14 +1303,14 @@ const partialFooterTemplate = `{{define "_footer"}}
 <footer class="py-4 border-top border-gray-200 mt-5">
     <div class="container text-center">
         <p class="text-xs text-gray-400 mb-2">
-            <a href="/" class="hover:text-gray-600">{{t .Lang "nav.home"}}</a>
+            <a href="/{{.Lang}}" class="hover:text-gray-600">{{t .Lang "nav.home"}}</a>
             <span class="mx-2">|</span>
-            <a href="/about" class="hover:text-gray-600">{{t .Lang "nav.about"}}</a>
+            <a href="/{{.Lang}}/about" class="hover:text-gray-600">{{t .Lang "nav.about"}}</a>
         </p>
         <div class="mb-2 text-xs text-gray-400">
             {{range $i, $lang := .SupportedLangs}}
                 {{if gt $i 0}}<span class="text-gray-300 mx-1">|</span>{{end}}
-                <a href="/?lang={{$lang}}" class="hover:text-gray-600 {{if eq $.Lang $lang}}font-bold text-gray-600{{end}}">{{$lang}}</a>
+                <a href="/{{$lang}}" class="hover:text-gray-600 {{if eq $.Lang $lang}}font-bold text-gray-600{{end}}">{{$lang}}</a>
             {{end}}
         </div>
         <p class="text-xs text-gray-400">{{t .Lang "footer.copyright"}}</p>
@@ -1288,8 +1323,8 @@ const partialNavTemplate = `{{define "_nav"}}
 <nav class="bg-gray-50 border-b border-gray-200 py-2">
     <div class="container">
         <div class="d-flex justify-content-center align-items-center gap-4">
-            <a href="/" class="text-sm {{if eq .ActivePage "home"}}text-gray-900 fw-medium border-bottom border-2 border-gray-900 pb-1{{else}}text-gray-500 hover:text-gray-900{{end}}">{{t .Lang "nav.home"}}</a>
-            <a href="/about" class="text-sm {{if eq .ActivePage "about"}}text-gray-900 fw-medium border-bottom border-2 border-gray-900 pb-1{{else}}text-gray-500 hover:text-gray-900{{end}}">{{t .Lang "nav.about"}}</a>
+            <a href="/{{.Lang}}" class="text-sm {{if eq .ActivePage "home"}}text-gray-900 fw-medium border-bottom border-2 border-gray-900 pb-1{{else}}text-gray-500 hover:text-gray-900{{end}}">{{t .Lang "nav.home"}}</a>
+            <a href="/{{.Lang}}/about" class="text-sm {{if eq .ActivePage "about"}}text-gray-900 fw-medium border-bottom border-2 border-gray-900 pb-1{{else}}text-gray-500 hover:text-gray-900{{end}}">{{t .Lang "nav.about"}}</a>
         </div>
     </div>
 </nav>
@@ -1313,6 +1348,40 @@ const i18nIndexHTMLTemplate = `<!DOCTYPE html>
                         <div class="card-body p-4">
                             <h2 class="h4 mb-3 fw-light">{{t .Lang "welcome.title"}}</h2>
                             <p class="text-muted">{{t .Lang "welcome.desc"}}</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        {{template "_footer" .}}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+`
+
+const i18nAboutHTMLTemplate = `<!DOCTYPE html>
+<html lang="{{.Lang}}" dir="{{if eq .Lang "ar"}}rtl{{else}}ltr{{end}}">
+<head>
+    {{template "_head" .}}
+</head>
+<body class="bg-gray-50{{if eq .Lang "ar"}} text-right{{end}}">
+    <div class="min-vh-100 d-flex flex-column">
+        {{template "_header" .}}
+        {{template "_nav" (dict "Lang" .Lang "ActivePage" "about" "I18nService" .I18nService)}}
+
+        <main class="flex-grow-1 py-5">
+            <div class="container">
+                <section class="mb-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h2 class="h4 mb-3 fw-light">{{t .Lang "about.title"}}</h2>
+                            <p class="text-muted">{{t .Lang "about.desc"}}</p>
+                            <p class="text-muted">{{t .Lang "about.content"}}</p>
                         </div>
                     </div>
                 </section>
@@ -1544,6 +1613,8 @@ var _ IHTMLTemplateService = (*htmlTemplateServiceImpl)(nil)
 const i18nPageControllerTemplate = `package controllers
 
 import (
+	"strings"
+
 	"{{.ModulePath}}/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -1570,13 +1641,30 @@ func (c *pageControllerImpl) ControllerName() string {
 }
 
 func (c *pageControllerImpl) GetRouter() string {
-	return "/ [GET],/?lang=:lang [GET]"
+	return "/ [GET],/:lang [GET],/:lang/about [GET]"
 }
 
 func (c *pageControllerImpl) Handle(ctx *gin.Context) {
-	lang := ctx.DefaultQuery("lang", c.I18nService.GetDefaultLanguage())
+	lang := ctx.Param("lang")
+	if lang == "" {
+		// 根路径重定向到默认语言
+		ctx.Redirect(302, "/"+c.I18nService.GetDefaultLanguage())
+		return
+	}
 	if !c.I18nService.IsSupportedLanguage(lang) {
 		lang = c.I18nService.GetDefaultLanguage()
+	}
+
+	// 根据路径判断渲染哪个页面
+	path := ctx.Request.URL.Path
+	if strings.HasSuffix(path, "/about") {
+		c.HTMLTemplateService.Render(ctx, "about.html", gin.H{
+			"Title":          "{{.ProjectName}}",
+			"Lang":           lang,
+			"SupportedLangs": c.I18nService.GetSupportedLanguages(),
+			"I18nService":    c.I18nService,
+		})
+		return
 	}
 
 	c.HTMLTemplateService.Render(ctx, "index.html", gin.H{
@@ -1597,6 +1685,9 @@ const localeEnJSON = `{
   "nav.about": "About",
   "welcome.title": "Welcome to {{.ProjectName}}",
   "welcome.desc": "This is a multilingual web application built with LiteCore framework.",
+  "about.title": "About {{.ProjectName}}",
+  "about.desc": "{{.ProjectName}} is a modern web application built with the LiteCore framework.",
+  "about.content": "This project demonstrates the multilingual capabilities and clean architecture of LiteCore.",
   "footer.copyright": "© 2026 {{.ProjectName}}. All rights reserved."
 }
 `
@@ -1608,6 +1699,9 @@ const localeZhsJSON = `{
   "nav.about": "关于",
   "welcome.title": "欢迎来到 {{.ProjectName}}",
   "welcome.desc": "这是一个使用 LiteCore 框架构建的多语言 Web 应用。",
+  "about.title": "关于 {{.ProjectName}}",
+  "about.desc": "{{.ProjectName}} 是一个使用 LiteCore 框架构建的现代化 Web 应用。",
+  "about.content": "本项目展示了 LiteCore 的多语言能力和整洁架构。",
   "footer.copyright": "© 2026 {{.ProjectName}}. 保留所有权利。"
 }
 `
@@ -1619,6 +1713,9 @@ const localeArJSON = `{
   "nav.about": "حول",
   "welcome.title": "مرحباً بك في {{.ProjectName}}",
   "welcome.desc": "هذا تطبيق ويب متعدد اللغات مبني بإطار LiteCore.",
+  "about.title": "حول {{.ProjectName}}",
+  "about.desc": "{{.ProjectName}} هو تطبيق ويب حديث مبني بإطار LiteCore.",
+  "about.content": "يُظهر هذا المشروع قدرات اللغات المتعددة والهندسة المعمارية النظيفة لـ LiteCore.",
   "footer.copyright": "© 2026 {{.ProjectName}}. جميع الحقوق محفوظة."
 }
 `
@@ -1695,6 +1792,7 @@ type TemplateData struct {
 	ModulePath  string
 	ProjectName string
 	LitecoreVer string
+	WithI18n    bool
 }
 
 func render(tmpl *template.Template, data *TemplateData) (string, error) {
@@ -1811,6 +1909,10 @@ func I18nPageController(data *TemplateData) (string, error) {
 
 func I18nIndexHTML() string {
 	return i18nIndexHTMLTemplate
+}
+
+func I18nAboutHTML() string {
+	return i18nAboutHTMLTemplate
 }
 
 func LocaleEn(data *TemplateData) (string, error) {

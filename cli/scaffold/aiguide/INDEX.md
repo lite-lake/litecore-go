@@ -24,6 +24,7 @@
 | 写 Service | [snippets/service.md](snippets/service.md) |
 | 写 Controller | [snippets/controller.md](snippets/controller.md) |
 | 写 Middleware/Listener/Scheduler | [snippets/other.md](snippets/other.md) |
+| i18n 多语言开发（--i18n 项目） | [snippets/i18n.md](snippets/i18n.md) |
 | 查 Manager 接口 | [reference/managers.md](reference/managers.md) |
 | 遇到报错 | [reference/errors.md](reference/errors.md) |
 
