@@ -23,6 +23,7 @@ func Run(cfg *Config) error {
 		ModulePath:  cfg.ModulePath,
 		ProjectName: cfg.ProjectName,
 		LitecoreVer: cfg.LitecoreGoVer,
+		WithI18n:    cfg.WithI18n,
 	}
 
 	if err := createProjectStructure(cfg, templateData); err != nil {
@@ -448,6 +449,9 @@ func generateI18nTemplate(basePath string, data *TemplateData) error {
 
 	if err := writeFile(filepath.Join(basePath, "templates", "index.html"), I18nIndexHTML()); err != nil {
 		return fmt.Errorf("写入index.html失败: %w", err)
+	}
+	if err := writeFile(filepath.Join(basePath, "templates", "about.html"), I18nAboutHTML()); err != nil {
+		return fmt.Errorf("写入about.html失败: %w", err)
 	}
 
 	localeEnContent, err := LocaleEn(data)

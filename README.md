@@ -598,12 +598,44 @@ middlewareContainer.RegisterMiddleware(rateLimiter)
 
 ## CLI 工具
 
-自动生成容器初始化代码，简化项目搭建：
+LiteCore CLI 提供项目脚手架和代码生成功能，简化项目搭建：
+
+### 项目脚手架
+
+快速创建符合 LiteCore 架构的项目：
 
 ```bash
-# 构建工具
+# 构建 CLI 工具
 go build -o litecore-cli ./cli
 
+# 交互式创建项目
+./litecore-cli scaffold -i
+
+# 命令行模式创建标准项目
+./litecore-cli scaffold --module github.com/user/myapp --project myapp --template standard
+
+# 创建多语言项目
+./litecore-cli scaffold --module github.com/user/myapp --project myapp --i18n --html --static
+```
+
+**脚手架选项**：
+- `--template` - 模板类型（basic/standard/full）
+- `--i18n` - 多语言支持（en/zhs/ar）
+- `--html` - HTML 模板服务
+- `--static` - 静态文件服务（CSS/JS）
+- `--health` - 健康检查控制器
+
+**i18n 多语言特性**：
+- 路径式语言路由：`/:lang` 格式（如 `/en`, `/zhs`, `/ar`）
+- 自动语言重定向：`/` → `/en`
+- RTL 支持：阿拉伯语自动启用从右到左布局
+- 三语言支持：英文、简体中文、阿拉伯语
+
+### 代码生成
+
+自动生成依赖注入容器代码：
+
+```bash
 # 使用默认配置生成
 ./litecore-cli generate
 

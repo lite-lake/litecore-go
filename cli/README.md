@@ -136,6 +136,10 @@ litecore-cli scaffold --module github.com/user/app --project myapp --template fu
 | `--output` | `-o` | - | 输出目录 |
 | `--template` | `-t` | - | 模板类型（basic/standard/full） |
 | `--interactive` | `-i` | - | 交互式模式 |
+| `--static` | | | 生成静态文件服务（CSS/JS） |
+| `--html` | | | 生成 HTML 模板服务 |
+| `--i18n` | | | 生成多语言支持（en/zhs/ar） |
+| `--health` | | | 生成健康检查控制器 |
 
 ### 模板类型
 
@@ -144,6 +148,35 @@ litecore-cli scaffold --module github.com/user/app --project myapp --template fu
 | `basic` | 目录结构 + go.mod + README |
 | `standard` | basic + 配置文件 + 基础中间件 + 自动生成容器代码 |
 | `full` | standard + 完整示例代码（entity/repository/service/controller/listener/scheduler） |
+
+### i18n 多语言脚手架
+
+使用 `--i18n` 参数可创建支持多语言的 Web 应用：
+
+```bash
+# 创建多语言项目
+litecore-cli scaffold --module github.com/user/myapp --project myapp --i18n --html --static
+
+# 或使用交互式模式
+litecore-cli scaffold -i
+# 然后选择 i18n 选项
+```
+
+生成的多语言项目特性：
+
+- **路径式语言路由**：`/:lang` 格式（如 `/en`, `/zhs`, `/ar`）
+- **自动语言重定向**：`/` 自动重定向到默认语言（如 `/en`）
+- **三语言支持**：英文（en）、简体中文（zhs）、阿拉伯语（ar）
+- **RTL 支持**：阿拉伯语自动启用从右到左布局
+- **语言切换**：页面底部提供语言切换链接
+- **About 页面**：包含首页和关于页面示例
+
+路由示例：
+- `/` → 302 重定向到 `/en`
+- `/en` → 英文首页
+- `/en/about` → 英文关于页面
+- `/zhs` → 中文首页
+- `/ar/about` → 阿拉伯语关于页面
 
 ## 代码约定
 

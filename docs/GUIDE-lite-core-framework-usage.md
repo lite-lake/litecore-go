@@ -151,7 +151,62 @@ litecore-cli scaffold \
 |------|------|
 | `--static` | 生成静态文件服务（CSS/JS） |
 | `--html` | 生成 HTML 模板服务 |
+| `--i18n` | 生成多语言支持（en/zhs/ar），包含路径式语言路由 |
 | `--health` | 生成健康检查控制器 |
+
+#### i18n 多语言项目
+
+使用 `--i18n` 选项创建支持多语言的 Web 应用：
+
+```bash
+# 创建多语言项目
+litecore-cli scaffold --module github.com/yourname/myapp --project myapp --i18n --html --static
+```
+
+**特性**：
+- **路径式语言路由**：`/:lang` 格式（如 `/en`, `/zhs`, `/ar`）
+- **自动语言重定向**：`/` 自动重定向到默认语言 `/en`
+- **三语言支持**：英文（en）、简体中文（zhs）、阿拉伯语（ar）
+- **RTL 支持**：阿拉伯语自动启用从右到左布局
+- **页面示例**：包含首页（index.html）和关于页面（about.html）
+
+**项目结构**：
+
+```
+myapp/
+├── cmd/
+│   ├── server/main.go
+│   └── generate/main.go
+├── configs/config.yaml
+├── internal/
+│   ├── application/
+│   ├── controllers/
+│   │   └── page_controller.go    # 支持 / /:lang /:lang/about
+│   └── services/
+│       ├── i18n_service.go
+│       └── html_template_service.go
+├── templates/
+│   ├── _head.html                # partial 模板
+│   ├── _header.html
+│   ├── _footer.html
+│   ├── _nav.html
+│   ├── index.html                # 首页
+│   └── about.html                # 关于页面
+└── static/
+    ├── css/style.css
+    ├── js/app.js
+    └── locales/                  # 翻译文件
+        ├── en.json               # 英文
+        ├── zhs.json              # 简体中文
+        └── ar.json               # 阿拉伯语
+```
+
+**访问地址**：
+- `http://localhost:8080/` → 重定向到 `/en`
+- `http://localhost:8080/en` → 英文首页
+- `http://localhost:8080/en/about` → 英文关于页面
+- `http://localhost:8080/zhs` → 中文首页
+- `http://localhost:8080/ar/about` → 阿拉伯语关于页面（RTL 布局）
 
 ### 2.3 项目结构
 

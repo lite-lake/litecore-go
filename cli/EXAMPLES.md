@@ -39,7 +39,105 @@ go install ./cli/main.go
 
 ## 项目初始化
 
-### 1. 创建项目结构
+### 方式一：使用脚手架（推荐）
+
+LiteCore CLI 提供交互式和命令行两种脚手架创建方式：
+
+#### 1. 基础项目
+
+```bash
+# 交互式模式
+litecore-cli scaffold -i
+
+# 或命令行模式
+litecore-cli scaffold --module github.com/yourname/myapp --project myapp --template standard
+```
+
+#### 2. 多语言项目（i18n）
+
+```bash
+# 创建支持多语言的 Web 应用
+litecore-cli scaffold --module github.com/yourname/myapp --project myapp --i18n --html --static
+
+# 或使用交互式模式并选择 i18n 选项
+litecore-cli scaffold -i
+```
+
+生成的多语言项目特性：
+
+- **路径式语言路由**：`/:lang` 格式（如 `/en`, `/zhs`, `/ar`）
+- **自动语言重定向**：`/` 自动重定向到默认语言
+- **三语言支持**：英文（en）、简体中文（zhs）、阿拉伯语（ar）
+- **RTL 支持**：阿拉伯语自动启用从右到左布局
+- **页面示例**：包含首页（index.html）和关于页面（about.html）
+
+项目结构：
+
+```
+myapp/
+├── cmd/
+│   ├── server/main.go      # 应用入口
+│   └── generate/main.go    # 代码生成器
+├── configs/
+│   └── config.yaml         # 配置文件
+├── internal/
+│   ├── application/        # 自动生成的容器
+│   ├── controllers/
+│   │   └── page_controller.go   # 页面控制器（支持多路由）
+│   └── services/
+│       ├── i18n_service.go      # 国际化服务
+│       └── html_template_service.go  # HTML 模板服务
+├── templates/
+│   ├── _head.html          # 头部模板（partial）
+│   ├── _header.html        # 页头模板（partial）
+│   ├── _footer.html        # 页脚模板（partial）
+│   ├── _nav.html           # 导航模板（partial）
+│   ├── index.html          # 首页
+│   └── about.html          # 关于页面
+├── static/
+│   ├── css/style.css       # 样式文件
+│   ├── js/app.js           # JavaScript 文件
+│   └── locales/            # 翻译文件
+│       ├── en.json         # 英文翻译
+│       ├── zhs.json        # 简体中文翻译
+│       └── ar.json         # 阿拉伯语翻译
+└── go.mod
+```
+
+**多语言路由示例**：
+
+```go
+func (c *pageControllerImpl) GetRouter() string {
+    return "/ [GET],/:lang [GET],/:lang/about [GET]"
+}
+
+func (c *pageControllerImpl) Handle(ctx *gin.Context) {
+    lang := ctx.Param("lang")
+    if lang == "" {
+        // 根路径重定向到默认语言
+        ctx.Redirect(302, "/"+c.I18nService.GetDefaultLanguage())
+        return
+    }
+    
+    // 根据路径判断渲染哪个页面
+    path := ctx.Request.URL.Path
+    if strings.HasSuffix(path, "/about") {
+        c.HTMLTemplateService.Render(ctx, "about.html", ...)
+        return
+    }
+    
+    c.HTMLTemplateService.Render(ctx, "index.html", ...)
+}
+```
+
+**访问地址**：
+- `http://localhost:8080/` → 重定向到 `/en`
+- `http://localhost:8080/en` → 英文首页
+- `http://localhost:8080/en/about` → 英文关于页面
+- `http://localhost:8080/zhs` → 中文首页
+- `http://localhost:8080/ar/about` → 阿拉伯语关于页面（RTL 布局）
+
+### 方式二：手动创建项目结构
 
 ```bash
 mkdir myapp && cd myapp
