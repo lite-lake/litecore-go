@@ -78,7 +78,7 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 	}
 
 	if cfg.WithI18n {
-		dirs = append(dirs, "static/locales", "templates/partials")
+		dirs = append(dirs, "static/locales")
 	}
 
 	if cfg.WithAIGuide {
@@ -433,17 +433,17 @@ func generateI18nTemplate(basePath string, data *TemplateData) error {
 		return fmt.Errorf("写入页面控制器失败: %w", err)
 	}
 
-	if err := writeFile(filepath.Join(basePath, "templates/partials", "head.html"), PartialHead()); err != nil {
-		return fmt.Errorf("写入head.html失败: %w", err)
+	if err := writeFile(filepath.Join(basePath, "templates", "_head.html"), PartialHead()); err != nil {
+		return fmt.Errorf("写入_head.html失败: %w", err)
 	}
-	if err := writeFile(filepath.Join(basePath, "templates/partials", "header.html"), PartialHeader()); err != nil {
-		return fmt.Errorf("写入header.html失败: %w", err)
+	if err := writeFile(filepath.Join(basePath, "templates", "_header.html"), PartialHeader()); err != nil {
+		return fmt.Errorf("写入_header.html失败: %w", err)
 	}
-	if err := writeFile(filepath.Join(basePath, "templates/partials", "footer.html"), PartialFooter()); err != nil {
-		return fmt.Errorf("写入footer.html失败: %w", err)
+	if err := writeFile(filepath.Join(basePath, "templates", "_footer.html"), PartialFooter()); err != nil {
+		return fmt.Errorf("写入_footer.html失败: %w", err)
 	}
-	if err := writeFile(filepath.Join(basePath, "templates/partials", "nav.html"), PartialNav()); err != nil {
-		return fmt.Errorf("写入nav.html失败: %w", err)
+	if err := writeFile(filepath.Join(basePath, "templates", "_nav.html"), PartialNav()); err != nil {
+		return fmt.Errorf("写入_nav.html失败: %w", err)
 	}
 
 	if err := writeFile(filepath.Join(basePath, "templates", "index.html"), I18nIndexHTML()); err != nil {
