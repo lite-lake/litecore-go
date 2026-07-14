@@ -115,8 +115,12 @@ func (m *rateLimiterMiddleware) Wrapper() gin.HandlerFunc {
 		}
 
 		if m.LimiterMgr == nil {
-			m.LoggerMgr.Ins().Warn("Rate limiter manager not initialized, skipping rate limit check")
-			c.Next()
+			m.LoggerMgr.Ins().Error("Rate limiter manager not initialized, rejecting request")
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error": "Service temporarily unavailable",
+				"code":  "SERVICE_UNAVAILABLE",
+			})
+			c.Abort()
 			return
 		}
 

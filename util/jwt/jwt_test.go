@@ -5,6 +5,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -907,9 +909,20 @@ func TestValidateClaims_Expiration(t *testing.T) {
 
 	t.Run("token without expiration", func(t *testing.T) {
 		claims := MapClaims{}
-		err := JWT.ValidateClaims(claims)
+		err := JWT.ValidateClaims(claims, WithAllowNoExpiration())
 		if err != nil {
 			t.Errorf("ValidateClaims() should not error for token without expiration, got %v", err)
+		}
+	})
+
+	t.Run("token without expiration rejected by default", func(t *testing.T) {
+		claims := MapClaims{}
+		err := JWT.ValidateClaims(claims)
+		if err == nil {
+			t.Error("ValidateClaims() should error for token without expiration by default")
+		}
+		if !strings.Contains(err.Error(), "expiration") {
+			t.Errorf("Error should mention 'expiration', got %v", err)
 		}
 	})
 }
@@ -918,6 +931,7 @@ func TestValidateClaims_NotBefore(t *testing.T) {
 	t.Run("valid token - nbf in past", func(t *testing.T) {
 		claims := MapClaims{
 			"nbf": float64(time.Now().Add(-time.Hour).Unix()),
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims)
 		if err != nil {
@@ -928,6 +942,7 @@ func TestValidateClaims_NotBefore(t *testing.T) {
 	t.Run("invalid token - nbf in future", func(t *testing.T) {
 		claims := MapClaims{
 			"nbf": float64(time.Now().Add(time.Hour).Unix()),
+			"exp": float64(time.Now().Add(2 * time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims)
 		if err == nil {
@@ -943,6 +958,7 @@ func TestValidateClaims_Issuer(t *testing.T) {
 	t.Run("valid issuer", func(t *testing.T) {
 		claims := MapClaims{
 			"iss": "test-issuer",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims, WithIssuer("test-issuer"))
 		if err != nil {
@@ -953,6 +969,7 @@ func TestValidateClaims_Issuer(t *testing.T) {
 	t.Run("invalid issuer", func(t *testing.T) {
 		claims := MapClaims{
 			"iss": "wrong-issuer",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims, WithIssuer("test-issuer"))
 		if err == nil {
@@ -964,7 +981,9 @@ func TestValidateClaims_Issuer(t *testing.T) {
 	})
 
 	t.Run("no issuer validation when not specified", func(t *testing.T) {
-		claims := MapClaims{}
+		claims := MapClaims{
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
+		}
 		err := JWT.ValidateClaims(claims)
 		if err != nil {
 			t.Errorf("ValidateClaims() should not error when issuer validation is not specified, got %v", err)
@@ -976,6 +995,7 @@ func TestValidateClaims_Subject(t *testing.T) {
 	t.Run("valid subject", func(t *testing.T) {
 		claims := MapClaims{
 			"sub": "test-subject",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims, WithSubject("test-subject"))
 		if err != nil {
@@ -986,6 +1006,7 @@ func TestValidateClaims_Subject(t *testing.T) {
 	t.Run("invalid subject", func(t *testing.T) {
 		claims := MapClaims{
 			"sub": "wrong-subject",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims, WithSubject("test-subject"))
 		if err == nil {
@@ -1001,6 +1022,7 @@ func TestValidateClaims_Audience(t *testing.T) {
 	t.Run("valid audience - single", func(t *testing.T) {
 		claims := MapClaims{
 			"aud": "test-audience",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims, WithAudience("test-audience"))
 		if err != nil {
@@ -1011,6 +1033,7 @@ func TestValidateClaims_Audience(t *testing.T) {
 	t.Run("valid audience - one of multiple", func(t *testing.T) {
 		claims := MapClaims{
 			"aud": []string{"aud1", "aud2"},
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims, WithAudience("aud2", "aud3"))
 		if err != nil {
@@ -1021,6 +1044,7 @@ func TestValidateClaims_Audience(t *testing.T) {
 	t.Run("invalid audience", func(t *testing.T) {
 		claims := MapClaims{
 			"aud": "wrong-audience",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
 		}
 		err := JWT.ValidateClaims(claims, WithAudience("test-audience"))
 		if err == nil {
@@ -1032,7 +1056,9 @@ func TestValidateClaims_Audience(t *testing.T) {
 	})
 
 	t.Run("audience not in token", func(t *testing.T) {
-		claims := MapClaims{}
+		claims := MapClaims{
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
+		}
 		err := JWT.ValidateClaims(claims, WithAudience("test-audience"))
 		if err == nil {
 			t.Error("ValidateClaims() should error when audience is required but not in token")
@@ -1465,6 +1491,91 @@ func TestJWTIntegration_MapClaimsWithCustomFields(t *testing.T) {
 // Test: Edge Cases
 // =========================================
 
+// TestParseToken_AlgorithmMismatch 安全测试：Header alg 与预期算法不匹配时应拒绝
+// 防止算法混淆攻击（如将 RS256 token 用 HS256 解析，或伪造 alg: none）
+func TestParseToken_AlgorithmMismatch(t *testing.T) {
+	secretKey := []byte("test-secret-key")
+
+	// 用 HS256 生成 token
+	claims := MapClaims{
+		"iss": "test-issuer",
+		"sub": "test-subject",
+		"exp": float64(time.Now().Add(time.Hour).Unix()),
+	}
+	hs256Token, err := JWT.GenerateHS256Token(claims, secretKey)
+	if err != nil {
+		t.Fatalf("GenerateHS256Token() error = %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		token     string
+		algorithm JWTAlgorithm
+		wantErr   bool
+		errMsg    string
+	}{
+		{
+			name:      "HS256 token 用 HS512 解析应报 alg mismatch",
+			token:     hs256Token,
+			algorithm: HS512,
+			wantErr:   true,
+			errMsg:    "algorithm mismatch",
+		},
+		{
+			name:      "HS256 token 用 RS256 解析应报 alg mismatch",
+			token:     hs256Token,
+			algorithm: RS256,
+			wantErr:   true,
+			errMsg:    "algorithm mismatch",
+		},
+		{
+			name:      "HS256 token 用 HS256 解析应成功",
+			token:     hs256Token,
+			algorithm: HS256,
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := JWT.ParseToken(tt.token, tt.algorithm, secretKey, nil, nil)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseToken() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("ParseToken() error = %v, should contain %q", err, tt.errMsg)
+			}
+		})
+	}
+}
+
+// TestParseToken_ForgedAlgNone 安全测试：伪造 alg: none 的 token 应被拒绝
+func TestParseToken_ForgedAlgNone(t *testing.T) {
+	secretKey := []byte("test-secret-key")
+
+	// 手动构造 alg: none 的 token（无签名）
+	// Header: {"alg":"none","typ":"JWT"}
+	// Payload: {"iss":"forged","sub":"attacker","exp":<future>}
+	forgedHeader := `{"alg":"none","typ":"JWT"}`
+	forgedPayload := `{"iss":"forged","sub":"attacker","exp":` +
+		fmt.Sprintf("%d", time.Now().Add(time.Hour).Unix()) + `}`
+
+	// Base64URL 编码（去除填充）
+	headerEncoded := strings.TrimRight(base64.URLEncoding.EncodeToString([]byte(forgedHeader)), "=")
+	payloadEncoded := strings.TrimRight(base64.URLEncoding.EncodeToString([]byte(forgedPayload)), "=")
+	forgedToken := headerEncoded + "." + payloadEncoded + "."
+
+	_, err := JWT.ParseToken(forgedToken, HS256, secretKey, nil, nil)
+	if err == nil {
+		t.Fatal("ParseToken() 应拒绝 alg: none 的伪造 token")
+	}
+	if !strings.Contains(err.Error(), "algorithm mismatch") {
+		t.Errorf("ParseToken() error = %v, 应包含 'algorithm mismatch'", err)
+	}
+}
+
 func TestJWT_EdgeCase_TokenWithoutExpiration(t *testing.T) {
 	secretKey := []byte("test-secret")
 
@@ -1483,8 +1594,8 @@ func TestJWT_EdgeCase_TokenWithoutExpiration(t *testing.T) {
 		t.Fatalf("ParseHS256Token() error = %v", err)
 	}
 
-	// Should not error - token without expiration is valid
-	err = JWT.ValidateClaims(parsedClaims)
+	// Should not error with WithAllowNoExpiration - token without expiration is valid
+	err = JWT.ValidateClaims(parsedClaims, WithAllowNoExpiration())
 	if err != nil {
 		t.Errorf("ValidateClaims() should not error for token without expiration, got %v", err)
 	}

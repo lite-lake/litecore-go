@@ -152,6 +152,27 @@ func (s *ServiceContainer) GetAllSorted() []common.IBaseService {
 	return items
 }
 
+// GetAllTopological 获取所有已注册的服务（按依赖拓扑排序）
+func (s *ServiceContainer) GetAllTopological() ([]common.IBaseService, error) {
+	graph, err := s.buildDependencyGraph()
+	if err != nil {
+		return nil, fmt.Errorf("build dependency graph failed: %w", err)
+	}
+
+	sortedTypes, err := topologicalSortByInterfaceType(graph)
+	if err != nil {
+		return nil, fmt.Errorf("topological sort failed: %w", err)
+	}
+
+	items := make([]common.IBaseService, 0, len(sortedTypes))
+	for _, ifaceType := range sortedTypes {
+		if svc := s.GetByType(ifaceType); svc != nil {
+			items = append(items, svc)
+		}
+	}
+	return items, nil
+}
+
 // GetByType 按接口类型获取
 func (s *ServiceContainer) GetByType(ifaceType reflect.Type) common.IBaseService {
 	return s.base.container.GetByType(ifaceType)

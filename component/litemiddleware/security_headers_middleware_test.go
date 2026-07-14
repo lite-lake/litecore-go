@@ -350,7 +350,8 @@ func TestSecurityHeadersMiddleware_ChainedMiddlewares(t *testing.T) {
 			assert.Equal(t, "1; mode=block", headers.Get("X-XSS-Protection"))
 			assert.Equal(t, "strict-origin-when-cross-origin", headers.Get("Referrer-Policy"))
 			assert.Equal(t, "*", headers.Get("Access-Control-Allow-Origin"))
-			assert.Equal(t, "true", headers.Get("Access-Control-Allow-Credentials"))
+			// 安全修复后默认 CORS 配置不再允许 Credentials（AllowOrigins 为 ["*"] 时不兼容）
+			assert.Empty(t, headers.Get("Access-Control-Allow-Credentials"))
 		})
 	}
 }

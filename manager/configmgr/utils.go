@@ -27,6 +27,10 @@ func IsConfigKeyNotFound(err error) bool {
 func Get[T any](p IConfigManager, key string) (T, error) {
 	var zero T // 零值
 
+	if p == nil {
+		return zero, fmt.Errorf("%w: config key '%s'", ErrKeyNotFound, key)
+	}
+
 	val, err := p.Get(key)
 	if err != nil {
 		if IsConfigKeyNotFound(err) {

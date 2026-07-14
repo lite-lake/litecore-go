@@ -23,27 +23,31 @@ func DefaultStartupLogConfig() *StartupLogConfig {
 
 // serverConfig 服务器配置
 type serverConfig struct {
-	Host            string            // 监听地址，默认 0.0.0.0
-	Port            int               // 监听端口，默认 8080
-	Mode            string            // 运行模式：debug/release/test，默认 release
-	ReadTimeout     time.Duration     // 读取超时，默认 10s
-	WriteTimeout    time.Duration     // 写入超时，默认 10s
-	IdleTimeout     time.Duration     // 空闲超时，默认 60s
-	ShutdownTimeout time.Duration     // 关闭超时，默认 30s
-	StartupLog      *StartupLogConfig // 启动日志配置
+	Host              string            // 监听地址，默认 0.0.0.0
+	Port              int               // 监听端口，默认 8080
+	Mode              string            // 运行模式：debug/release/test，默认 release
+	ReadTimeout       time.Duration     // 读取超时，默认 10s
+	WriteTimeout      time.Duration     // 写入超时，默认 10s
+	IdleTimeout       time.Duration     // 空闲超时，默认 60s
+	ShutdownTimeout   time.Duration     // 关闭超时，默认 30s
+	RedirectFixedPath bool              // 是否开启路径自动重定向（如 /favicon.ico/ → /favicon.ico），默认关闭
+	RemoveExtraSlash  bool              // 是否移除路径中多余斜杠，默认关闭
+	StartupLog        *StartupLogConfig // 启动日志配置
 }
 
 // defaultServerConfig 返回默认的服务器配置
 func defaultServerConfig() *serverConfig {
 	return &serverConfig{
-		Host:            "0.0.0.0",
-		Port:            8080,
-		Mode:            "release",
-		ReadTimeout:     10 * time.Second,
-		WriteTimeout:    10 * time.Second,
-		IdleTimeout:     60 * time.Second,
-		ShutdownTimeout: 30 * time.Second,
-		StartupLog:      DefaultStartupLogConfig(),
+		Host:              "0.0.0.0",
+		Port:              8080,
+		Mode:              "release",
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		ShutdownTimeout:   30 * time.Second,
+		RedirectFixedPath: false,
+		RemoveExtraSlash:  false,
+		StartupLog:        DefaultStartupLogConfig(),
 	}
 }
 

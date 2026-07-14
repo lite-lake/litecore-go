@@ -10,7 +10,9 @@ func TestTemplateData(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
 		ConfigPath:  "configs/config.yaml",
-		Imports:     map[string]string{"entities": "github.com/lite-lake/litecore-go/common"},
+		Imports: []ImportEntry{
+			{Alias: "entities", Path: "github.com/lite-lake/litecore-go/common", Group: 2},
+		},
 		Components: []ComponentTemplateData{
 			{
 				TypeName:      "Message",
@@ -63,7 +65,7 @@ func TestGenerateEngine(t *testing.T) {
 func TestGenerateEntityContainer(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
-		Imports:     map[string]string{},
+		Imports:     []ImportEntry{},
 		Components: []ComponentTemplateData{
 			{
 				TypeName:     "Message",
@@ -83,7 +85,7 @@ func TestGenerateEntityContainer(t *testing.T) {
 func TestGenerateRepositoryContainer(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
-		Imports:     map[string]string{},
+		Imports:     []ImportEntry{},
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "repositories.IMessageRepository",
@@ -105,7 +107,7 @@ func TestGenerateRepositoryContainer(t *testing.T) {
 func TestGenerateServiceContainer(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
-		Imports:     map[string]string{},
+		Imports:     []ImportEntry{},
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "services.IMessageService",
@@ -127,7 +129,7 @@ func TestGenerateServiceContainer(t *testing.T) {
 func TestGenerateControllerContainer(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
-		Imports:     map[string]string{},
+		Imports:     []ImportEntry{},
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "controllers.ICreateMessageController",
@@ -149,7 +151,7 @@ func TestGenerateControllerContainer(t *testing.T) {
 func TestGenerateMiddlewareContainer(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
-		Imports:     map[string]string{},
+		Imports:     []ImportEntry{},
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "middlewares.IAuthMiddleware",
@@ -171,7 +173,7 @@ func TestGenerateMiddlewareContainer(t *testing.T) {
 func TestGenerateListenerContainer(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
-		Imports:     map[string]string{},
+		Imports:     []ImportEntry{},
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "listeners.IMessageListener",
@@ -193,7 +195,7 @@ func TestGenerateListenerContainer(t *testing.T) {
 func TestGenerateSchedulerContainer(t *testing.T) {
 	data := &TemplateData{
 		PackageName: "application",
-		Imports:     map[string]string{},
+		Imports:     []ImportEntry{},
 		Components: []ComponentTemplateData{
 			{
 				InterfaceType: "schedulers.IMessageScheduler",

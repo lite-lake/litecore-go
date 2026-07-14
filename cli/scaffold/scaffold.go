@@ -23,7 +23,6 @@ func Run(cfg *Config) error {
 		ModulePath:  cfg.ModulePath,
 		ProjectName: cfg.ProjectName,
 		LitecoreVer: cfg.LitecoreGoVer,
-		WithI18n:    cfg.WithI18n,
 	}
 
 	if err := createProjectStructure(cfg, templateData); err != nil {
@@ -62,6 +61,7 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 		"cmd/generate",
 		"cmd/server",
 		"configs",
+		"internal/constants",
 		"internal/entities",
 		"internal/repositories",
 		"internal/services",
@@ -76,14 +76,6 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 
 	if cfg.WithStatic {
 		dirs = append(dirs, "static/css", "static/js", "templates")
-	}
-
-	if cfg.WithI18n {
-		dirs = append(dirs, "static/locales")
-	}
-
-	if cfg.WithAIGuide {
-		dirs = append(dirs, "docs/ai-guide/snippets", "docs/ai-guide/reference")
 	}
 
 	for _, dir := range dirs {
@@ -103,6 +95,7 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 		{".gitignore", Gitignore},
 		{"cmd/server/main.go", ServerMain},
 		{"cmd/generate/main.go", GenerateMain},
+		{"internal/constants/version.go", VersionGo},
 	}
 
 	for _, f := range files {
@@ -139,18 +132,6 @@ func createProjectStructure(cfg *Config, data *TemplateData) error {
 	if cfg.WithHealth {
 		if err := generateHealthTemplate(basePath, data); err != nil {
 			return err
-		}
-	}
-
-	if cfg.WithI18n {
-		if err := generateI18nTemplate(basePath, data); err != nil {
-			return err
-		}
-	}
-
-	if cfg.WithAIGuide {
-		if err := generateAIGuide(basePath); err != nil {
-			return fmt.Errorf("生成 AI 指南失败: %w", err)
 		}
 	}
 
@@ -404,79 +385,4 @@ func generateIndexHTML(projectName string) string {
 </body>
 </html>
  `
-}
-
-func generateI18nTemplate(basePath string, data *TemplateData) error {
-	i18nServiceContent, err := I18nService(data)
-	if err != nil {
-		return err
-	}
-	i18nServicePath := filepath.Join(basePath, "internal/services", "i18n_service.go")
-	if err := writeFile(i18nServicePath, i18nServiceContent); err != nil {
-		return fmt.Errorf("写入I18n服务失败: %w", err)
-	}
-
-	i18nHTMLTemplateServiceContent, err := I18nHTMLTemplateService(data)
-	if err != nil {
-		return err
-	}
-	i18nHTMLTemplateServicePath := filepath.Join(basePath, "internal/services", "html_template_service.go")
-	if err := writeFile(i18nHTMLTemplateServicePath, i18nHTMLTemplateServiceContent); err != nil {
-		return fmt.Errorf("写入HTML模板服务失败: %w", err)
-	}
-
-	i18nPageControllerContent, err := I18nPageController(data)
-	if err != nil {
-		return err
-	}
-	i18nPageControllerPath := filepath.Join(basePath, "internal/controllers", "page_controller.go")
-	if err := writeFile(i18nPageControllerPath, i18nPageControllerContent); err != nil {
-		return fmt.Errorf("写入页面控制器失败: %w", err)
-	}
-
-	if err := writeFile(filepath.Join(basePath, "templates", "_head.html"), PartialHead()); err != nil {
-		return fmt.Errorf("写入_head.html失败: %w", err)
-	}
-	if err := writeFile(filepath.Join(basePath, "templates", "_header.html"), PartialHeader()); err != nil {
-		return fmt.Errorf("写入_header.html失败: %w", err)
-	}
-	if err := writeFile(filepath.Join(basePath, "templates", "_footer.html"), PartialFooter()); err != nil {
-		return fmt.Errorf("写入_footer.html失败: %w", err)
-	}
-	if err := writeFile(filepath.Join(basePath, "templates", "_nav.html"), PartialNav()); err != nil {
-		return fmt.Errorf("写入_nav.html失败: %w", err)
-	}
-
-	if err := writeFile(filepath.Join(basePath, "templates", "index.html"), I18nIndexHTML()); err != nil {
-		return fmt.Errorf("写入index.html失败: %w", err)
-	}
-	if err := writeFile(filepath.Join(basePath, "templates", "about.html"), I18nAboutHTML()); err != nil {
-		return fmt.Errorf("写入about.html失败: %w", err)
-	}
-
-	localeEnContent, err := LocaleEn(data)
-	if err != nil {
-		return err
-	}
-	if err := writeFile(filepath.Join(basePath, "static/locales", "en.json"), localeEnContent); err != nil {
-		return fmt.Errorf("写入en.json失败: %w", err)
-	}
-
-	localeZhsContent, err := LocaleZhs(data)
-	if err != nil {
-		return err
-	}
-	if err := writeFile(filepath.Join(basePath, "static/locales", "zhs.json"), localeZhsContent); err != nil {
-		return fmt.Errorf("写入zhs.json失败: %w", err)
-	}
-
-	localeArContent, err := LocaleAr(data)
-	if err != nil {
-		return err
-	}
-	if err := writeFile(filepath.Join(basePath, "static/locales", "ar.json"), localeArContent); err != nil {
-		return fmt.Errorf("写入ar.json失败: %w", err)
-	}
-
-	return nil
 }

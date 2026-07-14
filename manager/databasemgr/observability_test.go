@@ -243,9 +243,9 @@ func TestGetStatus(t *testing.T) {
 			want: "error",
 		},
 		{
-			name: "custom error",
+			name: "record not found",
 			err:  gorm.ErrRecordNotFound,
-			want: "error",
+			want: "success",
 		},
 	}
 

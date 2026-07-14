@@ -280,8 +280,15 @@ func (b *Builder) getPackageAlias(packagePath string) string {
 	return parts[len(parts)-1]
 }
 
-// collectImports 收集导入
-func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Layer) map[string]string {
+// ImportEntry 导入条目
+type ImportEntry struct {
+	Alias string
+	Path  string
+	Group int
+}
+
+// collectImports 收集并排序导入
+func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Layer) []ImportEntry {
 	importMap := make(map[string]string)
 
 	components := info.Layers[layer]
@@ -296,7 +303,7 @@ func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Laye
 			if len(parts) > 1 {
 				pkg := parts[0]
 				if pkg != b.moduleName && pkg != "" && pkg != "common" && pkg != "configmgr" {
-					fullPkg := "github.com/lite-lake/litecore-go/component/manager/" + pkg
+					fullPkg := "github.com/lite-lake/litecore-go/manager/" + pkg
 					if pkg == "telemetrymgr" {
 						fullPkg = "github.com/lite-lake/litecore-go/component/manager/telemetrymgr"
 					}
@@ -308,7 +315,41 @@ func (b *Builder) collectImports(info *analyzer.ProjectInfo, layer analyzer.Laye
 		}
 	}
 
-	return importMap
+	// 转换为 slice 并排序
+	var entries []ImportEntry
+	for alias, path := range importMap {
+		group := b.getImportGroup(path)
+		entries = append(entries, ImportEntry{Alias: alias, Path: path, Group: group})
+	}
+
+	// 分组排序
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Group != entries[j].Group {
+			return entries[i].Group < entries[j].Group
+		}
+		return entries[i].Path < entries[j].Path
+	})
+
+	return entries
+}
+
+// getImportGroup 获取导入分组（用于排序）
+// 0: 标准库, 1: 第三方库, 2: litecore, 3: 本地模块
+func (b *Builder) getImportGroup(path string) int {
+	// 标准库（不包含点）
+	if !strings.Contains(path, ".") {
+		return 0
+	}
+	// litecore
+	if strings.HasPrefix(path, "github.com/lite-lake/litecore-go") {
+		return 2
+	}
+	// 本地模块
+	if strings.HasPrefix(path, b.moduleName) {
+		return 3
+	}
+	// 第三方库
+	return 1
 }
 
 // writeFile 写入文件

@@ -3,6 +3,7 @@ package databasemgr
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -359,8 +360,8 @@ func (p *observabilityPlugin) recordOperationEnd(db *gorm.DB, operation string, 
 			p.queryCount.Add(db.Statement.Context, 1, metric.WithAttributes(attrs...))
 		}
 
-		// 记录错误
-		if err != nil && p.queryErrorCount != nil {
+		// 记录错误（gorm.ErrRecordNotFound 不算错误）
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) && p.queryErrorCount != nil {
 			p.queryErrorCount.Add(db.Statement.Context, 1, metric.WithAttributes(attrs...))
 		}
 
@@ -389,10 +390,15 @@ func (p *observabilityPlugin) recordOperationEnd(db *gorm.DB, operation string, 
 			if p.logSQL {
 				logArgs = append(logArgs, "sql", sanitizeSQL(db.Statement.SQL.String()))
 			}
-			p.logger.Error("database operation failed", logArgs...)
-			if span != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
+			// gorm.ErrRecordNotFound 是正常业务场景，使用 Debug 级别
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				p.logger.Debug("database record not found", logArgs...)
+			} else {
+				p.logger.Error("database operation failed", logArgs...)
+				if span != nil {
+					span.RecordError(err)
+					span.SetStatus(codes.Error, err.Error())
+				}
 			}
 		} else {
 			// 慢查询使用 Warn 级别
@@ -426,7 +432,7 @@ func (p *observabilityPlugin) recordOperationEnd(db *gorm.DB, operation string, 
 
 // getStatus 根据错误获取状态
 func getStatus(err error) string {
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "error"
 	}
 	return "success"

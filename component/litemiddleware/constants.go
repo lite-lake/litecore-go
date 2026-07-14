@@ -8,6 +8,7 @@ const (
 	OrderRateLimiter     = 200 // 限流中间件（认证前执行）
 	OrderTelemetry       = 250 // 遥测中间件
 	OrderAuth            = 300 // 认证中间件
+	OrderCSRF            = 350 // CSRF防护中间件
 
-	// 预留空间用于业务中间件：350, 400, 450...
+	// 预留空间用于业务中间件：400, 450...
 )

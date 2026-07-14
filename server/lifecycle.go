@@ -115,10 +115,13 @@ func (e *Engine) startRepositories() error {
 	return nil
 }
 
-// startServices 启动所有服务
+// startServices 启动所有服务（按依赖拓扑排序）
 func (e *Engine) startServices() error {
 	e.logPhaseStart(PhaseStartup, "Starting Service layer")
-	services := e.Service.GetAll()
+	services, err := e.Service.GetAllTopological()
+	if err != nil {
+		return fmt.Errorf("failed to get services in topological order: %w", err)
+	}
 
 	for _, svc := range services {
 		if err := svc.OnStart(); err != nil {
@@ -358,6 +361,8 @@ func (e *Engine) Stop() error {
 
 	e.logStartup(PhaseShutdown, "Shutting down HTTP server...")
 
+	e.ready = false
+
 	ctx, cancel := context.WithTimeout(context.Background(), e.shutdownTimeout)
 	defer cancel()
 
@@ -395,10 +400,16 @@ func (e *Engine) Stop() error {
 	allErrors = append(allErrors, repositoryErrors...)
 	allErrors = append(allErrors, managerErrors...)
 
-	totalDuration := time.Since(e.startupStartTime)
+	shutdownDuration := time.Since(e.startupStartTime)
 	e.logPhaseEnd(PhaseShutdown, "Shutdown completed",
 		logger.F("error_count", len(allErrors)),
-		logger.F("total_duration", totalDuration.String()))
+		logger.F("total_duration", shutdownDuration.String()))
+
+	// 发送已停止通知（在 Manager 停止之前，确保通知管理器仍可用）
+	e.sendNotification("stopped", map[string]string{
+		"耗时":  shutdownDuration.String(),
+		"错误数": fmt.Sprintf("%d", len(allErrors)),
+	})
 
 	if len(allErrors) > 0 {
 		errorMessages := make([]string, len(allErrors))

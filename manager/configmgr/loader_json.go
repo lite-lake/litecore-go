@@ -18,5 +18,5 @@ func LoadJSON(filePath string) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to parse json: %w", err)
 	}
 
-	return configData, nil
+	return expandEnvVars(configData).(map[string]any), nil
 }
