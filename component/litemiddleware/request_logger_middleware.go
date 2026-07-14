@@ -31,7 +31,7 @@ func DefaultRequestLoggerConfig() *RequestLoggerConfig {
 	enable := true
 	logBody := true
 	maxBodySize := 4096
-	skipPaths := []string{"/health", "/metrics"}
+	skipPaths := []string{"/api/health", "/api/ready", "/metrics"}
 	logHeaders := []string{"User-Agent", "Content-Type"}
 	successLogLevel := "info"
 	return &RequestLoggerConfig{

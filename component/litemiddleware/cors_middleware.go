@@ -29,7 +29,9 @@ func DefaultCorsConfig() *CorsConfig {
 	allowOrigins := []string{"*"}
 	allowMethods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}
 	allowHeaders := []string{"Origin", "Content-Type", "Authorization", "X-Requested-With", "Accept", "Cache-Control"}
-	allowCredentials := true
+	// 安全修复：默认 AllowOrigins 为 ["*"]，"*" 与 Credentials 不兼容
+	// 需要携带凭证时必须显式配置 Origin 白名单并设置 AllowCredentials: true
+	allowCredentials := false
 	maxAge := 12 * time.Hour
 	return &CorsConfig{
 		Name:             &name,
@@ -86,6 +88,19 @@ func NewCorsMiddleware(config *CorsConfig) common.IBaseMiddleware {
 		cfg.MaxAge = defaultCfg.MaxAge
 	}
 
+	// 安全护栏：AllowOrigins 含 "*" 时强制禁用 AllowCredentials
+	// 浏览器规范禁止 "*" 与 Credentials 同时使用，这是防御性措施
+	// 即使使用者显式设置了 AllowCredentials: true，也会被自动降级
+	if cfg.AllowOrigins != nil && cfg.AllowCredentials != nil && *cfg.AllowCredentials {
+		for _, o := range *cfg.AllowOrigins {
+			if o == "*" {
+				falseVal := false
+				cfg.AllowCredentials = &falseVal
+				break
+			}
+		}
+	}
+
 	return &corsMiddleware{cfg: cfg}
 }
 
@@ -116,11 +131,21 @@ func (m *corsMiddleware) Wrapper() gin.HandlerFunc {
 		origin := c.Request.Header.Get("Origin")
 
 		if m.cfg.AllowOrigins != nil && len(*m.cfg.AllowOrigins) > 0 {
+			var setOrigin string
 			for _, allowedOrigin := range *m.cfg.AllowOrigins {
-				if allowedOrigin == "*" || allowedOrigin == origin {
-					c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+				if allowedOrigin == "*" {
+					// 安全修复：不反射请求 Origin，使用字面值 "*"
+					// 浏览器规范：ACAO 为 "*" 时不发送凭证，即使设置了 Allow-Credentials
+					// 反射 Origin 会导致任意网站可携带用户凭证跨域读取响应
+					setOrigin = "*"
+					break
+				} else if allowedOrigin == origin {
+					setOrigin = allowedOrigin
 					break
 				}
+			}
+			if setOrigin != "" {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", setOrigin)
 			}
 		}
 

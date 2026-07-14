@@ -34,9 +34,8 @@ func (c *MetricsController) GetRouter() string {
 
 func (c *MetricsController) Handle(ctx *gin.Context) {
 	metrics := map[string]interface{}{
-		"server":  "litecore-go",
-		"status":  "running",
-		"version": "1.0.0",
+		"server": "litecore-go",
+		"status": "running",
 	}
 
 	if c.ManagerContainer != nil {

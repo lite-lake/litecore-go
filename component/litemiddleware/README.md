@@ -98,7 +98,7 @@ recovery := litemiddleware.NewRecoveryMiddleware(cfg)
 | Enable | *bool | true | 是否启用请求日志 |
 | LogBody | *bool | true | 是否记录请求 Body |
 | MaxBodySize | *int | 4096 | 最大记录 Body 大小（字节），0 表示不限制 |
-| SkipPaths | *[]string | []{"/health", "/metrics"} | 跳过日志记录的路径 |
+| SkipPaths | *[]string | []{"/api/health", "/api/ready", "/metrics"} | 跳过日志记录的路径 |
 | LogHeaders | *[]string | []{"User-Agent", "Content-Type"} | 需要记录的请求头 |
 | SuccessLogLevel | *string | "info" | 成功请求日志级别（debug/info） |
 

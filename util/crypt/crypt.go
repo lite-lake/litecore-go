@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"math/big"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
@@ -485,19 +486,25 @@ func (c *cryptEngine) GenerateRandomBytes(length int) ([]byte, error) {
 	return bytes, nil
 }
 
-// GenerateRandomString 生成指定长度的随机字符串
+// GenerateRandomString 生成指定长度的随机字符串（使用 rejection sampling 消除模运算偏差）
 func (c *cryptEngine) GenerateRandomString(length int) (string, error) {
+	if length <= 0 {
+		return "", errors.New("length must be positive")
+	}
+
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	bytes, err := c.GenerateRandomBytes(length)
-	if err != nil {
-		return "", err
+	charsetLen := big.NewInt(int64(len(charset)))
+	result := make([]byte, length)
+
+	for i := range result {
+		n, err := rand.Int(rand.Reader, charsetLen)
+		if err != nil {
+			return "", fmt.Errorf("generate random string failed: %w", err)
+		}
+		result[i] = charset[n.Int64()]
 	}
 
-	for i, b := range bytes {
-		bytes[i] = charset[b%byte(len(charset))]
-	}
-
-	return string(bytes), nil
+	return string(result), nil
 }
 
 // IsBase64 检查字符串是否为有效的Base64编码

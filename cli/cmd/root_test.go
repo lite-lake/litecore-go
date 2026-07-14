@@ -5,7 +5,6 @@ import (
 
 	"github.com/lite-lake/litecore-go/cli/cmd/generate"
 	"github.com/lite-lake/litecore-go/cli/cmd/scaffold"
-	"github.com/lite-lake/litecore-go/cli/cmd/upgrade"
 )
 
 func TestNewApp(t *testing.T) {
@@ -35,7 +34,6 @@ func TestNewApp_Commands(t *testing.T) {
 		expectedCommands := []string{
 			generate.GetCommand().Name,
 			scaffold.GetCommand().Name,
-			upgrade.GetCommand().Name,
 			GetVersionCommand().Name,
 			GetCompletionCommand().Name,
 		}

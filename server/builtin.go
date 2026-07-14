@@ -12,6 +12,7 @@ import (
 	"github.com/lite-lake/litecore-go/manager/lockmgr"
 	"github.com/lite-lake/litecore-go/manager/loggermgr"
 	"github.com/lite-lake/litecore-go/manager/mqmgr"
+	"github.com/lite-lake/litecore-go/manager/notificationmgr"
 	"github.com/lite-lake/litecore-go/manager/schedulermgr"
 	"github.com/lite-lake/litecore-go/manager/telemetrymgr"
 )
@@ -155,7 +156,17 @@ func Initialize(cfg *BuiltinConfig) (*container.ManagerContainer, error) {
 	}
 	logStartup(tempLogger, PhaseManagers, "Initialization complete: SchedulerManager")
 
-	logPhaseEnd(tempLogger, PhaseManagers, "Managers initialization complete", logger.F("count", 9))
+	// 10. 初始化服务状态通知管理器（依赖配置管理器、日志管理器）
+	notificationMgr, err := notificationmgr.BuildWithConfigProvider(configManager, loggerManager)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create notification manager: %w", err)
+	}
+	if err := container.RegisterManager[notificationmgr.INotificationManager](cntr, notificationMgr); err != nil {
+		return nil, fmt.Errorf("failed to register notification manager: %w", err)
+	}
+	logStartup(tempLogger, PhaseManagers, "Initialization complete: NotificationManager")
+
+	logPhaseEnd(tempLogger, PhaseManagers, "Managers initialization complete", logger.F("count", 10))
 
 	return cntr, nil
 }

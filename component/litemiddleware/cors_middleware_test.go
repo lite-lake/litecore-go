@@ -203,7 +203,8 @@ func TestCorsMiddleware_Wrapper(t *testing.T) {
 
 			if tt.checkHeaders {
 				assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
-				assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
+				// 默认配置 AllowOrigins 为 ["*"]，安全修复后 AllowCredentials 自动降级为 false
+				assert.Empty(t, w.Header().Get("Access-Control-Allow-Credentials"))
 				assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "Content-Type")
 				assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "GET")
 				assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "POST")
@@ -231,6 +232,46 @@ func TestCorsMiddleware_OnStart(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
+
+// TestCorsMiddleware_SecurityGuard_WildcardWithCredentials
+// 安全护栏测试：AllowOrigins 含 "*" 时，显式设置 AllowCredentials: true 应被自动降级为 false
+func TestCorsMiddleware_SecurityGuard_WildcardWithCredentials(t *testing.T) {
+	allowOrigins := []string{"*"}
+	allowCredentials := true
+	config := &CorsConfig{
+		AllowOrigins:     &allowOrigins,
+		AllowCredentials: &allowCredentials,
+	}
+
+	middleware := NewCorsMiddleware(config).(*corsMiddleware)
+
+	// 安全护栏应将 AllowCredentials 降级为 false
+	assert.False(t, *middleware.cfg.AllowCredentials, "AllowCredentials 含 \"*\" 时应被自动降级为 false")
+}
+
+// TestCorsMiddleware_NoOriginReflection
+// 安全修复验证：使用默认配置时，恶意 Origin 不应被反射到 ACAO 头
+func TestCorsMiddleware_NoOriginReflection(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	middleware := NewCorsMiddlewareWithDefaults().(*corsMiddleware)
+	router.Use(middleware.Wrapper())
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	// 模拟恶意 Origin
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Origin", "https://evil-attacker.com")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// ACAO 应为字面值 "*"，而非反射恶意 Origin
+	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.NotEqual(t, "https://evil-attacker.com", w.Header().Get("Access-Control-Allow-Origin"))
+	// 默认配置不应允许凭证
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Credentials"))
 }
 
 func TestCorsMiddleware_OnStop(t *testing.T) {

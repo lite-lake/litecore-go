@@ -19,6 +19,7 @@ import (
 	"github.com/lite-lake/litecore-go/logger"
 	"github.com/lite-lake/litecore-go/manager/configmgr"
 	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/notificationmgr"
 	"github.com/lite-lake/litecore-go/manager/schedulermgr"
 )
 
@@ -50,6 +51,7 @@ type Engine struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 	started bool
+	ready   bool
 	mu      sync.RWMutex
 
 	// 启动日志配置
@@ -117,6 +119,18 @@ func (e *Engine) getLogger() logger.ILogger {
 	e.loggerMu.RLock()
 	defer e.loggerMu.RUnlock()
 	return e.internalLogger
+}
+
+// sendNotification 发送服务状态事件通知（安全调用，不阻塞主流程）
+func (e *Engine) sendNotification(event string, details map[string]string) {
+	if e.Manager == nil {
+		return
+	}
+	notifier, err := container.GetManager[notificationmgr.INotificationManager](e.Manager)
+	if err != nil {
+		return
+	}
+	notifier.SendNotification(event, details)
 }
 
 // Initialize 初始化引擎（实现 liteServer 接口）
@@ -202,6 +216,16 @@ func (e *Engine) Initialize() error {
 					}
 				}
 			}
+			if redirectFixedPath, err := mgr.Get("server.redirect_fixed_path"); err == nil {
+				if v, ok := redirectFixedPath.(bool); ok {
+					e.serverConfig.RedirectFixedPath = v
+				}
+			}
+			if removeExtraSlash, err := mgr.Get("server.remove_extra_slash"); err == nil {
+				if v, ok := removeExtraSlash.(bool); ok {
+					e.serverConfig.RemoveExtraSlash = v
+				}
+			}
 			if startupLog, err := mgr.Get("server.startup_log"); err == nil {
 				if startupLogMap, ok := startupLog.(map[string]interface{}); ok {
 					if e.serverConfig.StartupLog == nil {
@@ -263,6 +287,8 @@ func (e *Engine) Initialize() error {
 
 	// 创建 Gin 引擎
 	e.ginEngine = gin.New()
+	e.ginEngine.RedirectFixedPath = e.serverConfig.RedirectFixedPath
+	e.ginEngine.RemoveExtraSlash = e.serverConfig.RemoveExtraSlash
 
 	// 注册中间件
 	if err := e.registerMiddlewares(); err != nil {
@@ -278,6 +304,9 @@ func (e *Engine) Initialize() error {
 			"method": c.Request.Method,
 		})
 	})
+
+	// 注册系统路由（/health、/ready）
+	e.registerSystemRoutes()
 
 	// 注册控制器路由
 	if err := e.registerControllers(); err != nil {
@@ -295,6 +324,11 @@ func (e *Engine) Initialize() error {
 		WriteTimeout: e.serverConfig.WriteTimeout,
 		IdleTimeout:  e.serverConfig.IdleTimeout,
 	}
+
+	// 发送服务启动中通知
+	e.sendNotification("starting", map[string]string{
+		"端口": fmt.Sprintf("%d", e.serverConfig.Port),
+	})
 
 	return nil
 }
@@ -463,19 +497,43 @@ func (e *Engine) Start() error {
 		logger.F("total_duration", totalDuration.String()))
 
 	e.started = true
+	e.ready = true
+
+	// 发送启动成功通知
+	e.sendNotification("started", map[string]string{
+		"地址": e.httpServer.Addr,
+		"耗时": totalDuration.String(),
+	})
+
 	return nil
 }
 
 // Run 简化的启动方法
 // 等价于 Initialize() + Start() + 等待信号
 func (e *Engine) Run() error {
+	// 捕获启动阶段 panic，发送失败通知
+	defer func() {
+		if r := recover(); r != nil {
+			e.sendNotification("start_failed", map[string]string{
+				"错误": fmt.Sprintf("panic: %v", r),
+			})
+			panic(r) // 继续抛出，保持原有行为
+		}
+	}()
+
 	// 初始化
 	if err := e.Initialize(); err != nil {
+		e.sendNotification("start_failed", map[string]string{
+			"错误": err.Error(),
+		})
 		return err
 	}
 
 	// 启动
 	if err := e.Start(); err != nil {
+		e.sendNotification("start_failed", map[string]string{
+			"错误": err.Error(),
+		})
 		return err
 	}
 
@@ -503,9 +561,17 @@ func (e *Engine) registerControllers() error {
 			continue
 		}
 
+		// 非 debug 模式下，禁止注册 pprof 路由，防止生产环境泄露运行时信息
+		if strings.HasPrefix(route, "/debug/pprof") && e.serverConfig.Mode != "debug" {
+			e.logStartup(PhaseRouter, "Skipped pprof route in non-debug mode",
+				logger.F("controller", ctrl.ControllerName()),
+				logger.F("mode", e.serverConfig.Mode))
+			continue
+		}
+
 		routes := strings.Split(route, ",")
 		for _, r := range routes {
-			method, path, err := parseRoute(strings.TrimSpace(r))
+			methodStr, path, err := parseRoute(strings.TrimSpace(r))
 			if err != nil {
 				e.getLogger().Warn("Invalid route format",
 					logger.F("controller", ctrl.ControllerName()),
@@ -514,13 +580,16 @@ func (e *Engine) registerControllers() error {
 			}
 
 			handler := ctrl.Handle
-			e.registerRoute(method, path, handler)
-
-			e.logStartup(PhaseRouter, "Registered route",
-				logger.F("method", method),
-				logger.F("path", path),
-				logger.F("controller", ctrl.ControllerName()))
-			registeredCount++
+			methods := strings.Split(methodStr, "|")
+			for _, method := range methods {
+				method = strings.TrimSpace(method)
+				e.registerRoute(method, path, handler)
+				e.logStartup(PhaseRouter, "Registered route",
+					logger.F("method", strings.ToUpper(method)),
+					logger.F("path", path),
+					logger.F("controller", ctrl.ControllerName()))
+				registeredCount++
+			}
 		}
 	}
 
@@ -532,8 +601,8 @@ func (e *Engine) registerControllers() error {
 }
 
 // parseRoute 解析路由字符串
-// 支持格式: "/path [METHOD]" (OpenAPI 风格)
-// 返回: method (大写), path, error
+// 支持格式: "/path [METHOD]", "/path [METHOD1|METHOD2]", "/path [ANY]"
+// 返回: method string (可能包含 | 分隔的多个方法), path, error
 func parseRoute(route string) (string, string, error) {
 	for i := len(route) - 1; i >= 0; i-- {
 		if route[i] == '[' {
@@ -548,7 +617,9 @@ func parseRoute(route string) (string, string, error) {
 				if method == "" {
 					return "", "", fmt.Errorf("method cannot be empty")
 				}
-				return strings.ToUpper(method), path, nil
+				// 支持逗号分隔的多个方法，转换为统一的|分隔符
+				method = strings.ReplaceAll(method, ",", "|")
+				return method, path, nil
 			}
 		}
 	}
@@ -572,6 +643,11 @@ func (e *Engine) WaitForShutdown() {
 
 	sig := <-sigs
 	e.logger().Info("Received shutdown signal", "signal", sig)
+
+	// 发送正在停止通知
+	e.sendNotification("stopping", map[string]string{
+		"信号": sig.String(),
+	})
 
 	if err := e.Stop(); err != nil {
 		e.logger().Fatal("Shutdown error", "error", err)

@@ -88,9 +88,12 @@ type ILiteUtilJWT interface {
 	GenerateHS256Token(claims ILiteUtilJWTClaims, secretKey []byte) (string, error)
 	GenerateHS512Token(claims ILiteUtilJWTClaims, secretKey []byte) (string, error)
 	GenerateRS256Token(claims ILiteUtilJWTClaims, privateKey *rsa.PrivateKey) (string, error)
+	GenerateRS256TokenWithKid(claims ILiteUtilJWTClaims, privateKey *rsa.PrivateKey, keyID string) (string, error)
 	GenerateES256Token(claims ILiteUtilJWTClaims, privateKey *ecdsa.PrivateKey) (string, error)
 	GenerateToken(claims ILiteUtilJWTClaims, algorithm JWTAlgorithm, secretKey []byte,
 		rsaPrivateKey *rsa.PrivateKey, ecdsaPrivateKey *ecdsa.PrivateKey) (string, error)
+	GenerateTokenWithKid(claims ILiteUtilJWTClaims, algorithm JWTAlgorithm, secretKey []byte,
+		rsaPrivateKey *rsa.PrivateKey, ecdsaPrivateKey *ecdsa.PrivateKey, keyID string) (string, error)
 
 	// JWT 解析方法
 	ParseHS256Token(token string, secretKey []byte) (MapClaims, error)
@@ -163,6 +166,21 @@ func (j *jwtEngine) encodeHeader(header jwtHeader) (string, error) {
 		return "", fmt.Errorf("encode header failed: %w", err)
 	}
 	return j.base64URLEncode(headerBytes), nil
+}
+
+// decodeHeader 解码JWT头部
+func (j *jwtEngine) decodeHeader(encodedHeader string) (*jwtHeader, error) {
+	headerBytes, err := j.base64URLDecode(encodedHeader)
+	if err != nil {
+		return nil, fmt.Errorf("base64 decode header failed: %w", err)
+	}
+
+	var header jwtHeader
+	if err := json.Unmarshal(headerBytes, &header); err != nil {
+		return nil, fmt.Errorf("json unmarshal header failed: %w", err)
+	}
+
+	return &header, nil
 }
 
 // =========================================
@@ -329,6 +347,11 @@ func (j *jwtEngine) GenerateRS256Token(claims ILiteUtilJWTClaims, privateKey *rs
 	return j.GenerateToken(claims, RS256, nil, privateKey, nil)
 }
 
+// GenerateRS256TokenWithKid 使用RSA SHA-256算法生成JWT，支持指定KeyID
+func (j *jwtEngine) GenerateRS256TokenWithKid(claims ILiteUtilJWTClaims, privateKey *rsa.PrivateKey, keyID string) (string, error) {
+	return j.GenerateTokenWithKid(claims, RS256, nil, privateKey, nil, keyID)
+}
+
 // GenerateES256Token 使用ECDSA P-256算法生成JWT
 func (j *jwtEngine) GenerateES256Token(claims ILiteUtilJWTClaims, privateKey *ecdsa.PrivateKey) (string, error) {
 	return j.GenerateToken(claims, ES256, nil, nil, privateKey)
@@ -337,9 +360,15 @@ func (j *jwtEngine) GenerateES256Token(claims ILiteUtilJWTClaims, privateKey *ec
 // GenerateToken 通用JWT生成方法
 func (j *jwtEngine) GenerateToken(claims ILiteUtilJWTClaims, algorithm JWTAlgorithm,
 	secretKey []byte, rsaPrivateKey *rsa.PrivateKey, ecdsaPrivateKey *ecdsa.PrivateKey) (string, error) {
+	return j.GenerateTokenWithKid(claims, algorithm, secretKey, rsaPrivateKey, ecdsaPrivateKey, "")
+}
+
+// GenerateTokenWithKid 通用JWT生成方法，支持指定KeyID
+func (j *jwtEngine) GenerateTokenWithKid(claims ILiteUtilJWTClaims, algorithm JWTAlgorithm,
+	secretKey []byte, rsaPrivateKey *rsa.PrivateKey, ecdsaPrivateKey *ecdsa.PrivateKey, keyID string) (string, error) {
 
 	// 创建头部
-	header := newJWTHeader(algorithm)
+	header := newJWTHeader(algorithm, keyID)
 	encodedHeader, err := j.encodeHeader(header)
 	if err != nil {
 		return "", fmt.Errorf("encode header failed: %w", err)
@@ -399,6 +428,17 @@ func (j *jwtEngine) ParseToken(token string, algorithm JWTAlgorithm,
 
 	encodedHeader, encodedPayload, encodedSignature := parts[0], parts[1], parts[2]
 
+	// 安全修复：解码并校验 Header 的 alg 字段，防止算法混淆攻击
+	// 攻击者可能伪造 alg 字段（如 "none" 或将 RS256 替换为 HS256）来绕过签名验证
+	header, err := j.decodeHeader(encodedHeader)
+	if err != nil {
+		return nil, fmt.Errorf("decode header failed: %w", err)
+	}
+
+	if header.Algorithm != string(algorithm) {
+		return nil, fmt.Errorf("algorithm mismatch: token alg is %q, expected %q", header.Algorithm, algorithm)
+	}
+
 	// 验证签名
 	message := encodedHeader + "." + encodedPayload
 	if err := j.verifySignature(message, encodedSignature, algorithm, secretKey,
@@ -421,12 +461,15 @@ func (j *jwtEngine) ParseToken(token string, algorithm JWTAlgorithm,
 
 // ValidateClaims 验证Claims的有效性
 func (j *jwtEngine) ValidateClaims(claims ILiteUtilJWTClaims, options ...ValidateOption) error {
-	opts := &ValidateOptions{
-		CurrentTime: time.Now(),
-	}
+	opts := defaultValidateOptions()
 
 	for _, option := range options {
 		option(opts)
+	}
+
+	// 强制要求过期时间
+	if opts.RequireExpiration && claims.GetExpiresAt() == nil {
+		return errors.New("token must have an expiration time (exp)")
 	}
 
 	// 验证过期时间
@@ -466,14 +509,23 @@ func (j *jwtEngine) ValidateClaims(claims ILiteUtilJWTClaims, options ...Validat
 
 // ValidateOptions JWT验证选项
 type ValidateOptions struct {
-	CurrentTime time.Time
-	Issuer      string
-	Subject     string
-	Audience    []string
+	CurrentTime       time.Time
+	Issuer            string
+	Subject           string
+	Audience          []string
+	RequireExpiration bool
 }
 
 // ValidateOption JWT验证选项函数
 type ValidateOption func(*ValidateOptions)
+
+// defaultValidateOptions 默认验证选项
+func defaultValidateOptions() *ValidateOptions {
+	return &ValidateOptions{
+		CurrentTime:       time.Now(),
+		RequireExpiration: true,
+	}
+}
 
 // WithIssuer 设置验证签发者
 func WithIssuer(issuer string) ValidateOption {
@@ -500,6 +552,13 @@ func WithAudience(audience ...string) ValidateOption {
 func WithCurrentTime(t time.Time) ValidateOption {
 	return func(opts *ValidateOptions) {
 		opts.CurrentTime = t
+	}
+}
+
+// WithAllowNoExpiration 允许 token 没有过期时间（默认要求 exp）
+func WithAllowNoExpiration() ValidateOption {
+	return func(opts *ValidateOptions) {
+		opts.RequireExpiration = false
 	}
 }
 

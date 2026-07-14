@@ -14,12 +14,18 @@ import (
 	{{- if .Components}}
 	"github.com/lite-lake/litecore-go/common"
 	{{- end}}
-	{{- range $alias, $path := .Imports}}
-	{{- if $alias}}
-	{{ $alias }} "{{$path}}"
-	{{- else}}
-	"{{$path}}"
+	{{- $lastGroup := -1}}
+	{{- range .Imports}}
+	{{- $group := .Group}}
+	{{- if and (ne $group $lastGroup) (ne $lastGroup -1)}}
+
 	{{- end}}
+	{{- if .Alias}}
+	{{.Alias}} "{{.Path}}"
+	{{- else}}
+	"{{.Path}}"
+	{{- end}}
+	{{- $lastGroup = $group}}
 	{{- end}}
 )
 
@@ -40,12 +46,18 @@ package {{.PackageName}}
 
 import (
 	"github.com/lite-lake/litecore-go/container"
-	{{- range $alias, $path := .Imports}}
-	{{- if $alias}}
-	{{ $alias }} "{{$path}}"
-	{{- else}}
-	"{{$path}}"
+	{{- $lastGroup := -1}}
+	{{- range .Imports}}
+	{{- $group := .Group}}
+	{{- if and (ne $group $lastGroup) (ne $lastGroup -1)}}
+
 	{{- end}}
+	{{- if .Alias}}
+	{{.Alias}} "{{.Path}}"
+	{{- else}}
+	"{{.Path}}"
+	{{- end}}
+	{{- $lastGroup = $group}}
 	{{- end}}
 )
 
@@ -66,12 +78,18 @@ package {{.PackageName}}
 
 import (
 	"github.com/lite-lake/litecore-go/container"
-	{{- range $alias, $path := .Imports}}
-	{{- if $alias}}
-	{{ $alias }} "{{$path}}"
-	{{- else}}
-	"{{$path}}"
+	{{- $lastGroup := -1}}
+	{{- range .Imports}}
+	{{- $group := .Group}}
+	{{- if and (ne $group $lastGroup) (ne $lastGroup -1)}}
+
 	{{- end}}
+	{{- if .Alias}}
+	{{.Alias}} "{{.Path}}"
+	{{- else}}
+	"{{.Path}}"
+	{{- end}}
+	{{- $lastGroup = $group}}
 	{{- end}}
 )
 
@@ -92,12 +110,18 @@ package {{.PackageName}}
 
 import (
 	"github.com/lite-lake/litecore-go/container"
-	{{- range $alias, $path := .Imports}}
-	{{- if $alias}}
-	{{ $alias }} "{{$path}}"
-	{{- else}}
-	"{{$path}}"
+	{{- $lastGroup := -1}}
+	{{- range .Imports}}
+	{{- $group := .Group}}
+	{{- if and (ne $group $lastGroup) (ne $lastGroup -1)}}
+
 	{{- end}}
+	{{- if .Alias}}
+	{{.Alias}} "{{.Path}}"
+	{{- else}}
+	"{{.Path}}"
+	{{- end}}
+	{{- $lastGroup = $group}}
 	{{- end}}
 )
 
@@ -118,12 +142,18 @@ package {{.PackageName}}
 
 import (
 	"github.com/lite-lake/litecore-go/container"
-	{{- range $alias, $path := .Imports}}
-	{{- if $alias}}
-	{{ $alias }} "{{$path}}"
-	{{- else}}
-	"{{$path}}"
+	{{- $lastGroup := -1}}
+	{{- range .Imports}}
+	{{- $group := .Group}}
+	{{- if and (ne $group $lastGroup) (ne $lastGroup -1)}}
+
 	{{- end}}
+	{{- if .Alias}}
+	{{.Alias}} "{{.Path}}"
+	{{- else}}
+	"{{.Path}}"
+	{{- end}}
+	{{- $lastGroup = $group}}
 	{{- end}}
 )
 
@@ -144,12 +174,18 @@ package {{.PackageName}}
 
 import (
 	"github.com/lite-lake/litecore-go/container"
-	{{- range $alias, $path := .Imports}}
-	{{- if $alias}}
-	{{ $alias }} "{{$path}}"
-	{{- else}}
-	"{{$path}}"
+	{{- $lastGroup := -1}}
+	{{- range .Imports}}
+	{{- $group := .Group}}
+	{{- if and (ne $group $lastGroup) (ne $lastGroup -1)}}
+
 	{{- end}}
+	{{- if .Alias}}
+	{{.Alias}} "{{.Path}}"
+	{{- else}}
+	"{{.Path}}"
+	{{- end}}
+	{{- $lastGroup = $group}}
 	{{- end}}
 )
 
@@ -170,12 +206,18 @@ package {{.PackageName}}
 
 import (
 	"github.com/lite-lake/litecore-go/container"
-	{{- range $alias, $path := .Imports}}
-	{{- if $alias}}
-	{{ $alias }} "{{$path}}"
-	{{- else}}
-	"{{$path}}"
+	{{- $lastGroup := -1}}
+	{{- range .Imports}}
+	{{- $group := .Group}}
+	{{- if and (ne $group $lastGroup) (ne $lastGroup -1)}}
+
 	{{- end}}
+	{{- if .Alias}}
+	{{.Alias}} "{{.Path}}"
+	{{- else}}
+	"{{.Path}}"
+	{{- end}}
+	{{- $lastGroup = $group}}
 	{{- end}}
 )
 
@@ -195,11 +237,13 @@ func InitSchedulerContainer(serviceContainer *container.ServiceContainer) *conta
 package {{.PackageName}}
 
 import (
+	"os"
+
 	"github.com/lite-lake/litecore-go/server"
 )
 
 // NewEngine Create application engine
-func NewEngine() (*server.Engine, error) {
+func NewEngine(env string) (*server.Engine, error) {
 	entityContainer := InitEntityContainer()
 	repositoryContainer := InitRepositoryContainer(entityContainer)
 	serviceContainer := InitServiceContainer(repositoryContainer)
@@ -208,10 +252,18 @@ func NewEngine() (*server.Engine, error) {
 	listenerContainer := InitListenerContainer(serviceContainer)
 	schedulerContainer := InitSchedulerContainer(serviceContainer)
 
+	configPath := "{{.ConfigPath}}"
+	if env != "" {
+		envConfigPath := "./configs/config-" + env + ".yaml"
+		if _, err := os.Stat(envConfigPath); err == nil {
+			configPath = envConfigPath
+		}
+	}
+
 	return server.NewEngine(
 		&server.BuiltinConfig{
 			Driver:   "yaml",
-			FilePath: "{{.ConfigPath}}",
+			FilePath: configPath,
 		},
 		entityContainer,
 		repositoryContainer,
@@ -251,7 +303,7 @@ func init() {
 type TemplateData struct {
 	PackageName string
 	ConfigPath  string
-	Imports     map[string]string
+	Imports     []ImportEntry
 	Components  []ComponentTemplateData
 }
 

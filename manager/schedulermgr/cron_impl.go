@@ -16,6 +16,7 @@ type schedulerTask struct {
 	cancel      context.CancelFunc
 	cancelled   bool
 	cancelMutex sync.RWMutex
+	execMutex   sync.Mutex
 }
 
 type schedulerManagerImpl struct {
@@ -188,7 +189,7 @@ func (s *schedulerManagerImpl) runSchedulerTask(ctx context.Context, task *sched
 			}
 
 			tickID := nextTime.Unix()
-			s.executeTask(task.scheduler, tickID)
+			s.executeTask(task, tickID)
 
 			nextTime = task.expr.getNextExecutionTime(now)
 			if nextTime.IsZero() {
@@ -199,8 +200,16 @@ func (s *schedulerManagerImpl) runSchedulerTask(ctx context.Context, task *sched
 	}
 }
 
-func (s *schedulerManagerImpl) executeTask(scheduler common.IBaseScheduler, tickID int64) {
+func (s *schedulerManagerImpl) executeTask(task *schedulerTask, tickID int64) {
+	if !task.execMutex.TryLock() {
+		s.loggerMgr.Ins().Warn("跳过本次执行，上一轮OnTick尚未完成",
+			"scheduler", task.scheduler.SchedulerName(),
+			"tickID", tickID)
+		return
+	}
+
 	go func() {
+		defer task.execMutex.Unlock()
 		defer func() {
 			if r := recover(); r != nil {
 				var err error
@@ -209,12 +218,16 @@ func (s *schedulerManagerImpl) executeTask(scheduler common.IBaseScheduler, tick
 				} else {
 					err = fmt.Errorf("panic recovered: %v", r)
 				}
-				fmt.Printf("[Scheduler] %s panic: %v\n", scheduler.SchedulerName(), err)
+				s.loggerMgr.Ins().Error("调度器异常",
+					"scheduler", task.scheduler.SchedulerName(),
+					"error", err)
 			}
 		}()
 
-		if err := scheduler.OnTick(tickID); err != nil {
-			fmt.Printf("[Scheduler] %s OnTick error: %v\n", scheduler.SchedulerName(), err)
+		if err := task.scheduler.OnTick(tickID); err != nil {
+			s.loggerMgr.Ins().Error("调度器执行失败",
+				"scheduler", task.scheduler.SchedulerName(),
+				"error", err)
 		}
 	}()
 }

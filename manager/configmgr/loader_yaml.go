@@ -19,5 +19,5 @@ func LoadYAML(filePath string) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to parse yaml: %w", err)
 	}
 
-	return configData, nil
+	return expandEnvVars(configData).(map[string]any), nil
 }
