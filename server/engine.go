@@ -1,0 +1,669 @@
+package server
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"reflect"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/container"
+	"github.com/lite-lake/litecore-go/logger"
+	"github.com/lite-lake/litecore-go/manager/configmgr"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+	"github.com/lite-lake/litecore-go/manager/notificationmgr"
+	"github.com/lite-lake/litecore-go/manager/schedulermgr"
+)
+
+// Engine 服务引擎
+type Engine struct {
+	// 内置配置（在 Initialize 时用于初始化内置组件）
+	builtinConfig *BuiltinConfig
+
+	// 容器
+	Manager    *container.ManagerContainer // 内置组件（在 Initialize 时初始化）
+	Entity     *container.EntityContainer
+	Repository *container.RepositoryContainer
+	Service    *container.ServiceContainer
+	Controller *container.ControllerContainer
+	Middleware *container.MiddlewareContainer
+	Listener   *container.ListenerContainer
+	Scheduler  *container.SchedulerContainer
+
+	// HTTP 服务器
+	httpServer *http.Server
+	ginEngine  *gin.Engine
+
+	// 配置
+	serverConfig    *serverConfig
+	shutdownTimeout time.Duration
+	autoMigrateDB   bool // 是否自动迁移数据库
+
+	// 生命周期管理
+	ctx     context.Context
+	cancel  context.CancelFunc
+	started bool
+	ready   bool
+	mu      sync.RWMutex
+
+	// 启动日志配置
+	startupLogConfig *StartupLogConfig
+
+	// 启动时间统计
+	startupStartTime time.Time
+	phaseDurations   map[StartupPhase]time.Duration
+	phaseStartTimes  map[StartupPhase]time.Time
+
+	// 日志器（统一使用 logger.ILogger）
+	internalLogger logger.ILogger
+	isStartup      bool         // 标识是否处于启动阶段
+	loggerMu       sync.RWMutex // 保护日志器的并发访问
+
+	// 异步日志器
+	asyncLogger *AsyncStartupLogger
+}
+
+func NewEngine(
+	builtinConfig *BuiltinConfig,
+	entity *container.EntityContainer,
+	repository *container.RepositoryContainer,
+	service *container.ServiceContainer,
+	controller *container.ControllerContainer,
+	middleware *container.MiddlewareContainer,
+	listener *container.ListenerContainer,
+	scheduler *container.SchedulerContainer,
+) *Engine {
+	ctx, cancel := context.WithCancel(context.Background())
+	defaultConfig := defaultServerConfig()
+
+	return &Engine{
+		Entity:           entity,
+		Repository:       repository,
+		Service:          service,
+		Controller:       controller,
+		Middleware:       middleware,
+		Listener:         listener,
+		Scheduler:        scheduler,
+		serverConfig:     defaultConfig,
+		shutdownTimeout:  defaultConfig.ShutdownTimeout,
+		ctx:              ctx,
+		cancel:           cancel,
+		builtinConfig:    builtinConfig,
+		startupLogConfig: defaultConfig.StartupLog,
+		phaseDurations:   make(map[StartupPhase]time.Duration),
+		phaseStartTimes:  make(map[StartupPhase]time.Time),
+	}
+}
+
+func (e *Engine) logger() logger.ILogger {
+	return e.getLogger()
+}
+
+// setLogger 设置日志器（线程安全）
+func (e *Engine) setLogger(logger logger.ILogger) {
+	e.loggerMu.Lock()
+	defer e.loggerMu.Unlock()
+	e.internalLogger = logger
+}
+
+// getLogger 获取日志器（线程安全）
+func (e *Engine) getLogger() logger.ILogger {
+	e.loggerMu.RLock()
+	defer e.loggerMu.RUnlock()
+	return e.internalLogger
+}
+
+// sendNotification 发送服务状态事件通知（安全调用，不阻塞主流程）
+func (e *Engine) sendNotification(event string, details map[string]string) {
+	if e.Manager == nil {
+		return
+	}
+	notifier, err := container.GetManager[notificationmgr.INotificationManager](e.Manager)
+	if err != nil {
+		return
+	}
+	notifier.SendNotification(event, details)
+}
+
+// Initialize 初始化引擎（实现 liteServer 接口）
+// - 初始化内置组件（BuiltinConfig、Logger、Telemetry、Database、Cache）
+// - 创建 Gin 引擎
+// - 注册全局中间件
+// - 注册系统路由
+// - 注册控制器路由
+func (e *Engine) Initialize() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// 初始化启动时间统计
+	e.startupStartTime = time.Now()
+
+	// 初始化前使用默认日志器
+	e.setLogger(logger.NewDefaultLogger("Engine"))
+	e.isStartup = true
+
+	// 1. 初始化内置组件
+	builtInManagerContainer, err := Initialize(e.builtinConfig)
+	if err != nil {
+		return fmt.Errorf("failed to initialize builtin components: %w", err)
+	}
+	e.Manager = builtInManagerContainer
+
+	// 读取自动迁移配置
+	e.autoMigrateDB = false
+	if configMgr := e.Manager.GetByType(reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()); configMgr != nil {
+		if mgr, ok := configMgr.(configmgr.IConfigManager); ok {
+			if autoMigrate, err := mgr.Get("database.auto_migrate"); err == nil {
+				if autoMigrateBool, ok := autoMigrate.(bool); ok {
+					e.autoMigrateDB = autoMigrateBool
+				}
+			}
+		}
+	}
+
+	// 从配置文件中读取 server 配置并覆盖默认值
+	if configMgr := e.Manager.GetByType(reflect.TypeOf((*configmgr.IConfigManager)(nil)).Elem()); configMgr != nil {
+		if mgr, ok := configMgr.(configmgr.IConfigManager); ok {
+			if host, err := mgr.Get("server.host"); err == nil {
+				if hostStr, ok := host.(string); ok && hostStr != "" {
+					e.serverConfig.Host = hostStr
+				}
+			}
+			if port, err := mgr.Get("server.port"); err == nil {
+				if portInt, ok := port.(int); ok && portInt > 0 {
+					e.serverConfig.Port = portInt
+				}
+			}
+			if mode, err := mgr.Get("server.mode"); err == nil {
+				if modeStr, ok := mode.(string); ok && modeStr != "" {
+					e.serverConfig.Mode = modeStr
+				}
+			}
+			if readTimeout, err := mgr.Get("server.read_timeout"); err == nil {
+				if timeoutStr, ok := readTimeout.(string); ok && timeoutStr != "" {
+					if duration, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.ReadTimeout = duration
+					}
+				}
+			}
+			if writeTimeout, err := mgr.Get("server.write_timeout"); err == nil {
+				if timeoutStr, ok := writeTimeout.(string); ok && timeoutStr != "" {
+					if duration, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.WriteTimeout = duration
+					}
+				}
+			}
+			if idleTimeout, err := mgr.Get("server.idle_timeout"); err == nil {
+				if timeoutStr, ok := idleTimeout.(string); ok && timeoutStr != "" {
+					if duration, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.IdleTimeout = duration
+					}
+				}
+			}
+			if shutdownTimeout, err := mgr.Get("server.shutdown_timeout"); err == nil {
+				if timeoutStr, ok := shutdownTimeout.(string); ok && timeoutStr != "" {
+					if duration, err := time.ParseDuration(timeoutStr); err == nil {
+						e.serverConfig.ShutdownTimeout = duration
+						e.shutdownTimeout = duration
+					}
+				}
+			}
+			if redirectFixedPath, err := mgr.Get("server.redirect_fixed_path"); err == nil {
+				if v, ok := redirectFixedPath.(bool); ok {
+					e.serverConfig.RedirectFixedPath = v
+				}
+			}
+			if removeExtraSlash, err := mgr.Get("server.remove_extra_slash"); err == nil {
+				if v, ok := removeExtraSlash.(bool); ok {
+					e.serverConfig.RemoveExtraSlash = v
+				}
+			}
+			if startupLog, err := mgr.Get("server.startup_log"); err == nil {
+				if startupLogMap, ok := startupLog.(map[string]interface{}); ok {
+					if e.serverConfig.StartupLog == nil {
+						e.serverConfig.StartupLog = DefaultStartupLogConfig()
+					}
+					if enabled, ok := startupLogMap["enabled"].(bool); ok {
+						e.serverConfig.StartupLog.Enabled = enabled
+					}
+					if async, ok := startupLogMap["async"].(bool); ok {
+						e.serverConfig.StartupLog.Async = async
+					}
+					if buffer, ok := startupLogMap["buffer"].(int); ok {
+						e.serverConfig.StartupLog.Buffer = buffer
+					}
+				}
+			}
+		}
+	}
+
+	// 切换到结构化日志
+	if loggerMgr, err := container.GetManager[loggermgr.ILoggerManager](e.Manager); err == nil {
+		e.setLogger(loggerMgr.Ins())
+		e.isStartup = false
+		e.getLogger().Info("Switched to structured logging system")
+
+		// 初始化异步日志器
+		if e.startupLogConfig.Async {
+			e.asyncLogger = NewAsyncStartupLogger(e.getLogger(), e.startupLogConfig.Buffer)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "Failed to get logger manager: %v, using default logger\n", err)
+	}
+
+	// 2. 验证 Scheduler 配置（在依赖注入之前）
+	if e.Scheduler != nil {
+		e.logPhaseStart(PhaseValidation, "Starting to validate Scheduler configuration")
+
+		// Manager 验证
+		schedulerMgr, err := container.GetManager[schedulermgr.ISchedulerManager](e.Manager)
+		if err == nil {
+			schedulers := e.Scheduler.GetAll()
+			for _, scheduler := range schedulers {
+				if err := schedulerMgr.ValidateScheduler(scheduler); err != nil {
+					panic(fmt.Sprintf("scheduler %s crontab validation failed: %v", scheduler.SchedulerName(), err))
+				}
+			}
+		}
+
+		e.logPhaseEnd(PhaseValidation, "Scheduler configuration validation complete", logger.F("count", e.Scheduler.Count()))
+	}
+
+	// 3. 自动依赖注入
+	if err := e.autoInject(); err != nil {
+		return fmt.Errorf("auto inject failed: %w", err)
+	}
+
+	// 设置 Gin 模式
+	gin.SetMode(e.serverConfig.Mode)
+
+	// 创建 Gin 引擎
+	e.ginEngine = gin.New()
+	e.ginEngine.RedirectFixedPath = e.serverConfig.RedirectFixedPath
+	e.ginEngine.RemoveExtraSlash = e.serverConfig.RemoveExtraSlash
+
+	// 客户端真实 IP 信任策略（内部PRD 决策 D3）：框架内置私网信任，应用零配置。
+	// 合法直连对端（gate/BFF 容器、mesh、本机）必属私网，受信时 ClientIP() 解析 XFF 单值；
+	// 公网直连不受信，ClientIP() fail-safe 回退为直连对端真实 IP。失败即启动失败（fail-fast）。
+	if err := applyClientIPTrustPolicy(e.ginEngine); err != nil {
+		panic(fmt.Sprintf("set trusted proxies failed: %v", err))
+	}
+	e.logger().Info("Client IP trust policy applied", "trusted_proxies", strings.Join(DefaultTrustedProxyCIDRs, ", "))
+
+	// 客户端 Host 还原（v1.2 二级链路）：内置 system 中间件（Order 10）在
+	// registerMiddlewares 注册，受信对端携带 X-Forwarded-Host 时还原 c.Request.Host，
+	// 使按 Host 语义工作的存量应用（如 sc-api SigV4）零改动保持正确。
+	e.logger().Info("Client host restore enabled (trusted peers only)", "header", "X-Forwarded-Host")
+
+	// 注册中间件
+	if err := e.registerMiddlewares(); err != nil {
+		return fmt.Errorf("register middlewares failed: %w", err)
+	}
+
+	// 添加 NoRoute 处理器
+	e.ginEngine.NoRoute(func(c *gin.Context) {
+		e.logger().Warn("Route not found", "path", c.Request.URL.Path, "method", c.Request.Method)
+		c.JSON(common.HTTPStatusNotFound, gin.H{
+			"error":  "route not found",
+			"path":   c.Request.URL.Path,
+			"method": c.Request.Method,
+		})
+	})
+
+	// 注册系统路由（/health、/ready）
+	e.registerSystemRoutes()
+
+	// 注册控制器路由
+	if err := e.registerControllers(); err != nil {
+		return fmt.Errorf("register controllers failed: %w", err)
+	}
+
+	// 初始化需要 Gin 引擎的服务（如 HTML 模板服务）
+	e.initializeGinEngineServices()
+
+	// 创建 HTTP 服务器
+	e.httpServer = &http.Server{
+		Addr:         e.serverConfig.Address(),
+		Handler:      e.ginEngine,
+		ReadTimeout:  e.serverConfig.ReadTimeout,
+		WriteTimeout: e.serverConfig.WriteTimeout,
+		IdleTimeout:  e.serverConfig.IdleTimeout,
+	}
+
+	// 发送服务启动中通知
+	e.sendNotification("starting", map[string]string{
+		"端口": fmt.Sprintf("%d", e.serverConfig.Port),
+	})
+
+	return nil
+}
+
+// autoInject 自动依赖注入
+func (e *Engine) autoInject() error {
+	e.logPhaseStart(PhaseInjection, "Starting dependency injection")
+
+	// 1. Entity 层（无需依赖注入）
+
+	// 2. Repository 层（依赖 Manager + Entity）
+	e.Repository.SetManagerContainer(e.Manager)
+	if err := e.Repository.InjectAll(); err != nil {
+		return fmt.Errorf("repository inject failed: %w", err)
+	}
+	repos := e.Repository.GetAll()
+	for _, repo := range repos {
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Repository", repo.RepositoryName()))
+	}
+
+	// 3. Service 层（依赖 Manager + Repository + 同层）
+	e.Service.SetManagerContainer(e.Manager)
+	if err := e.Service.InjectAll(); err != nil {
+		return fmt.Errorf("service inject failed: %w", err)
+	}
+	svcs := e.Service.GetAll()
+	for _, svc := range svcs {
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Service", svc.ServiceName()))
+	}
+
+	// 4. Controller 层（依赖 Manager + Service）
+	e.Controller.SetManagerContainer(e.Manager)
+	if err := e.Controller.InjectAll(); err != nil {
+		return fmt.Errorf("controller inject failed: %w", err)
+	}
+	ctrls := e.Controller.GetAll()
+	for _, ctrl := range ctrls {
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Controller", ctrl.ControllerName()))
+	}
+
+	// 5. Middleware 层（依赖 Manager + Service）
+	e.Middleware.SetManagerContainer(e.Manager)
+	if err := e.Middleware.InjectAll(); err != nil {
+		return fmt.Errorf("middleware inject failed: %w", err)
+	}
+	mws := e.Middleware.GetAll()
+	for _, mw := range mws {
+		e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Middleware", mw.MiddlewareName()))
+	}
+
+	// 6. Listener 层
+	if e.Listener != nil {
+		e.Listener.SetManagerContainer(e.Manager)
+		if err := e.Listener.InjectAll(); err != nil {
+			return fmt.Errorf("listener inject failed: %w", err)
+		}
+		listeners := e.Listener.GetAll()
+		for _, listener := range listeners {
+			e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Listener", listener.ListenerName()))
+		}
+	}
+
+	// 7. Scheduler 层（新增）
+	if e.Scheduler != nil {
+		e.Scheduler.SetManagerContainer(e.Manager)
+		if err := e.Scheduler.InjectAll(); err != nil {
+			return fmt.Errorf("scheduler inject failed: %w", err)
+		}
+		schedulers := e.Scheduler.GetAll()
+		for _, scheduler := range schedulers {
+			e.logStartup(PhaseInjection, fmt.Sprintf("[%s layer] %s: injection complete", "Scheduler", scheduler.SchedulerName()))
+		}
+	}
+
+	totalCount := len(repos) + len(svcs) + len(ctrls) + len(mws)
+	if e.Listener != nil {
+		totalCount += len(e.Listener.GetAll())
+	}
+	if e.Scheduler != nil {
+		totalCount += len(e.Scheduler.GetAll())
+	}
+	e.logPhaseEnd(PhaseInjection, "Dependency injection complete", logger.F("count", totalCount))
+
+	return nil
+}
+
+// Start 启动引擎（实现 liteServer 接口）
+// - 启动所有 Manager
+// - 启动所有 Repository
+// - 启动所有 Service
+// - 启动所有 Middleware
+// - 启动 HTTP 服务器
+func (e *Engine) Start() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.started {
+		return fmt.Errorf("engine already started")
+	}
+
+	// 1. 启动所有 Manager
+	if err := e.startManagers(); err != nil {
+		return fmt.Errorf("start managers failed: %w", err)
+	}
+
+	// 2. 自动迁移数据库（如果启用）
+	if e.autoMigrateDB {
+		if err := e.autoMigrateDatabase(); err != nil {
+			return fmt.Errorf("auto migrate database failed: %w", err)
+		}
+	}
+
+	// 3. 启动所有 Repository
+	if err := e.startRepositories(); err != nil {
+		return fmt.Errorf("start repositories failed: %w", err)
+	}
+
+	// 3. 启动所有 Service
+	if err := e.startServices(); err != nil {
+		return fmt.Errorf("start services failed: %w", err)
+	}
+
+	// 4. 启动所有 Middleware
+	if err := e.startMiddlewares(); err != nil {
+		return fmt.Errorf("start middlewares failed: %w", err)
+	}
+
+	// 5. 启动所有 Scheduler（新增）
+	if err := e.startSchedulers(); err != nil {
+		return fmt.Errorf("start schedulers failed: %w", err)
+	}
+
+	// 6. 启动所有 Listener
+	if err := e.startListeners(); err != nil {
+		return fmt.Errorf("start listeners failed: %w", err)
+	}
+
+	// 停止异步日志器
+	if e.asyncLogger != nil {
+		e.asyncLogger.Stop()
+		e.asyncLogger = nil
+	}
+
+	// 6. 启动 HTTP 服务器
+	e.logger().Info("HTTP server listening", "addr", e.httpServer.Addr)
+
+	errChan := make(chan error, 1)
+	go func() {
+		if err := e.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			e.logger().Error("HTTP server error", "error", err)
+			errChan <- fmt.Errorf("HTTP server error: %w", err)
+		}
+	}()
+
+	select {
+	case err := <-errChan:
+		return fmt.Errorf("HTTP server failed to start: %w", err)
+	case <-time.After(100 * time.Millisecond):
+		e.logger().Debug("HTTP server started successfully")
+	}
+
+	// 记录启动完成汇总
+	totalDuration := time.Since(e.startupStartTime)
+	e.logPhaseStart(PhaseStartup, "Service startup complete, starting to serve requests",
+		logger.F("addr", e.httpServer.Addr),
+		logger.F("total_duration", totalDuration.String()))
+
+	e.started = true
+	e.ready = true
+
+	// 发送启动成功通知
+	e.sendNotification("started", map[string]string{
+		"地址": e.httpServer.Addr,
+		"耗时": totalDuration.String(),
+	})
+
+	return nil
+}
+
+// Run 简化的启动方法
+// 等价于 Initialize() + Start() + 等待信号
+func (e *Engine) Run() error {
+	// 捕获启动阶段 panic，发送失败通知
+	defer func() {
+		if r := recover(); r != nil {
+			e.sendNotification("start_failed", map[string]string{
+				"错误": fmt.Sprintf("panic: %v", r),
+			})
+			panic(r) // 继续抛出，保持原有行为
+		}
+	}()
+
+	// 初始化
+	if err := e.Initialize(); err != nil {
+		e.sendNotification("start_failed", map[string]string{
+			"错误": err.Error(),
+		})
+		return err
+	}
+
+	// 启动
+	if err := e.Start(); err != nil {
+		e.sendNotification("start_failed", map[string]string{
+			"错误": err.Error(),
+		})
+		return err
+	}
+
+	// 等待关闭信号
+	e.WaitForShutdown()
+
+	return nil
+}
+
+// getGinEngine 获取 Gin 引擎
+func (e *Engine) getGinEngine() *gin.Engine {
+	return e.ginEngine
+}
+
+// registerControllers 注册所有控制器路由
+func (e *Engine) registerControllers() error {
+	e.logPhaseStart(PhaseRouter, "Starting to register routes")
+
+	controllers := e.Controller.GetAll()
+	registeredCount := 0
+
+	for _, ctrl := range controllers {
+		route := ctrl.GetRouter()
+		if route == "" {
+			continue
+		}
+
+		// 非 debug 模式下，禁止注册 pprof 路由，防止生产环境泄露运行时信息
+		if strings.HasPrefix(route, "/debug/pprof") && e.serverConfig.Mode != "debug" {
+			e.logStartup(PhaseRouter, "Skipped pprof route in non-debug mode",
+				logger.F("controller", ctrl.ControllerName()),
+				logger.F("mode", e.serverConfig.Mode))
+			continue
+		}
+
+		routes := strings.Split(route, ",")
+		for _, r := range routes {
+			methodStr, path, err := parseRoute(strings.TrimSpace(r))
+			if err != nil {
+				e.getLogger().Warn("Invalid route format",
+					logger.F("controller", ctrl.ControllerName()),
+					logger.F("error", err))
+				continue
+			}
+
+			handler := ctrl.Handle
+			methods := strings.Split(methodStr, "|")
+			for _, method := range methods {
+				method = strings.TrimSpace(method)
+				e.registerRoute(method, path, handler)
+				e.logStartup(PhaseRouter, "Registered route",
+					logger.F("method", strings.ToUpper(method)),
+					logger.F("path", path),
+					logger.F("controller", ctrl.ControllerName()))
+				registeredCount++
+			}
+		}
+	}
+
+	e.logPhaseEnd(PhaseRouter, "Route registration complete",
+		logger.F("route_count", registeredCount),
+		logger.F("controller_count", len(controllers)))
+
+	return nil
+}
+
+// parseRoute 解析路由字符串
+// 支持格式: "/path [METHOD]", "/path [METHOD1|METHOD2]", "/path [ANY]"
+// 返回: method string (可能包含 | 分隔的多个方法), path, error
+func parseRoute(route string) (string, string, error) {
+	for i := len(route) - 1; i >= 0; i-- {
+		if route[i] == '[' {
+			if i+1 < len(route) && route[len(route)-1] == ']' {
+				method := route[i+1 : len(route)-1]
+				path := route[:i]
+				path = strings.TrimSpace(path)
+				method = strings.TrimSpace(method)
+				if path == "" {
+					return "", "", fmt.Errorf("path cannot be empty")
+				}
+				if method == "" {
+					return "", "", fmt.Errorf("method cannot be empty")
+				}
+				// 支持逗号分隔的多个方法，转换为统一的|分隔符
+				method = strings.ReplaceAll(method, ",", "|")
+				return method, path, nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("invalid route format, expected 'path [METHOD]'")
+}
+
+// initializeGinEngineServices 初始化需要 Gin 引擎的服务
+func (e *Engine) initializeGinEngineServices() {
+	services := e.Service.GetAll()
+	for _, svc := range services {
+		if ginEngineSetter, ok := svc.(interface{ SetGinEngine(*gin.Engine) }); ok {
+			ginEngineSetter.SetGinEngine(e.ginEngine)
+		}
+	}
+}
+
+// WaitForShutdown 等待关闭信号
+func (e *Engine) WaitForShutdown() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	sig := <-sigs
+	e.logger().Info("Received shutdown signal", "signal", sig)
+
+	// 发送正在停止通知
+	e.sendNotification("stopping", map[string]string{
+		"信号": sig.String(),
+	})
+
+	if err := e.Stop(); err != nil {
+		e.logger().Fatal("Shutdown error", "error", err)
+		os.Exit(1)
+	}
+}
