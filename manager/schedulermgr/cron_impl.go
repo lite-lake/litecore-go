@@ -1,0 +1,236 @@
+package schedulermgr
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/manager/loggermgr"
+)
+
+type schedulerTask struct {
+	scheduler   common.IBaseScheduler
+	expr        *cronExpression
+	cancel      context.CancelFunc
+	cancelled   bool
+	cancelMutex sync.RWMutex
+	execMutex   sync.Mutex
+}
+
+type schedulerManagerImpl struct {
+	config    *CronConfig
+	tasks     map[string]*schedulerTask
+	tasksMap  map[common.IBaseScheduler]*schedulerTask
+	mu        sync.RWMutex
+	loggerMgr loggermgr.ILoggerManager
+}
+
+// NewSchedulerManagerCronImpl 创建 Cron 实现的调度管理器
+// 参数：
+//   - config: Cron 配置
+//   - loggerMgr: 日志管理器
+func NewSchedulerManagerCronImpl(
+	config *CronConfig,
+	loggerMgr loggermgr.ILoggerManager,
+) ISchedulerManager {
+	return &schedulerManagerImpl{
+		config:    config,
+		tasks:     make(map[string]*schedulerTask),
+		tasksMap:  make(map[common.IBaseScheduler]*schedulerTask),
+		loggerMgr: loggerMgr,
+	}
+}
+
+func (s *schedulerManagerImpl) ManagerName() string {
+	return "SchedulerManager"
+}
+
+func (s *schedulerManagerImpl) Health() error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return nil
+}
+
+func (s *schedulerManagerImpl) OnStart() error {
+	return nil
+}
+
+func (s *schedulerManagerImpl) OnStop() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, task := range s.tasks {
+		task.cancelMutex.Lock()
+		if !task.cancelled {
+			task.cancelled = true
+			task.cancel()
+		}
+		task.cancelMutex.Unlock()
+	}
+
+	return nil
+}
+
+func (s *schedulerManagerImpl) ValidateScheduler(scheduler common.IBaseScheduler) error {
+	if scheduler == nil {
+		return fmt.Errorf("scheduler cannot be nil")
+	}
+
+	rule := scheduler.GetRule()
+	if rule == "" {
+		return fmt.Errorf("scheduler rule cannot be empty")
+	}
+
+	timezone := scheduler.GetTimezone()
+	_, err := parseCrontab(rule, timezone)
+	if err != nil {
+		return fmt.Errorf("invalid crontab expression: %w", err)
+	}
+
+	return nil
+}
+
+func (s *schedulerManagerImpl) RegisterScheduler(scheduler common.IBaseScheduler) error {
+	if scheduler == nil {
+		return fmt.Errorf("scheduler cannot be nil")
+	}
+
+	if err := s.ValidateScheduler(scheduler); err != nil {
+		return err
+	}
+
+	name := scheduler.SchedulerName()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.tasks[name]; exists {
+		return fmt.Errorf("scheduler %s already registered", name)
+	}
+
+	rule := scheduler.GetRule()
+	timezone := scheduler.GetTimezone()
+
+	expr, err := parseCrontab(rule, timezone)
+	if err != nil {
+		return fmt.Errorf("failed to parse crontab expression: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	task := &schedulerTask{
+		scheduler: scheduler,
+		expr:      expr,
+		cancel:    cancel,
+		cancelled: false,
+	}
+
+	s.tasks[name] = task
+	s.tasksMap[scheduler] = task
+
+	go s.runSchedulerTask(ctx, task)
+
+	return nil
+}
+
+func (s *schedulerManagerImpl) UnregisterScheduler(scheduler common.IBaseScheduler) error {
+	if scheduler == nil {
+		return fmt.Errorf("scheduler cannot be nil")
+	}
+
+	name := scheduler.SchedulerName()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	task, exists := s.tasks[name]
+	if !exists {
+		return fmt.Errorf("scheduler %s not found", name)
+	}
+
+	task.cancelMutex.Lock()
+	if !task.cancelled {
+		task.cancelled = true
+		task.cancel()
+	}
+	task.cancelMutex.Unlock()
+
+	delete(s.tasks, name)
+	delete(s.tasksMap, scheduler)
+
+	return nil
+}
+
+func (s *schedulerManagerImpl) runSchedulerTask(ctx context.Context, task *schedulerTask) {
+	nextTime := task.expr.getNextExecutionTime(time.Now())
+	if nextTime.IsZero() {
+		return
+	}
+
+	ticker := time.NewTimer(time.Until(nextTime))
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			now := time.Now()
+
+			task.cancelMutex.RLock()
+			isCancelled := task.cancelled
+			task.cancelMutex.RUnlock()
+
+			if isCancelled {
+				return
+			}
+
+			tickID := nextTime.Unix()
+			s.executeTask(task, tickID)
+
+			nextTime = task.expr.getNextExecutionTime(now)
+			if nextTime.IsZero() {
+				return
+			}
+			ticker.Reset(time.Until(nextTime))
+		}
+	}
+}
+
+func (s *schedulerManagerImpl) executeTask(task *schedulerTask, tickID int64) {
+	if !task.execMutex.TryLock() {
+		s.loggerMgr.Ins().Warn("跳过本次执行，上一轮OnTick尚未完成",
+			"scheduler", task.scheduler.SchedulerName(),
+			"tickID", tickID)
+		return
+	}
+
+	go func() {
+		defer task.execMutex.Unlock()
+		defer func() {
+			if r := recover(); r != nil {
+				var err error
+				if e, ok := r.(error); ok {
+					err = e
+				} else {
+					err = fmt.Errorf("panic recovered: %v", r)
+				}
+				s.loggerMgr.Ins().Error("调度器异常",
+					"scheduler", task.scheduler.SchedulerName(),
+					"error", err)
+			}
+		}()
+
+		if err := task.scheduler.OnTick(tickID); err != nil {
+			s.loggerMgr.Ins().Error("调度器执行失败",
+				"scheduler", task.scheduler.SchedulerName(),
+				"error", err)
+		}
+	}()
+}
+
+var _ ISchedulerManager = (*schedulerManagerImpl)(nil)
+var _ common.IBaseManager = (*schedulerManagerImpl)(nil)
