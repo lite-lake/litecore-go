@@ -1,0 +1,457 @@
+package litemiddleware
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
+	"github.com/lite-lake/litecore-go/common"
+	"github.com/lite-lake/litecore-go/logger"
+)
+
+type MockLimiterManager struct {
+	mock.Mock
+}
+
+type MockLoggerManager struct {
+	mock.Mock
+}
+
+func (m *MockLoggerManager) ManagerName() string {
+	return "mockLogger"
+}
+
+func (m *MockLoggerManager) Health() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLoggerManager) OnStart() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLoggerManager) OnStop() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLoggerManager) Ins() logger.ILogger {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(logger.ILogger)
+}
+
+func (m *MockLoggerManager) SetLogLevel(level string) {
+	m.Called(level)
+}
+
+func (m *MockLimiterManager) ManagerName() string {
+	return "mockLimiter"
+}
+
+func (m *MockLimiterManager) Health() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLimiterManager) OnStart() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLimiterManager) OnStop() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func (m *MockLimiterManager) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error) {
+	args := m.Called(ctx, key, limit, window)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockLimiterManager) AllowN(ctx context.Context, key string, limit int, window time.Duration, cost int) (bool, error) {
+	args := m.Called(ctx, key, limit, window, cost)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockLimiterManager) GetRemaining(ctx context.Context, key string, limit int, window time.Duration) (int, error) {
+	args := m.Called(ctx, key, limit, window)
+	return args.Int(0), args.Error(1)
+}
+
+type MockLogger struct {
+	mock.Mock
+}
+
+func (m *MockLogger) Debug(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) Info(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) Warn(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) Error(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) Fatal(msg string, fields ...interface{}) {
+	_ = m.Called()
+}
+
+func (m *MockLogger) With(fields ...interface{}) logger.ILogger {
+	args := m.Called(fields...)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(logger.ILogger)
+}
+
+func (m *MockLogger) SetLevel(level logger.LogLevel) {
+	_ = m.Called(level)
+}
+
+func (m *MockLogger) Sync() error {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(error)
+}
+
+func setupRouter(middleware common.IBaseMiddleware) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(middleware.Wrapper())
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+	return router
+}
+
+func setupMockLogger() (*MockLoggerManager, *MockLogger) {
+	mockLoggerMgr := new(MockLoggerManager)
+	mockLogger := new(MockLogger)
+	mockLoggerMgr.On("Ins").Return(mockLogger).Maybe()
+	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Info", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Warn", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Fatal", mock.Anything, mock.Anything).Maybe()
+	return mockLoggerMgr, mockLogger
+}
+
+func TestNewRateLimiter(t *testing.T) {
+	t.Run("默认配置", func(t *testing.T) {
+		mw := NewRateLimiterMiddleware(nil)
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		assert.NotNil(t, rlmw.config)
+		assert.Equal(t, 100, *rlmw.config.Limit)
+		assert.Equal(t, time.Minute, *rlmw.config.Window)
+		assert.Equal(t, "rate_limit", *rlmw.config.KeyPrefix)
+	})
+
+	t.Run("自定义配置", func(t *testing.T) {
+		limit := 10
+		window := time.Hour
+		keyPrefix := "custom"
+		customConfig := &RateLimiterConfig{
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
+		}
+		mw := NewRateLimiterMiddleware(customConfig)
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		assert.Equal(t, 10, *rlmw.config.Limit)
+		assert.Equal(t, time.Hour, *rlmw.config.Window)
+		assert.Equal(t, "custom", *rlmw.config.KeyPrefix)
+	})
+
+	t.Run("按IP限流", func(t *testing.T) {
+		limit := 50
+		window := time.Minute
+		keyPrefix := "ip"
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		assert.Equal(t, 50, *rlmw.config.Limit)
+		assert.Equal(t, time.Minute, *rlmw.config.Window)
+		assert.Equal(t, "ip", *rlmw.config.KeyPrefix)
+	})
+
+	t.Run("按路径限流", func(t *testing.T) {
+		limit := 20
+		window := time.Hour
+		keyPrefix := "path"
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		assert.Equal(t, 20, *rlmw.config.Limit)
+		assert.Equal(t, time.Hour, *rlmw.config.Window)
+		assert.Equal(t, "path", *rlmw.config.KeyPrefix)
+	})
+}
+
+func TestRateLimiterMiddleware_Allow(t *testing.T) {
+	t.Run("允许请求", func(t *testing.T) {
+		mockLimiter := new(MockLimiterManager)
+		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(true, nil)
+		mockLimiter.On("GetRemaining", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(99, nil)
+
+		mockLoggerMgr, _ := setupMockLogger()
+
+		limit := 100
+		window := time.Minute
+		keyPrefix := "ip"
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
+
+		router := setupRouter(mw)
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "success")
+		assert.Equal(t, "100", w.Header().Get("X-RateLimit-Limit"))
+		assert.Equal(t, "99", w.Header().Get("X-RateLimit-Remaining"))
+		mockLimiter.AssertExpectations(t)
+	})
+}
+
+func TestRateLimiterMiddleware_Reject(t *testing.T) {
+	t.Run("拒绝请求", func(t *testing.T) {
+		mockLimiter := new(MockLimiterManager)
+		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(false, nil)
+		mockLimiter.On("GetRemaining", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(0, nil)
+
+		mockLoggerMgr, _ := setupMockLogger()
+
+		limit := 100
+		window := time.Minute
+		keyPrefix := "ip"
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
+
+		router := setupRouter(mw)
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusTooManyRequests, w.Code)
+		assert.Contains(t, w.Body.String(), "RATE_LIMIT_EXCEEDED")
+		assert.Equal(t, "60", w.Header().Get("Retry-After"))
+		mockLimiter.AssertExpectations(t)
+	})
+}
+
+func TestRateLimiterMiddleware_Error(t *testing.T) {
+	t.Run("限流服务错误", func(t *testing.T) {
+		mockLimiter := new(MockLimiterManager)
+		mockLimiter.On("Allow", mock.Anything, mock.AnythingOfType("string"), 100, time.Minute).Return(false, errors.New("limiter error"))
+
+		mockLoggerMgr, _ := setupMockLogger()
+
+		limit := 100
+		window := time.Minute
+		keyPrefix := "ip"
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
+
+		router := setupRouter(mw)
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Contains(t, w.Body.String(), "Rate limiter service error")
+		mockLimiter.AssertExpectations(t)
+	})
+}
+
+func TestRateLimiterMiddleware_Skip(t *testing.T) {
+	t.Run("跳过限流", func(t *testing.T) {
+		mockLimiter := new(MockLimiterManager)
+
+		mockLoggerMgr, _ := setupMockLogger()
+
+		limit := 100
+		window := time.Minute
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:  &limit,
+			Window: &window,
+			SkipFunc: func(c *gin.Context) bool {
+				return c.GetHeader("X-Skip-Limit") == "true"
+			},
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
+
+		router := setupRouter(mw)
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("X-Skip-Limit", "true")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockLimiter.AssertNotCalled(t, "Allow")
+	})
+}
+
+func TestRateLimiterMiddleware_NilLimiter(t *testing.T) {
+	t.Run("限流管理器未初始化", func(t *testing.T) {
+		limit := 100
+		window := time.Minute
+		keyPrefix := "ip"
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
+		})
+
+		mockLoggerMgr, _ := setupMockLogger()
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		rlmw.LoggerMgr = mockLoggerMgr
+
+		router := setupRouter(mw)
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	})
+}
+
+func TestRateLimiterMiddleware_CustomKeyFunc(t *testing.T) {
+	t.Run("自定义key函数", func(t *testing.T) {
+		mockLimiter := new(MockLimiterManager)
+		mockLimiter.On("Allow", mock.Anything, "custom:test-user", 50, time.Minute).Return(true, nil)
+		mockLimiter.On("GetRemaining", mock.Anything, "custom:test-user", 50, time.Minute).Return(49, nil)
+
+		mockLoggerMgr, _ := setupMockLogger()
+
+		limit := 50
+		window := time.Minute
+		keyPrefix := "custom"
+		mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+			Limit:     &limit,
+			Window:    &window,
+			KeyPrefix: &keyPrefix,
+			KeyFunc: func(c *gin.Context) string {
+				return c.GetHeader("X-User-ID")
+			},
+		})
+		rlmw, ok := mw.(*rateLimiterMiddleware)
+		assert.True(t, ok)
+		rlmw.LimiterMgr = mockLimiter
+		rlmw.LoggerMgr = mockLoggerMgr
+
+		router := setupRouter(mw)
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("X-User-ID", "test-user")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockLimiter.AssertExpectations(t)
+	})
+}
+
+func TestRateLimiterMiddleware_BasicMethods(t *testing.T) {
+	limit := 100
+	window := time.Minute
+	keyPrefix := "ip"
+	mw := NewRateLimiterMiddleware(&RateLimiterConfig{
+		Limit:     &limit,
+		Window:    &window,
+		KeyPrefix: &keyPrefix,
+	})
+	rlmw, ok := mw.(*rateLimiterMiddleware)
+	assert.True(t, ok)
+
+	assert.Equal(t, "RateLimiterMiddleware", rlmw.MiddlewareName())
+	assert.Equal(t, OrderRateLimiter, rlmw.Order())
+	assert.NoError(t, rlmw.OnStart())
+	assert.NoError(t, rlmw.OnStop())
+}
