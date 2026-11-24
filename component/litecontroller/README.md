@@ -6,7 +6,7 @@
 
 - **健康检查** - 提供 `/health` 端点，检查所有管理器的健康状态，返回详细的健康报告
 - **性能分析** - 集成 pprof 工具，支持堆、协程、内存、锁等性能分析
-- **指标监控** - 提供 `/metrics` 端点，展示服务器运行状态和组件数量
+- **指标监控** - 提供 `/metrics` 端点，输出 Prometheus 文本指标
 - **资源管理** - 支持 HTML 模板渲染和静态文件服务
 - **依赖注入** - 通过 `inject:""` 标签注入 Manager 和其他组件
 - **自动路由** - 根据 `GetRouter()` 定义的路由规则自动注册到 Gin 路由器
@@ -151,7 +151,9 @@ go tool pprof -http=:8080 http://localhost:8080/debug/pprof/heap
 
 ## 指标控制器
 
-指标控制器提供 `/metrics` 端点，用于展示服务器运行状态。
+指标控制器提供 `/metrics` 端点，输出进程级注册表（`common/metrics`）中的 Prometheus 文本指标：
+Content-Type 为 `text/plain; version=0.0.4; charset=utf-8`。控制器不持有 `inject:""` 依赖，
+注册到容器后即可工作。
 
 ```go
 import "github.com/lite-lake/litecore-go/component/litecontroller"
@@ -162,14 +164,10 @@ controllerContainer.RegisterController(metricsCtrl)
 
 ### 响应示例
 
-```json
-{
-  "server": "litecore-go",
-  "status": "running",
-  "version": "1.0.0",
-  "managers": 5,
-  "services": 3
-}
+```text
+# HELP privilege_requests_total 身份解析请求总数（按档位/决策/来源）
+# TYPE privilege_requests_total counter
+privilege_requests_total{decision="allow",product="whois",source="session",tier="free"} 12
 ```
 
 ## 静态文件控制器

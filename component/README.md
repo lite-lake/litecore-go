@@ -50,7 +50,7 @@ component/
 | 组件 | 路由 | 功能 | 依赖 |
 |------|------|------|------|
 | HealthController | `/health [GET]` | 健康检查，检测所有 Manager 状态 | ManagerContainer, LoggerMgr |
-| MetricsController | `/metrics [GET]` | 返回服务器运行指标和组件数量 | ManagerContainer, ServiceContainer, LoggerMgr |
+| MetricsController | `/metrics [GET]` | 输出 Prometheus 文本指标（进程级注册表 `common/metrics`） | 无（不依赖 DI） |
 | PprofIndexController | `/debug/pprof [GET]` | 性能分析首页 | LoggerMgr |
 | PprofHeapController | `/debug/pprof/heap [GET]` | 堆内存分析 | LoggerMgr |
 | PprofGoroutineController | `/debug/pprof/goroutine [GET]` | 协程分析 | LoggerMgr |
